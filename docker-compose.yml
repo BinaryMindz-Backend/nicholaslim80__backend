@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16
+    container_name: nicho_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: nicho_app
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - .env 
+    ports:
+      - "${PORT}:${PORT}"
+    command: pnpm run start:dev
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+
+volumes:
+  db_data:

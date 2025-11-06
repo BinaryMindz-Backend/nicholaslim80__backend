@@ -1,9 +1,30 @@
 
 
+
+// Define enum for role
+enum UserRole {
+  CUSTOMER
+  RAIDER
+  ADMIN
+  SUPER_ADMIN
+  // add more roles if needed
+}
+
+
+
 model User {
-  id      Int      @id @default(autoincrement())
-  email   String   @unique
-  name    String?
+  id                   Int       @id @default(autoincrement())
+  username             String?   @db.VarChar(50)      // optional
+  email                String    @unique @db.VarChar(200)
+  phone                String?
+  password             String?                      // optional
+  role                 UserRole
+  balance              Float     @default(0)
+  achive_rewards_point Float     @default(0)
+  status               Boolean   @default(false)
+  is_verified          Boolean   @default(false)
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
 
   @@map("users")
 }

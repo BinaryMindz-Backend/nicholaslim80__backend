@@ -1,7 +1,11 @@
-import 'dotenv/config'; // * loads .env file for database connection
+import { config } from "dotenv";
+import { expand } from "dotenv-expand";
+import path from "path";
+import type { PrismaConfig } from "prisma";
 
-import path from 'node:path';
-import type { PrismaConfig } from 'prisma';
+// Explicitly load environment variables
+expand(config({ path: path.resolve(process.cwd(), ".env") }));
+
 
 export default {
   schema: path.join('prisma', 'schema'),
