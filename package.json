@@ -16,6 +16,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "docker:start": "bash ./scripts/docker-start.sh",
+    "docker:stop":"docker compose -f docker-compose.yml down",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
