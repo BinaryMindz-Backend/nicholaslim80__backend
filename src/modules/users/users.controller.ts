@@ -58,6 +58,26 @@ export class UsersController {
     }
   }
 
+  // ** Get delete single user
+  @Get('deleted/:id')
+  @ApiOperation({ summary: 'Get deleted user by ID' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'Deleted User retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async findDeleteOne(
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE })) id: number
+  ) {
+    try {
+      const user = await this.usersService.findDeletedOneuser(id);
+      if (!user) return ApiResponses.error(null, 'User not found');
+      return ApiResponses.success(user, 'Deleted User retrieved successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch user');
+    }
+  }
+
+
+
   // ** Update user
   @Patch(':id')
   @ApiOperation({ summary: 'Update user by ID' })
