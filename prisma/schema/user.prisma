@@ -7,10 +7,11 @@ model User {
   phone               String?   @db.VarChar(20)
   password            String?   @db.VarChar(255)
   role                UserRole  @default(USER)
-  balance             Decimal   @default("0.00") @db.Decimal(12,2)
+  balance             Int       @default(0)
   reward_points       Int       @default(0)
   status              Boolean   @default(false)
   is_verified         Boolean   @default(false)
+  is_deleted          Boolean   @default(false)
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
 

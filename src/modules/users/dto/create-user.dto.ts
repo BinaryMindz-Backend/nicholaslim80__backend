@@ -1,50 +1,38 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-import { IsEmail, IsEnum, IsOptional, IsString, IsBoolean, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
+import { IsEmail, IsOptional, IsString, IsEnum } from 'class-validator';
+
+
+
+
+export enum UserRole {
+  USER="USER",
+  SUPER_ADMIN="SUPER_ADMIN",
+  RAIDER="RAIDER"
+}
 
 export class CreateUserDto {
-  @ApiPropertyOptional({ description: 'Username of the user' })
+  @ApiPropertyOptional({ example: 'john_doe', description: 'Optional username of the user' })
   @IsOptional()
   @IsString()
   username?: string;
 
-  @ApiProperty({ description: 'Email address of the user' })
+  @ApiProperty({ example: 'john@example.com', description: 'User email address' })
   @IsEmail()
   email: string;
 
-  @ApiPropertyOptional({ description: 'Phone number of the user' })
+  @ApiPropertyOptional({ example: '+8801712345678', description: 'User phone number' })
   @IsOptional()
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ description: 'Password of the user' })
+  @ApiPropertyOptional({ example: 'P@ssword123', description: 'User password' })
   @IsOptional()
   @IsString()
   password?: string;
 
-  @ApiProperty({ enum: UserRole, description: 'Role of the user' })
+  @ApiPropertyOptional({ enum: UserRole, example: UserRole.USER, description: 'User role' })
+  @IsOptional()
   @IsEnum(UserRole)
-  role: UserRole;
-
-  @ApiPropertyOptional({ description: 'Balance of the user', default: 0 })
-  @IsOptional()
-  @IsNumber()
-  balance?: number;
-
-  @ApiPropertyOptional({ description: 'Achive rewards point', default: 0 })
-  @IsOptional()
-  @IsNumber()
-  achive_rewards_point?: number;
-
-  @ApiPropertyOptional({ description: 'Status of the user', default: false })
-  @IsOptional()
-  @IsBoolean()
-  status?: boolean;
-
-  @ApiPropertyOptional({ description: 'Whether user is verified', default: false })
-  @IsOptional()
-  @IsBoolean()
-  is_verified?: boolean;
+  role?: UserRole;
+  
 }
