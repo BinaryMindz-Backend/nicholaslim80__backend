@@ -1,30 +1,31 @@
-
-
-
-// Define enum for role
-enum UserRole {
-  CUSTOMER
-  RAIDER
-  ADMIN
-  SUPER_ADMIN
-  // add more roles if needed
-}
-
-
+// prisma/models/user.prisma
 
 model User {
-  id                   Int       @id @default(autoincrement())
-  username             String?   @db.VarChar(50)      // optional
-  email                String    @unique @db.VarChar(200)
-  phone                String?
-  password             String?                      // optional
-  role                 UserRole
-  balance              Float     @default(0)
-  achive_rewards_point Float     @default(0)
-  status               Boolean   @default(false)
-  is_verified          Boolean   @default(false)
-  created_at           DateTime  @default(now())
-  updated_at           DateTime  @updatedAt
+  id                  Int       @id @default(autoincrement())
+  username            String?   @db.VarChar(50)
+  email               String    @unique @db.VarChar(200)
+  phone               String?   @db.VarChar(20)
+  password            String?   @db.VarChar(255)
+  role                UserRole  @default(USER)
+  balance             Decimal   @default("0.00") @db.Decimal(12,2)
+  reward_points       Int       @default(0)
+  status              Boolean   @default(false)
+  is_verified         Boolean   @default(false)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  // Relations
+  notifications       Notification[]
+  places              Place[]
+  paymentMethods      PaymentMethod[]
+  refers              Refer[]
+  rewards             Reward[]
+  orders              Order[]
+  transactions        Transaction[]
+  tips                Tip[]
+  raiderProfile       Raider?
+  adminProfiles       Admin[]
+  coinHistory         CoinHistory[]
 
   @@map("users")
 }

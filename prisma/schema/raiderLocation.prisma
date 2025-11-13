@@ -1,0 +1,30 @@
+// prisma/models/raiderLocation.prisma
+
+model RaiderLocation {
+  id         Int      @id @default(autoincrement())
+  raider     Raider   @relation(fields: [raiderId], references: [id], onDelete: Cascade)
+  raiderId   Int
+  latitude   Decimal  @db.Decimal(10,7)
+  longitude  Decimal  @db.Decimal(10,7)
+  accuracy   Float?
+  heading    Float?
+  speed      Float?
+  is_active  Boolean  @default(true)
+  updated_at DateTime @default(now()) @updatedAt
+
+  @@map("raider_locations")
+  @@index([raiderId])
+  @@index([latitude, longitude])
+}
+
+model RaiderLocationHistory {
+  id         Int      @id @default(autoincrement())
+  raider     Raider   @relation(fields: [raiderId], references: [id], onDelete: Cascade)
+  raiderId   Int
+  latitude   Decimal  @db.Decimal(10,7)
+  longitude  Decimal  @db.Decimal(10,7)
+  recorded_at DateTime @default(now())
+
+  @@map("raider_location_history")
+  @@index([raiderId])
+}

@@ -1,0 +1,16 @@
+// prisma/models/incentive.prisma
+
+model Incentive {
+  id               Int            @id @default(autoincrement())
+  admin            Admin?         @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  adminId          Int?
+  incentive_name   String?
+  type             IncentiveType
+  start_date       DateTime?
+  end_date         DateTime?
+  incentive_amount Decimal?       @db.Decimal(12,2)
+  status           IncentiveStatus
+  created_at       DateTime       @default(now())
+
+  @@map("incentives")
+}

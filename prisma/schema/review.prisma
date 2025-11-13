@@ -1,0 +1,15 @@
+// prisma/models/review.prisma
+
+model Review {
+  id               Int             @id @default(autoincrement())
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId          Int
+  raider           Raider?         @relation(fields: [raiderId], references: [id], onDelete: SetNull)
+  raiderId         Int?
+  delivery_quality DeliveryQuality
+  delivery_status  DeliveryStatus
+  rating_star      Int
+  notes            String?
+
+  @@map("reviews")
+}
