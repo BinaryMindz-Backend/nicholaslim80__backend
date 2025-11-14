@@ -16,14 +16,14 @@ export class CreateUserDto {
   @IsString()
   username?: string;
 
-  @ApiProperty({ example: 'john@example.com', description: 'User email address' })
+  @ApiPropertyOptional({ example: 'john@example.com', description: 'User email address' })
   @IsEmail()
-  email: string;
-
-  @ApiPropertyOptional({ example: '+8801712345678', description: 'User phone number' })
   @IsOptional()
+  email?: string;
+
+  @ApiProperty({ example: '+8801712345678', description: 'User phone number' })
   @IsString()
-  phone?: string;
+  phone: string;
 
   @ApiPropertyOptional({ example: 'P@ssword123', description: 'User password' })
   @IsOptional()

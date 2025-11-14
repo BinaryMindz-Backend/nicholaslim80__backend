@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/require-await */
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, NotAcceptableException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import * as bcrypt from 'bcrypt';
 
@@ -13,8 +13,16 @@ export class OtpService {
   }
 
   // generate numeric OTP and store hashed version + expiry
-  async generateOtpForEmail(email: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+  async generateOtp(email?: string | null, phone?:string ) {
+    const user = await this.prisma.user.findFirst({ where: 
+        {
+          OR:[
+          {email},
+          {phone}
+          ]
+      }
+    });
+// 
     if (!user) throw new NotFoundException('User not found');
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
@@ -23,7 +31,7 @@ export class OtpService {
     const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
 
     await this.prisma.user.update({
-      where: { email },
+      where: { id:user.id },
       data: { otp_code: hashed, otp_expires_at: expiresAt },
     });
 
@@ -34,18 +42,23 @@ export class OtpService {
   }
   
   //   
-  async sendOtpNotification(email: string, otp: string, phone?: string | null) {
-    // Placeholder: implement your email/SMS provider here
+  async sendOtpNotification(email: string | null, otp: string, phone?: string | null) {
+    // TODO:Placeholder: implement your email/SMS provider here
     // Example: send email
-    console.log(`[OTP] send to ${email} (phone=${phone}): ${otp}`);
+    console.log(`[OTP] send to ${email} or (phone=${phone}): ${otp}`);
     return true;
   }
 
   
-
   // verify OTP - compares plaintext OTP with stored hashed value
-  async verifyOtpForEmail(email: string, otp: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+  async verifyOtp(email: string | undefined, phone:string|undefined, otp: string) {
+    const user = await this.prisma.user.findFirst({ where: {
+         OR:[
+           { email },
+           {phone }
+         ]
+    } });
+
     if (!user || !user.otp_code || !user.otp_expires_at) {
       throw new BadRequestException('OTP not requested or user not found');
     }
@@ -59,16 +72,24 @@ export class OtpService {
 
     // Mark as verified and clear otp fields
     await this.prisma.user.update({
-      where: { email },
+      where: { id:user.id },
       data: { is_verified: true, otp_code: null, otp_expires_at: null },
     });
 
     return true;
   }
 
+
   // For login: verify, but DO NOT mark user as verified again (optional)
-  async verifyOtpForLoginAndClear(email: string, otp: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+  async verifyOtpForLoginAndClear(email: string|undefined,phone:string|undefined, otp: string) {
+    //  
+    const user = await this.prisma.user.findFirst({ where: { OR:[{email}, {phone}]} });
+     
+    //  
+    if(user?.is_verified === false){
+       throw new NotAcceptableException("First You need to signup and verify")
+    }
+    // 
     if (!user || !user.otp_code || !user.otp_expires_at) {
       throw new BadRequestException('OTP not requested or user not found');
     }
@@ -78,7 +99,7 @@ export class OtpService {
 
     // clear otp fields but do not change is_verified here (login OTP)
     await this.prisma.user.update({
-      where: { email },
+      where: { id:user.id },
       data: { otp_code: null, otp_expires_at: null },
     });
 

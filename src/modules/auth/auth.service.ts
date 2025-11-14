@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-misused-promises */
+
 import {
   Injectable,
   UnauthorizedException,
@@ -16,18 +17,18 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  // --------------------------------------------------------
-  // Generate Access + Refresh tokens
-  // --------------------------------------------------------
+
+  //** Generate Access + Refresh tokens
   async generateTokens(user: any) {
     const payload = {
       sub: user.id,
       email: user.email,
       role: user.role,
+      phone:user.phone
     };
 
     const access_token = await this.jwtService.signAsync(payload, {
-      expiresIn: '1h', // 1 hour
+      expiresIn: '1d', // 1 day
     });
 
     const refresh_token = await this.jwtService.signAsync(
@@ -42,9 +43,7 @@ export class AuthService {
     };
   }
 
-  // --------------------------------------------------------
   // Hash refresh token before saving to DB
-  // --------------------------------------------------------
   async updateRefreshToken(userId: number, token: string) {
     const hashed = await bcrypt.hash(token, 10);
     await this.usersService.updateUserRefreshToken(userId, hashed);
@@ -54,9 +53,8 @@ export class AuthService {
     await this.usersService.updateUserRefreshToken(userId, null);
   }
 
-  // --------------------------------------------------------
+
   // Login using OTP
-  // --------------------------------------------------------
   async loginWithOtp(user: any) {
     const tokens = await this.generateTokens(user);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
@@ -64,9 +62,8 @@ export class AuthService {
     return tokens;
   }
 
-  // --------------------------------------------------------
+
   // Login using Email + Password (optional)
-  // --------------------------------------------------------
   async loginWithCredentials(user: any) {
     const tokens = await this.generateTokens(user);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
@@ -74,11 +71,11 @@ export class AuthService {
     return tokens;
   }
 
-  // --------------------------------------------------------
+
+
   // Validate email/password
-  // --------------------------------------------------------
   async validateUserByEmailAndPassword(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
+    const user = await this.usersService.findByEmailOrPhone(email);
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const valid = await bcrypt.compare(password, user.password as string);
@@ -87,30 +84,29 @@ export class AuthService {
     return user;
   }
 
-  // --------------------------------------------------------
+  
   // Refresh access token using refresh token
-  // --------------------------------------------------------
 async refreshTokens(refreshToken: string) {
   try {
-    // 1️⃣ Verify and decode refresh token
+    // Verify and decode refresh token
     const payload = await this.jwtService.verifyAsync(refreshToken);
     const userId = payload.sub;
 
     if (!userId) throw new ForbiddenException("Invalid token payload");
 
-    // 2️⃣ Fetch user
+    //Fetch user
     const user = await this.usersService.findOneuser(userId);
     if (!user || !user.refresh_token)
       throw new ForbiddenException('Access Denied');
 
-    // 3️⃣ Compare provided token with stored hashed token
+    // Compare provided token with stored hashed token
     const isValid = await bcrypt.compare(refreshToken, user.refresh_token);
     if (!isValid) throw new ForbiddenException('Invalid refresh token');
 
-    // 4️⃣ Generate new tokens
+    // Generate new tokens
     const tokens = await this.generateTokens(user);
 
-    // 5️⃣ Save new refresh token
+    // Save new refresh token
     await this.updateRefreshToken(user.id, tokens.refresh_token);
 
     return tokens;

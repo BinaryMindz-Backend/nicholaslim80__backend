@@ -6,6 +6,7 @@ import { OtpService } from '../auth/otp.service';
 
 
 
+
 // 
 @Injectable()
 export class UsersService {
@@ -15,10 +16,12 @@ export class UsersService {
 
 
   // ** Create new user // signup with otp verify
-  async createUser(dto: { email: string; password?: string; username?: string; phone?: string }) {
+  async createUser(dto: { email?: string; password?: string; username?: string; phone: string }) {
     //  
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
-        console.log(existing);
+    const existing = await this.prisma.user.findFirst({ where: {OR:[
+            { email: dto.email },
+            {phone:dto.phone}
+    ]} });
 
     if (existing) throw new ConflictException('User already exists');
     // 
@@ -38,7 +41,7 @@ export class UsersService {
             });
     
     // pass to otp verify method
-    await this.otpService.generateOtpForEmail(user.email);      
+    await this.otpService.generateOtp(user.email ,user.phone);      
 
     return user;
   }
@@ -46,9 +49,15 @@ export class UsersService {
 
 
   // 
-  async findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email } });
-  }
+async findByEmailOrPhone(email?: string, phone?: string) {
+  // 
+  return this.prisma.user.findFirst({
+    where: { OR: [
+        {email},
+        {phone}
+    ] },
+  });
+}
 
 // 
 
