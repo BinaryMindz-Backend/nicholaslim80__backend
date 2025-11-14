@@ -1,0 +1,72 @@
+// prisma/models/raiderRegistration.prisma
+
+model RaiderRegistration {
+  id                          Int       @id @default(autoincrement())
+  raider                      Raider    @relation(fields: [raiderId], references: [id], onDelete: Cascade)
+  raiderId                    Int
+  raider_verification         RaiderVerification @default(PENDING)
+
+  // Personal
+  raider_name                 String?
+  contact_number              String?
+  email_address               String?
+  dob                         DateTime?
+  gender                      Gender?
+  driver_photos               Json?      // array of image URLs
+  emergency_contact_name      String?
+  emergency_contact_number    String?
+
+  // Identity
+  identity_card_number        String?
+  nid_front_images            Json?
+  nid_back_images             Json?
+  driving_license_number      String?
+  driving_license_issue_date  DateTime?
+  driving_license_expire_date DateTime?
+  driving_license_front_images Json?
+  driving_license_back_images  Json?
+
+  // Vehicle
+  vehicle_plate_number        String?
+  vehicle_type                VehicleTypeEnum?
+  vehicle_brand               String?
+  registration_date           DateTime?
+  vehicle_front_images        Json?
+  vehicle_back_images         Json?
+  vehicle_driver_side_images  Json?
+  vehicle_passenger_side_images Json?
+
+  // Log & Insurance
+  vehicle_log_number          String?
+  vehicle_log_issue_date      DateTime?
+  vehicle_log_expire_date     DateTime?
+  vehicle_log_images          Json?
+  vehicle_policy_number       String?
+  vehicle_policy_issue_date   DateTime?
+  vehicle_policy_expire_date  DateTime?
+  vehicle_policy_images       Json?
+
+  // Address
+  current_address             String?
+  current_apartment           String?
+  current_state_province     String?
+  current_city                String?
+  current_country             String?
+  current_zip_post_code       String?
+
+  permanent_address           String?
+  permanent_apartment         String?
+  permanent_state_province    String?
+  permanent_city              String?
+  permanent_country           String?
+  permanent_zip_post_code     String?
+
+  // Bank
+  bank_name                   String?
+  account_number              String?
+
+  created_at                  DateTime  @default(now())
+  updated_at                  DateTime  @updatedAt
+
+  @@map("raider_registrations")
+}

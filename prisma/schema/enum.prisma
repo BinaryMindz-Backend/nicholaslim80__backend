@@ -1,0 +1,146 @@
+/*** ENUMS ***/
+enum UserRole {
+  USER
+  SUPER_ADMIN
+  RAIDER
+}
+// 
+
+enum AdminRole {
+  ADMIN
+  MODERATOR
+  SUPER_ADMIN
+}
+
+
+
+enum NotificationType {
+  ORDER_UPDATE
+  PROMOTION
+  GENERAL
+  PUSH_NOTIFICATION
+  EMAIL
+  WEB_ANNOUNCEMENT
+}
+
+enum RewardType {
+  SHARE
+  COMPLETED
+  REFER
+  DAILY_LOGIN
+  FIRST_SIGNUP
+}
+
+enum RouteType {
+  STANDARD
+  EXPRESS
+}
+
+enum OrderStatus {
+  COMPLETED
+  CANCELLED
+  PENDING
+}
+
+enum DestinationType {
+  SENDER
+  RECEIVER
+}
+
+enum DeliveryQuality {
+  EXCELLENT
+  GOOD
+  AVERAGE
+  POOR
+}
+
+enum DeliveryStatus {
+  ON_TIME
+  LATE
+  DAMAGED
+  CANCELLED
+}
+
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  PENDING
+  FAILED
+}
+
+
+// 
+enum TransactionType {
+  BOOK_ORDER
+  REFUND
+  ADD_FUND
+  WITHDRAW
+  PROMO
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+
+
+
+enum RaiderVerification {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum VehicleTypeEnum {
+  CAR
+  TRUCK
+  MOTORBIKE
+  BICYCLE
+}
+
+enum DeliveryTypeName {
+  STANDARD
+  EXPRESS
+  SAME_DAY
+}
+
+enum PermissionAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+}
+
+enum IncentiveType {
+  PERFORMANCE
+  TIME_BASED
+  REFERRAL
+}
+
+enum IncentiveStatus {
+  COMPLETED
+  ONGOING
+  ENDED
+}
+
+enum CoinEvent {
+  FIRST_SIGNUP
+  DAILY_LOGIN
+  SHARE_ON_SOCIAL
+  REFERRAL
+  COMPLETED20_ORDER
+}
+
+enum CoinHistoryType {
+  ACCUMULATION
+  APPLICATION
+}

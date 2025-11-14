@@ -1,0 +1,22 @@
+// prisma/models/transaction.prisma
+
+model Transaction {
+  id                Int           @id @default(autoincrement())
+  transaction_code  String?       @db.VarChar(100)
+  payment_status    PaymentStatus @default(PENDING)
+  payment_method    PaymentMethod? @relation(fields: [payment_method_id], references: [id], onDelete: SetNull)
+  payment_method_id Int?
+  delivery_fee      Decimal?      @db.Decimal(12,2)
+  additional_fee    Decimal?      @db.Decimal(12,2)
+  total_fee         Decimal?      @db.Decimal(12,2)
+  base_fee          Decimal?      @db.Decimal(12,2)
+  redeemed_coin     Decimal?      @db.Decimal(12,2)
+  type              TransactionType
+  user              User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId            Int?
+  order             Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderId           Int?          
+  created_at        DateTime      @default(now())
+
+  @@map("transactions")
+}

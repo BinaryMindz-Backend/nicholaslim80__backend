@@ -1,0 +1,14 @@
+// prisma/models/delivery.prisma
+
+model DeliveryType {
+  id           Int             @id @default(autoincrement())
+  name         DeliveryTypeName
+  percentage   Decimal?        @db.Decimal(6,2)
+  pickup_time  DateTime?
+  delivery_time DateTime?
+  is_active    Boolean         @default(true)
+
+  admins       Admin[]
+
+  @@map("delivery_types")
+}

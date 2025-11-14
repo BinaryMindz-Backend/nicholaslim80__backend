@@ -1,0 +1,16 @@
+// prisma/models/vehicle.prisma
+
+model VehicleType {
+  id          Int       @id @default(autoincrement())
+  vehicle_type Json?    // flexible structure or array of strings
+  base_price  Decimal?  @db.Decimal(12,2)
+  per_km_price Decimal? @db.Decimal(12,2)
+  peak_pricing Boolean  @default(false)
+  dimension   String?
+  max_load    Decimal?  @db.Decimal(12,2)
+  isActive    Boolean   @default(true)
+
+  admins      Admin[]
+
+  @@map("vehicle_types")
+}

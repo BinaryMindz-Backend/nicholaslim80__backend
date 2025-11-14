@@ -1,0 +1,19 @@
+// prisma/models/raider.prisma
+
+model Raider {
+  id           Int     @id @default(autoincrement())
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       Int     @unique
+  is_online    Boolean @default(false)
+  is_available Boolean @default(false)
+
+  registrations RaiderRegistration[]
+  locations     RaiderLocation[]
+  locationHistory RaiderLocationHistory[]
+  raiderQuizzes   RaiderQuiz[]
+  tips          Tip[]
+  reviews       Review[]
+  assignedOrders Order[] @relation("AssignedRaider")
+
+  @@map("raiders")
+}

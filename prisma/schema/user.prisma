@@ -1,9 +1,35 @@
-
+// prisma/models/user.prisma
 
 model User {
-  id      Int      @id @default(autoincrement())
-  email   String   @unique
-  name    String?
+  id                  Int       @id @default(autoincrement())
+  username            String?   @db.VarChar(50)
+  email               String?    @unique @db.VarChar(200)
+  phone               String   @db.VarChar(20)
+  password            String?   @db.VarChar(255)
+  role                UserRole  @default(USER)
+  balance             Int       @default(0)
+  reward_points       Int       @default(0)
+  status              Boolean   @default(false)
+  is_verified         Boolean   @default(false)
+  is_deleted          Boolean   @default(false)
+  otp_code            String?   // OTP (hashed)
+  otp_expires_at      DateTime?
+  refresh_token       String? @db.VarChar(500)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  // Relations
+  notifications       Notification[]
+  places              Place[]
+  paymentMethods      PaymentMethod[]
+  refers              Refer[]
+  rewards             Reward[]
+  orders              Order[]
+  transactions        Transaction[]
+  tips                Tip[]
+  raiderProfile       Raider?
+  adminProfiles       Admin[]
+  coinHistory         CoinHistory[]
 
   @@map("users")
 }
