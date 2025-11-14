@@ -6,6 +6,8 @@ import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './core/database/database.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { DeliveryTypeModule } from './modules/admin/delivery-type/delivery-type.module';
+import { VehicleTypeModule } from './modules/admin/vehicle-type/vehicle-type.module';
 import Joi from 'joi';
 
 
@@ -24,6 +26,8 @@ import Joi from 'joi';
     DatabaseModule,
     HealthModule,
     AuthModule,
+    DeliveryTypeModule,
+    VehicleTypeModule,
   
   ],
   controllers: [AppController],

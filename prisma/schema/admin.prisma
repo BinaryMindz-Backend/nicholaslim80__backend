@@ -4,7 +4,7 @@ model Admin {
   id                Int        @id @default(autoincrement())
   user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId            Int
-  is_seed_admin     Boolean    @default(false)
+  is_seed_admin     Boolean    @default(true)
   role              AdminRole  @default(SUPER_ADMIN) 
   role_id           Int?       // optional reference to Role model if you use Role table
   roles             Role[]
