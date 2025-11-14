@@ -5,8 +5,9 @@ import {
   Post,
   Body,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { OtpService } from './otp.service';
@@ -14,6 +15,7 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
+import { Auth } from './auth.decorator';
 
 
 @ApiTags('Authentication')
@@ -116,5 +118,17 @@ async refresh(@Body() body: { refresh_token: string }) {
   const { refresh_token } = body;
   return this.authService.refreshTokens(refresh_token);
 }
+
+// ** logout
+@Post('logout')
+@ApiOperation({ summary: 'Logout user' })
+@Auth()
+@ApiBearerAuth()
+async logout(@Req() req) {
+  // console.log(req.user);
+  await this.authService.logout(+req.user.id);
+  return { message: 'Logged out successfully' };
+}
+
 
 }
