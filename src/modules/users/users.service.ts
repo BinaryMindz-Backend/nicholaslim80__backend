@@ -12,6 +12,7 @@ import { OtpService } from '../auth/otp.service';
 export class UsersService {
   constructor(private readonly prisma: PrismaService,
               private readonly otpService: OtpService,
+
       ) {}
 
 
@@ -122,6 +123,9 @@ async removeUser(id: number) {
     data: { is_deleted: true, status: false },
   });
 }
+
+
+
 
   // **TODO: Add token verification, auth, and other security methods
 }

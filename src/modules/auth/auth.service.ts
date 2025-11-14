@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 
@@ -9,12 +11,14 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
+import { PrismaService } from 'src/core/database/prisma.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
   ) {}
 
 
@@ -114,5 +118,20 @@ async refreshTokens(refreshToken: string) {
     throw new ForbiddenException("Invalid or expired refresh token");
   }
 }
+
+//user logout
+async logout(userId:number){
+    await this.prisma.user.update({
+        where:{
+            id:userId
+        },
+        data:{
+           refresh_token:null
+        }
+    }) 
+}
+
+
+
 
 }
