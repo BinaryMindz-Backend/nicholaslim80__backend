@@ -1,8 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-
 import {
   Injectable,
   UnauthorizedException,
@@ -115,6 +111,7 @@ async refreshTokens(refreshToken: string) {
 
     return tokens;
   } catch (err) {
+    // console.log(err);
     throw new ForbiddenException("Invalid or expired refresh token");
   }
 }
