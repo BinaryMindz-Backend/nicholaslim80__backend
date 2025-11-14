@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/require-await */
 import {
   Controller,
   Post,
@@ -108,6 +106,8 @@ export class AuthController {
  
   //** REFRESH TOKEN endpoint for new token generation
 @Post('refresh')
+@Auth()
+@ApiBearerAuth()
 @ApiOperation({ summary: 'Refresh access token using refresh token' })
 @ApiBody({
   schema: { properties: { refresh_token: { type: 'string' } } },
