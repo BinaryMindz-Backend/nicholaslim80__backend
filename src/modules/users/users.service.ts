@@ -1,38 +1,66 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
+import { OtpService } from '../auth/otp.service';
 
 
 
 // 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService,
+              private readonly otpService: OtpService,
+      ) {}
 
-  // ** Create new user
-  async createUser(createUserDto: CreateUserDto) {
-    const { password, ...restDto } = createUserDto;
 
-    const existingUser = await this.prisma.user.findFirst({
-      where: { email: createUserDto.email },
-    });
-    if (existingUser) throw new ConflictException('User already exists');
+  // ** Create new user // signup with otp verify
+  async createUser(dto: { email: string; password?: string; username?: string; phone?: string }) {
+    //  
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+        console.log(existing);
 
-    if (!password) throw new NotFoundException('Password is required');
-    const saltRounds = Number(process.env.SALT_ROUNDS ?? 10);
-    if (isNaN(saltRounds) || saltRounds <= 0) throw new NotFoundException('Invalid salt rounds');
+    if (existing) throw new ConflictException('User already exists');
+    // 
+    let hashed: string | undefined = undefined;
+    if (dto.password) {
+      const salt = Number(process.env.SALT_ROUNDS ?? 10);
+      hashed = await bcrypt.hash(dto.password, salt);
+    }
+    // 
+    const user = await this.prisma.user.create({
+              data: {
+                email: dto.email,
+                username: dto.username,
+                phone: dto.phone,
+                password: hashed,
+              },
+            });
+    
+    // pass to otp verify method
+    await this.otpService.generateOtpForEmail(user.email);      
 
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    return this.prisma.user.create({
-      data: {
-        ...restDto,
-        password: hashedPassword,
-      },
-    });
+    return user;
   }
+  
+
+
+  // 
+  async findByEmail(email: string) {
+    return this.prisma.user.findUnique({ where: { email } });
+  }
+
+// 
+
+async updateUserRefreshToken(userId: number, token: string | null) {
+  return this.prisma.user.update({
+    where: { id: userId },
+    data: { refresh_token: token },
+  });
+}
+
+
+
 
   // ** Get all users
     async findAllUsers() {

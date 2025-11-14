@@ -1,11 +1,11 @@
 import { 
-  Controller, Get, Post, Patch, Delete, Param, Body, HttpStatus, ParseIntPipe 
+  Controller, Get, Patch, Delete, Param, Body, HttpStatus, ParseIntPipe 
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiResponses } from 'src/common/apiResponse';
+import { Auth } from '../auth/auth.decorator';
 
 
 @ApiTags('Users')
@@ -13,22 +13,10 @@ import { ApiResponses } from 'src/common/apiResponse';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // ** Create new user
-  @Post()
-  @ApiOperation({ summary: 'Create a new user' })
-  @ApiResponse({ status: 201, description: 'User created successfully' })
-  @ApiResponse({ status: 409, description: 'User already exists' })
-  async create(@Body() createUserDto: CreateUserDto) {
-    try {
-      const user = await this.usersService.createUser(createUserDto);
-      return ApiResponses.success(user, 'User created successfully');
-    } catch (err) {
-      return ApiResponses.error(err, 'Failed to create user');
-    }
-  }
-
   // ** Get all users
   @Get()
+  @Auth()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users' })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
   async findAll() {

@@ -37,7 +37,11 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
 
   // Make Swagger respect the global prefix
-  SwaggerModule.setup(`${globalPrefix}/docs`, app, document);
+  SwaggerModule.setup(`${globalPrefix}/docs`, app, document,{
+    swaggerOptions: {
+      persistAuthorization: true
+    }
+  });
 
   // Start the app
   await app.listen(port, host);

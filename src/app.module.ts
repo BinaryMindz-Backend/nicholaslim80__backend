@@ -5,6 +5,7 @@ import { UsersModule } from './modules/users/users.module';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './core/database/database.module';
 import { HealthModule } from './modules/health/health.module';
+import { AuthModule } from './modules/auth/auth.module';
 import Joi from 'joi';
 
 
@@ -21,7 +22,8 @@ import Joi from 'joi';
     }),
     UsersModule,
     DatabaseModule,
-    HealthModule
+    HealthModule,
+    AuthModule,
   
   ],
   controllers: [AppController],
