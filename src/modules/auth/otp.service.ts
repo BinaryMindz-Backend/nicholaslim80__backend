@@ -1,107 +1,116 @@
 /* eslint-disable @typescript-eslint/require-await */
-import { Injectable, BadRequestException, NotFoundException, NotAcceptableException } from '@nestjs/common';
-import { PrismaService } from 'src/core/database/prisma.service';
+
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  NotAcceptableException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { PrismaService } from 'src/core/database/prisma.service';
+import { RedisService } from './redis/redis.service';
 
 @Injectable()
 export class OtpService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redisService: RedisService,
+  ) {}
 
   private async hashOtp(otp: string) {
-    const salt = Number(process.env.SALT_ROUNDS ?? 10);
-    return bcrypt.hash(otp, salt);
+    return bcrypt.hash(otp, Number(process.env.SALT_ROUNDS ?? 10));
   }
 
-  // generate numeric OTP and store hashed version + expiry
-  async generateOtp(email?: string | null, phone?:string ) {
-    const user = await this.prisma.user.findFirst({ where: 
-        {
-          OR:[
-          {email},
-          {phone}
-          ]
-      }
+  private buildKey(userId: number) {
+    return `OTP:${userId}`;
+  }
+
+
+  
+  /** ------------ Generate & Save OTP (Signup/Login) -------------- **/
+  async generateOtp(email?: string | null, phone?: string) {
+    // 
+    const user = await this.prisma.user.findFirst({
+      where: { OR: [{ email }, { phone }] },
     });
-// 
+
     if (!user) throw new NotFoundException('User not found');
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const hashed = await this.hashOtp(otp);
-    const ttlMinutes = Number(process.env.OTP_TTL_MINUTES ?? 5);
-    const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
 
-    await this.prisma.user.update({
-      where: { id:user.id },
-      data: { otp_code: hashed, otp_expires_at: expiresAt },
-    });
+    const ttl = Number(process.env.OTP_TTL_MINUTES ?? 5) * 60;
+    const key = this.buildKey(user.id);
 
-    // TODO: Replace with real notifier (SMS/Email)
+    // Store hashed OTP in Redis
+    await this.redisService.set(key, hashed, ttl);
+
     await this.sendOtpNotification(user.email, otp, user.phone);
 
-    return { otp, expiresAt }; //**TODO otp only returned for testing; remove in prod
+    return { otp, ttl }; // remove in production
   }
   
-  //   
+  // 
   async sendOtpNotification(email: string | null, otp: string, phone?: string | null) {
-    // TODO:Placeholder: implement your email/SMS provider here
-    // Example: send email
-    console.log(`[OTP] send to ${email} or (phone=${phone}): ${otp}`);
-    return true;
-  }
-
-  
-  // verify OTP - compares plaintext OTP with stored hashed value
-  async verifyOtp(email: string | undefined, phone:string|undefined, otp: string) {
-    const user = await this.prisma.user.findFirst({ where: {
-         OR:[
-           { email },
-           {phone }
-         ]
-    } });
-
-    if (!user || !user.otp_code || !user.otp_expires_at) {
-      throw new BadRequestException('OTP not requested or user not found');
-    }
-
-    if (user.otp_expires_at < new Date()) {
-      throw new BadRequestException('OTP expired');
-    }
-
-    const valid = await bcrypt.compare(otp, user.otp_code);
-    if (!valid) throw new BadRequestException('Invalid OTP');
-
-    // Mark as verified and clear otp fields
-    await this.prisma.user.update({
-      where: { id:user.id },
-      data: { is_verified: true, otp_code: null, otp_expires_at: null },
-    });
-
-    return true;
+    console.log(`📩 OTP sent >>> email=${email} phone=${phone} otp=${otp}`);
   }
 
 
-  // For login: verify, but DO NOT mark user as verified again (optional)
-  async verifyOtpForLoginAndClear(email: string|undefined,phone:string|undefined, otp: string) {
-    //  
-    const user = await this.prisma.user.findFirst({ where: { OR:[{email}, {phone}]} });
-     
-    //  
-    if(user?.is_verified === false){
-       throw new NotAcceptableException("First You need to signup and verify")
-    }
+
+  /** ------------ Verify OTP (Signup Verification) -------------- **/
+  async verifyOtp(email: string | undefined, phone: string | undefined, otp: string) {
     // 
-    if (!user || !user.otp_code || !user.otp_expires_at) {
-      throw new BadRequestException('OTP not requested or user not found');
+    const user = await this.prisma.user.findFirst({
+      where: { OR: [{ email }, { phone }] },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    const key = this.buildKey(user.id);
+    const hashedOtp = await this.redisService.get(key);
+
+    if (!hashedOtp) {
+      throw new BadRequestException('OTP expired or not requested');
     }
-    if (user.otp_expires_at < new Date()) throw new BadRequestException('OTP expired');
-    const valid = await bcrypt.compare(otp, user.otp_code);
+
+    const valid = await bcrypt.compare(otp, hashedOtp);
     if (!valid) throw new BadRequestException('Invalid OTP');
 
-    // clear otp fields but do not change is_verified here (login OTP)
+    // Mark user verified
     await this.prisma.user.update({
-      where: { id:user.id },
-      data: { otp_code: null, otp_expires_at: null },
+      where: { id: user.id },
+      data: { is_verified: true },
     });
+
+    await this.redisService.del(key);
+    return true;
+  }
+
+
+
+  /** ------------ Verify OTP (Login) -------------- **/
+  async verifyOtpForLoginAndClear(email: string | undefined, phone: string | undefined, otp: string) { 
+    // 
+    const user = await this.prisma.user.findFirst({
+      where: { OR: [{ email }, { phone }] },
+    });
+
+    if (!user) throw new BadRequestException('User not found');
+
+    if (!user.is_verified) {
+      throw new NotAcceptableException('Signup and verify first.');
+    }
+    
+    const key = this.buildKey(user.id);
+    const hashedOtp = await this.redisService.get(key);
+
+    if (!hashedOtp) throw new BadRequestException('OTP expired or missing');
+
+    const valid = await bcrypt.compare(otp, hashedOtp);
+    if (!valid) throw new BadRequestException('Invalid OTP');
+
+    // Clear OTP after login
+    await this.redisService.del(key);
 
     return true;
   }

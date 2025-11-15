@@ -12,8 +12,6 @@ model User {
   status              Boolean   @default(false)
   is_verified         Boolean   @default(false)
   is_deleted          Boolean   @default(false)
-  otp_code            String?   // OTP (hashed)
-  otp_expires_at      DateTime?
   refresh_token       String? @db.VarChar(500)
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt

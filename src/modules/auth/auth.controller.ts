@@ -78,8 +78,8 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, description: 'Login successful; tokens issued' })
   @ApiResponse({ status: 400, description: 'Invalid OTP' })
-  async loginVerify(@Body() dto: { email?: string; phone?:string; otp: string }) {
-    const { email, phone,otp } = dto;
+  async loginVerify(@Body() dto: { email?: string , phone?:string, otp: string }) {
+    const { email, phone, otp } = dto;
     // send to verify otp
     await this.otpService.verifyOtpForLoginAndClear(email, phone, otp);
 

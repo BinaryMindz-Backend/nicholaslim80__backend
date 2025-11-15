@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import Joi from 'joi';
 import { DeliveryTypeModule } from './modules/superadmin/delivery-type/delivery-type.module';
 import { VehicleTypeModule } from './modules/superadmin/vehicle-type/vehicle-type.module';
+import { RedisModule } from './modules/auth/redis/redis.module';
 
 
 @Module({
@@ -28,6 +29,7 @@ import { VehicleTypeModule } from './modules/superadmin/vehicle-type/vehicle-typ
     AuthModule,
     DeliveryTypeModule,
     VehicleTypeModule,
+    RedisModule,
   
   ],
   controllers: [AppController],
