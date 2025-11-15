@@ -6,9 +6,9 @@ import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './core/database/database.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { DeliveryTypeModule } from './modules/admin/delivery-type/delivery-type.module';
-import { VehicleTypeModule } from './modules/admin/vehicle-type/vehicle-type.module';
 import Joi from 'joi';
+import { DeliveryTypeModule } from './modules/superadmin/delivery-type/delivery-type.module';
+import { VehicleTypeModule } from './modules/superadmin/vehicle-type/vehicle-type.module';
 
 
 @Module({

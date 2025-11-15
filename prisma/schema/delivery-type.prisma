@@ -1,12 +1,12 @@
-// prisma/models/delivery.prisma
-
 model DeliveryType {
   id           Int             @id @default(autoincrement())
   name         DeliveryTypeName
   percentage   Decimal?        @db.Decimal(6,2)
-  pickup_time  DateTime?
-  delivery_time DateTime?
+  pickup_duration Int?           // duration in minutes
+  delivery_duration Int?         // duration in minutes
   is_active    Boolean         @default(true)
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
   admins       Admin[]
 

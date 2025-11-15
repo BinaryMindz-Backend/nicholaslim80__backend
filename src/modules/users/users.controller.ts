@@ -5,7 +5,7 @@ import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth, ApiBody } 
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiResponses } from 'src/common/apiResponse';
-import { Auth } from '../auth/auth.decorator';
+import { Auth } from '../../decorators/auth.decorator';
 
 
 @ApiTags('Users')
