@@ -1,0 +1,15 @@
+model PaymentMethod {
+  id          Int       @id @default(autoincrement())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  card_number String?   @db.VarChar(50)
+  expiry_date DateTime?
+  cvv         String?   @db.VarChar(10)
+  card_name   String?   @db.VarChar(100)
+
+  transactions Transaction[]
+  order        Order?
+
+
+  @@map("payment_methods")
+}

@@ -1,0 +1,16 @@
+// prisma/models/notification.prisma
+
+model Notification {
+  id               Int              @id @default(autoincrement())
+  user             User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           Int?
+  type             NotificationType
+  title            String?          @db.VarChar(255)
+  message          String?          @db.Text
+  is_read          Boolean          @default(false)
+  created_at       DateTime         @default(now())
+  send_immediately Boolean          @default(true)
+  schedule_to_send DateTime?
+
+  @@map("notifications")
+}

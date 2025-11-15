@@ -1,0 +1,11 @@
+// prisma/models/coin.prisma
+
+model Coin {
+  id               Int        @id @default(autoincrement())
+  event_triggered  CoinEvent
+  coin_amount      Decimal?   @db.Decimal(12,2)
+  expire_date      DateTime?
+  coin_value_in_cent Int?
+
+  @@map("coins")
+}

@@ -1,0 +1,14 @@
+// prisma/models/tip.prisma
+
+model Tip {
+  id        Int      @id @default(autoincrement())
+  amount    Decimal  @db.Decimal(12,2)
+  raider    Raider   @relation(fields: [raiderId], references: [id], onDelete: Cascade)
+  raiderId  Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderId   Int?
+
+  @@map("tips")
+}

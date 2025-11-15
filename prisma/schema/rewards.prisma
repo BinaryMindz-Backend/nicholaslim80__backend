@@ -1,0 +1,22 @@
+model Reward {
+  id              Int           @id @default(autoincrement())
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          Int
+  achieved_coins  Int           @default(0)
+  reward_type     RewardType
+  coin_history    CoinHistory?  @relation(fields: [coin_history_id], references: [id], onDelete: SetNull)
+  coin_history_id Int?          
+  redeemed_coin   Decimal?      @db.Decimal(12,2)
+  valid_until     DateTime?
+  expired_coin    Decimal?      @db.Decimal(12,2)
+  order           Order?        @relation(fields: [order_id], references: [id], onDelete: SetNull)
+  order_id        Int?
+  refer           Refer?        @relation(fields: [refer_id], references: [id], onDelete: SetNull)
+  refer_id        Int?
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
+
+  @@map("rewards")
+  @@index([userId])
+  @@index([refer_id])
+}

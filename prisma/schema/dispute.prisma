@@ -1,0 +1,22 @@
+// prisma/models/dispute.prisma
+
+model Dispute {
+  id                      Int       @id @default(autoincrement())
+  case_id                 Int       // reference to Orders.id; use relation field if you want cascade
+  username                String?
+  issueType               String?   // DAMAGE_GOODS, MISSING_ITEMS
+  issue_date              DateTime?
+  service_area_latitude   Decimal?  @db.Decimal(10,7)
+  service_area_longitude  Decimal?  @db.Decimal(10,7)
+  category                String?   // EXPRESS, STANDARD, STACK
+  priority                String?   // HIGH, MEDIUM, LOW
+  notes                   String?
+  isRefund                Boolean   @default(false)
+  total                   Decimal?  @db.Decimal(12,2)
+  evidence_attach         Json?
+  isClosed                Boolean   @default(false)
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
+
+  @@map("disputes")
+}
