@@ -7,12 +7,14 @@ import { UsersModule } from '../users/users.module';
 import { OtpService } from './otp.service';
 import { UsersService } from '../users/users.service';
 import { JwtStrategy } from 'src/strategy/jwt.strategy';
+import { RedisModule } from './redis/redis.module';
 
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
+    RedisModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'changeme',
       signOptions: { expiresIn: '7d' },
