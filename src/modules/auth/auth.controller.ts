@@ -13,7 +13,7 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
-import { Auth } from './auth.decorator';
+import { Auth } from '../../decorators/auth.decorator';
 
 
 @ApiTags('Authentication')

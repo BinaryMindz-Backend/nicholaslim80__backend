@@ -7,7 +7,7 @@ export class RequestOtpDto {
   @IsOptional()
   email?: string;
 
-  @ApiPropertyOptional({ example: '+8801712345678' })
+  @ApiPropertyOptional({ example: '+8801712345678', required:false })
   @IsString()
   @IsOptional()
   phone?: string;
