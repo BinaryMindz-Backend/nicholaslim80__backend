@@ -6,8 +6,8 @@ import { AuthController } from './auth.controller';
 import { OtpService } from './otp.service';
 import { JwtStrategy } from 'src/strategy/jwt.strategy';
 import { RedisModule } from './redis/redis.module';
-import { UsersModule } from '../users_ROOT/users/users.module';
-import { UsersService } from '../users_ROOT/users/users.service';
+import { UsersModule } from '../users_root/users/users.module';
+import { UsersService } from '../users_root/users/users.service';
 
 
 @Module({

@@ -43,6 +43,14 @@ enum DestinationType {
   RECEIVER
 }
 
+// 
+enum RouteType {
+   ONE_WAY
+   ROUND
+}
+
+
+
 enum DeliveryQuality {
   EXCELLENT
   GOOD

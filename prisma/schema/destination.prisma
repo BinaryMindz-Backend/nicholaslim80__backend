@@ -1,21 +1,19 @@
-// prisma/models/destination.prisma
-
 model Destination {
   id                 Int       @id @default(autoincrement())
-  sender_latitude    Decimal?  @db.Decimal(10,7)
-  sender_longitude   Decimal?  @db.Decimal(10,7)
-  sender_accuracy    Float?
   address            String?   @db.VarChar(255)
   floor_unit         String?   @db.VarChar(100)
   contact_name       String?   @db.VarChar(100)
   contact_number     String?   @db.VarChar(20)
   note_to_driver     String?
   is_saved           Boolean   @default(false)
-  type               DestinationType
-  receiver_latitude  Decimal?  @db.Decimal(10,7)
-  receiver_longitude Decimal?  @db.Decimal(10,7)
-  receiver_accuracy  Float?
-
+  type               DestinationType?
+  latitude  Decimal?  @db.Decimal(10,7)
+  longitude Decimal?  @db.Decimal(10,7)
+  accuracy  Float?
+  
+  user_id            Int
+  user               User @relation(fields: [user_id], references: [id])
+  // 
   orders             Order[]
 
   @@map("destinations")

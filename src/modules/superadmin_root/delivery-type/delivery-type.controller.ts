@@ -22,7 +22,7 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { UserRole } from '@prisma/client';
 
 
-@ApiTags('Delivery Types')
+@ApiTags('Delivery Types (admin)')
 @ApiBearerAuth()
 @Controller('delivery-types')
 export class DeliveryTypeController {

@@ -3,7 +3,7 @@ import { Injectable, NotFoundException, ForbiddenException, ConflictException } 
 import { CreateDeliveryTypeDto } from './dto/create-delivery-type.dto';
 import { UpdateDeliveryTypeDto } from './dto/update-delivery-type.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { UserRole } from 'src/modules/users_ROOT/users/dto/create-user.dto';
+import { UserRole } from 'src/modules/users_root/users/dto/create-user.dto';
 
 
 @Injectable()

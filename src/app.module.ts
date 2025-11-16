@@ -7,9 +7,10 @@ import { HealthModule } from './modules/app_health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import Joi from 'joi';
 import { RedisModule } from './modules/auth/redis/redis.module';
-import { UsersModule } from './modules/users_ROOT/users/users.module';
-import { DeliveryTypeModule } from './modules/superadmin_ROOT/delivery-type/delivery-type.module';
-import { VehicleTypeModule } from './modules/superadmin_ROOT/vehicle-type/vehicle-type.module';
+import { UsersModule } from './modules/users_root/users/users.module';
+import { DeliveryTypeModule } from './modules/superadmin_root/delivery-type/delivery-type.module';
+import { VehicleTypeModule } from './modules/superadmin_root/vehicle-type/vehicle-type.module';
+import { DestinationModule } from './modules/users_root/destination/destination.module';
 
 
 @Module({
@@ -30,7 +31,7 @@ import { VehicleTypeModule } from './modules/superadmin_ROOT/vehicle-type/vehicl
     DeliveryTypeModule,
     VehicleTypeModule,
     RedisModule,
-  
+    DestinationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

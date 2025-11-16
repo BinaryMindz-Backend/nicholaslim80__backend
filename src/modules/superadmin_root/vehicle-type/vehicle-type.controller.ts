@@ -1,4 +1,4 @@
-import { CurrentUser } from './../../../decorators/current-user.decorator';
+import { CurrentUser } from '../../../decorators/current-user.decorator';
 import {
   Body,
   Controller,
@@ -18,13 +18,13 @@ import { UpdateVehicleTypeDto } from './dto/update-vehicle-type.dto';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Auth } from 'src/decorators/auth.decorator';
 import { Roles } from 'src/decorators/roles.decorator';
-import { AdminRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { ApiResponses } from 'src/common/apiResponse';
 
 
 
 
-@ApiTags('Admin Vehicle Type')
+@ApiTags('Vehicle Type (admin)')
 @Controller('admin/vehicle-types')
 export class VehicleTypeController {
   constructor(private readonly service: VehicleTypeService) {}
@@ -33,7 +33,7 @@ export class VehicleTypeController {
   // CREATE
   @Post('create')
   @Auth()
-  @Roles(AdminRole.SUPER_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create Vehicle Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
@@ -87,7 +87,7 @@ export class VehicleTypeController {
   // UPDATE
   @Patch('update/:id')
   @Auth()
-  @Roles(AdminRole.SUPER_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update Vehicle Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
@@ -109,7 +109,7 @@ export class VehicleTypeController {
   //DELETE
   @Delete('delete/:id')
   @Auth()
-  @Roles(AdminRole.SUPER_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'delete Vehicle Type' })
   @ApiParam({ name: 'id', description: 'Vehicle Type ID' })

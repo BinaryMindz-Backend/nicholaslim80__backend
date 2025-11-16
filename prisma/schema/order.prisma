@@ -3,7 +3,8 @@ model Order {
   id                       Int        @id @default(autoincrement())
   user                     User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId                   Int?
-  route_type               DeliveryTypeName  @default(EXPRESS)
+  route_type               RouteType @default(ONE_WAY)
+  delivery_type            DeliveryTypeName  @default(EXPRESS)
   
   vehicle_type_id          Int
   vehicle                  VehicleType @relation(fields: [vehicle_type_id], references: [id])
@@ -31,12 +32,14 @@ model Order {
   transactions              Transaction[]
 
   rewards                  Reward[]
-
-  created_at               DateTime   @default(now())
-  pick_up_items            Json?
+  // 
+  pick_up_items            DateTime   @default(now())
 
   reviews                  Review[]
   tips                     Tip[]
+
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
   @@map("orders")
   @@index([userId])
