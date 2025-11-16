@@ -1,3 +1,4 @@
+import { CurrentUser } from './../../../decorators/current-user.decorator';
 import {
   Body,
   Controller,
@@ -37,9 +38,9 @@ export class VehicleTypeController {
   @ApiOperation({ summary: 'Create Vehicle Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @ApiResponse({ status: 201, description: 'Vehicle Type created successfully' })
-  async create(@Body() dto: CreateVehicleTypeDto) {
+  async create(@Body() dto: CreateVehicleTypeDto, @CurrentUser() user:any ) {
     try {
-      const result = await this.service.create(dto);
+      const result = await this.service.create(dto, user);
       return ApiResponses.success(result, 'Vehicle Type created successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Vehicle Type creation failed');

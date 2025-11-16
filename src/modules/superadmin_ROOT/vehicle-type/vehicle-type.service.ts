@@ -8,7 +8,7 @@ export class VehicleTypeService {
   constructor(private readonly prisma: PrismaService) {}
 
   // CREATE
-  async create(dto: CreateVehicleTypeDto) {
+  async create(dto: CreateVehicleTypeDto, user:any) {
     // 
     const exists = await this.prisma.vehicleType.findFirst({
       where: { vehicle_type:dto.vehicle_type, dimension:dto.dimension},
@@ -18,7 +18,22 @@ export class VehicleTypeService {
       throw new ConflictException('Vehicle type by same dimention already exists');
     }
 
-    return this.prisma.vehicleType.create({ data: dto });
+
+  return this.prisma.vehicleType.create({
+        data: {
+          vehicle_type: dto.vehicle_type,
+          base_price: dto.base_price,
+          per_km_price: dto.per_km_price,
+          peak_pricing: dto.peak_pricing,
+          dimension: dto.dimension,
+          max_load: dto.max_load,
+          isActive: dto.isActive,
+          admin: {
+            connect: { id: user.id },
+          },
+        },
+      });
+
   }
 
   // FIND ALL ACTIVE

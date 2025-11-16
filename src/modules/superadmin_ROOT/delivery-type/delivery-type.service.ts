@@ -18,14 +18,14 @@ export class DeliveryTypeService {
   }
   
   // create an delivery type
-    async create(data: CreateDeliveryTypeDto, user: any) {
+    async create(dto: CreateDeliveryTypeDto, user: any) {
       // Verify admin
       this.verifyAdmin(user);
 
       // Check if delivery type already exists
       const isExist = await this.prisma.deliveryType.findFirst({
         where: {
-          name: data.name, 
+          name: dto.name, 
         },
       });
 
@@ -34,7 +34,19 @@ export class DeliveryTypeService {
       }
 
       // Create delivery type
-      return this.prisma.deliveryType.create({ data });
+      return this.prisma.deliveryType.create({  
+          data: {
+          name: dto.name,
+          percentage: dto.percentage,
+          pickup_duration: dto.pickup_duration,
+          delivery_duration: dto.delivery_duration,
+          is_active: dto.is_active,
+          // map admin_id into nested relation
+          admin: {
+            connect: { id: user.id }
+          },
+          }, 
+      });
     }
 
 

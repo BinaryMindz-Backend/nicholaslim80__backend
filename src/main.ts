@@ -50,3 +50,7 @@ async function bootstrap() {
 }
 
 bootstrap();
+
+
+// check if owner ship   // sls -l prisma/migrations
+// change the owner ship // sudo chown -R $(whoami):$(whoami) prisma/migrations

@@ -1,4 +1,5 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { ApiProperty} from '@nestjs/swagger';
+import { VehicleTypeEnum } from '@prisma/client';
 import {
   IsBoolean,
   IsNumber,
@@ -7,18 +8,6 @@ import {
   IsEnum,
 } from 'class-validator';
 
-export enum VehicleTypeEnum {
-  CAR = 'CAR',
-  TRUCK = 'TRUCK',
-  MOTORCYCLE = 'MOTORCYCLE',
-  BUS = 'BUS',
-  VAN = 'VAN',
-  BICYCLE = 'BICYCLE',
-  SUV = 'SUV',
-  TRACTOR = 'TRACTOR',
-  ELECTRIC_SCOOTER = 'ELECTRIC_SCOOTER',
-  OTHER = 'OTHER',
-}
 
 export class CreateVehicleTypeDto {
 
@@ -60,5 +49,3 @@ export class CreateVehicleTypeDto {
   @IsBoolean()
   isActive?: boolean;
 }
-
-export class UpdateVehicleTypeDto extends PartialType(CreateVehicleTypeDto) {}

@@ -1,14 +1,16 @@
 model DeliveryType {
-  id           Int             @id @default(autoincrement())
-  name         DeliveryTypeName
-  percentage   Decimal?        @db.Decimal(6,2)
-  pickup_duration Int?           // duration in minutes
+  id                Int             @id @default(autoincrement())
+  name              DeliveryTypeName
+  percentage        Decimal?        @db.Decimal(6,2)
+  pickup_duration   Int?           // duration in minutes
   delivery_duration Int?         // duration in minutes
-  is_active    Boolean         @default(true)
+  is_active         Boolean         @default(true)
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
 
-  admins       Admin[]
+  admin_id          Int
+  admin             Admin @relation(fields: [admin_id], references: [id])
+
 
   @@map("delivery_types")
 }
