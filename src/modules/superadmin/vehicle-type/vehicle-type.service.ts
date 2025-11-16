@@ -11,11 +11,11 @@ export class VehicleTypeService {
   async create(dto: CreateVehicleTypeDto) {
     // 
     const exists = await this.prisma.vehicleType.findFirst({
-      where: { vehicle_type: dto.vehicle_type },
+      where: { vehicle_type:dto.vehicle_type, dimension:dto.dimension},
     });
 
-    if (exists) {
-      throw new ConflictException('Vehicle type already exists');
+    if (exists?.vehicle_type && exists?.dimension) {
+      throw new ConflictException('Vehicle type by same dimention already exists');
     }
 
     return this.prisma.vehicleType.create({ data: dto });

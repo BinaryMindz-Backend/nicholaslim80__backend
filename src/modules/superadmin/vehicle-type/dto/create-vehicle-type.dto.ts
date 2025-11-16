@@ -4,14 +4,31 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsObject,
+  IsEnum,
 } from 'class-validator';
 
+export enum VehicleTypeEnum {
+  CAR = 'CAR',
+  TRUCK = 'TRUCK',
+  MOTORCYCLE = 'MOTORCYCLE',
+  BUS = 'BUS',
+  VAN = 'VAN',
+  BICYCLE = 'BICYCLE',
+  SUV = 'SUV',
+  TRACTOR = 'TRACTOR',
+  ELECTRIC_SCOOTER = 'ELECTRIC_SCOOTER',
+  OTHER = 'OTHER',
+}
+
 export class CreateVehicleTypeDto {
-  @ApiProperty({ required: false, example: { seats: 4, category: 'SUV' } })
-  @IsOptional()
-  @IsObject()
-  vehicle_type?: Record<string, any>;
+
+  @ApiProperty({
+    required: true,
+    enum: VehicleTypeEnum,
+    example: VehicleTypeEnum.SUV,
+  })
+  @IsEnum(VehicleTypeEnum)
+  vehicle_type: VehicleTypeEnum;
 
   @ApiProperty({ required: false, example: 50.0 })
   @IsOptional()

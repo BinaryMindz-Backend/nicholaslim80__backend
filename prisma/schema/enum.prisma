@@ -100,12 +100,22 @@ enum Gender {
   OTHER
 }
 
+
+// vehicle type
 enum VehicleTypeEnum {
   CAR
   TRUCK
-  MOTORBIKE
+  MOTORCYCLE
+  BUS
+  VAN
   BICYCLE
+  SUV
+  TRACTOR
+  ELECTRIC_SCOOTER
+  OTHER
 }
+
+
 
 enum DeliveryTypeName {
   STANDARD

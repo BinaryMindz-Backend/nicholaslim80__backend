@@ -2,7 +2,7 @@
 
 model VehicleType {
   id          Int       @id @default(autoincrement())
-  vehicle_type Json?    // flexible structure or array of strings
+  vehicle_type VehicleTypeEnum    // flexible structure or array of strings
   base_price  Decimal?  @db.Decimal(12,2)
   per_km_price Decimal? @db.Decimal(12,2)
   peak_pricing Boolean  @default(false)
