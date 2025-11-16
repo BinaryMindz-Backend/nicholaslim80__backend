@@ -49,9 +49,8 @@ export class VehicleTypeController {
   // GET ALL
   @Get()
   @Auth()
-  @Roles(AdminRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all Vehicle Types' })
+  @ApiOperation({ summary: 'Get all Vehicle Types(Admin only)' })
   @ApiResponse({ status: 200, description: 'List of Vehicle Types' })
   async findAll() {
     try {
@@ -66,9 +65,8 @@ export class VehicleTypeController {
   // GET ONE (ACTIVE)
   @Get(':id')
   @Auth()
-  @Roles(AdminRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get Vehicle Type by ID' })
+  @ApiOperation({ summary: 'Get Vehicle Type by ID(Admin only)' })
   @ApiParam({ name: 'id', description: 'Vehicle Type ID' })
   async findOne(
     @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }))
@@ -90,7 +88,7 @@ export class VehicleTypeController {
   @Auth()
   @Roles(AdminRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update Vehicle Type' })
+  @ApiOperation({ summary: 'Update Vehicle Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @ApiParam({ name: 'id', description: 'Vehicle Type ID' })
   async update(

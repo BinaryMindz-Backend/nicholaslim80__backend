@@ -3,9 +3,9 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiResponses } from 'src/common/apiResponse';
-import { Auth } from '../../decorators/auth.decorator';
+import { Auth } from 'src/decorators/auth.decorator';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 
 @ApiTags('Users')
