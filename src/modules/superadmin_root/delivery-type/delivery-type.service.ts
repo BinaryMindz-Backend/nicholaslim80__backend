@@ -3,7 +3,8 @@ import { Injectable, NotFoundException, ForbiddenException, ConflictException } 
 import { CreateDeliveryTypeDto } from './dto/create-delivery-type.dto';
 import { UpdateDeliveryTypeDto } from './dto/update-delivery-type.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { UserRole } from 'src/modules/users_root/users/dto/create-user.dto';
+import { UserRole } from '@prisma/client';
+
 
 
 @Injectable()
@@ -34,7 +35,7 @@ export class DeliveryTypeService {
       }
 
       // Create delivery type
-      return this.prisma.deliveryType.create({  
+      return await this.prisma.deliveryType.create({  
           data: {
           name: dto.name,
           percentage: dto.percentage,
