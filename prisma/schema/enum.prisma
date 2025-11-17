@@ -31,10 +31,6 @@ enum RewardType {
   FIRST_SIGNUP
 }
 
-enum RouteType {
-  STANDARD
-  EXPRESS
-}
 
 enum OrderStatus {
   COMPLETED
@@ -46,6 +42,14 @@ enum DestinationType {
   SENDER
   RECEIVER
 }
+
+// 
+enum RouteType {
+   ONE_WAY
+   ROUND
+}
+
+
 
 enum DeliveryQuality {
   EXCELLENT
@@ -100,17 +104,27 @@ enum Gender {
   OTHER
 }
 
+
+// vehicle type
 enum VehicleTypeEnum {
   CAR
   TRUCK
-  MOTORBIKE
+  MOTORCYCLE
+  BUS
+  VAN
   BICYCLE
+  SUV
+  TRACTOR
+  ELECTRIC_SCOOTER
+  OTHER
 }
+
+
 
 enum DeliveryTypeName {
   STANDARD
   EXPRESS
-  SAME_DAY
+  STACKED
 }
 
 enum PermissionAction {

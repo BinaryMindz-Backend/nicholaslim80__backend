@@ -19,8 +19,8 @@ model Admin {
   phone_number      String?
   password          String?
 
-  vehicle_type      VehicleType?  @relation(fields: [vehicle_type_id], references: [id], onDelete: SetNull)
-  delivery_type     DeliveryType? @relation(fields: [delivery_type_id], references: [id], onDelete: SetNull)
+  vehicle_type      VehicleType []
+  delivery_type     DeliveryType[]
 
   incentives        Incentive[]
 

@@ -18,6 +18,7 @@
     "docker:prisma_migrate": "docker compose exec app npx prisma migrate dev --name init",
     "docker:start": "bash ./scripts/docker-start.sh",
     "docker:stop": "docker compose -f docker-compose.yml down",
+    "docker:prisma_reset":" docker compose exec app npx prisma migrate reset",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -101,3 +102,5 @@
     "testEnvironment": "node"
   }
 }
+
+

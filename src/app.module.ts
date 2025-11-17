@@ -1,15 +1,16 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UsersModule } from './modules/users/users.module';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './core/database/database.module';
-import { HealthModule } from './modules/health/health.module';
+import { HealthModule } from './modules/app_health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import Joi from 'joi';
-import { DeliveryTypeModule } from './modules/superadmin/delivery-type/delivery-type.module';
-import { VehicleTypeModule } from './modules/superadmin/vehicle-type/vehicle-type.module';
 import { RedisModule } from './modules/auth/redis/redis.module';
+import { UsersModule } from './modules/users_root/users/users.module';
+import { DeliveryTypeModule } from './modules/superadmin_root/delivery-type/delivery-type.module';
+import { VehicleTypeModule } from './modules/superadmin_root/vehicle-type/vehicle-type.module';
+import { DestinationModule } from './modules/users_root/destination/destination.module';
 
 
 @Module({
@@ -30,7 +31,7 @@ import { RedisModule } from './modules/auth/redis/redis.module';
     DeliveryTypeModule,
     VehicleTypeModule,
     RedisModule,
-  
+    DestinationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

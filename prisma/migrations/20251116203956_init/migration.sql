@@ -11,9 +11,6 @@ CREATE TYPE "NotificationType" AS ENUM ('ORDER_UPDATE', 'PROMOTION', 'GENERAL', 
 CREATE TYPE "RewardType" AS ENUM ('SHARE', 'COMPLETED', 'REFER', 'DAILY_LOGIN', 'FIRST_SIGNUP');
 
 -- CreateEnum
-CREATE TYPE "RouteType" AS ENUM ('STANDARD', 'EXPRESS');
-
--- CreateEnum
 CREATE TYPE "OrderStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'PENDING');
 
 -- CreateEnum
@@ -41,10 +38,10 @@ CREATE TYPE "RaiderVerification" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 CREATE TYPE "Gender" AS ENUM ('MALE', 'FEMALE', 'OTHER');
 
 -- CreateEnum
-CREATE TYPE "VehicleTypeEnum" AS ENUM ('CAR', 'TRUCK', 'MOTORBIKE', 'BICYCLE');
+CREATE TYPE "VehicleTypeEnum" AS ENUM ('CAR', 'TRUCK', 'MOTORCYCLE', 'BUS', 'VAN', 'BICYCLE', 'SUV', 'TRACTOR', 'ELECTRIC_SCOOTER', 'OTHER');
 
 -- CreateEnum
-CREATE TYPE "DeliveryTypeName" AS ENUM ('STANDARD', 'EXPRESS', 'SAME_DAY');
+CREATE TYPE "DeliveryTypeName" AS ENUM ('STANDARD', 'EXPRESS', 'STACKED');
 
 -- CreateEnum
 CREATE TYPE "PermissionAction" AS ENUM ('CREATE', 'READ', 'UPDATE', 'DELETE');
@@ -65,7 +62,7 @@ CREATE TYPE "CoinHistoryType" AS ENUM ('ACCUMULATION', 'APPLICATION');
 CREATE TABLE "admins" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
-    "is_seed_admin" BOOLEAN NOT NULL DEFAULT false,
+    "is_seed_admin" BOOLEAN NOT NULL DEFAULT true,
     "role" "AdminRole" NOT NULL DEFAULT 'SUPER_ADMIN',
     "role_id" INTEGER,
     "vehicle_type_id" INTEGER,
@@ -112,9 +109,12 @@ CREATE TABLE "delivery_types" (
     "id" SERIAL NOT NULL,
     "name" "DeliveryTypeName" NOT NULL,
     "percentage" DECIMAL(6,2),
-    "pickup_time" TIMESTAMP(3),
-    "delivery_time" TIMESTAMP(3),
+    "pickup_duration" INTEGER,
+    "delivery_duration" INTEGER,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+    "admin_id" INTEGER NOT NULL,
 
     CONSTRAINT "delivery_types_pkey" PRIMARY KEY ("id")
 );
@@ -195,7 +195,8 @@ CREATE TABLE "notifications" (
 CREATE TABLE "orders" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER,
-    "route_type" "RouteType" NOT NULL DEFAULT 'STANDARD',
+    "route_type" "DeliveryTypeName" NOT NULL DEFAULT 'EXPRESS',
+    "vehicle_type_id" INTEGER NOT NULL,
     "total_cost" DECIMAL(12,2) NOT NULL,
     "has_additional_services" BOOLEAN NOT NULL DEFAULT false,
     "is_promo_used" BOOLEAN NOT NULL DEFAULT false,
@@ -492,14 +493,16 @@ CREATE TABLE "transactions" (
 CREATE TABLE "users" (
     "id" SERIAL NOT NULL,
     "username" VARCHAR(50),
-    "email" VARCHAR(200) NOT NULL,
-    "phone" VARCHAR(20),
+    "email" VARCHAR(200),
+    "phone" VARCHAR(20) NOT NULL,
     "password" VARCHAR(255),
     "role" "UserRole" NOT NULL DEFAULT 'USER',
-    "balance" DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    "balance" INTEGER NOT NULL DEFAULT 0,
     "reward_points" INTEGER NOT NULL DEFAULT 0,
     "status" BOOLEAN NOT NULL DEFAULT false,
     "is_verified" BOOLEAN NOT NULL DEFAULT false,
+    "is_deleted" BOOLEAN NOT NULL DEFAULT false,
+    "refresh_token" VARCHAR(500),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -509,13 +512,14 @@ CREATE TABLE "users" (
 -- CreateTable
 CREATE TABLE "vehicle_types" (
     "id" SERIAL NOT NULL,
-    "vehicle_type" JSONB,
+    "vehicle_type" "VehicleTypeEnum" NOT NULL,
     "base_price" DECIMAL(12,2),
     "per_km_price" DECIMAL(12,2),
     "peak_pricing" BOOLEAN NOT NULL DEFAULT false,
     "dimension" TEXT,
     "max_load" DECIMAL(12,2),
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "admin_id" INTEGER NOT NULL,
 
     CONSTRAINT "vehicle_types_pkey" PRIMARY KEY ("id")
 );
@@ -577,13 +581,10 @@ CREATE INDEX "_AdminToRole_B_index" ON "_AdminToRole"("B");
 ALTER TABLE "admins" ADD CONSTRAINT "admins_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "admins" ADD CONSTRAINT "admins_vehicle_type_id_fkey" FOREIGN KEY ("vehicle_type_id") REFERENCES "vehicle_types"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "admins" ADD CONSTRAINT "admins_delivery_type_id_fkey" FOREIGN KEY ("delivery_type_id") REFERENCES "delivery_types"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "coin_history" ADD CONSTRAINT "coin_history_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "delivery_types" ADD CONSTRAINT "delivery_types_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "admins"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "incentives" ADD CONSTRAINT "incentives_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "admins"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -593,6 +594,9 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_userId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "orders" ADD CONSTRAINT "orders_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "orders" ADD CONSTRAINT "orders_vehicle_type_id_fkey" FOREIGN KEY ("vehicle_type_id") REFERENCES "vehicle_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "orders" ADD CONSTRAINT "orders_payment_method_id_fkey" FOREIGN KEY ("payment_method_id") REFERENCES "payment_methods"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -689,6 +693,9 @@ ALTER TABLE "transactions" ADD CONSTRAINT "transactions_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vehicle_types" ADD CONSTRAINT "vehicle_types_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "admins"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_AdminToRole" ADD CONSTRAINT "_AdminToRole_A_fkey" FOREIGN KEY ("A") REFERENCES "admins"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -1,8 +1,8 @@
 import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
-import { OtpService } from '../auth/otp.service';
+import { OtpService } from 'src/modules/auth/otp.service';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 
 
