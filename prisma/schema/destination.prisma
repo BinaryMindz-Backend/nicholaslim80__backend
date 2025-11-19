@@ -12,9 +12,10 @@ model Destination {
   accuracy  Float?
   
   user_id            Int
-  user               User @relation(fields: [user_id], references: [id])
+  user               User @relation(fields: [user_id], references: [id], onDelete:Cascade)
   // 
-  orders             Order[]
+  order_id           Int
+  order              Order @relation(fields: [order_id], references: [id], onDelete:SetNull)
 
   @@map("destinations")
 }

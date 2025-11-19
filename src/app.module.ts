@@ -11,6 +11,8 @@ import { UsersModule } from './modules/users_root/users/users.module';
 import { DeliveryTypeModule } from './modules/superadmin_root/delivery-type/delivery-type.module';
 import { VehicleTypeModule } from './modules/superadmin_root/vehicle-type/vehicle-type.module';
 import { DestinationModule } from './modules/users_root/destination/destination.module';
+import { OrderModule } from './modules/users_root/order/order.module';
+import { PaymentOptionModule } from './modules/users_root/payment-option/payment-option.module';
 
 
 @Module({
@@ -32,6 +34,8 @@ import { DestinationModule } from './modules/users_root/destination/destination.
     VehicleTypeModule,
     RedisModule,
     DestinationModule,
+    OrderModule,
+    PaymentOptionModule,
 
   ],
   controllers: [AppController],

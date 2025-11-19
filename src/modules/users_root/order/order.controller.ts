@@ -1,0 +1,153 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
+import { OrderService } from './order.service';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderDto } from './dto/update-order.dto';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { Auth } from 'src/decorators/auth.decorator';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import { ApiResponses } from 'src/common/apiResponse';
+import type { IUser } from 'src/types';
+
+@ApiTags('Order (User)')
+@Controller('order')
+export class OrderController {
+  constructor(private readonly orderService: OrderService) {}
+
+  // CREATE
+  @Post()
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create new order' })
+  async create(@Body() dto: CreateOrderDto, @CurrentUser() user:IUser) {
+    try {
+      const order = await this.orderService.create(dto, user);
+      return ApiResponses.success(order, 'Order created successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to create order');
+    }
+  }
+
+
+  // GET MY ORDERS
+  @Get('mine')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get logged-in user orders' })
+  @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
+  async findMine(@CurrentUser() user: IUser) {
+    try {
+      const orders = await this.orderService.findMine(user.id);
+      return ApiResponses.success(orders, 'Orders retrieved successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch orders');
+    }
+  }
+
+  // GET ALL ORDERS (ADMIN OR SYSTEM USE)
+  @Get()
+  @ApiOperation({ summary: 'Get all orders' })
+  async findAll() {
+    const orders = await this.orderService.findAll();
+    return ApiResponses.success(orders, 'All orders retrieved successfully');
+  }
+
+  // GET ONE
+  @Get(':id')
+  @ApiOperation({ summary: 'Get order by ID' })
+  async findOne(@Param('id') id: string) {
+    try {
+      const order = await this.orderService.findOne(+id);
+      return ApiResponses.success(order, 'Order retrieved successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch order');
+    }
+  }
+
+  // UPDATE
+  @Patch(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update order by ID' })
+  async update(@Param('id') id: string, @Body() dto: UpdateOrderDto) {
+    try {
+      const order = await this.orderService.update(+id, dto);
+      return ApiResponses.success(order, 'Order updated successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to update order');
+    }
+  }
+
+
+  // mark as pending
+  @Patch(':id/pending')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update order by ID' })
+  async orderMarkAsPending(@Param('id') id: string,@CurrentUser() user:IUser) {
+    try {
+      const order = await this.orderService.orderMarkAsPending(+id, user);
+      return ApiResponses.success(order, 'Order status updated successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to update order status');
+    }
+  }
+
+
+
+  // mark as completed
+  @Patch(':id/completed')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update order by ID' })
+  async orderMarkAsCompleted(@Param('id') id: string,@CurrentUser() user:IUser) {
+    try {
+      const order = await this.orderService.orderMarkAsCompleted(+id, user);
+      return ApiResponses.success(order, 'Order status updated successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to update order status');
+    }
+  }
+
+  // mark as cancled
+  @Patch(':id/cancled')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update order by ID' })
+  async orderMarkAsCancled(@Param('id') id: string,@CurrentUser() user:IUser) {
+    try {
+      const order = await this.orderService.orderMarkAsCancled(+id, user);
+      return ApiResponses.success(order, 'Order status updated successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to update order status');
+    }
+  }
+
+
+
+  // DELETE
+  @Delete(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete order by ID' })
+  async remove(@Param('id') id: string) {
+    try {
+      const order = await this.orderService.remove(+id);
+      return ApiResponses.success(order, 'Order deleted successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to delete order');
+    }
+  }
+}

@@ -48,7 +48,8 @@ export class DestinationService {
           latitude:dto.latitude,
           longitude:dto.longitude,
           accuracy:dto.accuracy,
-          user_id:user?.id
+          user_id:user.id,
+          order_id:dto.order_id
     } });
   }
   

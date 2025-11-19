@@ -36,6 +36,7 @@ enum OrderStatus {
   COMPLETED
   CANCELLED
   PENDING
+  PROGRESS
 }
 
 enum DestinationType {

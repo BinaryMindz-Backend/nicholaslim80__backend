@@ -52,5 +52,10 @@ export class CreateDestinationDto {
   @IsOptional()
   @IsNumber()
   accuracy?: number;
+
+  
+  @ApiProperty({example:1})
+  @IsNumber()
+  order_id:number;
 }
 
