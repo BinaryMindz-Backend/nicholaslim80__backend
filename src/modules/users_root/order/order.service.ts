@@ -114,7 +114,7 @@ export class OrderService {
            },
            data:{
               order_status:OrderStatus.PENDING,
-              is_placed:false,
+              is_placed:true,
            }
       })
       return updatedStatus;
@@ -157,7 +157,6 @@ export class OrderService {
            },
            data:{
               order_status:OrderStatus.COMPLETED,
-              is_placed:true,
            }
       })
       return updatedStatus;
@@ -208,7 +207,7 @@ export class OrderService {
 
 
 
-  
+
   // order update for admin
   async update(id: number, dto: UpdateOrderDto) {
     await this.findOne(id); // ensures existence
