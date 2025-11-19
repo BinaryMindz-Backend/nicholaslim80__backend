@@ -50,6 +50,7 @@ async function main() {
       },
     });
 
+
     return { user, admin };
   });
 

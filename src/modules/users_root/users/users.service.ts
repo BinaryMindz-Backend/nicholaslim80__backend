@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, NotAcceptableException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { OtpService } from 'src/modules/auth/otp.service';
@@ -163,6 +163,45 @@ async deleteMultiple(ids: number[]) {
   return this.prisma.user.deleteMany({
     where: { id: { in: ids } },
   });
+}
+
+
+// ** add wallet
+async addMoneyToWallet(id:number, amount:number){
+
+    if(!id){
+        throw new NotFoundException("id not found")
+    }
+       
+  const currentUser = await this.prisma.user.findUnique({
+       where:{
+         id
+       }
+  })
+
+  if(!currentUser){
+      throw new NotFoundException("User not found")
+  }
+  
+const currentBalance = (currentUser.balance)
+const newBalance = currentBalance + (amount * 100);
+console.log("from services--->", amount);
+  // 
+  if(amount < 20){
+       throw new NotAcceptableException(`This ${amount} is not acceptable you need minimun 20 USD to added to wallet`)
+  }
+    // 
+  const updatedWallet = await this.prisma.user.update({
+      //  
+       where:{
+           id
+       },
+       data:{
+          balance:newBalance,
+       }
+  })
+  // TODO : need to add transaction 
+  return updatedWallet;
 }
 
 
