@@ -91,7 +91,7 @@ export class OrderController {
   @Auth()
   @ApiBearerAuth()
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Update order by ID' })
+  @ApiOperation({ summary: 'Update order by ID (Admin only)' })
   async update(@Param('id') id: string, @Body() dto: UpdateOrderDto) {
     try {
       const order = await this.orderService.update(+id, dto);
@@ -156,7 +156,7 @@ export class OrderController {
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete order by ID' })
+  @ApiOperation({ summary: 'Delete order by ID(Admin only)' })
   async remove(@Param('id') id: string) {
     try {
       const order = await this.orderService.remove(+id);

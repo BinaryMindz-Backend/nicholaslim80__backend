@@ -28,7 +28,8 @@ export class DestinationService {
            OR:[
             {latitude: dto.latitude},
             {longitude: dto.longitude},
-           ]
+           ],
+           user_id:user?.id
       }
     })
      if(isExist){
