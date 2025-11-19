@@ -51,7 +51,7 @@ export class VehicleTypeController {
   @Get()
   @Auth()
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all Vehicle Types(Admin only)' })
+  @ApiOperation({ summary: 'Get all Vehicle Types' })
   @ApiResponse({ status: 200, description: 'List of Vehicle Types' })
   async findAll() {
     try {
@@ -67,7 +67,7 @@ export class VehicleTypeController {
   @Get(':id')
   @Auth()
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get Vehicle Type by ID(Admin only)' })
+  @ApiOperation({ summary: 'Get Vehicle Type by ID' })
   @ApiParam({ name: 'id', description: 'Vehicle Type ID' })
   async findOne(
     @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }))

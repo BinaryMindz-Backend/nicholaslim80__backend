@@ -32,6 +32,7 @@ import { DestinationModule } from './modules/users_root/destination/destination.
     VehicleTypeModule,
     RedisModule,
     DestinationModule,
+
   ],
   controllers: [AppController],
   providers: [AppService],

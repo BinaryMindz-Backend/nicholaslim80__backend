@@ -28,8 +28,8 @@ model Order {
   is_out_for_delivery      Boolean    @default(false)
 
   destination_id           Int?
-  destinations              Destination? @relation(fields: [destination_id], references: [id], onDelete: SetNull)
-  transactions              Transaction[]
+  destinations             Destination? @relation(fields: [destination_id], references: [id], onDelete: SetNull)
+  transactions             Transaction[]
 
   rewards                  Reward[]
   // 
