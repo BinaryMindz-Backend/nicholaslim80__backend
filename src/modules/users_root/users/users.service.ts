@@ -185,7 +185,6 @@ async addMoneyToWallet(id:number, amount:number){
   
 const currentBalance = (currentUser.balance)
 const newBalance = currentBalance + (amount * 100);
-console.log("from services--->", amount);
   // 
   if(amount < 20){
        throw new NotAcceptableException(`This ${amount} is not acceptable you need minimun 20 USD to added to wallet`)

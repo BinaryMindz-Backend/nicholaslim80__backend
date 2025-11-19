@@ -7,7 +7,7 @@ model Order {
   delivery_type            DeliveryTypeName  @default(EXPRESS)
   
   vehicle_type_id          Int
-  vehicle                  VehicleType @relation(fields: [vehicle_type_id], references: [id])
+  vehicle                  VehicleType @relation(fields: [vehicle_type_id], references: [id], onDelete:SetNull)
 
   total_cost               Decimal    @db.Decimal(12,2)
   has_additional_services  Boolean    @default(false)
@@ -15,7 +15,7 @@ model Order {
   notify_favorite_raider   Boolean    @default(false)
 
   payment_method_id        Int        @unique
-  payment_method           PaymentMethod? @relation(fields: [payment_method_id], references: [id])
+  payment_method           PaymentMethod? @relation(fields: [payment_method_id], references: [id], onDelete:SetNull)
 
   assign_rider_id          Int?
   assign_rider             Raider?    @relation("AssignedRaider", fields: [assign_rider_id], references: [id], onDelete: SetNull)
@@ -24,16 +24,15 @@ model Order {
   is_reviewed              Boolean    @default(false)
   is_placed                Boolean    @default(false)
   is_pickup                Boolean    @default(false)
-  order_status             OrderStatus @default(PENDING)
+  order_status             OrderStatus @default(PROGRESS)
   is_out_for_delivery      Boolean    @default(false)
 
-  destination_id           Int?
-  destinations             Destination? @relation(fields: [destination_id], references: [id], onDelete: SetNull)
+  destinations             Destination[]
   transactions             Transaction[]
 
   rewards                  Reward[]
   // 
-  pick_up_items            DateTime   @default(now())
+  pick_up_items            String[]
 
   reviews                  Review[]
   tips                     Tip[]
