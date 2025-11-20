@@ -34,5 +34,13 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole;
+
+
+  @ApiPropertyOptional({ example: 'kl345678', description: "Referrel code" })
+  @IsOptional()
+  @IsString()
+  referral_code?: string;
+
+
   
 }

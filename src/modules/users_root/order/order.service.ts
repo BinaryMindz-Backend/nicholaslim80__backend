@@ -105,6 +105,11 @@ export class OrderService {
 
 
 
+
+  //TODO:(nodeNINJAr) confirm order need to handle promoCode uses and reedom code
+
+
+
     // order status update
   async orderMarkAsPending(id:number, user:IUser){
           //  
