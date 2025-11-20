@@ -52,7 +52,7 @@ export class DestinationController {
 
   // FIND ALL
   @Get()
-  @ApiOperation({ summary: 'Get all destinations' })
+  @ApiOperation({ summary: 'Get all destinations(only users)' })
   async findAll(@CurrentUser() user:IUser) {
     try {
       const result = await this.service.findAll(user);

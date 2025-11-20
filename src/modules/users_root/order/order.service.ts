@@ -79,6 +79,30 @@ export class OrderService {
   }
 
 
+  //** update // used place
+ async destinationUpdateByUser(orderId:number,id:number, user:IUser){
+        // 
+       if(!id) throw new NotFoundException("Destination id not found")
+       if(!orderId) throw new NotFoundException("Order id Not found")
+       const record = await this.prisma.order.findFirst({
+            where:{
+               id:orderId,
+               userId:user.id
+            }
+      }) 
+      if(!record) throw new NotFoundException("Order record not found")
+        //
+      await this.prisma.destination.update({
+           where:{
+              id,
+           },
+           data:{
+               order_id:orderId
+           }
+      }) 
+    
+ }
+
 
 
     // order status update
@@ -119,9 +143,6 @@ export class OrderService {
       })
       return updatedStatus;
   }
-
-
-
 
 
   // order status update
@@ -203,8 +224,6 @@ export class OrderService {
       })
       return updatedStatus;
   }
-
-
 
 
 

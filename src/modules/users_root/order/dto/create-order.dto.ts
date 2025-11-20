@@ -48,12 +48,6 @@ export class CreateOrderDto {
   @IsInt()
   payment_method_id: number;
 
-
-  @ApiProperty({ example: 5 })
-  @IsOptional()
-  @IsInt()
-  destination_id?: number;
-
   @ApiProperty({ example: ["link1", "link2"] })
   @IsOptional()
   pick_up_items?: string[];

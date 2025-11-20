@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -100,6 +101,23 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to update order');
     }
   }
+
+  //
+  @Patch(':order_id/destination/update')
+  @Auth()
+  @ApiBearerAuth()
+  @Roles(UserRole.USER)
+  @ApiOperation({ summary: 'Update order by ID (user only)' })
+  async destinationUpdateByUser(@Param('order_id') order_id: string, @Query("desti_id") desti_id:string, @CurrentUser() user:IUser ) {
+    // 
+    try {
+      const order = await this.orderService.destinationUpdateByUser(+order_id, +desti_id, user);
+      return ApiResponses.success(order, 'Order updated successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to update order');
+    }
+  } 
+
 
 
   // mark as pending
