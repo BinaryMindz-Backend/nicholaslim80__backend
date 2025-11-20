@@ -1,12 +1,14 @@
 model Refer {
   id             Int       @id @default(autoincrement())
-  how_its_work   String
+  how_its_work   String?
   refer_code     String    @unique
-  refer_link     String
   user_id        Int       
-  user            User @relation(fields: [user_id], references: [id]) 
+  user            User @relation(fields: [user_id], references: [id], onDelete:Cascade) 
 
   rewards        Reward[]
+
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
 
   @@map("refers")
 }

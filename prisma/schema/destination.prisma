@@ -14,8 +14,8 @@ model Destination {
   user_id            Int
   user               User @relation(fields: [user_id], references: [id], onDelete:Cascade)
   // 
-  order_id           Int
-  order              Order @relation(fields: [order_id], references: [id], onDelete:SetNull)
+  order_id           Int?
+  order              Order? @relation(fields: [order_id], references: [id], onDelete:SetNull)
 
   @@map("destinations")
 }

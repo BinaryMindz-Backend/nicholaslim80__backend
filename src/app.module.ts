@@ -13,6 +13,7 @@ import { VehicleTypeModule } from './modules/superadmin_root/vehicle-type/vehicl
 import { DestinationModule } from './modules/users_root/destination/destination.module';
 import { OrderModule } from './modules/users_root/order/order.module';
 import { PaymentOptionModule } from './modules/users_root/payment-option/payment-option.module';
+import { ReferloyalityModule } from './modules/users_root/referloyality/referloyality.module';
 
 
 @Module({
@@ -36,6 +37,7 @@ import { PaymentOptionModule } from './modules/users_root/payment-option/payment
     DestinationModule,
     OrderModule,
     PaymentOptionModule,
+    ReferloyalityModule,
 
   ],
   controllers: [AppController],

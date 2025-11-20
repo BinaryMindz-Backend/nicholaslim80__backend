@@ -14,7 +14,7 @@ model Order {
   is_promo_used            Boolean    @default(false)
   notify_favorite_raider   Boolean    @default(false)
 
-  payment_method_id        Int        @unique
+  payment_method_id        Int?        
   payment_method           PaymentMethod? @relation(fields: [payment_method_id], references: [id], onDelete:SetNull)
 
   assign_rider_id          Int?

@@ -79,6 +79,35 @@ export class OrderService {
   }
 
 
+  //** update // used place
+ async destinationUpdateByUser(orderId:number,id:number, user:IUser){
+        // 
+       if(!id) throw new NotFoundException("Destination id not found")
+       if(!orderId) throw new NotFoundException("Order id Not found")
+       const record = await this.prisma.order.findFirst({
+            where:{
+               id:orderId,
+               userId:user.id
+            }
+      }) 
+      if(!record) throw new NotFoundException("Order record not found")
+        //
+      await this.prisma.destination.update({
+           where:{
+              id,
+           },
+           data:{
+               order_id:orderId
+           }
+      }) 
+    
+ }
+
+
+
+
+  //TODO:(nodeNINJAr) confirm order need to handle promoCode uses and reedom code
+
 
 
     // order status update
@@ -114,14 +143,11 @@ export class OrderService {
            },
            data:{
               order_status:OrderStatus.PENDING,
-              is_placed:false,
+              is_placed:true,
            }
       })
       return updatedStatus;
   }
-
-
-
 
 
   // order status update
@@ -157,7 +183,6 @@ export class OrderService {
            },
            data:{
               order_status:OrderStatus.COMPLETED,
-              is_placed:true,
            }
       })
       return updatedStatus;
@@ -207,8 +232,6 @@ export class OrderService {
 
 
 
-
-  
   // order update for admin
   async update(id: number, dto: UpdateOrderDto) {
     await this.findOne(id); // ensures existence
