@@ -10,6 +10,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { AddMoneyDto } from './dto/add-money.dto';
+import { Roles } from 'src/decorators/roles.decorator';
+import { UserRole } from '@prisma/client';
 
 
 @ApiTags('Users')
@@ -78,8 +80,28 @@ export class UsersController {
     }
   }
 
+  
+  // find me
+  @Get("me")
+  @Auth()
+  @Roles(UserRole.USER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get Own profile' })
+  @ApiResponse({ status: 200, description: 'User Own profile retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'User  not found' })
+  async findMe(@CurrentUser() user:IUser,) {
+        try {
+      const profile =  await this.usersService.findMe(user);
+      return ApiResponses.success(profile, 'User retrieved successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch user');
+    }
 
-  // ** Get single user
+  }
+
+
+
+  // ** Get single user by id
   @Get(':id')
   @Auth()
   @ApiBearerAuth()
@@ -98,6 +120,7 @@ export class UsersController {
       return ApiResponses.error(err, 'Failed to fetch user');
     }
   }
+
 
   // ** Get delete single user
   @Get('deleted/:id')

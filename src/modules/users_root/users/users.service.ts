@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { OtpService } from 'src/modules/auth/otp.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ReferralUtils } from 'src/utils/referral.util';
+import { IUser } from 'src/types';
 
 
 
@@ -129,6 +130,14 @@ async updateUserRefreshToken(userId: number, token: string | null) {
 
     return this.prisma.user.findUnique({ where: { id , is_deleted:false} });
   }
+
+  // ** Get user by user id
+  async findMe(user:IUser) {
+    if(!user.id) throw new NotFoundException("User id not found")
+    return this.prisma.user.findFirst({ where: { id:Number(user.id) , is_deleted:false} });
+  }
+
+
 
 
     // ** Get user by ID for admin
