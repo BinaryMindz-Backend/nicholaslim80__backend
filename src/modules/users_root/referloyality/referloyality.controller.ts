@@ -1,6 +1,6 @@
-import { Controller, Delete, Get, Param } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Query } from '@nestjs/common';
 import { ReferloyalityService } from './referloyality.service';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Auth } from 'src/decorators/auth.decorator';
 import { Roles } from 'src/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
@@ -26,6 +26,25 @@ export class ReferloyalityController {
     }
   }
   
+// count all
+@Get("count")
+@Auth()
+@Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+@ApiBearerAuth()
+@ApiOperation({ summary: 'Get refer count by refer code' })
+@ApiQuery({ name: 'refer_code', required: false, description: 'Referral code (optional)' })
+async referCount(@Query('refer_code') refer_code?: string) {
+  try {
+    const result = await this.referloyalityService.referCount(refer_code);
+    return ApiResponses.success(result, 'Refer count retrieved successfully');
+  } catch (err) {
+    return ApiResponses.error(err, 'Failed to retrieve refer count');
+  }
+}
+
+
+
+
   // find one
   @Get(":id")
   @Auth()

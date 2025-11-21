@@ -5,6 +5,8 @@ model Order {
   userId                   Int?
   route_type               RouteType @default(ONE_WAY)
   delivery_type            DeliveryTypeName  @default(EXPRESS)
+
+  pay_type                 PayType @default(WALLET)
   
   vehicle_type_id          Int
   vehicle                  VehicleType @relation(fields: [vehicle_type_id], references: [id], onDelete:SetNull)

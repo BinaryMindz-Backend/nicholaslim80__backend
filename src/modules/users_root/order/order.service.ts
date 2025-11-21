@@ -3,7 +3,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { IUser } from 'src/types';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, PayType } from '@prisma/client';
 
 
 @Injectable()
@@ -11,6 +11,12 @@ export class OrderService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateOrderDto, user:IUser) {
+
+     //
+     if(dto.pay_type === PayType.ONLINE_PAY && dto.payment_method_id === undefined){
+        throw new  NotFoundException("For the External pay method must need an payment method id")
+     }
+
     //  
      if(!user){
          throw new NotFoundException("Authenticed user not found")
@@ -25,7 +31,19 @@ export class OrderService {
     if(!isUserExist){
         throw new UnauthorizedException("Unauthorize exception")
     }
-      
+       
+    const paymethodRecord = await this.prisma.paymentMethod.findFirst({
+         where:{
+             OR:[
+              { id:dto.payment_method_id},
+              { userId:user?.id}
+             ]
+         }
+    })
+    if(!paymethodRecord){
+        throw new NotFoundException("pay method not found")
+    }
+
     // 
     return this.prisma.order.create({
       data:{
@@ -112,6 +130,7 @@ export class OrderService {
 
     // order status update
   async orderMarkAsPending(id:number, user:IUser){
+        // TODO:need to work with order type
           //  
       const record = await this.prisma.order.findUnique({
         where:{
@@ -152,6 +171,7 @@ export class OrderService {
 
   // order status update
   async orderMarkAsCompleted(id:number, user:IUser){
+
          //  
          const record = await this.prisma.order.findUnique({
            where:{
