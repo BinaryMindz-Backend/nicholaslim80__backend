@@ -5,10 +5,11 @@ import {
   IsOptional,
   IsEnum,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   RouteType,
   DeliveryTypeName,
+  PayType,
 } from '@prisma/client';
 
 export class CreateOrderDto {
@@ -44,15 +45,14 @@ export class CreateOrderDto {
   @IsOptional()
   notify_favorite_raider?: boolean;
 
-  @ApiProperty({ example: 2 })
+  @ApiPropertyOptional({ example: 2 })
   @IsInt()
-  payment_method_id: number;
-
-
-  @ApiProperty({ example: 5 })
   @IsOptional()
-  @IsInt()
-  destination_id?: number;
+  payment_method_id?: number;
+   
+  @ApiProperty({ enum: PayType, default: PayType.COD })
+  @IsEnum(PayType)
+  pay_type: PayType
 
   @ApiProperty({ example: ["link1", "link2"] })
   @IsOptional()

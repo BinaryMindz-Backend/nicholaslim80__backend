@@ -3,6 +3,8 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { OtpService } from 'src/modules/auth/otp.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ReferralUtils } from 'src/utils/referral.util';
+import { IUser } from 'src/types';
 
 
 
@@ -17,7 +19,25 @@ export class UsersService {
 
 
   // ** Create new user // signup with otp verify
-  async createUser(dto: { email?: string; password?: string; username?: string; phone: string }) {
+  async createUser(dto: { email?: string; password?: string; username?: string; phone: string , referral_code?:string}) {
+
+      let referredByUser;
+
+      if(dto.referral_code){
+          referredByUser = await this.prisma.user.findUnique({
+              where:{
+                  referral_code:dto.referral_code
+              }
+          })
+          // 
+        if (!referredByUser) {
+          throw new BadRequestException('Invalid referral code');
+        }
+        // 
+
+      }
+    // generate referral code and link
+    const {code, link} = ReferralUtils.generateReferral(process.env.BASE_URL as string);
     //  
     const existing = await this.prisma.user.findFirst({ where: {OR:[
             { email: dto.email },
@@ -38,13 +58,28 @@ export class UsersService {
                 username: dto.username,
                 phone: dto.phone,
                 password: hashed,
+                referral_code:code,
+                referral_link:link,
+                is_acc_refered:dto.referral_code? true : false
               },
             });
-    
+
+      if(dto.referral_code){
+
+      await this.prisma.refer.create({
+             data:{
+                refer_code:dto.referral_code,
+                user_id:user.id
+             }
+        })  
+      }
+        
     // pass to otp verify method
     await this.otpService.generateOtp(user.email ,user.phone);      
 
-    return user;
+    return {
+       user,
+    };
   }
   
 
@@ -95,6 +130,14 @@ async updateUserRefreshToken(userId: number, token: string | null) {
 
     return this.prisma.user.findUnique({ where: { id , is_deleted:false} });
   }
+
+  // ** Get user by user id
+  async findMe(user:IUser) {
+    if(!user.id) throw new NotFoundException("User id not found")
+    return this.prisma.user.findFirst({ where: { id:Number(user.id) , is_deleted:false} });
+  }
+
+
 
 
     // ** Get user by ID for admin
