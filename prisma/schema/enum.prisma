@@ -89,7 +89,12 @@ enum TransactionStatus {
   SUCCESS
   FAILED
 }
-
+// 
+enum PayType {
+   COD
+   WALLET
+   ONLINE_PAY
+}
 
 
 

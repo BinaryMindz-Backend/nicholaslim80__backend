@@ -25,6 +25,24 @@ export class ReferloyalityService {
     return record
   }
 
+// refer count
+async referCount(referCode?: string): Promise<number> {
+  let totalCount: number;
+
+  if (referCode) {
+    totalCount = await this.prisma.refer.count({
+      where: {
+        refer_code: referCode,
+      },
+    });
+  } else {
+    totalCount = await this.prisma.refer.count();
+  }
+
+  return totalCount;
+}
+
+  
   
   // delete for testing
   async delete(id: number) {

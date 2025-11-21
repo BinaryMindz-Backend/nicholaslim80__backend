@@ -6,3 +6,10 @@ export interface IUser {
   phone: string;
   role: Role;
 }
+
+
+export interface countType{
+  success: boolean;
+  message: string;
+  data: number
+}
