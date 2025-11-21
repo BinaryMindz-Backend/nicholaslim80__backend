@@ -18,7 +18,7 @@
     "docker:prisma_migrate": "docker compose exec app npx prisma migrate dev --name init",
     "docker:start": "bash ./scripts/docker-start.sh",
     "docker:stop": "docker compose -f docker-compose.yml down",
-    "docker:prisma_reset":" docker compose exec app npx prisma migrate reset",
+    "docker:prisma_reset": " docker compose exec app npx prisma migrate reset",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -48,7 +48,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
-    "redis": "^5.9.0",
+    "redis": "^5.10.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.1"
@@ -102,5 +102,3 @@
     "testEnvironment": "node"
   }
 }
-
-

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RedisService } from './redis.service';
@@ -31,5 +31,5 @@ import { createClient } from 'redis';
   ],
   exports: ['REDIS_CLIENT', RedisService],
 })
-export class RedisModule {}
+export class RedisModule { }
 
