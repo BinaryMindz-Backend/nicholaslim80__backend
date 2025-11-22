@@ -1,15 +1,32 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, } from '@nestjs/common';
 import { RidersProfileService } from './riders_profile.service';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
+import { ApiBearerAuth, ApiBody, ApiOperation } from '@nestjs/swagger';
+
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
+import { Auth } from 'src/decorators/auth.decorator';
+import { ApiResponses } from 'src/common/apiResponse';
 
 @Controller('riders-profile')
 export class RidersProfileController {
-  constructor(private readonly ridersProfileService: RidersProfileService) {}
+  constructor(private readonly ridersProfileService: RidersProfileService) { }
 
   @Post()
-  create(@Body() createRidersProfileDto: CreateRidersProfileDto) {
-    return this.ridersProfileService.create(createRidersProfileDto);
+  @Auth()
+  @ApiOperation({ summary: 'Upload profile picture' })
+  @ApiBody({ type: CreateRidersProfileDto })
+  @ApiBearerAuth()
+  async create(@Body() createRidersProfileDto: CreateRidersProfileDto,
+    @CurrentUser() user: IUser,
+  ) {
+    try {
+      const res = await this.ridersProfileService.create(user.id, createRidersProfileDto);
+      return ApiResponses.success(res, 'Rider profile created successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
   }
 
   @Get()
