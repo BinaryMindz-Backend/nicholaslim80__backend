@@ -10,8 +10,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { AddMoneyDto } from './dto/add-money.dto';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+
 
 
 @ApiTags('Users')
