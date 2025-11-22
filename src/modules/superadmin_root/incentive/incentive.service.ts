@@ -21,7 +21,7 @@ export class IncentiveService {
     })
     
     if(record){ 
-        throw new ConflictException("Incentive record not found")
+        throw new ConflictException("Incentive record found by same date")
     }
     
     // 

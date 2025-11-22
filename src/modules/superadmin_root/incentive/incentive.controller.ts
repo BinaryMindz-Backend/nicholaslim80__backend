@@ -25,7 +25,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 
-@ApiTags('incentives') // Group endpoints under the "incentives" tag in Swagger UI
+@ApiTags('incentives (admin)') // Group endpoints under the "incentives" tag in Swagger UI
 @ApiBearerAuth() // Indicates that the endpoints require a Bearer token
 @Controller('incentive')
 export class IncentiveController {
@@ -142,7 +142,7 @@ export class IncentiveController {
       }
       return ApiResponses.success(res, 'Incentive status updated successfully');
     } catch (error) {
-      return ApiResponses.error(error, 'Failed to update Incentive statuss');
+      return ApiResponses.error(error, 'Failed to update Incentive status');
     }
   }
 
