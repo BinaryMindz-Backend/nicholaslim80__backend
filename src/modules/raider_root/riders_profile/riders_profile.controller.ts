@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, } from '@nestjs/common';
 import { RidersProfileService } from './riders_profile.service';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
-import { ApiBearerAuth, ApiBody, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam } from '@nestjs/swagger';
 
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
@@ -63,6 +63,12 @@ export class RidersProfileController {
   @Patch(':id/:verify')
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
+  @ApiParam({
+    name: 'verify',
+    enum: RaiderVerification,
+    description: 'Verification status',
+    required: true,
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verify rider profile (Admin only)' })
   async verifyRiderProfile(@Param('id') id: string, @Param('verify') verify: RaiderVerification) {
