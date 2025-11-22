@@ -6,7 +6,6 @@ import {
   Req,
   UseInterceptors,
   UploadedFiles,
-  UploadedFile,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -18,7 +17,7 @@ import { RequestOtpDto } from './dto/request-otp.dto';
 import { Auth } from '../../decorators/auth.decorator';
 import { UsersService } from '../users_root/users/users.service';
 import { UploadImageDto } from './dto/uploadImage.dto';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { storageConfig } from 'src/common/fileUpload/file';
 import { ApiResponses } from 'src/common/apiResponse';
 
