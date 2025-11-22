@@ -140,6 +140,7 @@ export class AuthController {
 
 
   // image upload for profile picture
+  @ApiTags('File Upload')
   @Post('upload')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadImageDto })
