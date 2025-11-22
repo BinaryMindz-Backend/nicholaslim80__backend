@@ -74,8 +74,6 @@ export class RidersProfileService {
       where: { userId: Number(id) },
     });
 
-    console.log({ userExists });
-
     if (!userExists) {
       throw new Error('Rider profile not found');
     }
