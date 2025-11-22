@@ -1,7 +1,7 @@
 model Refer {
   id             Int       @id @default(autoincrement())
   how_its_work   String?
-  refer_code     String    @unique
+  refer_code     String    
   user_id        Int       
   user            User @relation(fields: [user_id], references: [id], onDelete:Cascade) 
 

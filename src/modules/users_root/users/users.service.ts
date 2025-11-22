@@ -5,6 +5,7 @@ import { OtpService } from 'src/modules/auth/otp.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ReferralUtils } from 'src/utils/referral.util';
 import { IUser } from 'src/types';
+import { UserRole } from '@prisma/client';
 
 
 
@@ -19,7 +20,7 @@ export class UsersService {
 
 
   // ** Create new user // signup with otp verify
-  async createUser(dto: { email?: string; password?: string; username?: string; phone: string , referral_code?:string}) {
+  async createUser(dto: { email?: string; password?: string; username?: string; phone: string , referral_code?:string, role?:UserRole}) {
 
       let referredByUser;
 
@@ -60,7 +61,8 @@ export class UsersService {
                 password: hashed,
                 referral_code:code,
                 referral_link:link,
-                is_acc_refered:dto.referral_code? true : false
+                is_acc_refered:dto.referral_code? true : false,
+                role:dto.role
               },
             });
 
