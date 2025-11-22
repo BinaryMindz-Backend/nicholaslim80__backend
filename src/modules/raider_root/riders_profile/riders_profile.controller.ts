@@ -9,6 +9,8 @@ import type { IUser } from 'src/types';
 import { Auth } from 'src/decorators/auth.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
 import { RaiderVerification } from '@prisma/client';
+import { Roles } from 'src/decorators/roles.decorator';
+import { UserRole } from 'src/modules/users_root/users/dto/create-user.dto';
 
 @Controller('riders-profile')
 export class RidersProfileController {
@@ -16,7 +18,7 @@ export class RidersProfileController {
 
   @Post()
   @Auth()
-  @ApiOperation({ summary: 'Upload profile picture' })
+  @ApiOperation({ summary: 'Rider profile creation (Rider only)' })
   @ApiBody({ type: CreateRidersProfileDto })
   @ApiBearerAuth()
   async create(@Body() createRidersProfileDto: CreateRidersProfileDto,
@@ -31,7 +33,10 @@ export class RidersProfileController {
   }
 
   @Get()
-
+  @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
+  @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   async findAll() {
     try {
       const res = await this.ridersProfileService.findAll();
@@ -42,6 +47,10 @@ export class RidersProfileController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Rider profile fetching by id (Admin only)' })
+  @Auth()
+  @ApiBearerAuth()
+  @Roles(UserRole.SUPER_ADMIN)
   async findOne(@Param('id') id: string) {
     try {
       const res = await this.ridersProfileService.findOne(id);
@@ -53,6 +62,9 @@ export class RidersProfileController {
 
   @Patch(':id/:verify')
   @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify rider profile (Admin only)' })
   async verifyRiderProfile(@Param('id') id: string, @Param('verify') verify: RaiderVerification) {
     try {
       const res = await this.ridersProfileService.verifyRiderProfile(Number(id), verify);
@@ -65,6 +77,7 @@ export class RidersProfileController {
   @Patch('update-rider-profile')
   @Auth()
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update rider profile (Rider only)' })
   async update(@Body() updateRidersProfileDto: UpdateRidersProfileDto, @CurrentUser() user: IUser) {
     try {
       const res = await this.ridersProfileService.update(user.id, updateRidersProfileDto);
