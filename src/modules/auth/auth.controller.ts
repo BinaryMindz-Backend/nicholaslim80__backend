@@ -23,19 +23,19 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
     private readonly otpService: OtpService,
-  ) {}
+  ) { }
 
- 
+
   //** Signup + Send OTP
   @Post('signup')
   @ApiOperation({ summary: 'Create new user & send OTP to email or phone' })
-  @ApiBody({type:CreateUserDto})
+  @ApiBody({ type: CreateUserDto })
   @ApiResponse({ status: 201, description: 'User created & OTP sent' })
   @ApiResponse({ status: 400, description: 'User already exists' })
   async signup(
     @Body() dto: CreateUserDto,
   ) {
-     await this.usersService.createUser(dto);
+    await this.usersService.createUser(dto as any);
     return { message: 'User created. OTP sent for verification.' };
   }
 
@@ -43,10 +43,10 @@ export class AuthController {
   //** Verify Signup OTP
   @Post('verify')
   @ApiOperation({ summary: 'Verify OTP sent during signup' })
-  @ApiBody({type:VerifyOtpDto})
+  @ApiBody({ type: VerifyOtpDto })
   @ApiResponse({ status: 200, description: 'User verified successfully' })
   @ApiResponse({ status: 400, description: 'Invalid or expired OTP' })
-  async verify(@Body() dto: { email?: string , phone?:string; otp: string }) {
+  async verify(@Body() dto: { email?: string, phone?: string; otp: string }) {
     const { email, phone, otp } = dto;
     await this.otpService.verifyOtp(email, phone, otp);
     return { message: 'Verified successfully' };
@@ -57,11 +57,11 @@ export class AuthController {
   @Post('login/request-otp')
   @ApiOperation({ summary: 'Request OTP for login' })
   @ApiBody({
-    type:RequestOtpDto
+    type: RequestOtpDto
   })
   @ApiResponse({ status: 200, description: 'OTP sent for login' })
   @ApiResponse({ status: 404, description: 'User not found / not verified' })
-  async requestLoginOtp(@Body() dto: { email: string, phone:string }) {
+  async requestLoginOtp(@Body() dto: { email: string, phone: string }) {
     const user = await this.usersService.findByEmailOrPhone(dto.email, dto.phone);
     if (!user) throw new BadRequestException('User not found');
     if (!user.is_verified) throw new BadRequestException('User not verified');
@@ -70,15 +70,16 @@ export class AuthController {
     return { message: 'OTP sent for login' };
   }
 
-  
+
   //** */ Verify Login OTP → returns Access + Refresh Tokens
   @Post('login/verify-otp')
   @ApiOperation({ summary: 'Verify login OTP & return JWT tokens' })
-  @ApiBody({type:VerifyOtpDto
+  @ApiBody({
+    type: VerifyOtpDto
   })
   @ApiResponse({ status: 200, description: 'Login successful; tokens issued' })
   @ApiResponse({ status: 400, description: 'Invalid OTP' })
-  async loginVerify(@Body() dto: { email?: string , phone?:string, otp: string }) {
+  async loginVerify(@Body() dto: { email?: string, phone?: string, otp: string }) {
     const { email, phone, otp } = dto;
     // send to verify otp
     await this.otpService.verifyOtpForLoginAndClear(email, phone, otp);
@@ -88,11 +89,11 @@ export class AuthController {
     return this.authService.loginWithOtp(user);
   }
 
-  
+
   // ** Traditional login using password
   @Post('login')
   @ApiOperation({ summary: 'Login with email & password' })
-  @ApiBody({type:LoginDto})
+  @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() dto: { email: string; password: string }) {
@@ -103,32 +104,32 @@ export class AuthController {
     return this.authService.loginWithCredentials(user);
   }
 
- 
-  //** REFRESH TOKEN endpoint for new token generation
-@Post('refresh')
-@Auth()
-@ApiBearerAuth()
-@ApiOperation({ summary: 'Refresh access token using refresh token' })
-@ApiBody({
-  schema: { properties: { refresh_token: { type: 'string' } } },
-})
-@ApiResponse({ status: 200, description: 'New tokens generated' })
-@ApiResponse({ status: 401, description: 'Invalid refresh token' })
-async refresh(@Body() body: { refresh_token: string }) {
-  const { refresh_token } = body;
-  return this.authService.refreshTokens(refresh_token);
-}
 
-// ** logout
-@Post('logout')
-@ApiOperation({ summary: 'Logout user' })
-@Auth()
-@ApiBearerAuth()
-async logout(@Req() req) {
-  // console.log(req.user);
-  await this.authService.logout(+req.user.id);
-  return { message: 'Logged out successfully' };
-}
+  //** REFRESH TOKEN endpoint for new token generation
+  @Post('refresh')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiBody({
+    schema: { properties: { refresh_token: { type: 'string' } } },
+  })
+  @ApiResponse({ status: 200, description: 'New tokens generated' })
+  @ApiResponse({ status: 401, description: 'Invalid refresh token' })
+  async refresh(@Body() body: { refresh_token: string }) {
+    const { refresh_token } = body;
+    return this.authService.refreshTokens(refresh_token);
+  }
+
+  // ** logout
+  @Post('logout')
+  @ApiOperation({ summary: 'Logout user' })
+  @Auth()
+  @ApiBearerAuth()
+  async logout(@Req() req) {
+    // console.log(req.user);
+    await this.authService.logout(+req.user.id);
+    return { message: 'Logged out successfully' };
+  }
 
 
 }

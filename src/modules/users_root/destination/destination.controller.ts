@@ -21,10 +21,10 @@ import {
 
 import { Roles } from 'src/decorators/roles.decorator';
 import { Auth } from 'src/decorators/auth.decorator';
-import { UserRole } from '@prisma/client';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { ApiResponses } from 'src/common/apiResponse';
+import { UserRole } from '../users/dto/create-user.dto';
 
 
 
@@ -35,7 +35,7 @@ import { ApiResponses } from 'src/common/apiResponse';
 @Auth()
 @Roles(UserRole.USER)
 export class DestinationController {
-  constructor(private readonly service: DestinationService) {}
+  constructor(private readonly service: DestinationService) { }
 
   // CREATE
   @Post()
@@ -53,7 +53,7 @@ export class DestinationController {
   // FIND ALL
   @Get()
   @ApiOperation({ summary: 'Get all destinations(only users)' })
-  async findAll(@CurrentUser() user:IUser) {
+  async findAll(@CurrentUser() user: IUser) {
     try {
       const result = await this.service.findAll(user);
       return ApiResponses.success(result, 'Destinations retrieved successfully');

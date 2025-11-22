@@ -1,5 +1,5 @@
-import { 
-  Controller, Get, Patch, Delete, Param, Body, HttpStatus, ParseIntPipe, 
+import {
+  Controller, Get, Patch, Delete, Param, Body, HttpStatus, ParseIntPipe,
   Query
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
@@ -10,14 +10,13 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { AddMoneyDto } from './dto/add-money.dto';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+
 
 
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   // ** Get all verified users
   @Get("/verified")
@@ -65,7 +64,7 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 400, description: 'Invalid amount provided' })
   async addMoney(
-    @CurrentUser() user:IUser,
+    @CurrentUser() user: IUser,
     @Query() dto: AddMoneyDto,
   ) {
 
@@ -80,18 +79,17 @@ export class UsersController {
     }
   }
 
-  
+
   // find me
   @Get("me")
   @Auth()
-  @Roles(UserRole.USER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get Own profile' })
   @ApiResponse({ status: 200, description: 'User Own profile retrieved successfully' })
   @ApiResponse({ status: 404, description: 'User  not found' })
-  async findMe(@CurrentUser() user:IUser,) {
-        try {
-      const profile =  await this.usersService.findMe(user);
+  async findMe(@CurrentUser() user: IUser,) {
+    try {
+      const profile = await this.usersService.findMe(user);
       return ApiResponses.success(profile, 'User retrieved successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to fetch user');
@@ -186,8 +184,8 @@ export class UsersController {
     }
   }
 
-  
- // ---------------------------------------------
+
+  // ---------------------------------------------
   @Delete('permanent')
   @Auth()
   @ApiBearerAuth()
@@ -207,6 +205,6 @@ export class UsersController {
       return ApiResponses.error(err, 'Failed to delete users');
     }
   }
-//
+  //
 
 }
