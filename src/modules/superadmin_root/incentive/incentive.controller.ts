@@ -142,7 +142,7 @@ export class IncentiveController {
       }
       return ApiResponses.success(res, 'Incentive status updated successfully');
     } catch (error) {
-      return ApiResponses.error(error, 'Failed to update Incentive status');
+      return ApiResponses.error(error, 'Failed to update Incentive statuss');
     }
   }
 
