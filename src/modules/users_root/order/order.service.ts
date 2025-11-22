@@ -14,7 +14,21 @@ export class OrderService {
 
      //
      if(dto.pay_type === PayType.ONLINE_PAY && dto.payment_method_id === undefined){
-        throw new  NotFoundException("For the External pay method must need an payment method id")
+        // 
+       const paymethodRecord = await this.prisma.paymentMethod.findFirst({
+          where:{
+              OR:[
+              { id:dto.payment_method_id},
+              { userId:user?.id}
+              ]
+          }
+        })
+        if(!paymethodRecord){
+        throw new NotFoundException("pay method not found")
+        }
+
+       throw new  NotFoundException("For the External pay method must need an payment method id")
+
      }
 
     //  
@@ -32,17 +46,6 @@ export class OrderService {
         throw new UnauthorizedException("Unauthorize exception")
     }
        
-    const paymethodRecord = await this.prisma.paymentMethod.findFirst({
-         where:{
-             OR:[
-              { id:dto.payment_method_id},
-              { userId:user?.id}
-             ]
-         }
-    })
-    if(!paymethodRecord){
-        throw new NotFoundException("pay method not found")
-    }
 
     // 
     return this.prisma.order.create({

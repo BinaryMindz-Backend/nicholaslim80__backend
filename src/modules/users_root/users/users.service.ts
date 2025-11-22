@@ -5,6 +5,7 @@ import { OtpService } from 'src/modules/auth/otp.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ReferralUtils } from 'src/utils/referral.util';
 import { IUser } from 'src/types';
+import { UserRole } from '@prisma/client';
 
 
 
@@ -19,7 +20,11 @@ export class UsersService {
 
 
   // ** Create new user // signup with otp verify
-  async createUser(dto: { email?: string; password?: string; username?: string; phone: string , referral_code?:string}) {
+  async createUser(dto: { email?: string; password?: string; username?: string; phone: string , referral_code?:string, role?:UserRole}) {
+
+      if(dto.role === UserRole.SUPER_ADMIN){
+           throw new NotAcceptableException("You can't create superadmin or admin by general login")
+      }
 
       let referredByUser;
 
@@ -60,12 +65,15 @@ export class UsersService {
                 password: hashed,
                 referral_code:code,
                 referral_link:link,
-                is_acc_refered:dto.referral_code? true : false
+                is_acc_refered:dto.referral_code? true : false,
+                role:dto.role
               },
             });
 
-      if(dto.referral_code){
 
+      if(dto.referral_code){
+      
+      // if the user created by refer
       await this.prisma.refer.create({
              data:{
                 refer_code:dto.referral_code,
@@ -73,7 +81,15 @@ export class UsersService {
              }
         })  
       }
-        
+    // if the user role is raider 
+     if(user.role === UserRole.RAIDER){
+        await this.prisma.raider.create({
+             data:{
+                userId:user?.id
+             }
+        })  
+      }
+
     // pass to otp verify method
     await this.otpService.generateOtp(user.email ,user.phone);      
 
@@ -224,6 +240,10 @@ async addMoneyToWallet(id:number, amount:number){
 
   if(!currentUser){
       throw new NotFoundException("User not found")
+  }
+
+  if(currentUser.is_verified === false){
+       throw new NotAcceptableException("For top-up/deposit user need to be verified through email/phone")
   }
   
 const currentBalance = (currentUser.balance)
