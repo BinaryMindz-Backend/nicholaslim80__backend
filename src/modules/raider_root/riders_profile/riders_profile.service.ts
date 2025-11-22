@@ -94,7 +94,5 @@ export class RidersProfileService {
     return res;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} ridersProfile`;
-  }
+
 }

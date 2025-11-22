@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, } from '@nestjs/common';
 import { RidersProfileService } from './riders_profile.service';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
@@ -74,8 +74,5 @@ export class RidersProfileController {
     }
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.ridersProfileService.remove(+id);
-  }
+
 }
