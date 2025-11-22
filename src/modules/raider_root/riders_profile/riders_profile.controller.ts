@@ -31,6 +31,7 @@ export class RidersProfileController {
   }
 
   @Get()
+
   async findAll() {
     try {
       const res = await this.ridersProfileService.findAll();
@@ -51,6 +52,7 @@ export class RidersProfileController {
   }
 
   @Patch(':id/:verify')
+  @Auth()
   async verifyRiderProfile(@Param('id') id: string, @Param('verify') verify: RaiderVerification) {
     try {
       const res = await this.ridersProfileService.verifyRiderProfile(Number(id), verify);
@@ -60,9 +62,16 @@ export class RidersProfileController {
     }
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateRidersProfileDto: UpdateRidersProfileDto) {
-    return this.ridersProfileService.update(+id, updateRidersProfileDto);
+  @Patch('update-rider-profile')
+  @Auth()
+  @ApiBearerAuth()
+  async update(@Body() updateRidersProfileDto: UpdateRidersProfileDto, @CurrentUser() user: IUser) {
+    try {
+      const res = await this.ridersProfileService.update(user.id, updateRidersProfileDto);
+      return ApiResponses.success(res, 'Rider profile updated successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
   }
 
   @Delete(':id')

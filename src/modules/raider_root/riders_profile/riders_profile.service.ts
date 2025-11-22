@@ -68,9 +68,32 @@ export class RidersProfileService {
 
     return updatedProfile;
   }
-  update(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
-    console.log(updateRidersProfileDto);
-    return `This action updates a #${id} ridersProfile`;
+  async update(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
+
+    const userExists = await this.prisma.raider.findUnique({
+      where: { userId: Number(id) },
+    });
+
+    console.log({ userExists });
+
+    if (!userExists) {
+      throw new Error('Rider profile not found');
+    }
+
+    // find the registration for this raider
+    const registration = await this.prisma.raiderRegistration.findFirst({
+      where: { raiderId: Number(userExists.id) },
+    });
+
+    if (!registration) {
+      throw new Error('Rider registration not found for this rider');
+    }
+
+    const res = await this.prisma.raiderRegistration.update({
+      where: { id: registration.id },
+      data: { ...updateRidersProfileDto },
+    });
+    return res;
   }
 
   remove(id: number) {
