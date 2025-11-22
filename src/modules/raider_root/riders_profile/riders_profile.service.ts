@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
+import { RaiderVerification } from '@prisma/client';
 
 
 @Injectable()
@@ -29,14 +30,44 @@ export class RidersProfileService {
     return res;
   }
 
-  findAll() {
-    return `This action returns all ridersProfile`;
+  async findAll() {
+    const res = await this.prisma.raider.findMany();
+    return res;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} ridersProfile`;
+  async findOne(id: string) {
+    const res = await this.prisma.raider.findUnique({
+      where: { id: Number(id) },
+      include: { registrations: true },
+    });
+    return res;
   }
+  async verifyRiderProfile(id: number, verify: RaiderVerification) {
+    const res = await this.prisma.raider.findUnique({
+      where: { id: Number(id) },
+      include: { registrations: true },
+    });
+    if (!res) {
+      throw new Error('Rider profile not found');
+    }
 
+    const registration = await this.prisma.raiderRegistration.findFirst({
+      where: { raiderId: Number(id) },
+    });
+
+    if (!registration) {
+      throw new Error('Rider registration not found for this rider');
+    }
+
+    const updatedProfile = await this.prisma.raiderRegistration.update({
+      where: { id: registration.id },
+      data: {
+        raider_verificationFromAdmin: verify,
+      },
+    });
+
+    return updatedProfile;
+  }
   update(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
     console.log(updateRidersProfileDto);
     return `This action updates a #${id} ridersProfile`;

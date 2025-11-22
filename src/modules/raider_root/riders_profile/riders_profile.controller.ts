@@ -8,6 +8,7 @@ import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { Auth } from 'src/decorators/auth.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
+import { RaiderVerification } from '@prisma/client';
 
 @Controller('riders-profile')
 export class RidersProfileController {
@@ -30,13 +31,33 @@ export class RidersProfileController {
   }
 
   @Get()
-  findAll() {
-    return this.ridersProfileService.findAll();
+  async findAll() {
+    try {
+      const res = await this.ridersProfileService.findAll();
+      return ApiResponses.success(res, 'Rider profiles fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.ridersProfileService.findOne(+id);
+  async findOne(@Param('id') id: string) {
+    try {
+      const res = await this.ridersProfileService.findOne(id);
+      return ApiResponses.success(res, 'Rider profile fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+
+  @Patch(':id/:verify')
+  async verifyRiderProfile(@Param('id') id: string, @Param('verify') verify: RaiderVerification) {
+    try {
+      const res = await this.ridersProfileService.verifyRiderProfile(Number(id), verify);
+      return ApiResponses.success(res, 'Rider profile verified successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
   }
 
   @Patch(':id')
