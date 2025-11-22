@@ -241,6 +241,10 @@ async addMoneyToWallet(id:number, amount:number){
   if(!currentUser){
       throw new NotFoundException("User not found")
   }
+
+  if(currentUser.is_verified === false){
+       throw new NotAcceptableException("For top-up/deposit user need to be verified through email/phone")
+  }
   
 const currentBalance = (currentUser.balance)
 const newBalance = currentBalance + (amount * 100);
