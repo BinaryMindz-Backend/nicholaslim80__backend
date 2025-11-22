@@ -4,8 +4,11 @@ import {
   Body,
   BadRequestException,
   Req,
+  UseInterceptors,
+  UploadedFiles,
+  UploadedFile,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { OtpService } from './otp.service';
 import { CreateUserDto } from '../users_root/users/dto/create-user.dto';
@@ -14,6 +17,10 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { Auth } from '../../decorators/auth.decorator';
 import { UsersService } from '../users_root/users/users.service';
+import { UploadImageDto } from './dto/uploadImage.dto';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { storageConfig } from 'src/common/fileUpload/file';
+import { ApiResponses } from 'src/common/apiResponse';
 
 
 @ApiTags('Authentication')
@@ -131,5 +138,31 @@ export class AuthController {
     return { message: 'Logged out successfully' };
   }
 
+
+
+  // image upload for profile picture
+  @Post('upload')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadImageDto })
+  @UseInterceptors(
+    FilesInterceptor('images', 10, {
+      storage: storageConfig('./uploads'),
+    }),
+  )
+  uploadMultipleFiles(
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files uploaded');
+    }
+    if (!process.env.BASE_URL) {
+      throw new BadRequestException('Base URL not configured');
+    }
+    const fileUrls = files.map((file) =>
+      `${process.env.BASE_URL}/uploads/${file.filename}`
+    );
+
+    return ApiResponses.success(fileUrls, 'Files uploaded successfully');
+  }
 
 }
