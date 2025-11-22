@@ -3,8 +3,9 @@ import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import {version, name} from "package.json"
-
+import { version, name } from "package.json"
+import { join } from 'path';
+import express from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -37,12 +38,17 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
 
   // Make Swagger respect the global prefix
-  SwaggerModule.setup(`${globalPrefix}/docs`, app, document,{
+  SwaggerModule.setup(`${globalPrefix}/docs`, app, document, {
     swaggerOptions: {
       persistAuthorization: true
     }
   });
+  const public_dir = join(process.cwd(), "public");
+  const upload_dir = join(process.cwd(), "uploads");
+  app.use("/", express.static(public_dir));
+  app.use("/uploads", express.static(upload_dir));
 
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   // Start the app
   await app.listen(port, host);
   console.log(`Application is running on: http://${host}:${port}/${globalPrefix}`);

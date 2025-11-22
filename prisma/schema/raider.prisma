@@ -16,7 +16,7 @@ model Raider {
   assignedOrders Order[] @relation("AssignedRaider")
 
   created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
+  updated_at    DateTime  @default(now()) @updatedAt
 
   @@map("raiders")
 }

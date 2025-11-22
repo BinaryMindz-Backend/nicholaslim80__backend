@@ -99,9 +99,9 @@ enum PayType {
 
 
 enum RaiderVerification {
-  PENDING
-  APPROVED
-  REJECTED
+  PENDING = "PENDING"
+  APPROVED= "APPROVED"
+  REJECTED = "REJECTED"
 }
 
 enum Gender {
