@@ -22,6 +22,10 @@ export class UsersService {
   // ** Create new user // signup with otp verify
   async createUser(dto: { email?: string; password?: string; username?: string; phone: string , referral_code?:string, role?:UserRole}) {
 
+      if(dto.role === UserRole.SUPER_ADMIN){
+           throw new NotAcceptableException("You can't create superadmin or admin by general login")
+      }
+
       let referredByUser;
 
       if(dto.referral_code){
@@ -66,8 +70,10 @@ export class UsersService {
               },
             });
 
-      if(dto.referral_code){
 
+      if(dto.referral_code){
+      
+      // if the user created by refer
       await this.prisma.refer.create({
              data:{
                 refer_code:dto.referral_code,
@@ -75,7 +81,15 @@ export class UsersService {
              }
         })  
       }
-        
+    // if the user role is raider 
+     if(user.role === UserRole.RAIDER){
+        await this.prisma.raider.create({
+             data:{
+                userId:user?.id
+             }
+        })  
+      }
+
     // pass to otp verify method
     await this.otpService.generateOtp(user.email ,user.phone);      
 
