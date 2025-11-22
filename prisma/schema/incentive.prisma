@@ -8,7 +8,7 @@ model Incentive {
   type             IncentiveType
   start_date       DateTime?
   end_date         DateTime?
-  incentive_amount Decimal?       @db.Decimal(12,2)
+  incentive_amount Int? @default(0)
   status           IncentiveStatus
   created_at       DateTime       @default(now())
 

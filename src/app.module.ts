@@ -14,6 +14,7 @@ import { DestinationModule } from './modules/users_root/destination/destination.
 import { OrderModule } from './modules/users_root/order/order.module';
 import { PaymentOptionModule } from './modules/users_root/payment-option/payment-option.module';
 import { ReferloyalityModule } from './modules/users_root/referloyality/referloyality.module';
+import { IncentiveModule } from './modules/superadmin_root/incentive/incentive.module';
 
 
 @Module({
@@ -38,6 +39,7 @@ import { ReferloyalityModule } from './modules/users_root/referloyality/referloy
     OrderModule,
     PaymentOptionModule,
     ReferloyalityModule,
+    IncentiveModule,
 
   ],
   controllers: [AppController],
