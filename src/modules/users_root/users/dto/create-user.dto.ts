@@ -4,10 +4,12 @@ import { IsEmail, IsOptional, IsString, IsEnum } from 'class-validator';
 
 
 
+
 export enum UserRole {
-  USER="USER",
-  SUPER_ADMIN="SUPER_ADMIN",
-  RAIDER="RAIDER"
+  USER = "USER",
+  SUPER_ADMIN = "SUPER_ADMIN",
+  RAIDER = "RAIDER"
+
 }
 
 export class CreateUserDto {
@@ -42,5 +44,5 @@ export class CreateUserDto {
   referral_code?: string;
 
 
-  
+
 }
