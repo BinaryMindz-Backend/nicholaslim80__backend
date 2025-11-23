@@ -164,3 +164,22 @@ enum CoinHistoryType {
   ACCUMULATION
   APPLICATION
 }
+
+
+// 
+enum QuesType {
+     MULTIPLE
+     BOOLEAN
+}
+
+enum QuesDeficulty {
+    EASY
+    MEDIUM
+    HARD
+}
+
+enum QuesCategory {
+     SAFETY_PROCUDURE
+     GENERAL
+     IQ
+}

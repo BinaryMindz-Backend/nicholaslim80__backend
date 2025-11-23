@@ -16,6 +16,7 @@ import { PaymentOptionModule } from './modules/users_root/payment-option/payment
 import { ReferloyalityModule } from './modules/users_root/referloyality/referloyality.module';
 import { IncentiveModule } from './modules/superadmin_root/incentive/incentive.module';
 import { RidersProfileModule } from './modules/raider_root/riders_profile/riders_profile.module';
+import { QuizModule } from './modules/superadmin_root/quiz/quiz.module';
 
 
 @Module({
@@ -42,6 +43,7 @@ import { RidersProfileModule } from './modules/raider_root/riders_profile/riders
     ReferloyalityModule,
     IncentiveModule,
     RidersProfileModule,
+    QuizModule,
 
   ],
   controllers: [AppController],
