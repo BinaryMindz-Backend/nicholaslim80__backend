@@ -7,9 +7,6 @@ import { ReferralUtils } from 'src/utils/referral.util';
 import { IUser } from 'src/types';
 import { UserRole } from '@prisma/client';
 
-
-
-
 // 
 @Injectable()
 export class UsersService {
