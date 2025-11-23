@@ -1,3 +1,4 @@
+-- Active: 1763075646885@@127.0.0.1@5430
 // prisma/models/quiz.prisma
 
 model Quiz {
