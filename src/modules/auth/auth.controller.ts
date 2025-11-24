@@ -42,7 +42,7 @@ export class AuthController {
     @Body() dto: CreateUserDto,
   ) {
     await this.usersService.createUser(dto as any);
-    return { message: 'User created. OTP sent for verification.' };
+    return { message: 'User created. OTP sent for verification.', };
   }
 
 
@@ -55,7 +55,7 @@ export class AuthController {
   async verify(@Body() dto: { email?: string, phone?: string; otp: string }) {
     const { email, phone, otp } = dto;
     await this.otpService.verifyOtp(email, phone, otp);
-    return { message: 'Verified successfully' };
+    return { message: 'Verified successfully', otp };
   }
 
 

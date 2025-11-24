@@ -1,25 +1,28 @@
 model RaiderQuiz {
   id              Int      @id @default(autoincrement())
+  
   raider          Raider   @relation(fields: [raiderId], references: [id], onDelete: Cascade)
   raiderId        Int
+  
   quiz            Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   quizId          Int
   total_questions Int
   correct_answers Int
   score           Decimal? @db.Decimal(6,2)
   completed_at    DateTime?
-
   raiderAnswers     RaiderAnswer[]
-
   @@map("raider_quizzes")
 }
 
 model RaiderAnswer {
   id                Int       @id @default(autoincrement())
+
   raider_quiz         RaiderQuiz  @relation(fields: [raider_quiz_id], references: [id], onDelete: Cascade)
   raider_quiz_id      Int
+  
   question          Question  @relation(fields: [question_id], references: [id], onDelete: Cascade)
   question_id       Int   @unique 
+  
   selected_option   Option?   @relation(fields: [selected_option_id], references: [id], onDelete: SetNull)
   selected_option_id Int?   @unique
   is_correct        Boolean
