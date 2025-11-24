@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/require-await */
+
 
 import {
   Injectable,
@@ -15,7 +15,7 @@ export class OtpService {
   constructor(
     private prisma: PrismaService,
     private redisService: RedisService,
-  ) {}
+  ) { }
 
   private async hashOtp(otp: string) {
     return bcrypt.hash(otp, Number(process.env.SALT_ROUNDS ?? 10));
@@ -26,7 +26,7 @@ export class OtpService {
   }
 
 
-  
+
   /** ------------ Generate & Save OTP (Signup/Login) -------------- **/
   async generateOtp(email?: string | null, phone?: string) {
     // 
@@ -49,7 +49,7 @@ export class OtpService {
 
     return { otp, ttl }; // remove in production
   }
-  
+
   // 
   async sendOtpNotification(email: string | null, otp: string, phone?: string | null) {
     console.log(`📩 OTP sent >>> email=${email} phone=${phone} otp=${otp}`);
@@ -89,7 +89,7 @@ export class OtpService {
 
 
   /** ------------ Verify OTP (Login) -------------- **/
-  async verifyOtpForLoginAndClear(email: string | undefined, phone: string | undefined, otp: string) { 
+  async verifyOtpForLoginAndClear(email: string | undefined, phone: string | undefined, otp: string) {
     // 
     const user = await this.prisma.user.findFirst({
       where: { OR: [{ email }, { phone }] },
@@ -100,7 +100,7 @@ export class OtpService {
     if (!user.is_verified) {
       throw new NotAcceptableException('Signup and verify first.');
     }
-    
+
     const key = this.buildKey(user.id);
     const hashedOtp = await this.redisService.get(key);
 
