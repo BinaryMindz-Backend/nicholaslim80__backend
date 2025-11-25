@@ -14,8 +14,21 @@ import { MessagesService } from './message.service';
 import { MessagesGateway } from './message.gateway';
 import { CreateConversationDto } from './dto/create-message.dto';
 import { GetMessagesSimpleDto } from './dto/get-message.dto';
+import { Auth } from 'src/decorators/auth.decorator';
+import { ApiBearerAuth } from '@nestjs/swagger';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
 
+import { Role } from '@prisma/client';
+
+export interface IUser {
+  id: number;
+  email: string;
+  phone: string;
+  role: Role;
+}
 @Controller('chat')
+@Auth()
+@ApiBearerAuth()
 export class ChatController {
   constructor(
     private readonly messagesService: MessagesService,
@@ -23,23 +36,29 @@ export class ChatController {
   ) { }
 
   @Post('conversations')
+  @Auth()
+  @ApiBearerAuth()
   async createConversation(@Req() req: Request, @Body() dto: CreateConversationDto) {
     const conversation = await this.messagesService.getOrCreateConversation(
-      req['userid'] as string,
+      (req.user as IUser).id,
       dto,
     );
     return ApiResponses.success(conversation, 'Conversation ready');
   }
 
   @Get('conversations')
-  async getConversations(@Req() req: Request) {
-    const conversations = await this.messagesService.getConversations(req['userid'] as string);
+  @Auth()
+  @ApiBearerAuth()
+  async getConversations(@Req() req: Request, @CurrentUser() user: IUser) {
+    const conversations = await this.messagesService.getConversations(user.id);
     return ApiResponses.success(conversations, 'Conversations retrieved');
   }
 
   @Post('messages')
-  async getMessages(@Req() req: Request, @Body() query: GetMessagesSimpleDto) {
-    const result = await this.messagesService.getMessages(req['userid'] as string, query);
+  @Auth()
+  @ApiBearerAuth()
+  async getMessages(@Req() req: Request, @Body() query: GetMessagesSimpleDto, @CurrentUser() user: IUser) {
+    const result = await this.messagesService.getMessages(user.id, query);
     return ApiResponses.success(result, 'Messages retrieved');
   }
 

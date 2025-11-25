@@ -37,19 +37,24 @@ export class MessagesGateway
   private connectedUsers = new Map<string, string>();
 
   constructor(
+
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly messagesService: MessagesService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {
+    const redisUrl = this.configService.get('REDIS_URL') || 'redis://redis:6379';
+    this.redis = new Redis(redisUrl);
+  }
 
   afterInit(server: Server) {
     this.logger.log('Socket.IO server initialized', server.adapter?.name ?? '');
   }
 
   async handleConnection(client: Socket) {
+    this.logger.log(`Client connected: ${client.id}`);
     const cookie = client.handshake.headers.cookie as string;
-
+    this.logger.log(`Cookie received: ${cookie}`);
     if (!cookie) {
       client.emit('error', { message: 'Authentication token is required' });
       client.disconnect();
@@ -60,7 +65,7 @@ export class MessagesGateway
       const decoded = await this.jwtService.verifyAsync(cookie, {
         secret: this.configService.get<string>('JWT_SECRET'),
       });
-
+      this.logger.log(`Decoded token: ${JSON.stringify(decoded)}`);
       if (!decoded?.sub) {
         client.disconnect();
         return;
@@ -69,6 +74,7 @@ export class MessagesGateway
       const user = await this.prisma.user.findUnique({
         where: { id: decoded.sub },
       });
+      this.logger.log(`User found: ${JSON.stringify(user)}`);
 
       if (!user) {
         client.disconnect();
@@ -129,7 +135,7 @@ export class MessagesGateway
       this.logger.warn(`Receiver ${dto.receiverId} not online`);
       return;
     }
-
+    await this.messagesService.sendMessage(String(senderId), dto);
     this.server.to(receiverSocketId).emit('receive_message', {
       ...dto,
       senderId,

@@ -9,6 +9,7 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateConversationDto } from './dto/create-message.dto';
 import { SendMessageSimpleDto } from './dto/simple-message.dto';
 import { GetMessagesSimpleDto } from './dto/get-message.dto';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class MessagesService {
@@ -17,9 +18,7 @@ export class MessagesService {
 
   ) { }
 
-  // ============ Conversation Management ============
-
-  async getOrCreateConversation(userId: string, dto: CreateConversationDto) {
+  async getOrCreateConversation(userId: string | number, dto: CreateConversationDto) {
     this.logger.log(`Getting or creating conversation between ${userId} and ${dto.otherUserId}`);
     try {
       const otherUser = await this.prisma.user.findUnique({
@@ -31,29 +30,39 @@ export class MessagesService {
         throw new NotFoundException('User not found');
       }
 
-      if (userId === dto.otherUserId) {
+      if (Number(userId) === Number(dto.otherUserId)) {
         this.logger.error(`User ${userId} attempted to create a conversation with themselves`);
         throw new BadRequestException('Cannot create conversation with yourself');
       }
 
       // Ensure consistent ordering for unique constraint
-      const [user1Id, user2Id] = [userId, dto.otherUserId].sort();
+      const [user1Id, user2Id] = [Number(userId), Number(dto.otherUserId)].sort();
 
       // Check if conversation already exists
-      let conversation = await this.prisma.conversation.findUnique({
+      // let conversation = await this.prisma.conversation.findUnique({
+      //   where: {
+      //     user1Id_user2Id: { user1Id: Number(user1Id), user2Id: Number(user2Id) },
+      //   },
+      //   include: {
+      //     user1: {
+      //       select: { id: true, email: true, },
+      //     },
+      //     user2: {
+      //       select: { id: true, email: true, },
+      //     },
+      //   },
+      // });
+      console.log(
+        { user1Id, user2Id }
+      );
+      let conversation = await this.prisma.conversation.findFirst({
         where: {
-          user1Id_user2Id: { user1Id: Number(user1Id), user2Id: Number(user2Id) },
-        },
-        include: {
-          user1: {
-            select: { id: true, email: true, },
-          },
-          user2: {
-            select: { id: true, email: true, },
-          },
+          OR: [
+            { user1Id: Number(user1Id), user2Id: Number(user2Id) },
+            { user1Id: Number(user2Id), user2Id: Number(user1Id) },
+          ],
         },
       });
-
       // Create conversation if it doesn't exist
       if (!conversation) {
         this.logger.log(`Creating conversation between ${userId} and ${dto.otherUserId}`);
@@ -78,8 +87,13 @@ export class MessagesService {
     }
   }
 
-  async getConversations(userId: string) {
+  async getConversations(userId: number) {
     this.logger.log(`Retrieving conversations for user ${userId}`);
+    // const conversations = await this.prisma.conversation.findMany({
+    //   where: {
+    //     OR: [{ user1Id: Number(userId) }, { user2Id: Number(userId) }],
+    //   },
+    // });
     const conversations = await this.prisma.conversation.findMany({
       where: {
         OR: [{ user1Id: Number(userId) }, { user2Id: Number(userId) }],
@@ -117,7 +131,7 @@ export class MessagesService {
       orderBy: { updatedAt: 'desc' },
     });
     this.logger.log(`Found ${conversations.length} conversations for user ${userId}`);
-    // Transform to include the other user and unread count
+    // // Transform to include the other user and unread count
     return conversations.map((conv) => ({
       id: conv.id,
       otherUser: conv.user1Id === Number(userId) ? conv.user2 : conv.user1,
@@ -189,11 +203,11 @@ export class MessagesService {
     }
   }
 
-  async getMessages(userId: string, dto: GetMessagesSimpleDto) {
+  async getMessages(userId: number, dto: GetMessagesSimpleDto) {
     this.logger.log(`Retrieving messages for user ${userId} in conversation with ${dto.otherUserId}`);
     try {
       // Get or create conversation
-      const conversation = await this.getOrCreateConversation(userId, {
+      const conversation = await this.getOrCreateConversation(Number(userId), {
         otherUserId: dto.otherUserId,
       });
 
@@ -252,4 +266,12 @@ export class MessagesService {
       throw new InternalServerErrorException('Failed to retrieve messages', message);
     }
   }
+}
+
+
+export interface IUser {
+  id: number;
+  email: string;
+  phone: string;
+  role: Role;
 }
