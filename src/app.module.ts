@@ -18,6 +18,7 @@ import { IncentiveModule } from './modules/superadmin_root/incentive/incentive.m
 import { RidersProfileModule } from './modules/raider_root/riders_profile/riders_profile.module';
 import { QuizModule } from './modules/superadmin_root/quiz/quiz.module';
 import { MessageModule } from './modules/message/message.module';
+import { JwtModule } from '@nestjs/jwt';
 
 
 @Module({
@@ -26,10 +27,15 @@ import { MessageModule } from './modules/message/message.module';
       isGlobal: true,       // Config available globally
       envFilePath: '.env',  // Path to your .env file
       validationSchema: Joi.object({
-      NODE_ENV: Joi.string().valid('development', 'production', 'test').required(),
-      PORT: Joi.number().default(3000),
-      DATABASE_URL: Joi.string().required(),
-  }),
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').required(),
+        PORT: Joi.number().default(3000),
+        DATABASE_URL: Joi.string().required(),
+      }),
+    }),
+    JwtModule.register({
+      global: true,
+      secret: process.env.JWT_SECRET || 'changeme',
+      signOptions: { expiresIn: '7d' },
     }),
     UsersModule,
     DatabaseModule,
@@ -51,4 +57,4 @@ import { MessageModule } from './modules/message/message.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

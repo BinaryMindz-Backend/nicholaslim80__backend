@@ -6,6 +6,7 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayInit,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Injectable, Logger } from '@nestjs/common';
@@ -19,21 +20,20 @@ import Redis from 'ioredis';
 @Injectable()
 @WebSocketGateway({
   cors: {
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origin: ['http://localhost:3000'],
     methods: ['GET', 'POST'],
     credentials: true,
   },
-
+  namespace: 'api/v1/messages',
 })
 export class MessagesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect {
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+
   @WebSocketServer()
   server: Server;
 
-  private logger = new Logger('MessagesGateway');
-
+  private logger = new Logger(MessagesGateway.name);
   private redis: Redis;
-
   private connectedUsers = new Map<string, string>();
 
   constructor(
@@ -41,61 +41,51 @@ export class MessagesGateway
     private readonly prisma: PrismaService,
     private readonly messagesService: MessageService,
     private readonly configService: ConfigService,
-  ) {
-    const redisUrl =
-      this.configService.get<string>('REDIS_URL') || process.env.REDIS_URL;
+  ) { }
 
-    // Create Redis client
-    if (redisUrl) {
-      this.redis = new Redis(redisUrl);
-    } else {
-      // Fallback to default Redis connection (no argument)
-      this.redis = new Redis();
-    }
+  afterInit(server: Server) {
+    this.logger.log('Socket.IO server initialized', server.adapter?.name ?? '');
   }
 
-  // ---------------------------
-  // CONNECT
-  // ---------------------------
   async handleConnection(client: Socket) {
-    const cookie = client.handshake.headers.cookie as string;
+    console.log("co");
+    // const cookie = client.handshake.headers.cookie as string;
 
-    if (!cookie) {
-      client.emit('error', { message: 'Authentication token is required' });
-      client.disconnect();
-      return;
-    }
+    // if (!cookie) {
+    //   client.emit('error', { message: 'Authentication token is required' });
+    //   client.disconnect();
+    //   return;
+    // }
 
-    try {
-      const decoded = await this.jwtService.verifyAsync(cookie, {
-        secret: this.configService.get<string>('JWT_SECRET'),
-      });
+    // try {
+    //   const decoded = await this.jwtService.verifyAsync(cookie, {
+    //     secret: this.configService.get<string>('JWT_SECRET'),
+    //   });
 
-      if (!decoded?.sub) {
-        client.disconnect();
-        return;
-      }
+    //   if (!decoded?.sub) {
+    //     client.disconnect();
+    //     return;
+    //   }
 
-      const user = await this.prisma.user.findUnique({
-        where: { id: decoded.sub },
-      });
+    //   const user = await this.prisma.user.findUnique({
+    //     where: { id: decoded.sub },
+    //   });
 
-      if (!user) {
-        client.disconnect();
-        return;
-      }
+    //   if (!user) {
+    //     client.disconnect();
+    //     return;
+    //   }
 
-      // Save user ↔ socket mapping in Redis
-      await this.redis.set(`socket:${client.id}`, user.id);
-      await this.redis.set(`user:${user.id}`, client.id);
+    //   await this.redis.set(`socket:${client.id}`, user.id);
+    //   await this.redis.set(`user:${user.id}`, client.id);
 
-      this.connectedUsers.set(String(user.id), client.id);
-      this.logger.log(`User ${user.id} connected with socket: ${client.id}`)
-      client.emit('connected', { userId: user.id });
-    } catch (error) {
-      this.logger.error('Authentication error:', error);
-      client.disconnect();
-    }
+    //   this.connectedUsers.set(String(user.id), client.id);
+    //   this.logger.log(`User ${user.id} connected with socket: ${client.id}`)
+    //   client.emit('connected', { userId: user.id });
+    // } catch (error) {
+    //   this.logger.error('Authentication error:', error);
+    //   client.disconnect();
+    // }
   }
 
   // ---------------------------

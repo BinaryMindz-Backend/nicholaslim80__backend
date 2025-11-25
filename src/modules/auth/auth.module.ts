@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
@@ -15,13 +14,9 @@ import { UsersService } from '../users_root/users/users.service';
     UsersModule,
     PassportModule,
     RedisModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'changeme',
-      signOptions: { expiresIn: '7d' },
-    }),
   ],
   providers: [AuthService, OtpService, JwtStrategy, UsersService],
   controllers: [AuthController],
   exports: [AuthService, OtpService],
 })
-export class AuthModule {}
+export class AuthModule { }
