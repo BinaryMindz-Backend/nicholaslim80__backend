@@ -14,127 +14,141 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { MessageService } from 'src/modules/message/message.service';
 import { SendMessageSimpleDto } from 'src/modules/message/dto/simple-message.dto';
-
-
+import Redis from 'ioredis';
 
 @Injectable()
 @WebSocketGateway({
   cors: {
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || 'http://localhost:3000',
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
     methods: ['GET', 'POST'],
     credentials: true,
   },
+
 })
-export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class MessagesGateway
+  implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
+
   private logger = new Logger('MessagesGateway');
+
+  private redis: Redis;
+
+  private connectedUsers = new Map<string, string>();
 
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly messagesService: MessageService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {
+    const redisUrl =
+      this.configService.get<string>('REDIS_URL') || process.env.REDIS_URL;
 
-  // Map to track connected users
-  private connectedUsers = new Map<string, string>();
-  private allUsers = new Map<
-    string,
-    {
-      socketId: string;
-      userId: string;
+    // Create Redis client
+    if (redisUrl) {
+      this.redis = new Redis(redisUrl);
+    } else {
+      // Fallback to default Redis connection (no argument)
+      this.redis = new Redis();
     }
-  >();
-  // private cache = new NodeCache({
-  //   stdTTL: 0,
-  // });
+  }
 
+  // ---------------------------
+  // CONNECT
+  // ---------------------------
   async handleConnection(client: Socket) {
-    const cookieHeader = client.handshake.headers.cookie as string;
+    const cookie = client.handshake.headers.cookie as string;
 
-    if (!cookieHeader) {
+    if (!cookie) {
       client.emit('error', { message: 'Authentication token is required' });
       client.disconnect();
       return;
     }
 
-    if (!process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET is not defined');
-    }
-
     try {
-      const decoded: Awaited<Record<string, any>> = await this.jwtService.verifyAsync(
-        cookieHeader,
-        {
-          secret: this.configService.getOrThrow<string>('JWT_SECRET'),
-        },
-      );
-      if (!decoded || !decoded.sub) {
-        client.emit('error', { message: 'Invalid token payload' });
+      const decoded = await this.jwtService.verifyAsync(cookie, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+
+      if (!decoded?.sub) {
         client.disconnect();
         return;
       }
+
       const user = await this.prisma.user.findUnique({
         where: { id: decoded.sub },
       });
+
       if (!user) {
-        client.emit('error', { message: 'User not found.' });
         client.disconnect();
         return;
       }
 
-      this.connectedUsers.set(user.id, client.id);
-      this.cache.set(client.id, user.id);
+      // Save user ↔ socket mapping in Redis
+      await this.redis.set(`socket:${client.id}`, user.id);
+      await this.redis.set(`user:${user.id}`, client.id);
 
-      this.cache.set(user.id, client.id);
-      this.allUsers.set('online', {
-        socketId: client.id,
-        userId: user.id,
-      });
-      this.logger.log(`User ${user.id} connected with socket ID ${client.id}`);
-      // client.join(`${this.userIdSocketId.get(user.id)}-${this.socketIdUserId.get(client.id)}`);
+      this.connectedUsers.set(String(user.id), client.id);
+      this.logger.log(`User ${user.id} connected with socket: ${client.id}`)
+      client.emit('connected', { userId: user.id });
     } catch (error) {
-      console.error('Authentication error:', error);
+      this.logger.error('Authentication error:', error);
       client.disconnect();
     }
   }
 
-  handleDisconnect(client: Socket) {
-    this.cache.del(client.id);
-    // Find and remove user from connected users map
-    for (const [userId, socketId] of this.connectedUsers.entries()) {
-      if (socketId === client.id) {
+  // ---------------------------
+  // DISCONNECT
+  // ---------------------------
+  async handleDisconnect(client: Socket) {
+    try {
+      const userId = await this.redis.get(`socket:${client.id}`);
+
+      await this.redis.del(`socket:${client.id}`);
+
+      if (userId) {
+        await this.redis.del(`user:${userId}`);
         this.connectedUsers.delete(userId);
-        this.logger.log(`User ${userId} disconnected`);
+
         client.broadcast.emit('user_offline', { userId });
-        break;
+
+        this.logger.log(`User ${userId} disconnected`);
       }
+    } catch (err) {
+      this.logger.error('Redis error on disconnect', err);
     }
   }
 
+  // ---------------------------
+  // SEND MESSAGE
+  // ---------------------------
   @SubscribeMessage('send_message')
-  async sendMessage(@MessageBody() dto: SendMessageSimpleDto, @ConnectedSocket() client: Socket) {
-    this.logger.log(`Received message from ${client.id} to ${dto.receiverId}`);
-    const receiveSocketId: string = this.cache.get(dto.receiverId) as string;
-
-    // if (!receiveSocketId) return console.error('Receiver not connected');
-    if (!dto?.receiverId) {
-      this.logger.error('Receiver ID missing in message DTO:', dto);
+  async sendMessage(
+    @MessageBody() dto: SendMessageSimpleDto,
+    @ConnectedSocket() client: Socket,
+  ) {
+    if (!dto.receiverId) {
+      this.logger.error('Missing receiverId in DTO');
       return;
     }
 
-    const senderId = this.cache.get(client.id) as string;
-    // await this.messagesService.sendMessage(senderId, { ...dto });
-    this.server.to(receiveSocketId).emit('receive_message', {
+    const senderId = await this.redis.get(`socket:${client.id}`);
+    const receiverSocketId = await this.redis.get(`user:${dto.receiverId}`);
+
+    if (!receiverSocketId) {
+      this.logger.warn(`Receiver ${dto.receiverId} not online`);
+      return;
+    }
+
+    this.server.to(receiverSocketId).emit('receive_message', {
       ...dto,
-      senderId: this.cache.get(client.id),
-      status: 'Sms sent via socket server successfully',
+      senderId,
+      status: 'Message delivered via socket',
     });
+
+    this.logger.log(
+      `Message sent from ${senderId} -> ${dto.receiverId}`,
+    );
   }
-
-
-
-
-
 }
