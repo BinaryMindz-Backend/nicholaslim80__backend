@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Injectable,
   NotFoundException,
@@ -18,7 +19,7 @@ export class MessagesService {
 
   ) { }
 
-  async getOrCreateConversation(userId: string | number, dto: CreateConversationDto) {
+  async getOrCreateConversation(userId: string | number, dto: CreateConversationDto): Promise<any> {
     this.logger.log(`Getting or creating conversation between ${userId} and ${dto.otherUserId}`);
     try {
       const otherUser = await this.prisma.user.findUnique({
@@ -52,18 +53,7 @@ export class MessagesService {
           },
         },
       });
-      // console.log(
-      //   { user1Id, user2Id }
-      // );
-      // let conversation = await this.prisma.conversation.findFirst({
-      //   where: {
-      //     OR: [
-      //       { user1Id: Number(user1Id), user2Id: Number(user2Id) },
-      //       { user1Id: Number(user2Id), user2Id: Number(user1Id) },
-      //     ],
-      //   },
-      // });
-      // Create conversation if it doesn't exist
+
       if (!conversation) {
         this.logger.log(`Creating conversation between ${userId} and ${dto.otherUserId}`);
         conversation = await this.prisma.conversation.create({
@@ -89,11 +79,7 @@ export class MessagesService {
 
   async getConversations(userId: number) {
     this.logger.log(`Retrieving conversations for user ${userId}`);
-    // const conversations = await this.prisma.conversation.findMany({
-    //   where: {
-    //     OR: [{ user1Id: Number(userId) }, { user2Id: Number(userId) }],
-    //   },
-    // });
+
     const conversations = await this.prisma.conversation.findMany({
       where: {
         OR: [{ user1Id: Number(userId) }, { user2Id: Number(userId) }],
