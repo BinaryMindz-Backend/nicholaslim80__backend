@@ -51,7 +51,7 @@ export class OtpService {
   }
 
   // 
-  sendOtpNotification(email: string | null, otp: string, phone?: string | null) {
+  async sendOtpNotification(email: string | null, otp: string, phone?: string | null) {
     console.log(`📩 OTP sent >>> email=${email} phone=${phone} otp=${otp}`);
   }
 
