@@ -49,7 +49,6 @@ export class UsersService {
         ]
       }
     });
-
     if (existing) throw new ConflictException('User already exists');
     // 
     let hashed: string | undefined = undefined;
