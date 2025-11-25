@@ -13,9 +13,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { MessageService } from 'src/modules/message/message.service';
 import { SendMessageSimpleDto } from 'src/modules/message/dto/simple-message.dto';
 import Redis from 'ioredis';
+import { MessagesService } from './message.service';
 
 @Injectable()
 @WebSocketGateway({
@@ -39,7 +39,7 @@ export class MessagesGateway
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly messagesService: MessageService,
+    private readonly messagesService: MessagesService,
     private readonly configService: ConfigService,
   ) { }
 
@@ -48,44 +48,43 @@ export class MessagesGateway
   }
 
   async handleConnection(client: Socket) {
-    console.log("co");
-    // const cookie = client.handshake.headers.cookie as string;
+    const cookie = client.handshake.headers.cookie as string;
 
-    // if (!cookie) {
-    //   client.emit('error', { message: 'Authentication token is required' });
-    //   client.disconnect();
-    //   return;
-    // }
+    if (!cookie) {
+      client.emit('error', { message: 'Authentication token is required' });
+      client.disconnect();
+      return;
+    }
 
-    // try {
-    //   const decoded = await this.jwtService.verifyAsync(cookie, {
-    //     secret: this.configService.get<string>('JWT_SECRET'),
-    //   });
+    try {
+      const decoded = await this.jwtService.verifyAsync(cookie, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
 
-    //   if (!decoded?.sub) {
-    //     client.disconnect();
-    //     return;
-    //   }
+      if (!decoded?.sub) {
+        client.disconnect();
+        return;
+      }
 
-    //   const user = await this.prisma.user.findUnique({
-    //     where: { id: decoded.sub },
-    //   });
+      const user = await this.prisma.user.findUnique({
+        where: { id: decoded.sub },
+      });
 
-    //   if (!user) {
-    //     client.disconnect();
-    //     return;
-    //   }
+      if (!user) {
+        client.disconnect();
+        return;
+      }
 
-    //   await this.redis.set(`socket:${client.id}`, user.id);
-    //   await this.redis.set(`user:${user.id}`, client.id);
+      await this.redis.set(`socket:${client.id}`, user.id);
+      await this.redis.set(`user:${user.id}`, client.id);
 
-    //   this.connectedUsers.set(String(user.id), client.id);
-    //   this.logger.log(`User ${user.id} connected with socket: ${client.id}`)
-    //   client.emit('connected', { userId: user.id });
-    // } catch (error) {
-    //   this.logger.error('Authentication error:', error);
-    //   client.disconnect();
-    // }
+      this.connectedUsers.set(String(user.id), client.id);
+      this.logger.log(`User ${user.id} connected with socket: ${client.id}`)
+      client.emit('connected', { userId: user.id });
+    } catch (error) {
+      this.logger.error('Authentication error:', error);
+      client.disconnect();
+    }
   }
 
   // ---------------------------

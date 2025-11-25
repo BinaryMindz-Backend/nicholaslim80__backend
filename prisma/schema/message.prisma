@@ -1,0 +1,45 @@
+model Conversation {
+  id        String    @id @default(uuid())
+  user1Id   Int
+  user2Id   Int
+  user1     User      @relation("User1Conversations", fields: [user1Id], references: [id])
+  user2     User      @relation("User2Conversations", fields: [user2Id], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       Int
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId     Int
+  receiver       User         @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  content        String?
+  messageType    MessageType  @default(TEXT)
+  fileUrl        String? // Single file URL for image or PDF
+  fileName       String? // Original filename
+  fileSize       Int? // File size in bytes
+  isRead         Boolean      @default(false)
+  isEdited       Boolean      @default(false)
+  isDeleted      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  PDF
+}
