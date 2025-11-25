@@ -39,30 +39,30 @@ export class MessagesService {
       const [user1Id, user2Id] = [Number(userId), Number(dto.otherUserId)].sort();
 
       // Check if conversation already exists
-      // let conversation = await this.prisma.conversation.findUnique({
-      //   where: {
-      //     user1Id_user2Id: { user1Id: Number(user1Id), user2Id: Number(user2Id) },
-      //   },
-      //   include: {
-      //     user1: {
-      //       select: { id: true, email: true, },
-      //     },
-      //     user2: {
-      //       select: { id: true, email: true, },
-      //     },
-      //   },
-      // });
-      console.log(
-        { user1Id, user2Id }
-      );
-      let conversation = await this.prisma.conversation.findFirst({
+      let conversation = await this.prisma.conversation.findUnique({
         where: {
-          OR: [
-            { user1Id: Number(user1Id), user2Id: Number(user2Id) },
-            { user1Id: Number(user2Id), user2Id: Number(user1Id) },
-          ],
+          user1Id_user2Id: { user1Id: Number(user1Id), user2Id: Number(user2Id) },
+        },
+        include: {
+          user1: {
+            select: { id: true, email: true, },
+          },
+          user2: {
+            select: { id: true, email: true, },
+          },
         },
       });
+      // console.log(
+      //   { user1Id, user2Id }
+      // );
+      // let conversation = await this.prisma.conversation.findFirst({
+      //   where: {
+      //     OR: [
+      //       { user1Id: Number(user1Id), user2Id: Number(user2Id) },
+      //       { user1Id: Number(user2Id), user2Id: Number(user1Id) },
+      //     ],
+      //   },
+      // });
       // Create conversation if it doesn't exist
       if (!conversation) {
         this.logger.log(`Creating conversation between ${userId} and ${dto.otherUserId}`);
