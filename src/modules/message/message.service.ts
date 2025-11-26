@@ -118,7 +118,6 @@ export class MessagesService {
       orderBy: { updatedAt: 'desc' },
     });
     this.logger.log(`Found ${conversations.length} conversations for user ${userId}`);
-    // // Transform to include the other user and unread count
     return conversations.map((conv) => ({
       id: conv.id,
       otherUser: conv.user1Id === Number(userId) ? conv.user2 : conv.user1,
