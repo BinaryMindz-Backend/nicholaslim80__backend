@@ -13,10 +13,10 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiBearerAuth } 
 import { QuizService } from './quiz.service';
 import { Auth } from 'src/decorators/auth.decorator';
 import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
+import { UserRole } from '@prisma/client/edge';
 
 
 @ApiTags('quizzes')

@@ -1,13 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
-import { PrismaService } from 'src/core/database/prisma.service';
 
 @Injectable()
 export class QuestionsService {
   constructor(private prisma: PrismaService) {}
 
- async create(dto: CreateQuestionDto) {
+  // -----------------------------
+  // CREATE QUESTION
+  // -----------------------------
+  async create(dto: CreateQuestionDto) {
     return await this.prisma.question.create({
       data: {
         quizId: dto.quizId,
@@ -15,7 +18,6 @@ export class QuestionsService {
         quesCategory: dto.quesCategory,
         quesDeficulty: dto.quesDeficulty,
         question_text: dto.question_text,
-
         options: dto.options
           ? {
               create: dto.options.map((o) => ({
@@ -29,28 +31,53 @@ export class QuestionsService {
     });
   }
 
- async findAll() {
+  // -----------------------------
+  // GET ALL QUESTIONS
+  // -----------------------------
+  async findAll() {
     return await this.prisma.question.findMany({
       include: { options: true },
     });
   }
 
+  // -----------------------------
+  // GET ONE QUESTION BY ID
+  // -----------------------------
   async findOne(id: number) {
-    return await this.prisma.question.findUnique({
+    const question = await this.prisma.question.findUnique({
       where: { id },
       include: { options: true },
     });
+
+    if (!question) throw new NotFoundException('Question not found');
+    return question;
   }
 
- async update(id: number, dto: UpdateQuestionDto) {
+  // -----------------------------
+  // UPDATE QUESTION
+  // -----------------------------
+  async update(id: number, dto: UpdateQuestionDto) {
+    // Check if question exists
+    const existing = await this.prisma.question.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Question not found');
+
     return await this.prisma.question.update({
       where: { id },
       data: {
-        ...dto,
+        quizId: dto.quizId ?? existing.quizId,
+        quesType: dto.quesType ?? existing.quesType,
+        quesCategory: dto.quesCategory ?? existing.quesCategory,
+        quesDeficulty: dto.quesDeficulty ?? existing.quesDeficulty,
+        question_text: dto.question_text ?? existing.question_text,
+
+        // Correct nested options update
         options: dto.options
           ? {
-              deleteMany: { questionId: id }, 
-              create: dto.options,
+              deleteMany: {}, // delete all previous options
+              create: dto.options.map((o) => ({
+                option_text: o.option_text,
+                is_correct: o.is_correct,
+              })),
             }
           : undefined,
       },
@@ -58,7 +85,14 @@ export class QuestionsService {
     });
   }
 
- async remove(id: number) {
+  // -----------------------------
+  // DELETE QUESTION
+  // -----------------------------
+  async remove(id: number) {
+    // Check if question exists
+    const existing = await this.prisma.question.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Question not found');
+
     return await this.prisma.question.delete({
       where: { id },
     });

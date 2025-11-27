@@ -1,32 +1,39 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsEnum,
+  IsNumber,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
+import { CreateOptionDto } from './create-option.dto';
+import { QuesCategory, QuesDeficulty, QuesType } from '@prisma/client/edge';
 
 export class CreateQuestionDto {
   @ApiProperty()
+  @IsNumber()
   quizId: number;
 
-  @ApiProperty({ enum: ['TYPE1', 'TYPE2'], description: 'Your QuesType Enum' })
-  quesType: any;
+  @ApiProperty({ enum:QuesType })
+  @IsEnum(QuesType)
+  quesType: QuesType;
 
-  @ApiProperty({ enum: ['CAT1', 'CAT2'], description: 'Your QuesCategory Enum' })
-  quesCategory: any;
+  @ApiProperty({ enum: QuesCategory })
+  @IsEnum(QuesCategory)
+  quesCategory: QuesCategory;
 
-  @ApiProperty({ enum: ['LOW', 'MEDIUM', 'HIGH'], description: 'Your Difficulty Enum' })
-  quesDeficulty: any;
+  @ApiProperty({ enum: QuesDeficulty })
+  @IsEnum(QuesDeficulty)
+  quesDeficulty: QuesDeficulty;
 
   @ApiProperty({ example: 'What is 2 + 2?' })
+  @IsString()
   question_text: string;
 
-  @ApiProperty({
-    type: () => [CreateOptionDto],
-    required: false,
-  })
-  options?: CreateOptionDto[];
-}
-
-export class CreateOptionDto {
-  @ApiProperty({ example: '4' })
-  option_text: string;
-
-  @ApiProperty({ default: false })
-  is_correct: boolean;
+  @ApiProperty({ type: [CreateOptionDto], required: true })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateOptionDto)
+  options: CreateOptionDto[];
 }
