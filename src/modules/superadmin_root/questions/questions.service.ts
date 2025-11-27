@@ -7,9 +7,7 @@ import { UpdateQuestionDto } from './dto/update-question.dto';
 export class QuestionsService {
   constructor(private prisma: PrismaService) {}
 
-  // -----------------------------
   // CREATE QUESTION
-  // -----------------------------
   async create(dto: CreateQuestionDto) {
     return await this.prisma.question.create({
       data: {
@@ -31,18 +29,14 @@ export class QuestionsService {
     });
   }
 
-  // -----------------------------
   // GET ALL QUESTIONS
-  // -----------------------------
   async findAll() {
     return await this.prisma.question.findMany({
       include: { options: true },
     });
   }
 
-  // -----------------------------
   // GET ONE QUESTION BY ID
-  // -----------------------------
   async findOne(id: number) {
     const question = await this.prisma.question.findUnique({
       where: { id },
@@ -53,9 +47,7 @@ export class QuestionsService {
     return question;
   }
 
-  // -----------------------------
   // UPDATE QUESTION
-  // -----------------------------
   async update(id: number, dto: UpdateQuestionDto) {
     // Check if question exists
     const existing = await this.prisma.question.findUnique({ where: { id } });
@@ -85,9 +77,7 @@ export class QuestionsService {
     });
   }
 
-  // -----------------------------
   // DELETE QUESTION
-  // -----------------------------
   async remove(id: number) {
     // Check if question exists
     const existing = await this.prisma.question.findUnique({ where: { id } });

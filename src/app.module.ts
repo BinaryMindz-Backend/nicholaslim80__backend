@@ -18,6 +18,8 @@ import { IncentiveModule } from './modules/superadmin_root/incentive/incentive.m
 import { RidersProfileModule } from './modules/raider_root/riders_profile/riders_profile.module';
 import { QuizModule } from './modules/superadmin_root/quiz/quiz.module';
 import { QuestionsModule } from './modules/superadmin_root/questions/questions.module';
+import { PlatformFeeModule } from './modules/superadmin_root/platform_fee/platform_fee.module';
+
 
 
 @Module({
@@ -46,7 +48,9 @@ import { QuestionsModule } from './modules/superadmin_root/questions/questions.m
     RidersProfileModule,
     QuizModule,
     QuestionsModule,
+    PlatformFeeModule,
 
+    
   ],
   controllers: [AppController],
   providers: [AppService],

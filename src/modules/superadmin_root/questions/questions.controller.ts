@@ -23,9 +23,7 @@ import { ApiResponses } from 'src/common/apiResponse';
 export class QuestionsController {
   constructor(private readonly questionsService: QuestionsService) {}
 
-  // -----------------------------
   // CREATE QUESTION
-  // -----------------------------
   @Post()
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
@@ -42,9 +40,7 @@ export class QuestionsController {
     }
   }
 
-  // -----------------------------
   // GET ALL QUESTIONS
-  // -----------------------------
   @Get()
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
@@ -61,9 +57,7 @@ export class QuestionsController {
     }
   }
 
-  // -----------------------------
   // GET ONE QUESTION BY ID
-  // -----------------------------
   @Get(':id')
   @Auth()
   @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
@@ -87,9 +81,7 @@ export class QuestionsController {
     }
   }
 
-  // -----------------------------
   // UPDATE QUESTION
-  // -----------------------------
   @Patch(':id')
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
@@ -106,9 +98,7 @@ export class QuestionsController {
     }
   }
 
-  // -----------------------------
   // DELETE QUESTION
-  // -----------------------------
   @Delete(':id')
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
