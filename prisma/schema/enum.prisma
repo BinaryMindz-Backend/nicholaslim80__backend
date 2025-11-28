@@ -183,3 +183,22 @@ enum QuesCategory {
      GENERAL
      IQ
 }
+
+// 
+enum ApplicableType {
+      RAIDER
+      USER
+}
+
+// 
+enum FeeAppliesType {
+     ALL_ORDERS
+     ORDERLESS15
+     EXPRESS_ORDERS
+}
+
+enum Condition {
+     HIGH_DEMAND
+     VERY_HIGH_DEMAND
+     WEEKEND
+}

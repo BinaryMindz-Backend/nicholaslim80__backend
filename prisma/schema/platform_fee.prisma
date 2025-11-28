@@ -1,0 +1,69 @@
+
+model StandardCommissionRate{
+    id                Int @id @default(autoincrement())
+    applicable_user   Enum(ApplicableTyp.RAIDER)
+    role_name         String VarChar(100)
+    commission_rate_delivery_fee      Int @default(0)
+    service_area      String  VarChar(100)
+
+    created_at      DateTime      @default(now())
+    updated_at      DateTime      @updatedAt
+
+}
+
+
+model RaiderComensationRole{
+    id                Int @id @default(autoincrement())
+    applicable_user   Enum(ApplicableTyp.RAIDER)
+    senario         String VarChar(100)
+    commission_rate_delivery_fee      Int @default(0)
+    service_area      String  VarChar(100)
+
+    created_at      DateTime      @default(now())
+    updated_at      DateTime      @updatedAt
+
+}
+
+
+
+model RaiderDeductionFee{
+    id                Int @id @default(autoincrement())
+    applicable_user   Enum(ApplicableTyp.RAIDER)
+    deduction_name    String VarChar(100)
+    amount            Int @default(0)
+    service_area      String  VarChar(100)
+
+    created_at      DateTime      @default(now())
+    updated_at      DateTime      @updatedAt
+
+}
+
+
+// 
+model UserFeeStructure{
+    id                Int @id @default(autoincrement())
+    applicable_user   Enum(ApplicableTyp.USER)
+    fee_name          String VarChar(100)
+    amount            Int @default(0)
+    service_area      String  VarChar(100)
+    applis_to         Enum(FeeAppliesType.ORDERLESS15)
+
+    created_at      DateTime      @default(now())
+    updated_at      DateTime      @updatedAt
+
+}
+
+
+// 
+model UserDynmaicSurge{
+    id                Int @id @default(autoincrement())
+    applicable_user   Enum(ApplicableTyp.USER)
+    role_name         String VarChar(100)
+    price_multiplier  Int @default(0)
+    condition         Enum(Condition.HIGH_DEMAND)
+    time_range        DateTime
+
+    created_at        DateTime      @default(now())
+    updated_at        DateTime      @updatedAt
+
+}
