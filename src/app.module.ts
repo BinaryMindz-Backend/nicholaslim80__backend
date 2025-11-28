@@ -20,6 +20,8 @@ import { QuizModule } from './modules/superadmin_root/quiz/quiz.module';
 import { QuestionsModule } from './modules/superadmin_root/questions/questions.module';
 import { PlatformFeeModule } from './modules/superadmin_root/platform_fee/platform_fee.module';
 
+import { MessageModule } from './modules/message/message.module';
+import { JwtModule } from '@nestjs/jwt';
 
 
 @Module({
@@ -28,10 +30,15 @@ import { PlatformFeeModule } from './modules/superadmin_root/platform_fee/platfo
       isGlobal: true,       // Config available globally
       envFilePath: '.env',  // Path to your .env file
       validationSchema: Joi.object({
-      NODE_ENV: Joi.string().valid('development', 'production', 'test').required(),
-      PORT: Joi.number().default(3000),
-      DATABASE_URL: Joi.string().required(),
-  }),
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').required(),
+        PORT: Joi.number().default(3000),
+        DATABASE_URL: Joi.string().required(),
+      }),
+    }),
+    JwtModule.register({
+      global: true,
+      secret: process.env.JWT_SECRET || 'changeme',
+      signOptions: { expiresIn: '7d' },
     }),
     UsersModule,
     DatabaseModule,
@@ -49,10 +56,11 @@ import { PlatformFeeModule } from './modules/superadmin_root/platform_fee/platfo
     QuizModule,
     QuestionsModule,
     PlatformFeeModule,
+    MessageModule,
 
     
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

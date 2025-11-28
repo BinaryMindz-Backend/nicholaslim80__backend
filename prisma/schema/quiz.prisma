@@ -1,3 +1,4 @@
+// prisma/models/quiz.prisma
 
 model Quiz {
   id            Int      @id @default(autoincrement())

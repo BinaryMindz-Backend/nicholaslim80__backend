@@ -31,7 +31,10 @@ model User {
   adminProfiles       Admin[]
   coinHistory         CoinHistory[]
   destinations        Destination[]
-
+  sentMessages        Message[]    @relation("SentMessages")
+  receivedMessages    Message[]    @relation("ReceivedMessages")
+  user1Conversations  Conversation[] @relation("User1Conversations")
+  user2Conversations  Conversation[] @relation("User2Conversations")
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
   @@map("users")
