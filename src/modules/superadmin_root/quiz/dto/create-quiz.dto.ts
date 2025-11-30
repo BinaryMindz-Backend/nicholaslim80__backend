@@ -1,15 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsBoolean, IsOptional, IsJSON } from 'class-validator';
+import { IsString, IsBoolean, IsOptional, IsObject } from 'class-validator';
 
 export class CreateQuizDto {
   @ApiProperty({ example: 'General Knowledge Quiz', description: 'Title of the quiz' })
   @IsString()
   title: string;
 
-  @ApiPropertyOptional({ description: 'Quiz options in JSON format' })
-  @IsJSON()
-  @IsOptional()
-  QuizOption?: any;
+@ApiPropertyOptional({
+  description: 'Quiz options in JSON format',
+  example: {
+    timeLimit: 30,
+    difficulty: 'easy',
+    shuffleQuestions: true,
+  },
+  type: 'object',
+  additionalProperties: true,   // 🔥 required for free-form JSON
+})
+@IsOptional()
+QuizOption?: Record<string, any>;
 
   @ApiPropertyOptional({ example: 'A fun quiz about general knowledge', description: 'Description of the quiz' })
   @IsString()
