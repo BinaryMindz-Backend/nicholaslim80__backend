@@ -185,7 +185,7 @@ enum QuesCategory {
 }
 
 // 
-enum ApplicableType {
+enum ApplicableTyp {
       RAIDER
       USER
 }

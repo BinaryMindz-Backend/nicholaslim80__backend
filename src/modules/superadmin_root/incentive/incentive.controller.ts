@@ -62,6 +62,7 @@ export class IncentiveController {
     status: 200,
     description: 'Incentives fetched successfully',
   })
+  @Auth()
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async findAll() {
     try {
