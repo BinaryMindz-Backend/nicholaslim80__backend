@@ -6,10 +6,11 @@ model RaiderQuiz {
   
   quiz            Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   quizId          Int
-  total_questions Int
-  correct_answers Int
-  score           Decimal? @db.Decimal(6,2)
-  completed_at    DateTime?
+  total_questions Int @default(0)
+  correct_answers Int @default(0)
+  score           Int @default(0)
+  attempt_count   Int @default(1)          
+  completed_at    DateTime? @default(now())
   raiderAnswers     RaiderAnswer[]
   @@map("raider_quizzes")
 }
