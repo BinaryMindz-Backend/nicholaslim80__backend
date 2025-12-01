@@ -1,28 +1,28 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, ParseIntPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { RaiderDeductionFeeService } from './deduction_fee.service';
+import { UserFeeStructureService } from './fee_structure.service';
 import { Auth } from 'src/decorators/auth.decorator';
 import { Roles } from 'src/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
-import { CreateRaiderDeductionFeeDto } from './dto/create_deduction_fee.dto';
+import { CreateUserFeeStructureDto } from './dto/create_ user_fee_structure.dto';
 import { ApiResponses } from 'src/common/apiResponse';
-import { UpdateRaiderDeductionFeeDto } from './dto/update-platform_fee.dto';
+import { UpdateUserFeeStructureDto } from './dto/update-platform_fee.dto';
 
 
-@ApiTags('Raider Deduction Fee (platform fee) (admin only)')
-@Controller('raider-deduction-fee')
-export class RaiderDeductionFeeController {
-  constructor(private readonly service: RaiderDeductionFeeService) {}
+@ApiTags('User Fee Structure (platform fee) (admin only)')
+@Controller('user-fee-structure')
+export class UserFeeStructureController {
+  constructor(private readonly service: UserFeeStructureService) {}
 
   @Post()
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a raider deduction fee' })
-  async create(@Body() dto: CreateRaiderDeductionFeeDto) {
+  @ApiOperation({ summary: 'Create a user fee structure' })
+  async create(@Body() dto: CreateUserFeeStructureDto) {
     try {
       const res = await this.service.create(dto);
-      return ApiResponses.success(res, 'Raider deduction fee created successfully');
+      return ApiResponses.success(res, 'User fee structure created successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to create record');
     }
@@ -32,7 +32,7 @@ export class RaiderDeductionFeeController {
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all raider deduction fees' })
+  @ApiOperation({ summary: 'Get all user fee structures' })
   async findAll() {
     try {
       const res = await this.service.findAll();
@@ -46,7 +46,7 @@ export class RaiderDeductionFeeController {
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get a single raider deduction fee by ID' })
+  @ApiOperation({ summary: 'Get a single user fee structure by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {
       const res = await this.service.findOne(id);
@@ -60,8 +60,8 @@ export class RaiderDeductionFeeController {
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update a raider deduction fee by ID' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRaiderDeductionFeeDto) {
+  @ApiOperation({ summary: 'Update a user fee structure by ID' })
+  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserFeeStructureDto) {
     try {
       const res = await this.service.update(id, dto);
       return ApiResponses.success(res, 'Record updated successfully');
@@ -74,7 +74,7 @@ export class RaiderDeductionFeeController {
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete a raider deduction fee by ID' })
+  @ApiOperation({ summary: 'Delete a user fee structure by ID' })
   async remove(@Param('id', ParseIntPipe) id: number) {
     try {
       const res = await this.service.remove(id);

@@ -1,30 +1,30 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, ParseIntPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { RaiderDeductionFeeService } from './deduction_fee.service';
+import { UserDynamicSurgeService } from './dynamic_surge.services';
 import { Auth } from 'src/decorators/auth.decorator';
 import { Roles } from 'src/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
-import { CreateRaiderDeductionFeeDto } from './dto/create_deduction_fee.dto';
+import { CreateUserDynamicSurgeDto } from './dto/create_dynamic_surge.dto';
 import { ApiResponses } from 'src/common/apiResponse';
-import { UpdateRaiderDeductionFeeDto } from './dto/update-platform_fee.dto';
+import { UpdateUserDynamicSurgeDto } from './dto/update-platform_fee.dto';
 
 
-@ApiTags('Raider Deduction Fee (platform fee) (admin only)')
-@Controller('raider-deduction-fee')
-export class RaiderDeductionFeeController {
-  constructor(private readonly service: RaiderDeductionFeeService) {}
+@ApiTags('User Dynamic Surge (platform fee) (admin only)')
+@Controller('user-dynamic-surge')
+export class UserDynamicSurgeController {
+  constructor(private readonly service: UserDynamicSurgeService) {}
 
   @Post()
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a raider deduction fee' })
-  async create(@Body() dto: CreateRaiderDeductionFeeDto) {
+  @ApiOperation({ summary: 'Create new dynamic surge rule' })
+  async create(@Body() dto: CreateUserDynamicSurgeDto) {
     try {
       const res = await this.service.create(dto);
-      return ApiResponses.success(res, 'Raider deduction fee created successfully');
+      return ApiResponses.success(res, 'Dynamic surge created successfully');
     } catch (error) {
-      return ApiResponses.error(error, 'Failed to create record');
+      return ApiResponses.error(error, 'Failed to create dynamic surge');
     }
   }
 
@@ -32,11 +32,11 @@ export class RaiderDeductionFeeController {
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all raider deduction fees' })
+  @ApiOperation({ summary: 'Get all dynamic surge rules' })
   async findAll() {
     try {
       const res = await this.service.findAll();
-      return ApiResponses.success(res, 'Records fetched successfully');
+      return ApiResponses.success(res, 'Dynamic surge records fetched successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to fetch records');
     }
@@ -46,11 +46,11 @@ export class RaiderDeductionFeeController {
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get a single raider deduction fee by ID' })
+  @ApiOperation({ summary: 'Get dynamic surge rule by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {
       const res = await this.service.findOne(id);
-      return ApiResponses.success(res, 'Record fetched successfully');
+      return ApiResponses.success(res, 'Dynamic surge fetched successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to fetch record');
     }
@@ -60,11 +60,14 @@ export class RaiderDeductionFeeController {
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update a raider deduction fee by ID' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRaiderDeductionFeeDto) {
+  @ApiOperation({ summary: 'Update a dynamic surge rule' })
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateUserDynamicSurgeDto,
+  ) {
     try {
       const res = await this.service.update(id, dto);
-      return ApiResponses.success(res, 'Record updated successfully');
+      return ApiResponses.success(res, 'Dynamic surge updated successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to update record');
     }
@@ -74,11 +77,11 @@ export class RaiderDeductionFeeController {
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete a raider deduction fee by ID' })
+  @ApiOperation({ summary: 'Delete a dynamic surge rule' })
   async remove(@Param('id', ParseIntPipe) id: number) {
     try {
       const res = await this.service.remove(id);
-      return ApiResponses.success(res, 'Record deleted successfully');
+      return ApiResponses.success(res, 'Dynamic surge deleted successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to delete record');
     }

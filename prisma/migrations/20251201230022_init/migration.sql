@@ -1,3 +1,10 @@
+/*
+  Warnings:
+
+  - You are about to alter the column `score` on the `raider_quizzes` table. The data in that column could be lost. The data in that column will be cast from `Decimal(6,2)` to `Integer`.
+  - Made the column `score` on table `raider_quizzes` required. This step will fail if there are existing NULL values in that column.
+
+*/
 -- CreateEnum
 CREATE TYPE "ApplicableTyp" AS ENUM ('RAIDER', 'USER');
 
@@ -6,6 +13,15 @@ CREATE TYPE "FeeAppliesType" AS ENUM ('ALL_ORDERS', 'ORDERLESS15', 'EXPRESS_ORDE
 
 -- CreateEnum
 CREATE TYPE "Condition" AS ENUM ('HIGH_DEMAND', 'VERY_HIGH_DEMAND', 'WEEKEND');
+
+-- AlterTable
+ALTER TABLE "raider_quizzes" ADD COLUMN     "attempt_count" INTEGER NOT NULL DEFAULT 1,
+ALTER COLUMN "total_questions" SET DEFAULT 0,
+ALTER COLUMN "correct_answers" SET DEFAULT 0,
+ALTER COLUMN "score" SET NOT NULL,
+ALTER COLUMN "score" SET DEFAULT 0,
+ALTER COLUMN "score" SET DATA TYPE INTEGER,
+ALTER COLUMN "completed_at" SET DEFAULT CURRENT_TIMESTAMP;
 
 -- CreateTable
 CREATE TABLE "StandardCommissionRate" (
@@ -67,7 +83,7 @@ CREATE TABLE "UserDynamicSurge" (
     "role_name" VARCHAR(100) NOT NULL,
     "price_multiplier" INTEGER NOT NULL DEFAULT 0,
     "condition" "Condition" NOT NULL,
-    "time_range" TIMESTAMP(3) NOT NULL,
+    "time_range" VARCHAR(100) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
