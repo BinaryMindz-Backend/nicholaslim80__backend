@@ -34,7 +34,7 @@ export class StandardCommissionRateController {
 
   @Get()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all standard commission rates' })
   @ApiResponse({ status: 200, description: 'Records fetched successfully' })
@@ -50,7 +50,7 @@ export class StandardCommissionRateController {
 
   @Get(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single standard commission rate by ID' })
   @ApiResponse({ status: 200, description: 'Record fetched successfully' })
