@@ -1,4 +1,4 @@
 import { PartialType } from '@nestjs/swagger';
-import { CreatePlatformFeeDto } from './create-platform_fee.dto';
+import { CreateStandardCommissionRateDto } from './create-commission_rate.dto';
 
-export class UpdatePlatformFeeDto extends PartialType(CreatePlatformFeeDto) {}
+export class UpdateStandardCommissionRateDto extends PartialType(CreateStandardCommissionRateDto) {}
