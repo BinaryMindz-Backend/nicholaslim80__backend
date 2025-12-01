@@ -232,7 +232,7 @@ async getIndivitualraiderResult(raiderId:number) {
   return results;
 }
 
-// delete quiz ans 
+// delete quiz answer 
 async deleteIndivitualraiderResult(id:number) {
   if (!id) throw new NotFoundException('raider id not found');
 
