@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, Delete, } from '@nestjs/common';
 import { RidersProfileService } from './riders_profile.service';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, } from '@nestjs/swagger';
 
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
@@ -11,12 +11,14 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { RaiderVerification } from '@prisma/client';
 import { Roles } from 'src/decorators/roles.decorator';
 import { UserRole } from 'src/modules/users_root/users/dto/create-user.dto';
+import { GetRidersQueryDto } from './dto/rider-query.dto';
+import { SuspendRiderProfileDto } from './dto/suspend.dto';
 
 @Controller('riders-profile')
 export class RidersProfileController {
   constructor(private readonly ridersProfileService: RidersProfileService) { }
 
-  @Post()
+  @Post('create-rider-profile')
   @Auth()
   @ApiOperation({ summary: 'Rider profile creation (Rider only)' })
   @ApiBody({ type: CreateRidersProfileDto })
@@ -32,14 +34,15 @@ export class RidersProfileController {
     }
   }
 
-  @Get()
+  @Post('fetch-rider-profiles')
   @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
+  @ApiBody({ type: GetRidersQueryDto })
   @ApiBearerAuth()
-  async findAll() {
+  async findAll(@Query() query: GetRidersQueryDto) {
     try {
-      const res = await this.ridersProfileService.findAll();
+      const res = await this.ridersProfileService.findAll(query);
       return ApiResponses.success(res, 'Rider profiles fetched successfully');
     } catch (error) {
       return ApiResponses.error(error);
@@ -93,5 +96,32 @@ export class RidersProfileController {
     }
   }
 
-
+  @Delete(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Delete rider profile by id (Admin only)' })
+  async remove(@Param('id') id: string) {
+    try {
+      const res = await this.ridersProfileService.remove(id);
+      return ApiResponses.success(res, 'Rider profile deleted successfully');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return ApiResponses.error(message);
+    }
+  }
+  @Patch('suspend/:id')
+  @Auth()
+  @ApiBearerAuth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Suspend rider profile by id (Admin only)' })
+  async Suspend(@Param('id') id: string, @Body() suspendRiderProfileDto: SuspendRiderProfileDto) {
+    try {
+      const res = await this.ridersProfileService.suspendRiderProfile(Number(id), suspendRiderProfileDto);
+      return ApiResponses.success(res, 'Rider profile suspended successfully');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return ApiResponses.error(message);
+    }
+  }
 }

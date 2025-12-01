@@ -1,8 +1,11 @@
+/* eslint-disable prefer-const */
 import { Injectable } from '@nestjs/common';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { RaiderVerification } from '@prisma/client';
+import { GetRidersQueryDto } from './dto/rider-query.dto';
+import { SuspendRiderProfileDto } from './dto/suspend.dto';
 
 
 @Injectable()
@@ -20,7 +23,7 @@ export class RidersProfileService {
     if (!riderExists) {
       throw new Error('Rider not found for the given user ID');
     }
-
+    console.log({ createRidersProfileDto });
     const res = await this.prisma.raiderRegistration.create({
       data: {
         raiderId: riderExists.id,
@@ -30,8 +33,45 @@ export class RidersProfileService {
     return res;
   }
 
-  async findAll() {
-    const res = await this.prisma.raider.findMany();
+  async findAll(query: GetRidersQueryDto) {
+    const filter: any = {};
+
+    if (query.raider_name) {
+      filter.raider_name = {
+        contains: query.raider_name,
+        mode: 'insensitive',
+      };
+    }
+
+    if (query.raiderId) {
+      filter.raiderId = Number(query.raiderId);
+    }
+
+    if (query.raider_verificationFromAdmin) {
+      filter.raider_verificationFromAdmin = query.raider_verificationFromAdmin;
+    }
+
+    if (query.signInPortal) {
+      filter.signInPortal = query.signInPortal;
+    }
+
+    let orderBy: any = {};
+
+    if (query.type) {
+      // Accept both the DTO's 'asc'/'desc' values and legacy 'first'/'last' for compatibility
+      const orderType = String(query.type).toLowerCase();
+      if (orderType === 'asc' || orderType === 'first') {
+        orderBy.createdAt = 'asc';
+      } else if (orderType === 'desc' || orderType === 'last') {
+        orderBy.createdAt = 'desc';
+      }
+    }
+
+    const res = await this.prisma.raiderRegistration.findMany({
+      where: filter,
+      orderBy: orderBy,
+    });
+    //
     return res;
   }
 
@@ -92,6 +132,42 @@ export class RidersProfileService {
       data: { ...updateRidersProfileDto },
     });
     return res;
+  }
+
+  async remove(id: string) {
+    const res = await this.prisma.raiderRegistration.delete({
+      where: { id: Number(id) },
+    });
+    return res;
+  }
+
+  async suspendRiderProfile(id: number, dto: SuspendRiderProfileDto) {
+    const res = await this.prisma.raider.findUnique({
+      where: { id: Number(id) },
+      include: { registrations: true },
+    });
+    if (!res) {
+      throw new Error('Rider profile not found');
+    }
+
+    const registration = await this.prisma.raiderRegistration.findFirst({
+      where: { raiderId: Number(id) },
+    });
+
+    if (!registration) {
+      throw new Error('Rider registration not found for this rider');
+    }
+
+    const updatedProfile = await this.prisma.raiderRegistration.update({
+      where: { id: registration.id },
+      data: {
+        isSuspended: true,
+        suspendedDuration: dto.suspendedDuration,
+        suspensionReason: dto.suspensionReason,
+      },
+    });
+
+    return updatedProfile;
   }
 
 

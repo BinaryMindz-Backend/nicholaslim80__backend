@@ -47,6 +47,7 @@ model RaiderRegistration {
   vehicle_policy_issue_date   DateTime
   vehicle_policy_expire_date  DateTime
   vehicle_policy_images       String
+  
   // Address
   current_address             String
   current_apartment           String
@@ -62,7 +63,11 @@ model RaiderRegistration {
   permanent_country           String
   permanent_zip_post_code     String
 
-  // Bank
+
+  signInPortal   PortalEnum
+  isSuspended    Boolean   @default(false)
+  suspendedDuration  DateTime?
+  suspensionReason   String?
   bank_name                   String
   account_number              String
 

@@ -202,3 +202,8 @@ enum Condition {
      VERY_HIGH_DEMAND
      WEEKEND
 }
+
+enum PortalEnum {
+  WEB_PORTAL
+  APP_PORTAL
+}
