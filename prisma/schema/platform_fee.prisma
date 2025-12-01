@@ -49,7 +49,7 @@ model UserDynamicSurge {
   role_name         String    @db.VarChar(100)
   price_multiplier  Int       @default(0)
   condition         Condition
-  time_range        DateTime
+  time_range        String    @db.VarChar(100) 
 
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt

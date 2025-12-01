@@ -3,6 +3,7 @@ import { CreateStandardCommissionRateDto } from './create-commission_rate.dto';
 import { CreateRaiderCompensationRoleDto } from './create_compensation_role.dto';
 import { CreateRaiderDeductionFeeDto } from './create_deduction_fee.dto';
 import { CreateUserFeeStructureDto } from './create_ user_fee_structure.dto';
+import { CreateUserDynamicSurgeDto } from './create_dynamic_surge.dto';
 
 export class UpdateStandardCommissionRateDto extends PartialType(CreateStandardCommissionRateDto) {}
 // 
@@ -11,5 +12,8 @@ export class UpdateRaiderCompensationRoleDto extends PartialType(CreateRaiderCom
 export class UpdateRaiderDeductionFeeDto extends PartialType(CreateRaiderDeductionFeeDto) {}
 // 
 export class UpdateUserFeeStructureDto extends PartialType(CreateUserFeeStructureDto) {}
+// 
+export class UpdateUserDynamicSurgeDto extends PartialType(CreateUserDynamicSurgeDto) {}
+
 
 
