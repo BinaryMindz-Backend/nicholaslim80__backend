@@ -151,7 +151,6 @@ export class RidersProfileController {
     @Body() updateRidersProfileDto: UpdateRidersProfileDto,
   ) {
     try {
-      console.log({ id });
       const res = await this.ridersProfileService.adminUpdateRiderProfile(id, updateRidersProfileDto);
       return ApiResponses.success(res, 'Rider profile updated successfully by admin');
     } catch (error) {
