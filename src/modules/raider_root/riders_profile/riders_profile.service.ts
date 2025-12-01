@@ -23,7 +23,6 @@ export class RidersProfileService {
     if (!riderExists) {
       throw new Error('Rider not found for the given user ID');
     }
-    console.log({ createRidersProfileDto });
     const res = await this.prisma.raiderRegistration.create({
       data: {
         raiderId: riderExists.id,
