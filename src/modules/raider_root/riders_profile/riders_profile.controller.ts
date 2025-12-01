@@ -124,4 +124,20 @@ export class RidersProfileController {
       return ApiResponses.error(message);
     }
   }
+  // create rider profile by admin 
+  @Post('admin-create-rider-profile')
+  @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create rider profile for a user (Admin only)' })
+  async adminCreateRiderProfile(
+    @Body() createRidersProfileDto: CreateRidersProfileDto,
+  ) {
+    try {
+      const res = await this.ridersProfileService.adminCreateRiderProfile(createRidersProfileDto);
+      return ApiResponses.success(res, 'Rider profile created successfully by admin');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
 }

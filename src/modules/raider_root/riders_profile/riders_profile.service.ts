@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { RaiderVerification } from '@prisma/client';
+import { RaiderVerification, UserRole } from '@prisma/client';
 import { GetRidersQueryDto } from './dto/rider-query.dto';
 import { SuspendRiderProfileDto } from './dto/suspend.dto';
 
@@ -169,5 +169,35 @@ export class RidersProfileService {
     return updatedProfile;
   }
 
+  async adminCreateRiderProfile(createRidersProfileDto: CreateRidersProfileDto) {
+    // If DTO contains a raiderId, connect the existing raider relation; otherwise use the DTO as-is.
+    const { raiderId, ...rest } = createRidersProfileDto as any;
+    const data = raiderId
+      ? { ...rest, raider: { connect: { id: Number(raiderId) } } }
+      : { ...createRidersProfileDto };
+    // make the user first and then create the profile
+    const user = await this.prisma.user.create({
+      data: {
+        email: createRidersProfileDto.email_address,
+        password: '123456',
+        role: UserRole.RAIDER,
+        phone: '0000000000',
+      },
+    });
+
+    // make a raider for this user (only set the required relation field; other profile details are stored on raiderRegistration)
+    const raider = await this.prisma.raider.create({
+      data: {
+        userId: user.id,
+      },
+    });
+
+    data['raiderId'] = raider.id;
+
+    const res = await this.prisma.raiderRegistration.create({
+      data,
+    });
+    return res;
+  }
 
 }
