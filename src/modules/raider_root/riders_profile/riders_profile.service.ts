@@ -6,8 +6,10 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { RaiderVerification, UserRole } from '@prisma/client';
 import { GetRidersQueryDto } from './dto/rider-query.dto';
 import { SuspendRiderProfileDto } from './dto/suspend.dto';
+import { CreateUserDto } from 'src/modules/users_root/users/dto/create-user.dto';
+import { ApiResponses } from 'src/common/apiResponse';
 
-
+import * as bcrypt from 'bcrypt';
 @Injectable()
 export class RidersProfileService {
   constructor(
@@ -176,12 +178,19 @@ export class RidersProfileService {
       ? { ...rest, raider: { connect: { id: Number(raiderId) } } }
       : { ...createRidersProfileDto };
     // make the user first and then create the profile
+    const raidersDefaultPassword = process.env.RAIDER_DEFAULT_PASSWORD || '123456';
+
+    if (!raidersDefaultPassword) {
+      throw new Error(' Default raider password is not set in environment variables');
+    }
+    const hashed = await bcrypt.hash(raidersDefaultPassword, 10);
     const user = await this.prisma.user.create({
       data: {
         email: createRidersProfileDto.email_address,
-        password: '123456',
+        password: hashed,
         role: UserRole.RAIDER,
-        phone: '0000000000',
+        phone: createRidersProfileDto.contact_number,
+        is_verified: true,
       },
     });
 
@@ -200,4 +209,61 @@ export class RidersProfileService {
     return res;
   }
 
+  async adminUpdateRiderProfile(id: string, updateRidersProfileDto: UpdateRidersProfileDto) {
+    const userExists = await this.prisma.raider.findUnique({
+      where: { userId: Number(id) },
+    });
+
+    if (!userExists) {
+      throw new Error('Rider profile not found');
+    }
+
+    // find the registration for this raider
+    const registration = await this.prisma.raiderRegistration.findFirst({
+      where: { raiderId: Number(userExists.id) },
+    });
+
+    if (!registration) {
+      throw new Error('Rider registration not found for this rider');
+    }
+
+    const res = await this.prisma.raiderRegistration.update({
+      where: { id: registration.id },
+      data: { ...updateRidersProfileDto },
+    });
+    return res;
+  }
+
+  async adminCreateUser(dto: CreateUserDto) {
+    try {
+      const uuserExists = await this.prisma.user.findUnique({
+        where: {
+          email: dto.email,
+        },
+      });
+
+      if (uuserExists) {
+        return ApiResponses.error('User with this email already exists');
+      }
+      const defaultpassword = process.env.RAIDER_DEFAULT_PASSWORD
+
+      if (!defaultpassword) {
+        throw new Error('Default password is not set in environment variables');
+      }
+      const hashed = await bcrypt.hash(defaultpassword, 10);
+      const res = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          password: hashed,
+          role: UserRole.USER,
+          phone: dto.phone,
+          is_verified: true,
+        },
+      });
+      return res;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return ApiResponses.error(message);
+    }
+  }
 }

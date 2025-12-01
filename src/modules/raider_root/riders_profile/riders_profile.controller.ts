@@ -10,7 +10,7 @@ import { Auth } from 'src/decorators/auth.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
 import { RaiderVerification } from '@prisma/client';
 import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from 'src/modules/users_root/users/dto/create-user.dto';
+import { CreateUserDto, UserRole } from 'src/modules/users_root/users/dto/create-user.dto';
 import { GetRidersQueryDto } from './dto/rider-query.dto';
 import { SuspendRiderProfileDto } from './dto/suspend.dto';
 
@@ -136,6 +136,40 @@ export class RidersProfileController {
     try {
       const res = await this.ridersProfileService.adminCreateRiderProfile(createRidersProfileDto);
       return ApiResponses.success(res, 'Rider profile created successfully by admin');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+  // admin update rider profile
+  @Patch('admin-update-rider-profile/:id')
+  @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update rider profile by admin (Admin only)' })
+  async adminUpdateRiderProfile(
+    @Param('id') id: string,
+    @Body() updateRidersProfileDto: UpdateRidersProfileDto,
+  ) {
+    try {
+      const res = await this.ridersProfileService.adminUpdateRiderProfile(id, updateRidersProfileDto);
+      return ApiResponses.success(res, 'Rider profile updated successfully by admin');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+
+  // admin create user 
+  @Post('admin-create-user')
+  @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create user by admin (Admin only)' })
+  async adminCreateUser(@Body() dto: CreateUserDto) {
+
+
+    try {
+      const res = await this.ridersProfileService.adminCreateUser(dto);
+      return ApiResponses.success(res, 'User created successfully by admin');
     } catch (error) {
       return ApiResponses.error(error);
     }
