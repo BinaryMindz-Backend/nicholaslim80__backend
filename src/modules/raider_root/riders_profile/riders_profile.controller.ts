@@ -165,8 +165,6 @@ export class RidersProfileController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create user by admin (Admin only)' })
   async adminCreateUser(@Body() dto: CreateUserDto) {
-
-
     try {
       const res = await this.ridersProfileService.adminCreateUser(dto);
       return ApiResponses.success(res, 'User created successfully by admin');

@@ -184,6 +184,15 @@ export class RidersProfileService {
       throw new Error(' Default raider password is not set in environment variables');
     }
     const hashed = await bcrypt.hash(raidersDefaultPassword, 10);
+    const userExists = await this.prisma.user.findUnique({
+      where: {
+        email: createRidersProfileDto.email_address,
+      },
+    });
+
+    if (userExists) {
+      return ApiResponses.error('User with this email already exists');
+    }
     const user = await this.prisma.user.create({
       data: {
         email: createRidersProfileDto.email_address,
@@ -194,7 +203,6 @@ export class RidersProfileService {
       },
     });
 
-    // make a raider for this user (only set the required relation field; other profile details are stored on raiderRegistration)
     const raider = await this.prisma.raider.create({
       data: {
         userId: user.id,
