@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { RaiderVerification, UserRole } from '@prisma/client';
+import { PortalEnum, RaiderVerification, UserRole } from '@prisma/client';
 import { GetRidersQueryDto } from './dto/rider-query.dto';
 import { SuspendRiderProfileDto } from './dto/suspend.dto';
 import { CreateUserDto } from 'src/modules/users_root/users/dto/create-user.dto';
@@ -84,10 +84,12 @@ export class RidersProfileService {
     return res;
   }
   async verifyRiderProfile(id: number, verify: RaiderVerification) {
+
     const res = await this.prisma.raider.findUnique({
-      where: { id: Number(id) },
-      include: { registrations: true },
+      where: { id: Number(id) }
     });
+
+    console.log(res);
     if (!res) {
       throw new Error('Rider profile not found');
     }
@@ -217,13 +219,13 @@ export class RidersProfileService {
     return res;
   }
 
-  async adminUpdateRiderProfile(id: string, updateRidersProfileDto: UpdateRidersProfileDto) {
-    const userExists = await this.prisma.raider.findUnique({
-      where: { userId: Number(id) },
+  async adminUpdateRiderProfile(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
+    const userExists = await this.prisma.raiderRegistration.findUnique({
+      where: { id: Number(id) },
     });
 
     if (!userExists) {
-      throw new Error('Rider profile not found');
+      return ApiResponses.error('Rider profile not found');
     }
 
     // find the registration for this raider
@@ -232,12 +234,12 @@ export class RidersProfileService {
     });
 
     if (!registration) {
-      throw new Error('Rider registration not found for this rider');
+      return ApiResponses.error('Rider registration not found for this rider');
     }
 
     const res = await this.prisma.raiderRegistration.update({
       where: { id: registration.id },
-      data: { ...updateRidersProfileDto },
+      data: { ...updateRidersProfileDto, signInPortal: PortalEnum.APP_PORTAL },
     });
     return res;
   }

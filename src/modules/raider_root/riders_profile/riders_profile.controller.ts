@@ -63,7 +63,7 @@ export class RidersProfileController {
     }
   }
 
-  @Patch(':id/:verify')
+  @Patch('verify-rider/:id/:verify')
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiParam({
@@ -147,10 +147,11 @@ export class RidersProfileController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update rider profile by admin (Admin only)' })
   async adminUpdateRiderProfile(
-    @Param('id') id: string,
+    @Param('id') id: number,
     @Body() updateRidersProfileDto: UpdateRidersProfileDto,
   ) {
     try {
+      console.log({ id });
       const res = await this.ridersProfileService.adminUpdateRiderProfile(id, updateRidersProfileDto);
       return ApiResponses.success(res, 'Rider profile updated successfully by admin');
     } catch (error) {
