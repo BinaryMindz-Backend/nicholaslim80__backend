@@ -20,6 +20,7 @@ import { Roles } from 'src/decorators/roles.decorator';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
 import { UserRole } from '@prisma/client';
+import type { IUser } from 'src/types';
 
 
 @ApiTags('Delivery Types (admin)')
@@ -34,7 +35,7 @@ export class DeliveryTypeController {
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Create Delivery Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  async create(@CurrentUser() user: any,
+  async create(@CurrentUser() user: IUser,
     @Body() dto: CreateDeliveryTypeDto,
   ) {
     try {
