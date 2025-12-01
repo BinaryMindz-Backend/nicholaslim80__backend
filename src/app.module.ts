@@ -14,6 +14,14 @@ import { DestinationModule } from './modules/users_root/destination/destination.
 import { OrderModule } from './modules/users_root/order/order.module';
 import { PaymentOptionModule } from './modules/users_root/payment-option/payment-option.module';
 import { ReferloyalityModule } from './modules/users_root/referloyality/referloyality.module';
+import { IncentiveModule } from './modules/superadmin_root/incentive/incentive.module';
+import { RidersProfileModule } from './modules/raider_root/riders_profile/riders_profile.module';
+import { QuizModule } from './modules/superadmin_root/quiz/quiz.module';
+import { QuestionsModule } from './modules/superadmin_root/questions/questions.module';
+import { PlatformFeeModule } from './modules/superadmin_root/platform_fee/platform_fee.module';
+
+import { MessageModule } from './modules/message/message.module';
+import { JwtModule } from '@nestjs/jwt';
 
 
 @Module({
@@ -22,10 +30,15 @@ import { ReferloyalityModule } from './modules/users_root/referloyality/referloy
       isGlobal: true,       // Config available globally
       envFilePath: '.env',  // Path to your .env file
       validationSchema: Joi.object({
-      NODE_ENV: Joi.string().valid('development', 'production', 'test').required(),
-      PORT: Joi.number().default(3000),
-      DATABASE_URL: Joi.string().required(),
-  }),
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').required(),
+        PORT: Joi.number().default(3000),
+        DATABASE_URL: Joi.string().required(),
+      }),
+    }),
+    JwtModule.register({
+      global: true,
+      secret: process.env.JWT_SECRET || 'changeme',
+      signOptions: { expiresIn: '7d' },
     }),
     UsersModule,
     DatabaseModule,
@@ -38,9 +51,16 @@ import { ReferloyalityModule } from './modules/users_root/referloyality/referloy
     OrderModule,
     PaymentOptionModule,
     ReferloyalityModule,
+    IncentiveModule,
+    RidersProfileModule,
+    QuizModule,
+    QuestionsModule,
+    PlatformFeeModule,
+    MessageModule,
 
+    
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

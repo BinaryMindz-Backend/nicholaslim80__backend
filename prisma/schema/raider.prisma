@@ -1,9 +1,9 @@
-// prisma/models/raider.prisma
-
 model Raider {
   id           Int     @id @default(autoincrement())
+  
   user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId       Int     @unique
+  
   is_online    Boolean @default(false)
   is_available Boolean @default(false)
 
@@ -14,6 +14,9 @@ model Raider {
   tips          Tip[]
   reviews       Review[]
   assignedOrders Order[] @relation("AssignedRaider")
+
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @default(now()) @updatedAt
 
   @@map("raiders")
 }

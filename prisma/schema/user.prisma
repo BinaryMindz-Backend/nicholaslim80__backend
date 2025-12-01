@@ -13,8 +13,7 @@ model User {
   is_verified         Boolean   @default(false)
   is_deleted          Boolean   @default(false)
   refresh_token       String? @db.VarChar(500)
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+
   is_acc_refered      Boolean @default(false)
   referral_code       String?    @unique
   referral_link       String?    @unique
@@ -32,6 +31,11 @@ model User {
   adminProfiles       Admin[]
   coinHistory         CoinHistory[]
   destinations        Destination[]
-
+  sentMessages        Message[]    @relation("SentMessages")
+  receivedMessages    Message[]    @relation("ReceivedMessages")
+  user1Conversations  Conversation[] @relation("User1Conversations")
+  user2Conversations  Conversation[] @relation("User2Conversations")
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
   @@map("users")
 }

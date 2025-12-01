@@ -164,3 +164,41 @@ enum CoinHistoryType {
   ACCUMULATION
   APPLICATION
 }
+
+
+// 
+enum QuesType {
+     MULTIPLE
+     BOOLEAN
+}
+
+enum QuesDeficulty {
+    EASY
+    MEDIUM
+    HARD
+}
+
+enum QuesCategory {
+     SAFETY_PROCUDURE
+     GENERAL
+     IQ
+}
+
+// 
+enum ApplicableTyp {
+      RAIDER
+      USER
+}
+
+// 
+enum FeeAppliesType {
+     ALL_ORDERS
+     ORDERLESS15
+     EXPRESS_ORDERS
+}
+
+enum Condition {
+     HIGH_DEMAND
+     VERY_HIGH_DEMAND
+     WEEKEND
+}

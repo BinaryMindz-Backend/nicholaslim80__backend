@@ -1,16 +1,18 @@
-// prisma/models/question_option.prisma
-
 model Question {
   id            Int       @id @default(autoincrement())
   quiz          Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
   quizId        Int
+  quesType      QuesType
+  quesCategory  QuesCategory    
+  quesDeficulty QuesDeficulty
+
   question_text String    @db.Text
   created_at    DateTime  @default(now())
 
   options       Option[]
    
   // 
-  raiderAns    RaiderAnswer?
+  raiderAns     RaiderAnswer?
 
 
 

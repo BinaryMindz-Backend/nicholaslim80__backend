@@ -1,0 +1,56 @@
+model StandardCommissionRate {
+  id                         Int       @id @default(autoincrement())
+  applicable_user            ApplicableTyp
+  role_name                  String    @db.VarChar(100)
+  commission_rate_delivery_fee Int     @default(0)
+  service_area               String    @db.VarChar(100)
+
+  created_at                 DateTime  @default(now())
+  updated_at                 DateTime  @updatedAt
+}
+
+model RaiderCompensationRole {
+  id                         Int       @id @default(autoincrement())
+  applicable_user            ApplicableTyp
+  scenario                   String    @db.VarChar(100)
+  commission_rate_delivery_fee Int     @default(0)
+  service_area               String    @db.VarChar(100)
+
+  created_at                 DateTime  @default(now())
+  updated_at                 DateTime  @updatedAt
+}
+
+model RaiderDeductionFee {
+  id              Int       @id @default(autoincrement())
+  applicable_user ApplicableTyp
+  deduction_name  String    @db.VarChar(100)
+  amount          Int       @default(0)
+  service_area    String    @db.VarChar(100)
+
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+}
+
+model UserFeeStructure {
+  id              Int       @id @default(autoincrement())
+  applicable_user ApplicableTyp
+  fee_name        String    @db.VarChar(100)
+  amount          Int       @default(0)
+  service_area    String    @db.VarChar(100)
+  applies_to      FeeAppliesType
+
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+}
+
+model UserDynamicSurge {
+  id                Int       @id @default(autoincrement())
+  applicable_user   ApplicableTyp
+  role_name         String    @db.VarChar(100)
+  price_multiplier  Int       @default(0)
+  condition         Condition
+  time_range        DateTime
+
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+}

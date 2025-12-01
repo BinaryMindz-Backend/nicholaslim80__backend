@@ -5,45 +5,50 @@ import { OtpService } from 'src/modules/auth/otp.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ReferralUtils } from 'src/utils/referral.util';
 import { IUser } from 'src/types';
-
-
-
+import { UserRole } from '@prisma/client';
 
 // 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService,
-              private readonly otpService: OtpService,
+    private readonly otpService: OtpService,
 
-      ) {}
+  ) { }
 
 
   // ** Create new user // signup with otp verify
-  async createUser(dto: { email?: string; password?: string; username?: string; phone: string , referral_code?:string}) {
+  async createUser(dto: { email?: string; password?: string; username?: string; phone: string, referral_code?: string, role?: UserRole }) {
 
-      let referredByUser;
+    if (dto.role === UserRole.SUPER_ADMIN) {
+      throw new NotAcceptableException("You can't create superadmin or admin by general login")
+    }
 
-      if(dto.referral_code){
-          referredByUser = await this.prisma.user.findUnique({
-              where:{
-                  referral_code:dto.referral_code
-              }
-          })
-          // 
-        if (!referredByUser) {
-          throw new BadRequestException('Invalid referral code');
+    let referredByUser;
+
+    if (dto.referral_code) {
+      referredByUser = await this.prisma.user.findUnique({
+        where: {
+          referral_code: dto.referral_code
         }
-        // 
-
+      })
+      // 
+      if (!referredByUser) {
+        throw new BadRequestException('Invalid referral code');
       }
-    // generate referral code and link
-    const {code, link} = ReferralUtils.generateReferral(process.env.BASE_URL as string);
-    //  
-    const existing = await this.prisma.user.findFirst({ where: {OR:[
-            { email: dto.email },
-            {phone:dto.phone}
-    ]} });
+      // 
 
+    }
+    // generate referral code and link
+    const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
+    //  
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: dto.email },
+          { phone: dto.phone }
+        ]
+      }
+    });
     if (existing) throw new ConflictException('User already exists');
     // 
     let hashed: string | undefined = undefined;
@@ -53,96 +58,109 @@ export class UsersService {
     }
     // 
     const user = await this.prisma.user.create({
-              data: {
-                email: dto.email,
-                username: dto.username,
-                phone: dto.phone,
-                password: hashed,
-                referral_code:code,
-                referral_link:link,
-                is_acc_refered:dto.referral_code? true : false
-              },
-            });
+      data: {
+        email: dto.email,
+        username: dto.username,
+        phone: dto.phone,
+        password: hashed,
+        referral_code: code,
+        referral_link: link,
+        is_acc_refered: dto.referral_code ? true : false,
+        role: dto.role
+      },
+    });
 
-      if(dto.referral_code){
 
+    if (dto.referral_code) {
+
+      // if the user created by refer
       await this.prisma.refer.create({
-             data:{
-                refer_code:dto.referral_code,
-                user_id:user.id
-             }
-        })  
-      }
-        
+        data: {
+          refer_code: dto.referral_code,
+          user_id: user.id
+        }
+      })
+    }
+    // if the user role is raider 
+    if (user.role === UserRole.RAIDER) {
+      await this.prisma.raider.create({
+        data: {
+          userId: user?.id
+        }
+      })
+    }
+
     // pass to otp verify method
-    await this.otpService.generateOtp(user.email ,user.phone);      
+    await this.otpService.generateOtp(user.email, user.phone);
 
     return {
-       user,
+      user,
     };
   }
-  
+
 
 
   // 
-async findByEmailOrPhone(email?: string, phone?: string) {
+  async findByEmailOrPhone(email?: string, phone?: string) {
+    // 
+    return await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          { phone }
+        ]
+      },
+    });
+  }
+
   // 
-  return this.prisma.user.findFirst({
-    where: { OR: [
-        {email},
-        {phone}
-    ] },
-  });
-}
 
-// 
-
-async updateUserRefreshToken(userId: number, token: string | null) {
-  return this.prisma.user.update({
-    where: { id: userId },
-    data: { refresh_token: token },
-  });
-}
+  async updateUserRefreshToken(userId: number, token: string | null) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { refresh_token: token },
+    });
+  }
 
 
 
 
   // ** Get all users
-    async findAllActiveUsers() {
-      return this.prisma.user.findMany({
-        where: { is_deleted: false,is_verified:true }, // only active users
-        orderBy: { created_at: 'desc' },
-      });
-    }
+  async findAllActiveUsers() {
+    return this.prisma.user.findMany({
+      where: { is_deleted: false, is_verified: true }, // only active users
+      orderBy: { created_at: 'desc' },
+    });
+  }
 
 
   // ** Get all users
-    async findAllUsers() {
-      return this.prisma.user.findMany({
-        orderBy: { created_at: 'desc' },
-      });
-    }
+  async findAllUsers() {
+    return this.prisma.user.findMany({
+      orderBy: { created_at: 'desc' },
+    });
+  }
 
 
   // ** Get user by ID
   async findOneuser(id: number) {
-    if(!id) throw new NotFoundException("User id not found")
+    if (!id) throw new NotFoundException("User id not found")
 
-    return this.prisma.user.findUnique({ where: { id , is_deleted:false} });
+    return this.prisma.user.findUnique({ where: { id, is_deleted: false } });
   }
 
   // ** Get user by user id
-  async findMe(user:IUser) {
-    if(!user.id) throw new NotFoundException("User id not found")
-    return this.prisma.user.findFirst({ where: { id:Number(user.id) , is_deleted:false} });
+  async findMe(user: IUser) {
+    if (!user.id) throw new NotFoundException("User id not found")
+    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false } });
   }
 
 
 
 
-    // ** Get user by ID for admin
+  // ** Get user by ID for admin
   async findDeletedOneuser(id: number) {
-      if(!id) throw new NotFoundException("User id not found")
+    if (!id) throw new NotFoundException("User id not found")
 
     return this.prisma.user.findUnique({ where: { id } });
   }
@@ -151,7 +169,7 @@ async updateUserRefreshToken(userId: number, token: string | null) {
 
   // ** Update user
   async updateUser(id: number, updateUserDto: UpdateUserDto) {
-      if(!id) throw new NotFoundException("User id not found")
+    if (!id) throw new NotFoundException("User id not found")
 
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
@@ -163,88 +181,92 @@ async updateUserRefreshToken(userId: number, token: string | null) {
   }
 
   // ** Soft delete user
-async softDeleteMultiple(ids: number[]) {
-  if (!ids || ids.length === 0) {
-    throw new BadRequestException("No user IDs provided");
-  }
+  async softDeleteMultiple(ids: number[]) {
+    if (!ids || ids.length === 0) {
+      throw new BadRequestException("No user IDs provided");
+    }
     // 
     const users = await this.prisma.user.findMany({
-      where:{id:{in:ids}}
+      where: { id: { in: ids } }
     })
 
-  if (users.length === 0) {
-    throw new NotFoundException("No users found for given IDs");
-  }
-  // 
-  return this.prisma.user.updateMany({
-    where: { id: { in: ids } },
-    data: {
-      is_deleted: true,
-      status: false,
-      is_verified:false,
-      refresh_token:null,
-    },
-  });
-}
-
-
-
-// permanent remove user
-async deleteMultiple(ids: number[]) {
-  if (!ids || ids.length === 0) {
-    throw new BadRequestException("No user IDs provided");
-  }
-
-  const users = await this.prisma.user.findMany({
-      where:{id:{in:ids}}
-  })
-
-  if (users.length === 0) {
-    throw new NotFoundException("No users found for given IDs");
-  }
-
-  return this.prisma.user.deleteMany({
-    where: { id: { in: ids } },
-  });
-}
-
-
-// ** add wallet
-async addMoneyToWallet(id:number, amount:number){
-
-    if(!id){
-        throw new NotFoundException("id not found")
+    if (users.length === 0) {
+      throw new NotFoundException("No users found for given IDs");
     }
-       
-  const currentUser = await this.prisma.user.findUnique({
-       where:{
-         id
-       }
-  })
-
-  if(!currentUser){
-      throw new NotFoundException("User not found")
-  }
-  
-const currentBalance = (currentUser.balance)
-const newBalance = currentBalance + (amount * 100);
-  // 
-  if(amount < 20){
-       throw new NotAcceptableException(`This ${amount} is not acceptable you need minimun 20 USD to added to wallet`)
-  }
     // 
-  const updatedWallet = await this.prisma.user.update({
+    return this.prisma.user.updateMany({
+      where: { id: { in: ids } },
+      data: {
+        is_deleted: true,
+        status: false,
+        is_verified: false,
+        refresh_token: null,
+      },
+    });
+  }
+
+
+
+  // permanent remove user
+  async deleteMultiple(ids: number[]) {
+    if (!ids || ids.length === 0) {
+      throw new BadRequestException("No user IDs provided");
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: ids } }
+    })
+
+    if (users.length === 0) {
+      throw new NotFoundException("No users found for given IDs");
+    }
+
+    return this.prisma.user.deleteMany({
+      where: { id: { in: ids } },
+    });
+  }
+
+
+  // ** add wallet
+  async addMoneyToWallet(id: number, amount: number) {
+
+    if (!id) {
+      throw new NotFoundException("id not found")
+    }
+
+    const currentUser = await this.prisma.user.findUnique({
+      where: {
+        id
+      }
+    })
+
+    if (!currentUser) {
+      throw new NotFoundException("User not found")
+    }
+
+    if (currentUser.is_verified === false) {
+      throw new NotAcceptableException("For top-up/deposit user need to be verified through email/phone")
+    }
+
+    const currentBalance = (currentUser.balance)
+    const newBalance = currentBalance + (amount * 100);
+    // 
+    if (amount < 20) {
+      throw new NotAcceptableException(`This ${amount} is not acceptable you need minimun 20 USD to added to wallet`)
+    }
+    // 
+    const updatedWallet = await this.prisma.user.update({
       //  
-       where:{
-           id
-       },
-       data:{
-          balance:newBalance,
-       }
-  })
-  // TODO : need to add transaction 
-  return updatedWallet;
-}
+      where: {
+        id
+      },
+      data: {
+        balance: newBalance,
+      }
+    })
+    // TODO : need to add transaction 
+    return updatedWallet;
+  }
 
 
 

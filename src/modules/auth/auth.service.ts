@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { UsersService } from '../users_root/users/users.service';
+import { $Enums } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -15,7 +16,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
 
   //** Generate Access + Refresh tokens
@@ -24,7 +25,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
-      phone:user.phone
+      phone: user.phone
     };
 
     const access_token = await this.jwtService.signAsync(payload, {
@@ -81,54 +82,74 @@ export class AuthService {
     const valid = await bcrypt.compare(password, user.password as string);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-    return user;
+    return user as UserModel;
   }
 
-  
+
+
   // Refresh access token using refresh token
-async refreshTokens(refreshToken: string) {
-  try {
-    // Verify and decode refresh token
-    const payload = await this.jwtService.verifyAsync(refreshToken);
-    const userId = payload.sub;
+  async refreshTokens(refreshToken: string) {
+    try {
+      // Verify and decode refresh token
+      const payload = await this.jwtService.verifyAsync(refreshToken);
+      const userId = payload.sub;
 
-    if (!userId) throw new ForbiddenException("Invalid token payload");
+      if (!userId) throw new ForbiddenException("Invalid token payload");
 
-    //Fetch user
-    const user = await this.usersService.findOneuser(userId);
-    if (!user || !user.refresh_token)
-      throw new ForbiddenException('Access Denied');
+      //Fetch user
+      const user = await this.usersService.findOneuser(userId);
+      if (!user || !user.refresh_token)
+        throw new ForbiddenException('Access Denied');
 
-    // Compare provided token with stored hashed token
-    const isValid = await bcrypt.compare(refreshToken, user.refresh_token);
-    if (!isValid) throw new ForbiddenException('Invalid refresh token');
+      // Compare provided token with stored hashed token
+      const isValid = await bcrypt.compare(refreshToken, user.refresh_token);
+      if (!isValid) throw new ForbiddenException('Invalid refresh token');
 
-    // Generate new tokens
-    const tokens = await this.generateTokens(user);
+      // Generate new tokens
+      const tokens = await this.generateTokens(user);
 
-    // Save new refresh token
-    await this.updateRefreshToken(user.id, tokens.refresh_token);
+      // Save new refresh token
+      await this.updateRefreshToken(user.id, tokens.refresh_token);
 
-    return tokens;
-  } catch (err) {
-    // console.log(err);
-    throw new ForbiddenException("Invalid or expired refresh token");
+      return tokens;
+    } catch (err) {
+      // console.log(err);
+      throw new ForbiddenException("Invalid or expired refresh token");
+    }
   }
-}
 
-//user logout
-async logout(userId:number){
+  //user logout
+  async logout(userId: number) {
     await this.prisma.user.update({
-        where:{
-            id:userId
-        },
-        data:{
-           refresh_token:null
-        }
-    }) 
+      where: {
+        id: userId
+      },
+      data: {
+        refresh_token: null
+      }
+    })
+  }
+
+
+
+
 }
-
-
-
-
+type UserModel = {
+  id: number;
+  email: string | null;
+  referral_code: string | null;
+  referral_link: string | null;
+  username: string | null;
+  phone: string;
+  password: string | null;
+  role: $Enums.UserRole;
+  balance: number;
+  reward_points: number;
+  status: boolean;
+  is_verified: boolean;
+  is_deleted: boolean;
+  refresh_token: string | null;
+  created_at: Date;
+  updated_at: Date;
+  is_acc_refered: boolean;
 }

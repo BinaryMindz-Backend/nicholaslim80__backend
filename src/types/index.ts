@@ -8,8 +8,10 @@ export interface IUser {
 }
 
 
-export interface countType{
+export interface countType {
   success: boolean;
   message: string;
   data: number
 }
+
+

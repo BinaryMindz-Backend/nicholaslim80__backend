@@ -11,8 +11,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 @Injectable()
 export class PrismaService
   extends PrismaClient<Prisma.PrismaClientOptions, 'error'>
-  implements OnModuleInit, OnModuleDestroy
-{
+  implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
@@ -46,5 +45,5 @@ export class PrismaService
       }),
     );
   }
-  
+
 }

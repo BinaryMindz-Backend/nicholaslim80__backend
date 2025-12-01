@@ -1,18 +1,19 @@
 // prisma/models/quiz.prisma
 
 model Quiz {
-  id         Int      @id @default(autoincrement())
-  title      String   @db.VarChar(255)
-  description String?
-  category   String?
-  is_active  Boolean  @default(true)
-  created_by Admin?   @relation(fields: [created_by_id], references: [id], onDelete: SetNull)
+  id            Int      @id @default(autoincrement())
+  title         String   @db.VarChar(255)
+  QuizOption    Json?
+  description   String?
+  category      String?
+  is_active     Boolean  @default(true)
+  created_by    Admin?   @relation(fields: [created_by_id], references: [id], onDelete: SetNull)
   created_by_id Int?
-  created_at DateTime @default(now())
+  created_at    DateTime @default(now())
   // 
   raider_quizs    RaiderQuiz[]
 
   questions  Question[]
-
+  
   @@map("quizzes")
 }
