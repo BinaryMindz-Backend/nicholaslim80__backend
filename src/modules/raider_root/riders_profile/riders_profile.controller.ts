@@ -11,8 +11,9 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { RaiderVerification } from '@prisma/client';
 import { Roles } from 'src/decorators/roles.decorator';
 import { CreateUserDto, UserRole } from 'src/modules/users_root/users/dto/create-user.dto';
-import { GetRidersQueryDto } from './dto/rider-query.dto';
-import { SuspendRiderProfileDto } from './dto/suspend.dto';
+import { GetRidersQueryDto } from './dto/query-riders.dto';
+import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
+
 
 @Controller('riders-profile')
 export class RidersProfileController {
