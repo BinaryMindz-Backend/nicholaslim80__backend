@@ -4,12 +4,13 @@ import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { PortalEnum, RaiderVerification, UserRole } from '@prisma/client';
-import { GetRidersQueryDto } from './dto/rider-query.dto';
-import { SuspendRiderProfileDto } from './dto/suspend.dto';
+
 import { CreateUserDto } from 'src/modules/users_root/users/dto/create-user.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 
 import * as bcrypt from 'bcrypt';
+import { GetRidersQueryDto } from './dto/query-riders.dto';
+import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
 @Injectable()
 export class RidersProfileService {
   constructor(
