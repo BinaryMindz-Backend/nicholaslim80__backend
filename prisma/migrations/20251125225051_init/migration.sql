@@ -1,9 +1,6 @@
 -- CreateEnum
 CREATE TYPE "MessageType" AS ENUM ('TEXT', 'IMAGE', 'PDF');
 
--- AlterTable
-ALTER TABLE "quizzes" ADD COLUMN     "QuizOption" JSONB;
-
 -- CreateTable
 CREATE TABLE "Conversation" (
     "id" TEXT NOT NULL,
