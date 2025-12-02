@@ -82,7 +82,7 @@ export class AuthService {
     const valid = await bcrypt.compare(password, user.password as string);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-    return user as UserModel;
+    return user;
   }
 
 
@@ -133,23 +133,4 @@ export class AuthService {
 
 
 
-}
-type UserModel = {
-  id: number;
-  email: string | null;
-  referral_code: string | null;
-  referral_link: string | null;
-  username: string | null;
-  phone: string;
-  password: string | null;
-  role: $Enums.UserRole;
-  balance: number;
-  reward_points: number;
-  status: boolean;
-  is_verified: boolean;
-  is_deleted: boolean;
-  refresh_token: string | null;
-  created_at: Date;
-  updated_at: Date;
-  is_acc_refered: boolean;
 }

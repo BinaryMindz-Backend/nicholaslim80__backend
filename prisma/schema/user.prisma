@@ -9,7 +9,7 @@ model User {
   role                UserRole  @default(USER)
   balance             Int       @default(0)
   reward_points       Int       @default(0)
-  status              Boolean   @default(false)
+  is_active           Boolean   @default(false)
   is_verified         Boolean   @default(false)
   is_deleted          Boolean   @default(false)
   refresh_token       String? @db.VarChar(500)
@@ -17,6 +17,8 @@ model User {
   is_acc_refered      Boolean @default(false)
   referral_code       String?    @unique
   referral_link       String?    @unique
+  // 
+  fav_drivers         String[]
 
   // Relations
   notifications       Notification[]

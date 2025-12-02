@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 
 
 import {
@@ -80,7 +81,7 @@ export class OtpService {
     // Mark user verified
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { is_verified: true },
+      data: { is_verified: true , is_active:true},
     });
 
     await this.redisService.del(key);

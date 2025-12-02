@@ -15,7 +15,7 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "docker:prisma_migrate": "docker compose exec app npx prisma migrate dev --name init",
+    "docker:prisma_migrate": "docker compose exec app npx prisma migrate dev",
     "docker:start": "bash ./scripts/docker-start.sh",
     "docker:stop": "docker compose -f docker-compose.yml down",
     "docker:prisma_reset": " docker compose exec app npx prisma migrate reset",

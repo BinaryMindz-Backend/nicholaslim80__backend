@@ -35,7 +35,7 @@ async function main() {
         password: hashed,
         role: "SUPER_ADMIN",
         is_verified: true,
-        status: true,
+        is_active: true,
       },
     });
 
@@ -46,7 +46,8 @@ async function main() {
         password: hashed,
         role:UserRole.SUPER_ADMIN,
         phone_number: user.phone,
-        first_name:user?.username
+        first_name:user?.username,
+        
       },
     });
 
