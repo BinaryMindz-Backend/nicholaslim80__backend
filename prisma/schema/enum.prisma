@@ -202,3 +202,17 @@ enum Condition {
      VERY_HIGH_DEMAND
      WEEKEND
 }
+
+
+// 
+
+enum RaiderStatus {
+     ACTIVE
+     IN_ACTIVE
+     SUSPENDED
+}
+
+enum LoginType {
+    DIRECT_SIGNIN
+    ADMIN_SIGNIN
+}

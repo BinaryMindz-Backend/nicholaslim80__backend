@@ -85,9 +85,9 @@ export class UsersService {
     if (user.role === UserRole.RAIDER) {
       await this.prisma.raider.create({
         data: {
-          userId: user?.id
+          userId: user.id,
         }
-      })
+      });
     }
 
     // pass to otp verify method
@@ -97,6 +97,10 @@ export class UsersService {
       user,
     };
   }
+
+
+
+
 
 
 
@@ -186,7 +190,7 @@ export class UsersService {
   // ** Get user by user id
   async findMe(user: IUser) {
     if (!user.id) throw new NotFoundException("User id not found")
-    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false } });
+    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true} });
   }
 
 

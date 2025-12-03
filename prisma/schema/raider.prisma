@@ -7,13 +7,18 @@ model Raider {
   is_online    Boolean @default(false)
   is_available Boolean @default(false)
 
+  raider_status  RaiderStatus @default(IN_ACTIVE)  
+  LoginType      LoginType   @default(DIRECT_SIGNIN)
+
   registrations RaiderRegistration[]
   locations     RaiderLocation[]
   locationHistory RaiderLocationHistory[]
-  raiderQuizzes   RaiderQuiz[]
-  tips          Tip[]
-  reviews       Review[]
+  raiderQuizzes  RaiderQuiz[]
+  tips           Tip[]
+  reviews        Review[]
   assignedOrders Order[] @relation("AssignedRaider")
+  myRaider_id    Int? @unique
+  myRaider       myRaider? @relation(fields:[myRaider_id], references:[id], onDelete:Cascade)     
 
   created_at    DateTime  @default(now())
   updated_at    DateTime  @default(now()) @updatedAt

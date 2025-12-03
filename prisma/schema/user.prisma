@@ -17,8 +17,7 @@ model User {
   is_acc_refered      Boolean @default(false)
   referral_code       String?    @unique
   referral_link       String?    @unique
-  // 
-  fav_drivers         String[]
+  regi_status         LoginType @default(DIRECT_SIGNIN)
 
   // Relations
   notifications       Notification[]
@@ -33,6 +32,8 @@ model User {
   adminProfiles       Admin[]
   coinHistory         CoinHistory[]
   destinations        Destination[]
+  my_raiders          myRaider[]
+
   sentMessages        Message[]    @relation("SentMessages")
   receivedMessages    Message[]    @relation("ReceivedMessages")
   user1Conversations  Conversation[] @relation("User1Conversations")
