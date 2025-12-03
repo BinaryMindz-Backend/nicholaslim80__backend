@@ -16,9 +16,7 @@ model Raider {
   raiderQuizzes  RaiderQuiz[]
   tips           Tip[]
   reviews        Review[]
-  assignedOrders Order[] @relation("AssignedRaider")
-  myRaider_id    Int? @unique
-  myRaider       myRaider? @relation(fields:[myRaider_id], references:[id], onDelete:Cascade)     
+  assignedOrders Order[] @relation("AssignedRaider")    
 
   created_at    DateTime  @default(now())
   updated_at    DateTime  @default(now()) @updatedAt

@@ -25,7 +25,7 @@ export class MyRaiderService {
               ]
           }
      })
-
+   
      if(!isRaiderExist){
          throw new NotFoundException("Raider not found")
      }

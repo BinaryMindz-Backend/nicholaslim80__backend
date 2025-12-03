@@ -4,7 +4,7 @@ model RaiderRegistration {
   id                          Int       @id @default(autoincrement())
 
   raider                      Raider    @relation(fields: [raiderId], references: [id], onDelete: Cascade)
-  raiderId                    Int
+  raiderId                    Int @unique
   
   raider_verificationFromAdmin         RaiderVerification @default(PENDING)
 
