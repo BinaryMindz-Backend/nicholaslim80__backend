@@ -20,22 +20,22 @@ model User {
   regi_status    LoginType @default(DIRECT_SIGNIN)
 
   // stripe fields
-  stripe_customer_id       String? @db.VarChar(100)
-  stripe_payment_method_id String? @db.VarChar(100)
-
+  stripe_customer_id       String?         @db.VarChar(100)
+  stripe_payment_method_id String?         @db.VarChar(100)
+  stripe_balance           Float           @default(0)
   // Relations
-  notifications  Notification[]
-  places         Place[]
-  paymentMethods PaymentMethod[]
-  refers         Refer[]
-  rewards        Reward[]
-  orders         Order[]
-  transactions   Transaction[]
-  tips           Tip[]
-  raiderProfile  Raider?
-  adminProfiles  Admin[]
-  coinHistory    CoinHistory[]
-  destinations   Destination[]
+  notifications            Notification[]
+  places                   Place[]
+  paymentMethods           PaymentMethod[]
+  refers                   Refer[]
+  rewards                  Reward[]
+  orders                   Order[]
+  transactions             Transaction[]
+  tips                     Tip[]
+  raiderProfile            Raider?
+  adminProfiles            Admin[]
+  coinHistory              CoinHistory[]
+  destinations             Destination[]
   // my_raiders     myRaider[]
 
   sentMessages       Message[]      @relation("SentMessages")

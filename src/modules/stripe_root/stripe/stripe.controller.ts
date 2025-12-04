@@ -1,13 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch } from '@nestjs/common';
 import { StripeService } from './stripe.service';
-import { CreateStripeDto } from './dto/create-stripe.dto';
-import { UpdateStripeDto } from './dto/update-stripe.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { UpdatePaymentDataDto } from './dto/update-payment-data.dto';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
 import { Auth } from 'src/decorators/auth.decorator';
+import { AddFundsDto } from './dto/add-funds.dto';
 export interface IUser {
   id: number;
   email: string;
@@ -41,31 +40,27 @@ export class StripeController {
     }
   }
 
-
-
-
-  @Post()
-  create(@Body() createStripeDto: CreateStripeDto) {
-    return this.stripeService.create(createStripeDto);
+  // create payment Intents
+  @Post('add-funds')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiBody({ type: AddFundsDto })
+  async addfound(@Body() body: AddFundsDto, @CurrentUser() user: IUser) {
+    try {
+      return await this.stripeService.createPaymentIntent(user.id, body);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return ApiResponses.error(message);
+    }
   }
 
-  @Get()
-  findAll() {
-    return this.stripeService.findAll();
-  }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.stripeService.findOne(+id);
-  }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateStripeDto: UpdateStripeDto) {
-    return this.stripeService.update(+id, updateStripeDto);
-  }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.stripeService.remove(+id);
-  }
+
+
+
+
+
+
 }
