@@ -2,10 +2,8 @@ model RaiderRegistration {
   id                          Int       @id @default(autoincrement())
 
   raider                      Raider    @relation(fields: [raiderId], references: [id], onDelete: Cascade)
-  raiderId                    Int
+  raiderId                    Int @unique
   
-  raider_verificationFromAdmin         RaiderVerification @default(PENDING)
-
   // Personal
   raider_name                 String
   contact_number              String
@@ -61,11 +59,6 @@ model RaiderRegistration {
   permanent_country           String
   permanent_zip_post_code     String
 
-
-  signInPortal   PortalEnum
-  isSuspended    Boolean   @default(false)
-  suspendedDuration  DateTime?
-  suspensionReason   String?
   bank_name                   String
   account_number              String
 

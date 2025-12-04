@@ -85,9 +85,9 @@ export class UsersService {
     if (user.role === UserRole.RAIDER) {
       await this.prisma.raider.create({
         data: {
-          userId: user?.id
+          userId: user.id,
         }
-      })
+      });
     }
 
     // pass to otp verify method
@@ -97,6 +97,10 @@ export class UsersService {
       user,
     };
   }
+
+
+
+
 
 
 
@@ -136,9 +140,43 @@ export class UsersService {
 
   // ** Get all users
   async findAllUsers() {
-    return this.prisma.user.findMany({
-      orderBy: { created_at: 'desc' },
-    });
+        // 
+        const aggregated = await this.prisma.order.groupBy({
+          by: ['userId'],
+          _count: { id: true },
+          _sum: { total_cost: true }
+        });
+        
+         
+        if(!aggregated){
+            throw new NotFoundException("Not found")
+        }
+
+        const userIds = aggregated.map(a => a.userId).filter((id): id is number => id !== null);
+        // console.log(userIds);
+        const users = await this.prisma.user.findMany({
+          where: {
+            id: { in: userIds }
+          }
+        });
+
+        const final = users.map(u => {
+          const data = aggregated.find(a => a.userId === u.id);
+          return {
+            id: u.id,
+            name: u.username,
+            contactNum: u.phone,
+            contactEmail:u.email,
+            totalOrders:data?._count?.id,
+            totalCost: data?._sum?.total_cost,
+            joiningDate: u.created_at,
+            activeStatus : u.is_active,
+
+          };
+        });
+
+     return final
+    //  
   }
 
 
@@ -152,7 +190,7 @@ export class UsersService {
   // ** Get user by user id
   async findMe(user: IUser) {
     if (!user.id) throw new NotFoundException("User id not found")
-    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false } });
+    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true} });
   }
 
 
@@ -180,6 +218,22 @@ export class UsersService {
     });
   }
 
+
+    // ** Update user active status
+  async activeStatusChange(id: number) {
+    if (!id) throw new NotFoundException("User id not found")
+
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+
+    return this.prisma.user.update({
+      where: { id },
+      data: {is_active:true}
+    });
+  }
+
+
+
   // ** Soft delete user
   async softDeleteMultiple(ids: number[]) {
     if (!ids || ids.length === 0) {
@@ -198,7 +252,7 @@ export class UsersService {
       where: { id: { in: ids } },
       data: {
         is_deleted: true,
-        status: false,
+        is_active: false,
         is_verified: false,
         refresh_token: null,
       },
@@ -244,12 +298,12 @@ export class UsersService {
       throw new NotFoundException("User not found")
     }
 
-    if (currentUser.is_verified === false) {
+    if (currentUser.is_verified === false || currentUser.is_active === false) {
       throw new NotAcceptableException("For top-up/deposit user need to be verified through email/phone")
     }
 
     const currentBalance = (currentUser.balance)
-    const newBalance = currentBalance + (amount * 100);
+    const newBalance = currentBalance + (amount * 100);  // amount in cent
     // 
     if (amount < 20) {
       throw new NotAcceptableException(`This ${amount} is not acceptable you need minimun 20 USD to added to wallet`)

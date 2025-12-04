@@ -10,6 +10,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { AddMoneyDto } from './dto/add-money.dto';
+import { Roles } from 'src/decorators/roles.decorator';
+import { UserRole } from '@prisma/client';
 
 
 
@@ -21,6 +23,7 @@ export class UsersController {
   // ** Get all verified users
   @Get("/verified")
   @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all verified users' })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
@@ -37,6 +40,7 @@ export class UsersController {
   // ** Get all verified users
   @Get()
   @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users' })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
@@ -49,7 +53,8 @@ export class UsersController {
     }
   }
 
-  // add money to wallet
+  //  TODO:need to verify by role
+  // add money to wallet 
   @Patch('add-money')
   @Auth()
   @ApiBearerAuth()
@@ -123,6 +128,7 @@ export class UsersController {
   // ** Get delete single user
   @Get('deleted/:id')
   @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get deleted user by ID' })
   @ApiParam({ name: 'id', description: 'User ID' })
@@ -161,9 +167,29 @@ export class UsersController {
     }
   }
 
+  // ** is active for admin 
+  @Patch('active/:id')
+  @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update active status user by ID' })
+  @ApiResponse({ status: 200, description: 'User active status updated successfully' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async activeStatusChange(
+
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE })) id: number) 
+    {
+      try {
+      const updatedUser = await this.usersService.activeStatusChange(id);
+      return ApiResponses.success(updatedUser, 'User active updated successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to update user');
+    }
+  }
   // ** Soft delete user
   @Delete('soft/:id')
   @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Soft delete user by ID' })
   @ApiBody({
@@ -188,6 +214,7 @@ export class UsersController {
   // ---------------------------------------------
   @Delete('permanent')
   @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Permanently delete multiple users' })
   @ApiBody({

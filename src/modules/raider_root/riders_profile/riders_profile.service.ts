@@ -16,6 +16,7 @@ export class RidersProfileService {
   constructor(
     private readonly prisma: PrismaService,
   ) { }
+
   async create(userId: number, createRidersProfileDto: CreateRidersProfileDto) {
     const riderExists = await this.prisma.raider.findFirst({
       where: {
@@ -35,6 +36,14 @@ export class RidersProfileService {
     return res;
   }
 
+  // async findAll() {
+  //   const res = await this.prisma.raider.findMany({
+  //         include:{
+  //             registrations:true
+  //         }
+  //   });
+
+
   async findAll(query: GetRidersQueryDto) {
     const filter: any = {};
 
@@ -53,9 +62,9 @@ export class RidersProfileService {
       filter.raider_verificationFromAdmin = query.raider_verificationFromAdmin;
     }
 
-    if (query.signInPortal) {
-      filter.signInPortal = query.signInPortal;
-    }
+    // if (query.signInPortal) {
+    //   filter.signInPortal = query.signInPortal;
+    // }
 
     let orderBy: any = {};
 
@@ -69,14 +78,19 @@ export class RidersProfileService {
       }
     }
 
-    const res = await this.prisma.raiderRegistration.findMany({
+    const res = await this.prisma.raider.findMany({
       where: filter,
       orderBy: orderBy,
+      include: {
+        registrations: true
+      }
     });
     //
     return res;
   }
 
+
+  // 
   async findOne(id: string) {
     const res = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
@@ -84,14 +98,17 @@ export class RidersProfileService {
     });
     return res;
   }
+
+
+  // 
   async verifyRiderProfile(id: number, verify: RaiderVerification) {
 
-    const res = await this.prisma.raider.findUnique({
+    const r = await this.prisma.raider.findUnique({
       where: { id: Number(id) }
     });
 
-    console.log(res);
-    if (!res) {
+    console.log(r);
+    if (!r) {
       throw new Error('Rider profile not found');
     }
 
@@ -103,8 +120,8 @@ export class RidersProfileService {
       throw new Error('Rider registration not found for this rider');
     }
 
-    const updatedProfile = await this.prisma.raiderRegistration.update({
-      where: { id: registration.id },
+    const updatedProfile = await this.prisma.raider.update({
+      where: { id: r.id },
       data: {
         raider_verificationFromAdmin: verify,
       },
@@ -112,19 +129,22 @@ export class RidersProfileService {
 
     return updatedProfile;
   }
+
+
+  // 
   async update(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
 
-    const userExists = await this.prisma.raider.findUnique({
+    const raiderExists = await this.prisma.raider.findUnique({
       where: { userId: Number(id) },
     });
 
-    if (!userExists) {
+    if (!raiderExists) {
       throw new Error('Rider profile not found');
     }
 
     // find the registration for this raider
     const registration = await this.prisma.raiderRegistration.findFirst({
-      where: { raiderId: Number(userExists.id) },
+      where: { raiderId: Number(raiderExists.id) },
     });
 
     if (!registration) {
@@ -138,6 +158,8 @@ export class RidersProfileService {
     return res;
   }
 
+
+  // 
   async remove(id: string) {
     const res = await this.prisma.raiderRegistration.delete({
       where: { id: Number(id) },
@@ -145,6 +167,9 @@ export class RidersProfileService {
     return res;
   }
 
+
+
+  // 
   async suspendRiderProfile(id: number, dto: SuspendRiderProfileDto) {
     const res = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
@@ -162,10 +187,9 @@ export class RidersProfileService {
       throw new Error('Rider registration not found for this rider');
     }
 
-    const updatedProfile = await this.prisma.raiderRegistration.update({
+    const updatedProfile = await this.prisma.raider.update({
       where: { id: registration.id },
       data: {
-        isSuspended: true,
         suspendedDuration: dto.suspendedDuration,
         suspensionReason: dto.suspensionReason,
       },
@@ -174,6 +198,8 @@ export class RidersProfileService {
     return updatedProfile;
   }
 
+
+  // 
   async adminCreateRiderProfile(createRidersProfileDto: CreateRidersProfileDto) {
     // If DTO contains a raiderId, connect the existing raider relation; otherwise use the DTO as-is.
     const { raiderId, ...rest } = createRidersProfileDto as any;
@@ -240,7 +266,7 @@ export class RidersProfileService {
 
     const res = await this.prisma.raiderRegistration.update({
       where: { id: registration.id },
-      data: { ...updateRidersProfileDto, signInPortal: PortalEnum.APP_PORTAL },
+      data: { ...updateRidersProfileDto },
     });
     return res;
   }
