@@ -1,10 +1,10 @@
-/*** ENUMS ***/
+
 enum UserRole {
   USER
   SUPER_ADMIN
   RAIDER
 }
-// 
+
 
 enum AdminRole {
   ADMIN
@@ -44,7 +44,7 @@ enum DestinationType {
   RECEIVER
 }
 
-// 
+
 enum RouteType {
    ONE_WAY
    ROUND
@@ -75,7 +75,7 @@ enum PaymentStatus {
 }
 
 
-// 
+ 
 enum TransactionType {
   BOOK_ORDER
   REFUND
@@ -89,7 +89,8 @@ enum TransactionStatus {
   SUCCESS
   FAILED
 }
-// 
+
+
 enum PayType {
    COD
    WALLET

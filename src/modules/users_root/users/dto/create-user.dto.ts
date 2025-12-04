@@ -27,7 +27,7 @@ export class CreateUserDto {
   @IsString()
   phone: string;
 
-  @ApiPropertyOptional({ example: 'P@ssword123', description: 'User password' })
+  @ApiPropertyOptional({ example: '123456', description: 'User password' })
   @IsOptional()
   @IsString()
   password?: string;

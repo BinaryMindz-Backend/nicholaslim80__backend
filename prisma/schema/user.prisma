@@ -1,44 +1,49 @@
 // prisma/models/user.prisma
 
 model User {
-  id                  Int       @id @default(autoincrement())
-  username            String?   @db.VarChar(50)
-  email               String?    @unique @db.VarChar(200)
-  phone               String   @db.VarChar(20)
-  password            String?   @db.VarChar(255)
-  role                UserRole  @default(USER)
-  balance             Int       @default(0)
-  reward_points       Int       @default(0)
-  is_active           Boolean   @default(false)
-  is_verified         Boolean   @default(false)
-  is_deleted          Boolean   @default(false)
-  refresh_token       String? @db.VarChar(500)
+  id            Int      @id @default(autoincrement())
+  username      String?  @db.VarChar(50)
+  email         String?  @unique @db.VarChar(200)
+  phone         String   @db.VarChar(20)
+  password      String?  @db.VarChar(255)
+  role          UserRole @default(USER)
+  balance       Int      @default(0)
+  reward_points Int      @default(0)
+  is_active     Boolean  @default(false)
+  is_verified   Boolean  @default(false)
+  is_deleted    Boolean  @default(false)
+  refresh_token String?  @db.VarChar(500)
 
-  is_acc_refered      Boolean @default(false)
-  referral_code       String?    @unique
-  referral_link       String?    @unique
-  regi_status         LoginType @default(DIRECT_SIGNIN)
+  is_acc_refered Boolean   @default(false)
+  referral_code  String?   @unique
+  referral_link  String?   @unique
+  regi_status    LoginType @default(DIRECT_SIGNIN)
 
+  // stripe fields
+  stripe_customer_id       String?         @db.VarChar(100)
+  stripe_payment_method_id String?         @db.VarChar(100)
+  stripe_balance           Float           @default(0)
   // Relations
-  notifications       Notification[]
-  places              Place[]
-  paymentMethods      PaymentMethod[]
-  refers              Refer[]
-  rewards             Reward[]
-  orders              Order[]
-  transactions        Transaction[]
-  tips                Tip[]
-  raiderProfile       Raider?
-  adminProfiles       Admin[]
-  coinHistory         CoinHistory[]
-  destinations        Destination[]
-  my_raiders          myRaider[]
+  notifications            Notification[]
+  places                   Place[]
+  paymentMethods           PaymentMethod[]
+  refers                   Refer[]
+  rewards                  Reward[]
+  orders                   Order[]
+  transactions             Transaction[]
+  tips                     Tip[]
+  raiderProfile            Raider?
+  adminProfiles            Admin[]
+  coinHistory              CoinHistory[]
+  destinations             Destination[]
+  // my_raiders     myRaider[]
 
-  sentMessages        Message[]    @relation("SentMessages")
-  receivedMessages    Message[]    @relation("ReceivedMessages")
-  user1Conversations  Conversation[] @relation("User1Conversations")
-  user2Conversations  Conversation[] @relation("User2Conversations")
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  sentMessages       Message[]      @relation("SentMessages")
+  receivedMessages   Message[]      @relation("ReceivedMessages")
+  user1Conversations Conversation[] @relation("User1Conversations")
+  user2Conversations Conversation[] @relation("User2Conversations")
+  created_at         DateTime       @default(now())
+  updated_at         DateTime       @updatedAt
+
   @@map("users")
 }
