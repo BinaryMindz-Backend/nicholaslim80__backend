@@ -31,7 +31,11 @@ export class RidersProfileService {
   }
 
   async findAll() {
-    const res = await this.prisma.raider.findMany();
+    const res = await this.prisma.raider.findMany({
+          include:{
+              registrations:true
+          }
+    });
     return res;
   }
 

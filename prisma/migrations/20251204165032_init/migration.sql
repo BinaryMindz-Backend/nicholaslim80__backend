@@ -11,10 +11,13 @@ CREATE TYPE "NotificationType" AS ENUM ('ORDER_UPDATE', 'PROMOTION', 'GENERAL', 
 CREATE TYPE "RewardType" AS ENUM ('SHARE', 'COMPLETED', 'REFER', 'DAILY_LOGIN', 'FIRST_SIGNUP');
 
 -- CreateEnum
-CREATE TYPE "OrderStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'PENDING');
+CREATE TYPE "OrderStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'PENDING', 'PROGRESS');
 
 -- CreateEnum
 CREATE TYPE "DestinationType" AS ENUM ('SENDER', 'RECEIVER');
+
+-- CreateEnum
+CREATE TYPE "RouteType" AS ENUM ('ONE_WAY', 'ROUND');
 
 -- CreateEnum
 CREATE TYPE "DeliveryQuality" AS ENUM ('EXCELLENT', 'GOOD', 'AVERAGE', 'POOR');
@@ -30,6 +33,9 @@ CREATE TYPE "TransactionType" AS ENUM ('BOOK_ORDER', 'REFUND', 'ADD_FUND', 'WITH
 
 -- CreateEnum
 CREATE TYPE "TransactionStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED');
+
+-- CreateEnum
+CREATE TYPE "PayType" AS ENUM ('COD', 'WALLET', 'ONLINE_PAY');
 
 -- CreateEnum
 CREATE TYPE "RaiderVerification" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
@@ -57,6 +63,33 @@ CREATE TYPE "CoinEvent" AS ENUM ('FIRST_SIGNUP', 'DAILY_LOGIN', 'SHARE_ON_SOCIAL
 
 -- CreateEnum
 CREATE TYPE "CoinHistoryType" AS ENUM ('ACCUMULATION', 'APPLICATION');
+
+-- CreateEnum
+CREATE TYPE "QuesType" AS ENUM ('MULTIPLE', 'BOOLEAN');
+
+-- CreateEnum
+CREATE TYPE "QuesDeficulty" AS ENUM ('EASY', 'MEDIUM', 'HARD');
+
+-- CreateEnum
+CREATE TYPE "QuesCategory" AS ENUM ('SAFETY_PROCUDURE', 'GENERAL', 'IQ');
+
+-- CreateEnum
+CREATE TYPE "ApplicableTyp" AS ENUM ('RAIDER', 'USER');
+
+-- CreateEnum
+CREATE TYPE "FeeAppliesType" AS ENUM ('ALL_ORDERS', 'ORDERLESS15', 'EXPRESS_ORDERS');
+
+-- CreateEnum
+CREATE TYPE "Condition" AS ENUM ('HIGH_DEMAND', 'VERY_HIGH_DEMAND', 'WEEKEND');
+
+-- CreateEnum
+CREATE TYPE "RaiderStatus" AS ENUM ('ACTIVE', 'IN_ACTIVE', 'SUSPENDED');
+
+-- CreateEnum
+CREATE TYPE "LoginType" AS ENUM ('DIRECT_SIGNIN', 'ADMIN_SIGNIN');
+
+-- CreateEnum
+CREATE TYPE "MessageType" AS ENUM ('TEXT', 'IMAGE', 'PDF');
 
 -- CreateTable
 CREATE TABLE "admins" (
@@ -122,19 +155,18 @@ CREATE TABLE "delivery_types" (
 -- CreateTable
 CREATE TABLE "destinations" (
     "id" SERIAL NOT NULL,
-    "sender_latitude" DECIMAL(10,7),
-    "sender_longitude" DECIMAL(10,7),
-    "sender_accuracy" DOUBLE PRECISION,
     "address" VARCHAR(255),
     "floor_unit" VARCHAR(100),
     "contact_name" VARCHAR(100),
     "contact_number" VARCHAR(20),
     "note_to_driver" TEXT,
     "is_saved" BOOLEAN NOT NULL DEFAULT false,
-    "type" "DestinationType" NOT NULL,
-    "receiver_latitude" DECIMAL(10,7),
-    "receiver_longitude" DECIMAL(10,7),
-    "receiver_accuracy" DOUBLE PRECISION,
+    "type" "DestinationType",
+    "latitude" DECIMAL(10,7),
+    "longitude" DECIMAL(10,7),
+    "accuracy" DOUBLE PRECISION,
+    "user_id" INTEGER NOT NULL,
+    "order_id" INTEGER,
 
     CONSTRAINT "destinations_pkey" PRIMARY KEY ("id")
 );
@@ -169,11 +201,54 @@ CREATE TABLE "incentives" (
     "type" "IncentiveType" NOT NULL,
     "start_date" TIMESTAMP(3),
     "end_date" TIMESTAMP(3),
-    "incentive_amount" DECIMAL(12,2),
+    "incentive_amount" INTEGER DEFAULT 0,
     "status" "IncentiveStatus" NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "incentives_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Conversation" (
+    "id" TEXT NOT NULL,
+    "user1Id" INTEGER NOT NULL,
+    "user2Id" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Conversation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Message" (
+    "id" TEXT NOT NULL,
+    "conversationId" TEXT NOT NULL,
+    "senderId" INTEGER NOT NULL,
+    "receiverId" INTEGER NOT NULL,
+    "content" TEXT,
+    "messageType" "MessageType" NOT NULL DEFAULT 'TEXT',
+    "fileUrl" TEXT,
+    "fileName" TEXT,
+    "fileSize" INTEGER,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "isEdited" BOOLEAN NOT NULL DEFAULT false,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "my_raiders" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "is_fav" BOOLEAN NOT NULL DEFAULT false,
+    "find_by" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "my_raiders_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -195,23 +270,25 @@ CREATE TABLE "notifications" (
 CREATE TABLE "orders" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER,
-    "route_type" "DeliveryTypeName" NOT NULL DEFAULT 'EXPRESS',
+    "route_type" "RouteType" NOT NULL DEFAULT 'ONE_WAY',
+    "delivery_type" "DeliveryTypeName" NOT NULL DEFAULT 'EXPRESS',
+    "pay_type" "PayType" NOT NULL DEFAULT 'WALLET',
     "vehicle_type_id" INTEGER NOT NULL,
     "total_cost" DECIMAL(12,2) NOT NULL,
     "has_additional_services" BOOLEAN NOT NULL DEFAULT false,
     "is_promo_used" BOOLEAN NOT NULL DEFAULT false,
     "notify_favorite_raider" BOOLEAN NOT NULL DEFAULT false,
-    "payment_method_id" INTEGER NOT NULL,
+    "payment_method_id" INTEGER,
     "assign_rider_id" INTEGER,
     "raider_confirmation" BOOLEAN NOT NULL DEFAULT false,
     "is_reviewed" BOOLEAN NOT NULL DEFAULT false,
     "is_placed" BOOLEAN NOT NULL DEFAULT false,
     "is_pickup" BOOLEAN NOT NULL DEFAULT false,
-    "order_status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
+    "order_status" "OrderStatus" NOT NULL DEFAULT 'PROGRESS',
     "is_out_for_delivery" BOOLEAN NOT NULL DEFAULT false,
-    "destination_id" INTEGER,
+    "pick_up_items" TEXT[],
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "pick_up_items" JSONB,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "orders_pkey" PRIMARY KEY ("id")
 );
@@ -240,9 +317,79 @@ CREATE TABLE "places" (
 );
 
 -- CreateTable
+CREATE TABLE "StandardCommissionRate" (
+    "id" SERIAL NOT NULL,
+    "applicable_user" "ApplicableTyp" NOT NULL,
+    "role_name" VARCHAR(100) NOT NULL,
+    "commission_rate_delivery_fee" INTEGER NOT NULL DEFAULT 0,
+    "service_area" VARCHAR(100) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "StandardCommissionRate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RaiderCompensationRole" (
+    "id" SERIAL NOT NULL,
+    "applicable_user" "ApplicableTyp" NOT NULL,
+    "scenario" VARCHAR(100) NOT NULL,
+    "commission_rate_delivery_fee" INTEGER NOT NULL DEFAULT 0,
+    "service_area" VARCHAR(100) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RaiderCompensationRole_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RaiderDeductionFee" (
+    "id" SERIAL NOT NULL,
+    "applicable_user" "ApplicableTyp" NOT NULL,
+    "deduction_name" VARCHAR(100) NOT NULL,
+    "amount" INTEGER NOT NULL DEFAULT 0,
+    "service_area" VARCHAR(100) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RaiderDeductionFee_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserFeeStructure" (
+    "id" SERIAL NOT NULL,
+    "applicable_user" "ApplicableTyp" NOT NULL,
+    "fee_name" VARCHAR(100) NOT NULL,
+    "amount" INTEGER NOT NULL DEFAULT 0,
+    "service_area" VARCHAR(100) NOT NULL,
+    "applies_to" "FeeAppliesType" NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserFeeStructure_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserDynamicSurge" (
+    "id" SERIAL NOT NULL,
+    "applicable_user" "ApplicableTyp" NOT NULL,
+    "role_name" VARCHAR(100) NOT NULL,
+    "price_multiplier" INTEGER NOT NULL DEFAULT 0,
+    "condition" "Condition" NOT NULL,
+    "time_range" VARCHAR(100) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserDynamicSurge_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "questions" (
     "id" SERIAL NOT NULL,
     "quizId" INTEGER NOT NULL,
+    "quesType" "QuesType" NOT NULL,
+    "quesCategory" "QuesCategory" NOT NULL,
+    "quesDeficulty" "QuesDeficulty" NOT NULL,
     "question_text" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -263,6 +410,7 @@ CREATE TABLE "options" (
 CREATE TABLE "quizzes" (
     "id" SERIAL NOT NULL,
     "title" VARCHAR(255) NOT NULL,
+    "QuizOption" JSONB,
     "description" TEXT,
     "category" TEXT,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
@@ -278,6 +426,10 @@ CREATE TABLE "raiders" (
     "userId" INTEGER NOT NULL,
     "is_online" BOOLEAN NOT NULL DEFAULT false,
     "is_available" BOOLEAN NOT NULL DEFAULT false,
+    "raider_status" "RaiderStatus" NOT NULL DEFAULT 'IN_ACTIVE',
+    "LoginType" "LoginType" NOT NULL DEFAULT 'DIRECT_SIGNIN',
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "raiders_pkey" PRIMARY KEY ("id")
 );
@@ -313,10 +465,11 @@ CREATE TABLE "raider_quizzes" (
     "id" SERIAL NOT NULL,
     "raiderId" INTEGER NOT NULL,
     "quizId" INTEGER NOT NULL,
-    "total_questions" INTEGER NOT NULL,
-    "correct_answers" INTEGER NOT NULL,
-    "score" DECIMAL(6,2),
-    "completed_at" TIMESTAMP(3),
+    "total_questions" INTEGER NOT NULL DEFAULT 0,
+    "correct_answers" INTEGER NOT NULL DEFAULT 0,
+    "score" INTEGER NOT NULL DEFAULT 0,
+    "attempt_count" INTEGER NOT NULL DEFAULT 1,
+    "completed_at" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "raider_quizzes_pkey" PRIMARY KEY ("id")
 );
@@ -336,53 +489,53 @@ CREATE TABLE "raider_answers" (
 CREATE TABLE "raider_registrations" (
     "id" SERIAL NOT NULL,
     "raiderId" INTEGER NOT NULL,
-    "raider_verification" "RaiderVerification" NOT NULL DEFAULT 'PENDING',
-    "raider_name" TEXT,
-    "contact_number" TEXT,
-    "email_address" TEXT,
-    "dob" TIMESTAMP(3),
-    "gender" "Gender",
-    "driver_photos" JSONB,
-    "emergency_contact_name" TEXT,
-    "emergency_contact_number" TEXT,
-    "identity_card_number" TEXT,
-    "nid_front_images" JSONB,
-    "nid_back_images" JSONB,
-    "driving_license_number" TEXT,
-    "driving_license_issue_date" TIMESTAMP(3),
-    "driving_license_expire_date" TIMESTAMP(3),
-    "driving_license_front_images" JSONB,
-    "driving_license_back_images" JSONB,
-    "vehicle_plate_number" TEXT,
-    "vehicle_type" "VehicleTypeEnum",
-    "vehicle_brand" TEXT,
-    "registration_date" TIMESTAMP(3),
-    "vehicle_front_images" JSONB,
-    "vehicle_back_images" JSONB,
-    "vehicle_driver_side_images" JSONB,
-    "vehicle_passenger_side_images" JSONB,
-    "vehicle_log_number" TEXT,
-    "vehicle_log_issue_date" TIMESTAMP(3),
-    "vehicle_log_expire_date" TIMESTAMP(3),
-    "vehicle_log_images" JSONB,
-    "vehicle_policy_number" TEXT,
-    "vehicle_policy_issue_date" TIMESTAMP(3),
-    "vehicle_policy_expire_date" TIMESTAMP(3),
-    "vehicle_policy_images" JSONB,
-    "current_address" TEXT,
-    "current_apartment" TEXT,
-    "current_state_province" TEXT,
-    "current_city" TEXT,
-    "current_country" TEXT,
-    "current_zip_post_code" TEXT,
-    "permanent_address" TEXT,
-    "permanent_apartment" TEXT,
-    "permanent_state_province" TEXT,
-    "permanent_city" TEXT,
-    "permanent_country" TEXT,
-    "permanent_zip_post_code" TEXT,
-    "bank_name" TEXT,
-    "account_number" TEXT,
+    "raider_verificationFromAdmin" "RaiderVerification" NOT NULL DEFAULT 'PENDING',
+    "raider_name" TEXT NOT NULL,
+    "contact_number" TEXT NOT NULL,
+    "email_address" TEXT NOT NULL,
+    "dob" TIMESTAMP(3) NOT NULL,
+    "gender" "Gender" NOT NULL,
+    "driver_photos" TEXT[],
+    "emergency_contact_name" TEXT NOT NULL,
+    "emergency_contact_number" TEXT NOT NULL,
+    "identity_card_number" TEXT NOT NULL,
+    "nid_front_images" TEXT NOT NULL,
+    "nid_back_images" TEXT NOT NULL,
+    "driving_license_number" TEXT NOT NULL,
+    "driving_license_issue_date" TIMESTAMP(3) NOT NULL,
+    "driving_license_expire_date" TIMESTAMP(3) NOT NULL,
+    "driving_license_front_images" TEXT NOT NULL,
+    "driving_license_back_images" TEXT NOT NULL,
+    "vehicle_plate_number" TEXT NOT NULL,
+    "vehicle_type" "VehicleTypeEnum" NOT NULL,
+    "vehicle_brand" TEXT NOT NULL,
+    "registration_date" TIMESTAMP(3) NOT NULL,
+    "vehicle_front_images" TEXT NOT NULL,
+    "vehicle_back_images" TEXT NOT NULL,
+    "vehicle_driver_side_images" TEXT NOT NULL,
+    "vehicle_passenger_side_images" TEXT NOT NULL,
+    "vehicle_log_number" TEXT NOT NULL,
+    "vehicle_log_issue_date" TIMESTAMP(3) NOT NULL,
+    "vehicle_log_expire_date" TIMESTAMP(3) NOT NULL,
+    "vehicle_log_images" TEXT NOT NULL,
+    "vehicle_policy_number" TEXT NOT NULL,
+    "vehicle_policy_issue_date" TIMESTAMP(3) NOT NULL,
+    "vehicle_policy_expire_date" TIMESTAMP(3) NOT NULL,
+    "vehicle_policy_images" TEXT NOT NULL,
+    "current_address" TEXT NOT NULL,
+    "current_apartment" TEXT NOT NULL,
+    "current_state_province" TEXT NOT NULL,
+    "current_city" TEXT NOT NULL,
+    "current_country" TEXT NOT NULL,
+    "current_zip_post_code" TEXT NOT NULL,
+    "permanent_address" TEXT NOT NULL,
+    "permanent_apartment" TEXT NOT NULL,
+    "permanent_state_province" TEXT NOT NULL,
+    "permanent_city" TEXT NOT NULL,
+    "permanent_country" TEXT NOT NULL,
+    "permanent_zip_post_code" TEXT NOT NULL,
+    "bank_name" TEXT NOT NULL,
+    "account_number" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -392,10 +545,11 @@ CREATE TABLE "raider_registrations" (
 -- CreateTable
 CREATE TABLE "refers" (
     "id" SERIAL NOT NULL,
-    "how_its_work" TEXT NOT NULL,
+    "how_its_work" TEXT,
     "refer_code" TEXT NOT NULL,
-    "refer_link" TEXT NOT NULL,
     "user_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "refers_pkey" PRIMARY KEY ("id")
 );
@@ -499,10 +653,14 @@ CREATE TABLE "users" (
     "role" "UserRole" NOT NULL DEFAULT 'USER',
     "balance" INTEGER NOT NULL DEFAULT 0,
     "reward_points" INTEGER NOT NULL DEFAULT 0,
-    "status" BOOLEAN NOT NULL DEFAULT false,
+    "is_active" BOOLEAN NOT NULL DEFAULT false,
     "is_verified" BOOLEAN NOT NULL DEFAULT false,
     "is_deleted" BOOLEAN NOT NULL DEFAULT false,
     "refresh_token" VARCHAR(500),
+    "is_acc_refered" BOOLEAN NOT NULL DEFAULT false,
+    "referral_code" TEXT,
+    "referral_link" TEXT,
+    "regi_status" "LoginType" NOT NULL DEFAULT 'DIRECT_SIGNIN',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -536,7 +694,25 @@ CREATE TABLE "_AdminToRole" (
 CREATE UNIQUE INDEX "admins_email_key" ON "admins"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "orders_payment_method_id_key" ON "orders"("payment_method_id");
+CREATE INDEX "Conversation_user1Id_idx" ON "Conversation"("user1Id");
+
+-- CreateIndex
+CREATE INDEX "Conversation_user2Id_idx" ON "Conversation"("user2Id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Conversation_user1Id_user2Id_key" ON "Conversation"("user1Id", "user2Id");
+
+-- CreateIndex
+CREATE INDEX "Message_conversationId_idx" ON "Message"("conversationId");
+
+-- CreateIndex
+CREATE INDEX "Message_senderId_idx" ON "Message"("senderId");
+
+-- CreateIndex
+CREATE INDEX "Message_receiverId_idx" ON "Message"("receiverId");
+
+-- CreateIndex
+CREATE INDEX "Message_createdAt_idx" ON "Message"("createdAt");
 
 -- CreateIndex
 CREATE INDEX "orders_userId_idx" ON "orders"("userId");
@@ -560,7 +736,7 @@ CREATE UNIQUE INDEX "raider_answers_question_id_key" ON "raider_answers"("questi
 CREATE UNIQUE INDEX "raider_answers_selected_option_id_key" ON "raider_answers"("selected_option_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "refers_refer_code_key" ON "refers"("refer_code");
+CREATE UNIQUE INDEX "raider_registrations_raiderId_key" ON "raider_registrations"("raiderId");
 
 -- CreateIndex
 CREATE INDEX "rewards_userId_idx" ON "rewards"("userId");
@@ -575,6 +751,12 @@ CREATE UNIQUE INDEX "role_permissions_roleId_permissionId_key" ON "role_permissi
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "users_referral_code_key" ON "users"("referral_code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_referral_link_key" ON "users"("referral_link");
+
+-- CreateIndex
 CREATE INDEX "_AdminToRole_B_index" ON "_AdminToRole"("B");
 
 -- AddForeignKey
@@ -587,7 +769,31 @@ ALTER TABLE "coin_history" ADD CONSTRAINT "coin_history_userId_fkey" FOREIGN KEY
 ALTER TABLE "delivery_types" ADD CONSTRAINT "delivery_types_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "admins"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "destinations" ADD CONSTRAINT "destinations_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "destinations" ADD CONSTRAINT "destinations_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "incentives" ADD CONSTRAINT "incentives_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "admins"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_user1Id_fkey" FOREIGN KEY ("user1Id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_user2Id_fkey" FOREIGN KEY ("user2Id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Message" ADD CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Message" ADD CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Message" ADD CONSTRAINT "Message_receiverId_fkey" FOREIGN KEY ("receiverId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "my_raiders" ADD CONSTRAINT "my_raiders_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -596,16 +802,13 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_userId_fkey" FOREIGN K
 ALTER TABLE "orders" ADD CONSTRAINT "orders_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "orders" ADD CONSTRAINT "orders_vehicle_type_id_fkey" FOREIGN KEY ("vehicle_type_id") REFERENCES "vehicle_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "orders" ADD CONSTRAINT "orders_vehicle_type_id_fkey" FOREIGN KEY ("vehicle_type_id") REFERENCES "vehicle_types"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "orders" ADD CONSTRAINT "orders_payment_method_id_fkey" FOREIGN KEY ("payment_method_id") REFERENCES "payment_methods"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "orders" ADD CONSTRAINT "orders_payment_method_id_fkey" FOREIGN KEY ("payment_method_id") REFERENCES "payment_methods"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "orders" ADD CONSTRAINT "orders_assign_rider_id_fkey" FOREIGN KEY ("assign_rider_id") REFERENCES "raiders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "orders" ADD CONSTRAINT "orders_destination_id_fkey" FOREIGN KEY ("destination_id") REFERENCES "destinations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "payment_methods" ADD CONSTRAINT "payment_methods_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -650,7 +853,7 @@ ALTER TABLE "raider_answers" ADD CONSTRAINT "raider_answers_selected_option_id_f
 ALTER TABLE "raider_registrations" ADD CONSTRAINT "raider_registrations_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "raiders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "refers" ADD CONSTRAINT "refers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "refers" ADD CONSTRAINT "refers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "reviews" ADD CONSTRAINT "reviews_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;

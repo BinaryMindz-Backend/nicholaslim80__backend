@@ -40,7 +40,6 @@ export class MyRaiderService {
      const added = await this.prisma.myRaider.create({
       data: {
          ...dto,
-         raider_id:isRaiderExist.id,
          user_id:user.id
       },
     });

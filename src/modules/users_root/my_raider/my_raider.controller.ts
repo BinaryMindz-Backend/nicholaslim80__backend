@@ -20,7 +20,7 @@ import { UpdateMyRaiderDto } from './dto/update-my_raider.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 
-@ApiTags('My Raiders (User Only)')
+@ApiTags('My Raiders (User & admin Only)')
 @Controller('my-raider')
 export class MyRaiderController {
   constructor(private readonly myRaiderService: MyRaiderService) {}
