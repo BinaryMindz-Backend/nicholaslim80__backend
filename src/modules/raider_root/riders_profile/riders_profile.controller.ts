@@ -43,7 +43,7 @@ export class RidersProfileController {
   @Post('rider-profiles')
   @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   async findAll(@Query() query: GetRidersQueryDto) {
     try {
@@ -72,7 +72,7 @@ export class RidersProfileController {
 
   @Patch('verify-rider/:raiderId/:verify')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiParam({
     name: 'verify',
     enum: RaiderVerification,
