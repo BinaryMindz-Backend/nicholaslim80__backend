@@ -29,7 +29,7 @@ export class MyRaiderController {
   @Auth()
   @Roles(UserRole.SUPER_ADMIN, UserRole.USER)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create my raider entry' })
+  @ApiOperation({ summary: 'Create my raider entry(user)' })
   @ApiResponse({ status: 201, description: 'My Raider created successfully' })
   async create(@Body() dto: CreateMyRaiderDto, @CurrentUser() user:IUser) {
     try {
@@ -39,12 +39,27 @@ export class MyRaiderController {
       return ApiResponses.error(error, 'Failed to create My Raider');
     }
   }
-
+  
+  // for admin
+  @Get('admin/:userID')
+  @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all my raiders for admin(admin) on fav driver' })
+  async findAllforAdmin(@Param("userID") id:string) {
+    try {
+      const data = await this.myRaiderService.findAllforAdmin(+id);
+      return ApiResponses.success(data, 'My Raiders fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to fetch My Raiders');
+    }
+  }
+  // for user
   @Get(':userID')
   @Auth()
   @Roles(UserRole.SUPER_ADMIN, UserRole.USER)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all my raiders' })
+  @ApiOperation({ summary: 'Get all my raiders (user)' })
   async findAll(@Param("userID") id:string) {
     try {
       const data = await this.myRaiderService.findAll(+id);
@@ -53,6 +68,7 @@ export class MyRaiderController {
       return ApiResponses.error(error, 'Failed to fetch My Raiders');
     }
   }
+  // 
 
   @Get(':id')
   @Auth()
@@ -81,6 +97,23 @@ export class MyRaiderController {
       return ApiResponses.error(error, 'Failed to update My Raider');
     }
   }
+
+  // 
+  @Patch('makefav/:id')
+  @Auth()
+  @Roles( UserRole.USER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Make is fav to raider my raider' })
+  async isFavourite(@Param('id') id: string) {
+    try {
+      const data = await this.myRaiderService.isFavourite(+id);
+      return ApiResponses.success(data, 'My Raider added to fav successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to added to fav My Raider');
+    }
+  }
+
+
 
   @Delete(':id')
   @Auth()
