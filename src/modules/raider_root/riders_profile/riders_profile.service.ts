@@ -55,7 +55,7 @@ export class RidersProfileService {
     }
 
     if (query.raiderId) {
-      filter.raiderId = Number(query.raiderId);
+      filter.id = Number(query.raiderId);
     }
 
     if (query.raider_verificationFromAdmin) {
@@ -107,7 +107,6 @@ export class RidersProfileService {
       where: { id: Number(id) }
     });
 
-    console.log(r);
     if (!r) {
       throw new Error('Rider profile not found');
     }
@@ -199,7 +198,7 @@ export class RidersProfileService {
   }
   
 
-  // 
+  //TODO:need to check
   async adminCreateRiderProfile(createRidersProfileDto: CreateRidersProfileDto) {
     // If DTO contains a raiderId, connect the existing raider relation; otherwise use the DTO as-is.
     const { raiderId, ...rest } = createRidersProfileDto as any;
@@ -245,7 +244,9 @@ export class RidersProfileService {
     });
     return res;
   }
+  
 
+  // 
   async adminUpdateRiderProfile(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
     const userExists = await this.prisma.raiderRegistration.findUnique({
       where: { id: Number(id) },
