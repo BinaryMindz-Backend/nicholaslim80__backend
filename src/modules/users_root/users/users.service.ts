@@ -91,10 +91,10 @@ export class UsersService {
     }
 
     // pass to otp verify method
-    await this.otpService.generateOtp(user.email, user.phone);
-
+   const otp= await this.otpService.generateOtp(user.email, user.phone);
+    // TODO:For Dev
     return {
-      user,
+      otp
     };
   }
 

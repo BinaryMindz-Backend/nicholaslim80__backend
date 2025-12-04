@@ -41,8 +41,8 @@ export class AuthController {
   async signup(
     @Body() dto: CreateUserDto,
   ) {
-    await this.usersService.createUser(dto as any);
-    return { message: 'User created. OTP sent for verification.', };
+    const res = await this.usersService.createUser(dto as any);
+    return { message: 'User created. OTP sent for verification.', res};
   }
 
 
