@@ -22,7 +22,7 @@ import { PlatformFeeModule } from './modules/superadmin_root/platform_fee/platfo
 
 import { MessageModule } from './modules/message/message.module';
 import { JwtModule } from '@nestjs/jwt';
-import { StripeRootModule } from './modules/stripe_root/stripe_root.module';
+import { StripeModule } from './modules/stripe_root/stripe/stripe.module';
 
 
 @Module({
@@ -58,7 +58,7 @@ import { StripeRootModule } from './modules/stripe_root/stripe_root.module';
     QuestionsModule,
     PlatformFeeModule,
     MessageModule,
-    StripeRootModule,
+    StripeModule,
 
 
   ],
