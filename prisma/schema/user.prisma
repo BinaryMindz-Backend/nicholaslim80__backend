@@ -36,7 +36,7 @@ model User {
   adminProfiles            Admin[]
   coinHistory              CoinHistory[]
   destinations             Destination[]
-  // my_raiders     myRaider[]
+  my_raiders     myRaider[]
 
   sentMessages       Message[]      @relation("SentMessages")
   receivedMessages   Message[]      @relation("ReceivedMessages")

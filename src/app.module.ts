@@ -23,6 +23,7 @@ import { PlatformFeeModule } from './modules/superadmin_root/platform_fee/platfo
 import { MessageModule } from './modules/message/message.module';
 import { JwtModule } from '@nestjs/jwt';
 import { StripeModule } from './modules/stripe_root/stripe/stripe.module';
+import { MyRaiderModule } from './modules/users_root/my_raider/my_raider.module';
 
 
 @Module({
@@ -58,6 +59,7 @@ import { StripeModule } from './modules/stripe_root/stripe/stripe.module';
     QuestionsModule,
     PlatformFeeModule,
     MessageModule,
+    MyRaiderModule,
     StripeModule,
 
 
