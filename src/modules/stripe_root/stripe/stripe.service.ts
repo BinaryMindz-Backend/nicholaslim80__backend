@@ -41,7 +41,7 @@ export class StripeService {
     }
 
     if (!userExist.stripe_customer_id || !userExist.stripe_payment_method_id) {
-      return ApiResponses.error(' Stripe customer ID or payment method ID not found for user');
+      return ApiResponses.error('Stripe customer ID or payment method ID not found for user');
     }
 
     const paymentIntent = await this.stripe.paymentIntents.create({
