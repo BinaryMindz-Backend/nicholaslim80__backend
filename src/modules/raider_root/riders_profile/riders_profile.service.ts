@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { PortalEnum, RaiderVerification, UserRole } from '@prisma/client';
+import { RaiderVerification, UserRole } from '@prisma/client';
 
 import { CreateUserDto } from 'src/modules/users_root/users/dto/create-user.dto';
 import { ApiResponses } from 'src/common/apiResponse';
@@ -244,7 +244,7 @@ export class RidersProfileService {
     });
     return res;
   }
-  
+
 
   // 
   async adminUpdateRiderProfile(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
