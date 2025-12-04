@@ -246,7 +246,7 @@ export class RidersProfileService {
   }
   
 
-  // 
+  // TODO:need to fix
   async adminUpdateRiderProfile(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
     const userExists = await this.prisma.raiderRegistration.findUnique({
       where: { id: Number(id) },
@@ -272,6 +272,7 @@ export class RidersProfileService {
     return res;
   }
 
+  // TODO:need to fix
   async adminCreateUser(dto: CreateUserDto) {
     try {
       const uuserExists = await this.prisma.user.findUnique({
