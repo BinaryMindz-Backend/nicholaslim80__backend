@@ -9,6 +9,11 @@ model Raider {
 
   raider_status  RaiderStatus @default(IN_ACTIVE)  
   LoginType      LoginType   @default(DIRECT_SIGNIN)
+  raider_verificationFromAdmin         RaiderVerification @default(PENDING)
+  
+  isSuspended    Boolean   @default(false)
+  suspendedDuration  DateTime?
+  suspensionReason   String?
 
   registrations RaiderRegistration[]
   locations     RaiderLocation[]

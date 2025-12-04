@@ -1,6 +1,6 @@
 
 import { ApiProperty } from '@nestjs/swagger';
-import { Gender, VehicleTypeEnum, PortalEnum } from '@prisma/client';
+import { Gender, VehicleTypeEnum } from '@prisma/client';
 import { IsNotEmpty } from 'class-validator';
 
 export class CreateRidersProfileDto {
@@ -194,10 +194,6 @@ export class CreateRidersProfileDto {
   @ApiProperty({ example: "01123456789" })
   @IsNotEmpty()
   account_number: string;
-
-  @ApiProperty({ enum: PortalEnum, example: PortalEnum.APP_PORTAL })
-  @IsNotEmpty()
-  signInPortal: PortalEnum;
 }
 
 

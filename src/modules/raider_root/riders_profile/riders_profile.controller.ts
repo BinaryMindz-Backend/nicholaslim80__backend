@@ -21,7 +21,7 @@ import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
 export class RidersProfileController {
   constructor(private readonly ridersProfileService: RidersProfileService) { }
 
-  @Post('create-rider-profile')
+  @Post('raider-registration')
   @Auth()
   @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
   @ApiOperation({ summary: 'Rider profile creation (Rider only)' })
@@ -37,8 +37,10 @@ export class RidersProfileController {
       return ApiResponses.error(error);
     }
   }
+  
 
-  @Post('fetch-rider-profiles')
+
+  @Post('rider-profiles')
   @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
   @Auth()
   @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
@@ -51,6 +53,8 @@ export class RidersProfileController {
       return ApiResponses.error(error);
     }
   }
+  
+
 
   @Get(':id')
   @ApiOperation({ summary: 'Rider profile fetching by id (Admin only)' })
@@ -66,7 +70,7 @@ export class RidersProfileController {
     }
   }
 
-  @Patch('verify-rider/:id/:verify')
+  @Patch('verify-rider/:raiderId/:verify')
   @Auth()
   @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
   @ApiParam({
@@ -77,15 +81,17 @@ export class RidersProfileController {
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verify rider profile (Admin only)' })
-  async verifyRiderProfile(@Param('id') id: string, @Param('verify') verify: RaiderVerification) {
+  async verifyRiderProfile(@Param('raiderId') raiderId: string, @Param('verify') verify: RaiderVerification) {
     try {
-      const res = await this.ridersProfileService.verifyRiderProfile(Number(id), verify);
+      const res = await this.ridersProfileService.verifyRiderProfile(Number(raiderId), verify);
       return ApiResponses.success(res, 'Rider profile verified successfully');
     } catch (error) {
       return ApiResponses.error(error);
     }
   }
+  
 
+  // 
   @Patch('update-rider-profile')
   @Auth()
   @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
