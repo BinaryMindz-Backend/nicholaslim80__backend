@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { PortalEnum, RaiderVerification } from '@prisma/client';
+import { RaiderVerification } from '@prisma/client';
 import { IsOptional, IsString, IsEnum } from 'class-validator';
 
 export class GetRidersQueryDto {
@@ -19,10 +19,6 @@ export class GetRidersQueryDto {
   @IsEnum(RaiderVerification)
   raider_verificationFromAdmin?: RaiderVerification;
 
-  @ApiProperty({ required: false, enum: PortalEnum, description: 'Sign-in portal to filter by' })
-  @IsOptional()
-  @IsEnum(PortalEnum)
-  signInPortal?: PortalEnum;
 
   @ApiProperty({ required: false, description: 'Type of sorting: first (ascending) or last (descending)' })
   @IsOptional()

@@ -428,6 +428,10 @@ CREATE TABLE "raiders" (
     "is_available" BOOLEAN NOT NULL DEFAULT false,
     "raider_status" "RaiderStatus" NOT NULL DEFAULT 'IN_ACTIVE',
     "LoginType" "LoginType" NOT NULL DEFAULT 'DIRECT_SIGNIN',
+    "raider_verificationFromAdmin" "RaiderVerification" NOT NULL DEFAULT 'PENDING',
+    "isSuspended" BOOLEAN NOT NULL DEFAULT false,
+    "suspendedDuration" TIMESTAMP(3),
+    "suspensionReason" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -489,7 +493,6 @@ CREATE TABLE "raider_answers" (
 CREATE TABLE "raider_registrations" (
     "id" SERIAL NOT NULL,
     "raiderId" INTEGER NOT NULL,
-    "raider_verificationFromAdmin" "RaiderVerification" NOT NULL DEFAULT 'PENDING',
     "raider_name" TEXT NOT NULL,
     "contact_number" TEXT NOT NULL,
     "email_address" TEXT NOT NULL,
