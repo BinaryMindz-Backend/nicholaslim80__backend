@@ -203,7 +203,16 @@ enum Condition {
      WEEKEND
 }
 
-enum PortalEnum {
-  WEB_PORTAL
-  APP_PORTAL
+
+// 
+
+enum RaiderStatus {
+     ACTIVE
+     IN_ACTIVE
+     SUSPENDED
+}
+
+enum LoginType {
+    DIRECT_SIGNIN
+    ADMIN_SIGNIN
 }

@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Query, Delete, } from '@nest
 import { RidersProfileService } from './riders_profile.service';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
@@ -15,12 +15,15 @@ import { GetRidersQueryDto } from './dto/query-riders.dto';
 import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
 
 
-@Controller('riders-profile')
+
+@ApiTags("riders and raider profile")
+@Controller('raider-profile')
 export class RidersProfileController {
   constructor(private readonly ridersProfileService: RidersProfileService) { }
 
   @Post('create-rider-profile')
   @Auth()
+  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
   @ApiOperation({ summary: 'Rider profile creation (Rider only)' })
   @ApiBody({ type: CreateRidersProfileDto })
   @ApiBearerAuth()
@@ -38,8 +41,7 @@ export class RidersProfileController {
   @Post('fetch-rider-profiles')
   @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
-  @ApiBody({ type: GetRidersQueryDto })
+  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
   @ApiBearerAuth()
   async findAll(@Query() query: GetRidersQueryDto) {
     try {
@@ -54,7 +56,7 @@ export class RidersProfileController {
   @ApiOperation({ summary: 'Rider profile fetching by id (Admin only)' })
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
   async findOne(@Param('id') id: string) {
     try {
       const res = await this.ridersProfileService.findOne(id);
@@ -66,7 +68,7 @@ export class RidersProfileController {
 
   @Patch('verify-rider/:id/:verify')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
   @ApiParam({
     name: 'verify',
     enum: RaiderVerification,
@@ -86,6 +88,7 @@ export class RidersProfileController {
 
   @Patch('update-rider-profile')
   @Auth()
+  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update rider profile (Rider only)' })
   async update(@Body() updateRidersProfileDto: UpdateRidersProfileDto, @CurrentUser() user: IUser) {

@@ -34,6 +34,12 @@ export class RidersProfileService {
     return res;
   }
 
+  async findAll() {
+    const res = await this.prisma.raider.findMany({
+          include:{
+              registrations:true
+          }
+    });
   async findAll(query: GetRidersQueryDto) {
     const filter: any = {};
 
