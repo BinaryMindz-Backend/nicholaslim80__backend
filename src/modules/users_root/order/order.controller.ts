@@ -23,6 +23,9 @@ import { ApiResponses } from 'src/common/apiResponse';
 import type { IUser } from 'src/types';
 import { Roles } from 'src/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
+import { PaginationDto } from 'src/utils/dto/pagination.dto';
+import { OrderFilterDto } from './dto/order-filter.dto';
+import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
 
 @ApiTags('Order (User)')
 @Controller('order')
@@ -56,25 +59,63 @@ export class OrderController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get logged-in user orders' })
   @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
-  async findMine(@CurrentUser() user: IUser) {
+  async findMine(
+    @CurrentUser() user: IUser,
+    @Query() pagination: PaginationDto,
+) {
     try {
-      const orders = await this.orderService.findMine(user.id);
+      const orders = await this.orderService.findMine(
+        +user.id,
+        pagination.page,
+        pagination.limit,
+      );
       return ApiResponses.success(orders, 'Orders retrieved successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to fetch orders');
     }
   }
 
-  // GET ALL ORDERS (ADMIN OR SYSTEM USE)
-  @Get()
-  @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all orders' })
-  async findAll() {
-    const orders = await this.orderService.findAll();
-    return ApiResponses.success(orders, 'All orders retrieved successfully');
-  }
+
+    // GET MY ORDERS
+      @Get('user-history/:userId')
+      @Auth()
+      @Roles(UserRole.SUPER_ADMIN)
+      @ApiBearerAuth()
+      @ApiOperation({ summary: 'Get logged-in user orders (admin only)' })
+      @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
+      async findUserOrder(
+        @Param("userId") userId: string,
+        @Query() pagination: PaginationDto,
+      ) {
+        try {
+          const orders = await this.orderService.findUserOrder(
+            +userId,
+            pagination.page,
+            pagination.limit,
+          );
+          return ApiResponses.success(orders, 'Orders retrieved successfully');
+        } catch (err) {
+          return ApiResponses.error(err, 'Failed to fetch orders');
+        }
+      }
+
+
+    // GET ALL ORDERS (ADMIN OR SYSTEM USE)
+    @Get()
+    @Auth()
+    @Roles(UserRole.SUPER_ADMIN)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get all orders with filters' })
+    async findAll(@Query() filterDto: OrderFilterDto) {
+      try {
+        const orders = await this.orderService.findAll(filterDto);
+        return ApiResponses.success(orders, 'Orders retrieved successfully');
+      } catch (err) {
+        return ApiResponses.error(err, 'Failed to fetch orders');
+      }
+    }
+
+   
 
   // GET ONE
   @Get(':id')
@@ -123,55 +164,23 @@ export class OrderController {
   } 
 
 
-
-  // mark as pending
-  @Patch(':id/pending')
-  @Auth()
-  @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update order by ID' })
-  async orderMarkAsPending(@Param('id') id: string,@CurrentUser() user:IUser) {
-    try {
-      const order = await this.orderService.orderMarkAsPending(+id, user);
-      return ApiResponses.success(order, 'Order status updated successfully');
-    } catch (err) {
-      return ApiResponses.error(err, 'Failed to update order status');
-    }
+@Patch('status/:id/orderId/:userId')
+@Auth()
+@ApiBearerAuth()
+@Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+@ApiOperation({ summary: 'Update order status' })
+async updateOrderStatus(
+  @Param('id') id: string,
+  @Body() dto: UpdateOrderStatusDto,
+  @Param('userId') userId:string
+) {
+  try {
+    const updated = await this.orderService.updateOrderStatus(+id, +userId, dto);
+    return ApiResponses.success(updated, 'Order status updated successfully');
+  } catch (err) {
+    return ApiResponses.error(err, 'Failed to update order status');
   }
-
-
-
-  // mark as completed
-  @Patch(':id/completed')
-  @Roles(UserRole.USER,UserRole.RAIDER, UserRole.SUPER_ADMIN)
-  @Auth()
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update order by ID' })
-  async orderMarkAsCompleted(@Param('id') id: string,@CurrentUser() user:IUser) {
-    try {
-      const order = await this.orderService.orderMarkAsCompleted(+id, user);
-      return ApiResponses.success(order, 'Order status updated successfully');
-    } catch (err) {
-      return ApiResponses.error(err, 'Failed to update order status');
-    }
-  }
-
-  // mark as cancled
-  @Patch(':id/cancled')
-  @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
-  @Auth()
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update order by ID' })
-  async orderMarkAsCancled(@Param('id') id: string,@CurrentUser() user:IUser) {
-    try {
-      const order = await this.orderService.orderMarkAsCancled(+id, user);
-      return ApiResponses.success(order, 'Order status updated successfully');
-    } catch (err) {
-      return ApiResponses.error(err, 'Failed to update order status');
-    }
-  }
-
-
+}
 
   // DELETE
   @Delete(':id')
@@ -187,4 +196,24 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to delete order');
     }
   }
+
+  // 
+  @Patch('assign/driver/:id')
+  @Auth()
+  @ApiBearerAuth()
+  @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: "Assign driver by order ID" })
+  async assignDriver(
+    @Param('id') id: string,
+    @Query('riderId') riderId: string,
+  ) {
+    try {
+      const updated = await this.orderService.assignDriver(+id, +riderId);
+      return ApiResponses.success(updated, 'Assign driver successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to assign a driver');
+    }
+  }
+
+
 }
