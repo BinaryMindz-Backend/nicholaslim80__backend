@@ -81,14 +81,14 @@ export class RidersProfileService {
     const res = await this.prisma.raider.findMany({
       where: filter,
       orderBy: orderBy,
-      include:{
-          registrations:true
+      include: {
+        registrations: true
       }
     });
     //
     return res;
   }
-  
+
 
   // 
   async findOne(id: string) {
@@ -118,7 +118,7 @@ export class RidersProfileService {
     if (!registration) {
       throw new Error('Rider registration not found for this rider');
     }
-     
+
     const updatedProfile = await this.prisma.raider.update({
       where: { id: r.id },
       data: {
@@ -134,7 +134,7 @@ export class RidersProfileService {
   async update(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
 
     const raiderExists = await this.prisma.raider.findUnique({
-      where: {  userId: Number(id) },
+      where: { userId: Number(id) },
     });
 
     if (!raiderExists) {
@@ -156,7 +156,7 @@ export class RidersProfileService {
     });
     return res;
   }
-  
+
 
   // 
   async remove(id: string) {
@@ -165,7 +165,7 @@ export class RidersProfileService {
     });
     return res;
   }
-  
+
 
 
   // 
@@ -196,7 +196,7 @@ export class RidersProfileService {
 
     return updatedProfile;
   }
-  
+
 
   //TODO:need to check
   async adminCreateRiderProfile(createRidersProfileDto: CreateRidersProfileDto) {
@@ -244,7 +244,7 @@ export class RidersProfileService {
     });
     return res;
   }
-  
+
 
   // 
   async adminUpdateRiderProfile(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
