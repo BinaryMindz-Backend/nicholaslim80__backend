@@ -20,6 +20,7 @@ import { UploadImageDto } from './dto/uploadImage.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { storageConfig } from 'src/common/fileUpload/file';
 import { ApiResponses } from 'src/common/apiResponse';
+import { ForgotPasswordDto } from './dto/forgot.password';
 
 
 @ApiTags('Authentication')
@@ -42,7 +43,7 @@ export class AuthController {
     @Body() dto: CreateUserDto,
   ) {
     const res = await this.usersService.createUser(dto as any);
-    return { message: 'User created. OTP sent for verification.', res};
+    return { message: 'User created. OTP sent for verification.', res };
   }
 
 
@@ -164,5 +165,15 @@ export class AuthController {
 
     return ApiResponses.success(fileUrls, 'Files uploaded successfully');
   }
+  // forgot password 
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    try {
+      await this.authService.forgotPassword(dto.email);
 
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An error occurred';
+      throw new BadRequestException(message);
+    }
+  }
 }

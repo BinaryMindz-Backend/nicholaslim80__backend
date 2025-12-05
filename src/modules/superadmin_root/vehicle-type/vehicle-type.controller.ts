@@ -27,7 +27,7 @@ import { ApiResponses } from 'src/common/apiResponse';
 @ApiTags('Vehicle Type (admin)')
 @Controller('admin/vehicle-types')
 export class VehicleTypeController {
-  constructor(private readonly service: VehicleTypeService) {}
+  constructor(private readonly service: VehicleTypeService) { }
 
 
   // CREATE
@@ -38,7 +38,7 @@ export class VehicleTypeController {
   @ApiOperation({ summary: 'Create Vehicle Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @ApiResponse({ status: 201, description: 'Vehicle Type created successfully' })
-  async create(@Body() dto: CreateVehicleTypeDto, @CurrentUser() user:any ) {
+  async create(@Body() dto: CreateVehicleTypeDto, @CurrentUser() user: any) {
     try {
       const result = await this.service.create(dto, user);
       return ApiResponses.success(result, 'Vehicle Type created successfully');

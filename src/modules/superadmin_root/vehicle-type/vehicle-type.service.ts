@@ -54,9 +54,12 @@ export class VehicleTypeService {
 
   // UPDATE
   async update(id: number, dto: UpdateVehicleTypeDto) {
-    await this.findOne(id); // will throw if not found
 
-    return this.prisma.vehicleType.update({
+    const data = await this.prisma.vehicleType.findUnique({ where: { id } });
+    if (!data || data === null) {
+      throw new NotFoundException('Vehicle type not found');
+    }
+    return await this.prisma.vehicleType.update({
       where: { id },
       data: dto,
     });
@@ -64,9 +67,8 @@ export class VehicleTypeService {
 
   // SOFT DELETE
   async Delete(id: number) {
-    await this.findOne(id);
 
-    return this.prisma.vehicleType.delete({
+    return await this.prisma.vehicleType.delete({
       where: { id },
     });
   }

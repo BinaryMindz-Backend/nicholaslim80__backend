@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { UsersService } from '../users_root/users/users.service';
 import { $Enums } from '@prisma/client';
+import { OtpService } from './otp.service';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +17,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly otpService: OtpService,
   ) { }
 
 
@@ -131,6 +133,12 @@ export class AuthService {
   }
 
 
+  // forgot password
+  async forgotPassword(email: string) {
 
+    const otp = await this.otpService.generateOtp(email);
+    return otp;
+
+  }
 
 }
