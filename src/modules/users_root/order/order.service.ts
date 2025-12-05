@@ -342,7 +342,7 @@ export class OrderService {
         throw new ConflictException('This rider is already assigned to another active order');
       }
 
-      // 4. Save rider to order
+      //  Save rider to order
       return this.prisma.order.update({
         where: { id },
         data: {
@@ -351,8 +351,42 @@ export class OrderService {
       });
     }
 
-  //  
-  
+
+    
+  //  stats dashboard
+  async getOrderStats() {
+  const [totalOrders, ongoing, scheduled, pending] = await this.prisma.$transaction([
+    // Total Orders
+    this.prisma.order.count(),
+
+    // Ongoing Orders (progressing states)
+    this.prisma.order.count({
+      where: {
+        order_status: {
+          in: [OrderStatus.ONGOING],
+        },
+      },
+    }),
+
+    // Scheduled Orders
+    this.prisma.order.count({
+      where: { order_status: OrderStatus.SCHEDULED },
+    }),
+
+    // Pending Orders
+    this.prisma.order.count({
+      where: { order_status: OrderStatus.PENDING },
+    }),
+  ]);
+
+  return {
+    totalOrders,
+    ongoing,
+    scheduled,
+    pending,
+  };
+}
+
 
 
   }

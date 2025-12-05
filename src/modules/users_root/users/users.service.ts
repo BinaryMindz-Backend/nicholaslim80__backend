@@ -132,7 +132,7 @@ export class UsersService {
   // ** Get all users
   async findAllActiveUsers() {
     return this.prisma.user.findMany({
-      where: { is_deleted: false, is_verified: true }, // only active users
+      where: { is_deleted: false, is_verified: true , role:UserRole.USER}, // only active users
       orderBy: { created_at: 'desc' },
     });
   }
@@ -153,10 +153,16 @@ export class UsersService {
         }
 
         const userIds = aggregated.map(a => a.userId).filter((id): id is number => id !== null);
-        // console.log(userIds);
+
         const users = await this.prisma.user.findMany({
           where: {
-            id: { in: userIds }
+            id: { in: userIds },
+            OR:[
+              { is_deleted: false },
+               {is_verified: true },
+               {role:UserRole.USER}
+            ]
+            
           }
         });
 

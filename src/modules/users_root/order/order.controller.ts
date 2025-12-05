@@ -50,6 +50,22 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to create order');
     }
   }
+  
+    // 
+    @Get('stats')
+    @Auth()
+    @Roles(UserRole.SUPER_ADMIN)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: "Get order statistics (admin only)" })
+    @ApiResponse({ status: 200, description: 'Order stats retrieved successfully' })
+    async getOrderStats() {
+      try {
+        const stats = await this.orderService.getOrderStats();
+        return ApiResponses.success(stats, 'Order stats retrieved successfully');
+      } catch (err) {
+        return ApiResponses.error(err, 'Failed to fetch order stats');
+      }
+    }
 
 
   // GET MY ORDERS
@@ -201,8 +217,8 @@ async updateOrderStatus(
   @Patch('assign/driver/:id')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: "Assign driver by order ID" })
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: "Assign driver by order ID (admin only)" })
   async assignDriver(
     @Param('id') id: string,
     @Query('riderId') riderId: string,
@@ -214,6 +230,7 @@ async updateOrderStatus(
       return ApiResponses.error(err, 'Failed to assign a driver');
     }
   }
+  
 
 
 }
