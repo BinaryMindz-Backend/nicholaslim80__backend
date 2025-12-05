@@ -80,7 +80,6 @@ export class StripeService {
     if (!userExist) {
       return ApiResponses.error('User not found');
     }
-    console.log(userExist);
     const account = await this.stripe.accounts.create({
       country: 'US',
       email: 'jenny.rosen@example.com',
