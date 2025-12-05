@@ -135,10 +135,8 @@ export class AuthService {
 
   // forgot password
   async forgotPassword(email: string) {
-
     const otp = await this.otpService.generateOtp(email);
     return otp;
-
   }
 
 }
