@@ -115,8 +115,9 @@ export class AuthService {
 
       return tokens;
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid or expired refresh token';
       // console.log(err);
-      throw new ForbiddenException("Invalid or expired refresh token");
+      throw new ForbiddenException(message);
     }
   }
 
