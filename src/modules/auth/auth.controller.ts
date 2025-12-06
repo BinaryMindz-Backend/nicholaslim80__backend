@@ -57,7 +57,10 @@ export class AuthController {
   async verify(@Body() dto: { email?: string, phone?: string; otp: string }) {
     const { email, phone, otp } = dto;
     await this.otpService.verifyOtp(email, phone, otp);
-    return { message: 'Verified successfully', otp };
+
+    const user = await this.usersService.findByEmailOrPhone(email, phone);
+    // for generate token
+    return this.authService.loginWithOtp(user);
   }
 
 
@@ -77,6 +80,7 @@ export class AuthController {
     await this.otpService.generateOtp(dto.email, dto.phone);
     return { message: 'OTP sent for login' };
   }
+  
 
 
   //** */ Verify Login OTP → returns Access + Refresh Tokens

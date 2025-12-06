@@ -130,7 +130,7 @@ export class UsersService {
   // ** Get all users
   async findAllActiveUsers() {
     return this.prisma.user.findMany({
-      where: { is_deleted: false, is_verified: true }, // only active users
+      where: { is_deleted: false, is_verified: true , role:UserRole.USER}, // only active users
       orderBy: { created_at: 'desc' },
     });
   }
