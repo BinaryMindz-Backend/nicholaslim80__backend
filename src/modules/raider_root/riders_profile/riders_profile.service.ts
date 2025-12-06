@@ -234,8 +234,9 @@ export class RidersProfileService {
   }
 
 
-  //TODO:need to check
+  //
   async adminCreateRiderProfile(createRidersProfileDto: CreateRidersProfileDto) {
+    
     // If DTO contains a raiderId, connect the existing raider relation; otherwise use the DTO as-is.
     const { raiderId, ...rest } = createRidersProfileDto as any;
     const data = raiderId
@@ -316,6 +317,8 @@ export class RidersProfileService {
 
   // TODO:need to fix
   async adminCreateUser(dto: CreateUserDto) {
+
+    // 
     try {
       const uuserExists = await this.prisma.user.findUnique({
         where: {

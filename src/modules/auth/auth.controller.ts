@@ -57,7 +57,12 @@ export class AuthController {
   async verify(@Body() dto: { email?: string, phone?: string; otp: string }) {
     const { email, phone, otp } = dto;
     await this.otpService.verifyOtp(email, phone, otp);
-    return { message: 'Verified successfully', otp };
+    // send to verify otp
+    await this.otpService.verifyOtpForLoginAndClear(email, phone, otp);
+
+    const user = await this.usersService.findByEmailOrPhone(email, phone);
+    // for generate token
+    return this.authService.loginWithOtp(user);
   }
 
 
