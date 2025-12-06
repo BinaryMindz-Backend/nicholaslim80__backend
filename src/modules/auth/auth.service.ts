@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import {
   Injectable,
   UnauthorizedException,
@@ -8,7 +8,8 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { UsersService } from '../users_root/users/users.service';
-import { $Enums } from '@prisma/client';
+
+import { OtpService } from './otp.service';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +17,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly otpService: OtpService,
   ) { }
 
 
@@ -113,8 +115,9 @@ export class AuthService {
 
       return tokens;
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid or expired refresh token';
       // console.log(err);
-      throw new ForbiddenException("Invalid or expired refresh token");
+      throw new ForbiddenException(message);
     }
   }
 
@@ -131,6 +134,10 @@ export class AuthService {
   }
 
 
-
+  // forgot password
+  async forgotPassword(email: string) {
+    const otp = await this.otpService.generateOtp(email);
+    console.log(otp);
+  }
 
 }

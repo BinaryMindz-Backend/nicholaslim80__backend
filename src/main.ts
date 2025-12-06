@@ -10,7 +10,13 @@ import express from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors();
+  app.enableCors({
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:5174',
+    ],
+    credentials: true,
+  });
 
   // Global prefix
   const globalPrefix = 'api/v1';
@@ -47,13 +53,13 @@ async function bootstrap() {
   // Static folders
   const publicDir = join(process.cwd(), "public");
   const uploadDir = join(process.cwd(), "uploads");
-  
+
   app.use("/", express.static(publicDir));
   app.use("/uploads", express.static(uploadDir));
 
   await app.listen(port);
 
-  console.log(`✔ App running at: http://localhost:${port}/${globalPrefix}`);
+  console.log(`✔ App running at: http://localhost:${host}/${globalPrefix}`);
   console.log(`✔ Swagger docs: http://localhost:${port}/${globalPrefix}/docs`);
 }
 

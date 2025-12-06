@@ -5,13 +5,13 @@ import { UpdateVehicleTypeDto } from './dto/update-vehicle-type.dto';
 
 @Injectable()
 export class VehicleTypeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // CREATE
-  async create(dto: CreateVehicleTypeDto, user:any) {
+  async create(dto: CreateVehicleTypeDto, user: any) {
     // 
     const exists = await this.prisma.vehicleType.findFirst({
-      where: { vehicle_type:dto.vehicle_type, dimension:dto.dimension},
+      where: { vehicle_type: dto.vehicle_type, dimension: dto.dimension },
     });
 
     if (exists?.vehicle_type && exists?.dimension) {
@@ -19,28 +19,27 @@ export class VehicleTypeService {
     }
 
 
-  return this.prisma.vehicleType.create({
-        data: {
-          vehicle_type: dto.vehicle_type,
-          base_price: dto.base_price,
-          per_km_price: dto.per_km_price,
-          peak_pricing: dto.peak_pricing,
-          dimension: dto.dimension,
-          max_load: dto.max_load,
-          isActive: dto.isActive,
-          admin: {
-            connect: { id: user.id },
-          },
+    return this.prisma.vehicleType.create({
+      data: {
+        vehicle_type: dto.vehicle_type,
+        base_price: dto.base_price,
+        per_km_price: dto.per_km_price,
+        peak_pricing: dto.peak_pricing,
+        dimension: dto.dimension,
+        max_load: dto.max_load,
+        isActive: dto.isActive,
+        admin: {
+          connect: { id: user.id },
         },
-      });
+      },
+    });
 
   }
 
   // FIND ALL ACTIVE
   async findAll() {
     return this.prisma.vehicleType.findMany({
-      where: { isActive: true },
-      orderBy: { id: 'asc' },
+      orderBy: { id: 'desc' },
     });
   }
 
@@ -55,9 +54,12 @@ export class VehicleTypeService {
 
   // UPDATE
   async update(id: number, dto: UpdateVehicleTypeDto) {
-    await this.findOne(id); // will throw if not found
 
-    return this.prisma.vehicleType.update({
+    const data = await this.prisma.vehicleType.findUnique({ where: { id } });
+    if (!data || data === null) {
+      throw new NotFoundException('Vehicle type not found');
+    }
+    return await this.prisma.vehicleType.update({
       where: { id },
       data: dto,
     });
@@ -65,9 +67,8 @@ export class VehicleTypeService {
 
   // SOFT DELETE
   async Delete(id: number) {
-    await this.findOne(id);
 
-    return this.prisma.vehicleType.delete({
+    return await this.prisma.vehicleType.delete({
       where: { id },
     });
   }

@@ -72,7 +72,44 @@ export class StripeService {
     return ApiResponses.error('Payment failed');
   }
 
+  async createExpressAccount(userId: number) {
+    const userExist = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
 
+    if (!userExist) {
+      return ApiResponses.error('User not found');
+    }
+    const account = await this.stripe.accounts.create({
+      country: 'US',
+      email: 'jenny.rosen@example.com',
+      controller: {
+        fees: {
+          payer: 'application',
+        },
+        losses: {
+          payments: 'application',
+        },
+        stripe_dashboard: {
+          type: 'express',
+        },
+      },
+    });
+
+    const accountLink = await this.stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: 'https://example.com/reauth',
+      return_url: 'https://example.com/return',
+      type: 'account_onboarding',
+    });
+
+
+
+    return {
+      message: 'Express account created successfully',
+      url: accountLink.url,
+    };
+  }
 
 
 
