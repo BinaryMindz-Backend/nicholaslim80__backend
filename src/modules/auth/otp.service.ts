@@ -37,7 +37,7 @@ export class OtpService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
     const hashed = await this.hashOtp(otp);
 
     const ttl = Number(process.env.OTP_TTL_MINUTES ?? 5) * 60;
