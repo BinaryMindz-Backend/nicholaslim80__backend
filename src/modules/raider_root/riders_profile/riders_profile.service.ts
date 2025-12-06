@@ -282,23 +282,27 @@ export class RidersProfileService {
   }
 
 
-  // TODO:need to fix
+  //
   async adminUpdateRiderProfile(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
-    const userExists = await this.prisma.raiderRegistration.findUnique({
-      where: { id: Number(id) },
+    const raiderExists = await this.prisma.raider.findFirst({
+      where: { 
+          OR:[
+            {id: Number(id)}
+          ]
+       },
     });
 
-    if (!userExists) {
-      return ApiResponses.error('Rider profile not found');
+    if (!raiderExists) {
+      return ApiResponses.error('Rider not found');
     }
 
     // find the registration for this raider
     const registration = await this.prisma.raiderRegistration.findFirst({
-      where: { raiderId: Number(userExists.id) },
+      where: { raiderId: Number(raiderExists.id) },
     });
 
     if (!registration) {
-      return ApiResponses.error('Rider registration not found for this rider');
+      return ApiResponses.error('Rider profile not found for this rider');
     }
 
     const res = await this.prisma.raiderRegistration.update({
@@ -307,6 +311,8 @@ export class RidersProfileService {
     });
     return res;
   }
+
+
 
   // TODO:need to fix
   async adminCreateUser(dto: CreateUserDto) {

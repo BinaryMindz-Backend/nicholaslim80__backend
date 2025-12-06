@@ -152,6 +152,7 @@ export class RidersProfileController {
       return ApiResponses.error(error);
     }
   }
+  
   // admin update rider profile
   @Patch('admin-update-rider-profile/:id')
   @Auth()
