@@ -27,8 +27,6 @@ export class MyRaiderService {
       }
     })
 
-    console.log(dto, isRaiderExist);
-
     if (!isRaiderExist) {
       throw new NotFoundException("Raider not found")
     }
@@ -38,7 +36,7 @@ export class MyRaiderService {
         user_id: user.id
       }
     })
-    if (record) throw new ConflictException("record not found")
+    if (record) throw new ConflictException("record already exist found")
     //  
     const added = await this.prisma.myRaider.create({
       data: {
