@@ -4,6 +4,7 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { IUser } from 'src/types';
 import { CreateMyRaiderDto } from './dto/create-my_raider.dto';
 import { UpdateMyRaiderDto } from './dto/update-my_raider.dto';
+import { PaginationDto } from 'src/utils/dto/pagination.dto';
 
 
 
@@ -35,7 +36,7 @@ export class MyRaiderService {
         user_id: user.id
       }
     })
-    if (record) throw new ConflictException("record not found")
+    if (record) throw new ConflictException("record already exist found")
     //  
     const added = await this.prisma.myRaider.create({
       data: {
@@ -82,41 +83,76 @@ export class MyRaiderService {
   }
 
 
-  // 
-  async findAll(userId: number) {
-    // 1. Get all favorite raider records for this user
-    const fav_raiders = await this.prisma.myRaider.findMany({
-      where: { user_id: userId }
-    });
+// my raider
+async findAll(userId: number, dto: PaginationDto) {
+  const { page = 1, limit = 10 } = dto;
 
-    if (!fav_raiders.length) return [];
+  const skip = (page - 1) * limit;
+  const take = limit;
 
-    // Extract all raider IDs
-    const raiderFindBy = fav_raiders.map(r => r.find_by);
+  // 1. Get favorites (with pagination)
+  const fav_raiders = await this.prisma.myRaider.findMany({
+    where: { user_id: userId },
+    skip,
+    take,
+    orderBy: { created_at: 'desc' },
+  });
 
-    // 2. Fetch raider details — SELECT ONLY REQUIRED FIELDS
-    const raiderDetails = await this.prisma.raiderRegistration.findMany({
-      where: {
-        OR: [
-          { contact_number: { in: raiderFindBy } },
-          { email_address: { in: raiderFindBy } },
-        ],
-      },
-      select: {
-        id: true,
-        raiderId: true,
-        raider_name: true,
-        contact_number: true,
-        email_address: true,
-      },
-    });
-    // 3. Merge myRaider + Raider Data
-    const merged = fav_raiders.map(fav => ({
-      ...fav,
-      raider: raiderDetails.find(r => r.contact_number || r.email_address === fav.find_by) || null,
-    }));
-    return merged;
+  if (!fav_raiders.length) {
+    return {
+      page,
+      limit,
+      total: 0,
+      data: [],
+    };
   }
+
+  // Extract IDs
+  const raiderFindBy = fav_raiders.map(r => r.find_by);
+
+  // 2. Fetch Raider details
+  const raiderDetails = await this.prisma.raiderRegistration.findMany({
+    where: {
+      OR: [
+        { contact_number: { in: raiderFindBy } },
+        { email_address: { in: raiderFindBy } },
+      ],
+    },
+    select: {
+      id: true,
+      raiderId: true,
+      raider_name: true,
+      contact_number: true,
+      email_address: true,
+    },
+  });
+
+  // 3. Merge myRaider + Raider data (FIXED MATCH LOGIC)
+  const merged = fav_raiders.map(fav => {
+    const raider = raiderDetails.find(
+      r =>
+        r.contact_number === fav.find_by ||
+        r.email_address === fav.find_by
+    );
+
+    return {
+      ...fav,
+      raider: raider || null,
+    };
+  });
+
+  // 4. Total Count for Pagination
+  const total = await this.prisma.myRaider.count({
+    where: { user_id: userId },
+  });
+
+  return {
+    page,
+    limit,
+    total,
+    data: merged,
+  };
+}
 
 
 

@@ -20,6 +20,8 @@ import { UploadImageDto } from './dto/uploadImage.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { storageConfig } from 'src/common/fileUpload/file';
 import { ApiResponses } from 'src/common/apiResponse';
+import { ForgotPasswordDto } from './dto/forgot.password';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 
 @ApiTags('Authentication')
@@ -42,7 +44,7 @@ export class AuthController {
     @Body() dto: CreateUserDto,
   ) {
     const res = await this.usersService.createUser(dto as any);
-    return { message: 'User created. OTP sent for verification.', res};
+    return { message: 'User created. OTP sent for verification.', res };
   }
 
 
@@ -166,4 +168,51 @@ export class AuthController {
     return ApiResponses.success(fileUrls, 'Files uploaded successfully');
   }
 
+
+  
+  // forgot password 
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    try {
+     const res = await this.authService.forgotPassword(dto.email);
+     console.log(res);
+      return ApiResponses.success(res, 'otp send successfully');
+    } catch (error) {
+       return ApiResponses.error(error, "Forget Password failed")
+    }
+  }
+
+  // 
+  @Post('forgetpass/verify-otp')
+  @ApiOperation({ summary: 'Verify OTP for reset password' })
+  @ApiBody({
+    type: VerifyOtpDto
+  })
+  @ApiResponse({ status: 200, description: 'Otp verified' })
+  @ApiResponse({ status: 400, description: 'Invalid OTP' })
+  async forgotPassVerify(@Body() dto: { email?: string, phone?: string, otp: string }) {
+    const { email, phone, otp } = dto;
+    // send to verify otp
+    try {
+      const res = await this.authService.verifyOtpForForgetPass(email, phone, otp);
+      return ApiResponses.success(res,"otp verified successfully")
+    } catch (error) {
+        return ApiResponses.error(error,"otp verified error")
+    }
+  }
+
+
+  // reset pass
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    //  
+    try{
+       const res = await this.authService.resetPassword(dto.email, dto.newPassword);
+       return ApiResponses.success(res, 'Reset password successfully');
+    }catch(err){
+       return ApiResponses.success(err, 'Failed to forget password');
+    }
+  }
+
+  // 
 }

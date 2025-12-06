@@ -12,6 +12,7 @@ import type { IUser } from 'src/types';
 import { AddMoneyDto } from './dto/add-money.dto';
 import { Roles } from 'src/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
+import { UserFilterDto } from './dto/user-filter.dto';
 
 
 
@@ -38,20 +39,21 @@ export class UsersController {
 
 
   // ** Get all verified users
-  @Get()
-  @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all users' })
-  @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
-  async findAllUsers() {
-    try {
-      const users = await this.usersService.findAllUsers();
-      return ApiResponses.success(users, 'Users retrieved successfully');
-    } catch (err) {
-      return ApiResponses.error(err, 'Failed to fetch users');
+    @Get()
+    @Auth()
+    @Roles(UserRole.SUPER_ADMIN)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get all users (with filters & pagination)' })
+    @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
+    async findAllUsers(@Query() filterDto: UserFilterDto) {
+      try {
+        const users = await this.usersService.findAllUsers(filterDto);
+        return ApiResponses.success(users, 'Users retrieved successfully');
+      } catch (err) {
+        return ApiResponses.error(err, 'Failed to fetch users');
+      }
     }
-  }
+
 
   //  TODO:need to verify by role
   // add money to wallet 

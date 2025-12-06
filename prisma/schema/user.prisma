@@ -23,6 +23,8 @@ model User {
   stripe_customer_id       String?         @db.VarChar(100)
   stripe_payment_method_id String?         @db.VarChar(100)
   stripe_balance           Float           @default(0)
+  // 
+  reset_pass               Boolean         @default(false)
   // Relations
   notifications            Notification[]
   places                   Place[]

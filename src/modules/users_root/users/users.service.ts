@@ -6,6 +6,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ReferralUtils } from 'src/utils/referral.util';
 import { IUser } from 'src/types';
 import { UserRole } from '@prisma/client';
+import { UserFilterDto, UserStatusFilter } from './dto/user-filter.dto';
 
 // 
 @Injectable()
@@ -91,15 +92,12 @@ export class UsersService {
     }
 
     // pass to otp verify method
-   const otp= await this.otpService.generateOtp(user.email, user.phone);
+   const otp = await this.otpService.generateOtp(user.email, user.phone);
     // TODO:For Dev
     return {
       otp
     };
   }
-
-
-
 
 
 
@@ -138,52 +136,91 @@ export class UsersService {
   }
 
 
-  // ** Get all users
-  async findAllUsers() {
-        // 
-        const aggregated = await this.prisma.order.groupBy({
-          by: ['userId'],
-          _count: { id: true },
-          _sum: { total_cost: true }
-        });
-        
-         
-        if(!aggregated){
-            throw new NotFoundException("Not found")
-        }
+  
+  // 
+  async findAllUsers(filterDto: UserFilterDto) {
+  const {
+    page = 1,
+    limit = 10,
+    status
+  } = filterDto;
 
-        const userIds = aggregated.map(a => a.userId).filter((id): id is number => id !== null);
+  const skip = (Number(page) - 1) * Number(limit);
+  const take = Number(limit);
 
-        const users = await this.prisma.user.findMany({
-          where: {
-            id: { in: userIds },
-            OR:[
-              { is_deleted: false },
-               {is_verified: true },
-               {role:UserRole.USER}
-            ]
-            
-          }
-        });
+  // ---- Build WHERE filter ----
+const where: any = {};
 
-        const final = users.map(u => {
-          const data = aggregated.find(a => a.userId === u.id);
-          return {
-            id: u.id,
-            name: u.username,
-            contactNum: u.phone,
-            contactEmail:u.email,
-            totalOrders:data?._count?.id,
-            totalCost: data?._sum?.total_cost,
-            joiningDate: u.created_at,
-            activeStatus : u.is_active,
+    if (status) {
+      switch (status) {
+        case UserStatusFilter.ACTIVE:
+          where.is_active = true;
+          break;
 
-          };
-        });
+        case UserStatusFilter.VERIFIED:
+          where.is_verified = true;
+          break;
 
-     return final
-    //  
-  }
+        case UserStatusFilter.DELETED:
+          where.is_deleted = true;
+          break;
+
+        case UserStatusFilter.ALL:
+          break; // no filter
+      }
+    }
+
+
+  // ---- Pagination + filtered users ----
+  const users = await this.prisma.user.findMany({
+    where,
+    skip,
+    take,
+    orderBy: { created_at: 'desc' },
+  });
+
+  const userIds = users.map(u => u.id);
+
+  // ---- Aggregation from orders ----
+  const aggregated = await this.prisma.order.groupBy({
+    by: ['userId'],
+    where: {
+      userId: { in: userIds }
+    },
+    _count: { id: true },
+    _sum: { total_cost: true }
+  });
+
+  // ---- Build final result ----
+  const result = users.map(u => {
+    const stat = aggregated.find(a => a.userId === u.id);
+    return {
+      id: u.id,
+      name: u.username,
+      contactNum: u.phone,
+      contactEmail: u.email,
+      totalOrders: stat?._count?.id ?? 0,
+      totalCost: stat?._sum?.total_cost ?? 0,
+      joiningDate: u.created_at,
+      activeStatus: u.is_active,
+      is_verified: u.is_verified,
+      is_deleted: u.is_deleted
+    };
+  });
+
+  const total = await this.prisma.user.count({ where });
+
+  return {
+    page: Number(page),
+    limit: Number(limit),
+    total,
+    data: result
+  };
+}
+
+
+
+
 
 
   // ** Get user by ID

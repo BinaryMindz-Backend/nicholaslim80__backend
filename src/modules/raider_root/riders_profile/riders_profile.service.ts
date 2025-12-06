@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { RaiderVerification, UserRole } from '@prisma/client';
+import { RaiderStatus, RaiderVerification, UserRole } from '@prisma/client';
 
 import { CreateUserDto } from 'src/modules/users_root/users/dto/create-user.dto';
 import { ApiResponses } from 'src/common/apiResponse';
@@ -18,12 +18,14 @@ export class RidersProfileService {
   ) { }
 
   async create(userId: number, createRidersProfileDto: CreateRidersProfileDto) {
+    
+    // 
     const riderExists = await this.prisma.raider.findFirst({
       where: {
         userId: userId,
       },
     });
-
+    //  
     if (!riderExists) {
       throw new Error('Rider not found for the given user ID');
     }
@@ -119,15 +121,49 @@ export class RidersProfileService {
       throw new Error('Rider registration not found for this rider');
     }
 
-    const updatedProfile = await this.prisma.raider.update({
-      where: { id: r.id },
-      data: {
-        raider_verificationFromAdmin: verify,
-      },
-    });
+    if(verify === RaiderVerification.APPROVED){
+      // 
+      const updatedProfile = await this.prisma.raider.update({
+        where: { id: r.id },
+        data: {
+          raider_verificationFromAdmin: verify,
+          raider_status:RaiderStatus.ACTIVE
+        },
+      });
+ 
+      return updatedProfile;
+      }     
+    
+        //  
+      if(verify === RaiderVerification.PENDING){
+      // 
+      const updatedProfile = await this.prisma.raider.update({
+        where: { id: r.id },
+        data: {
+          raider_verificationFromAdmin: verify,
+          raider_status:RaiderStatus.IN_ACTIVE
+        },
+      });
 
-    return updatedProfile;
-  }
+      return updatedProfile;
+      }     
+    // 
+
+        if(verify === RaiderVerification.REJECTED){
+      // 
+      const updatedProfile = await this.prisma.raider.update({
+        where: { id: r.id },
+        data: {
+          raider_verificationFromAdmin: verify,
+          raider_status:RaiderStatus.IN_ACTIVE
+        },
+      });
+
+      return updatedProfile;
+      }  
+
+    }
+
 
 
   // 

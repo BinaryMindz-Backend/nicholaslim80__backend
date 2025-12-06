@@ -7,6 +7,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -19,6 +20,7 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { UpdateMyRaiderDto } from './dto/update-my_raider.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
+import { PaginationDto } from 'src/utils/dto/pagination.dto';
 
 @ApiTags('My Raiders (User & admin Only)')
 @Controller('my-raider')
@@ -55,14 +57,15 @@ export class MyRaiderController {
     }
   }
   // for user
-  @Get(':userID')
+  @Get('/my-raider')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.USER)
+  @Roles(UserRole.USER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all my raiders (user)' })
-  async findAll(@Param("userID") id:string) {
+  // @ApiQuery({type:PaginationDto})
+  async findAll(@CurrentUser() user:IUser, @Query() dto:PaginationDto) {
     try {
-      const data = await this.myRaiderService.findAll(+id);
+      const data = await this.myRaiderService.findAll(+user.id, dto);
       return ApiResponses.success(data, 'My Raiders fetched successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to fetch My Raiders');
