@@ -70,7 +70,6 @@ export class OtpService {
     
     const key = this.buildKey(user.id);
     const hashedOtp = await this.redisService.get(key);
-    // console.log(user,key,hashedOtp);
 
     if (!hashedOtp) {
       throw new BadRequestException('OTP expired or not requested');

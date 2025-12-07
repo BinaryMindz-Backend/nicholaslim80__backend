@@ -3,14 +3,13 @@ import { RidersProfileService } from './riders_profile.service';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { Auth } from 'src/decorators/auth.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
 import { RaiderVerification } from '@prisma/client';
 import { Roles } from 'src/decorators/roles.decorator';
-import { CreateUserDto, UserRole } from 'src/modules/users_root/users/dto/create-user.dto';
+import { UserRole } from 'src/modules/users_root/users/dto/create-user.dto';
 import { GetRidersQueryDto } from './dto/query-riders.dto';
 import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
 
@@ -108,14 +107,14 @@ export class RidersProfileController {
     }
   }
 
-  @Delete(':id')
+  @Delete(':userId')
   @Auth()
   @ApiBearerAuth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete rider profile by id (Admin only)' })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('userId') userId: string) {
     try {
-      const res = await this.ridersProfileService.remove(id);
+      const res = await this.ridersProfileService.remove(+userId);
       return ApiResponses.success(res, 'Rider profile deleted successfully');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -137,7 +136,7 @@ export class RidersProfileController {
     }
   }
   // create rider profile by admin 
-  @Post('admin-create-rider-profile')
+  @Post('admin/create-rider')
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
@@ -152,9 +151,9 @@ export class RidersProfileController {
       return ApiResponses.error(error);
     }
   }
-  
+
   // admin update rider profile
-  @Patch('admin-update-rider-profile/:id')
+  @Patch('admin/update-rider/:id')
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
@@ -166,21 +165,6 @@ export class RidersProfileController {
     try {
       const res = await this.ridersProfileService.adminUpdateRiderProfile(id, updateRidersProfileDto);
       return ApiResponses.success(res, 'Rider profile updated successfully by admin');
-    } catch (error) {
-      return ApiResponses.error(error);
-    }
-  }
-
-  // admin create user 
-  @Post('admin-create-user')
-  @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create user by admin (Admin only)' })
-  async adminCreateUser(@Body() dto: CreateUserDto) {
-    try {
-      const res = await this.ridersProfileService.adminCreateUser(dto);
-      return ApiResponses.success(res, 'User created successfully by admin');
     } catch (error) {
       return ApiResponses.error(error);
     }
