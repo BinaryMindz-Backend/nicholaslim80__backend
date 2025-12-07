@@ -5,8 +5,9 @@ import { OtpService } from 'src/modules/auth/otp.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ReferralUtils } from 'src/utils/referral.util';
 import { IUser } from 'src/types';
-import { UserRole } from '@prisma/client';
+import { LoginType, UserRole } from '@prisma/client';
 import { UserFilterDto, UserStatusFilter } from './dto/user-filter.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 
 // 
 @Injectable()
@@ -365,6 +366,36 @@ const where: any = {};
     return updatedWallet;
   }
 
+
+  // create user by admin
+  async adminCreateUser(dto: CreateUserDto) {
+    // 
+    const userExists = await this.prisma.user.findFirst({
+        where: {
+            OR:[
+               {email: dto.email},
+               {phone:dto.phone}
+            ]
+        },
+      });
+      // 
+      if (userExists) {
+          throw new ConflictException("User already exist")
+      }
+      // 
+      const res = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          role: UserRole.USER,
+          phone: dto.phone,
+          is_verified: true,
+          is_active:true,
+          regi_status:LoginType.ADMIN_SIGNIN
+        },
+      });
+      return res;
+  } 
+  
 
 
 }

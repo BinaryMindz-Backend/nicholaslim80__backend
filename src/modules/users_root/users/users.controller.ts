@@ -1,6 +1,7 @@
 import {
   Controller, Get, Patch, Delete, Param, Body, HttpStatus, ParseIntPipe,
-  Query
+  Query,
+  Post
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
@@ -13,6 +14,7 @@ import { AddMoneyDto } from './dto/add-money.dto';
 import { Roles } from 'src/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { UserFilterDto } from './dto/user-filter.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 
 
 
@@ -235,5 +237,19 @@ export class UsersController {
     }
   }
   //
+  // admin create user 
+  @Post('admin/create-user')
+  @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create user by admin (Admin only)' })
+  async adminCreateUser(@Body() dto: CreateUserDto) {
+    try {
+      const res = await this.usersService.adminCreateUser(dto);
+      return ApiResponses.success(res, 'User created successfully by admin');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
 
 }
