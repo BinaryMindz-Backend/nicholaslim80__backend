@@ -18,7 +18,6 @@ export class SmsService {
       body: message,
       
     });
-    console.log(res);
     // 
     return res
   }

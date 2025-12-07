@@ -24,6 +24,7 @@ import { MessageModule } from './modules/message/message.module';
 import { JwtModule } from '@nestjs/jwt';
 import { StripeModule } from './modules/stripe_root/stripe/stripe.module';
 import { MyRaiderModule } from './modules/users_root/my_raider/my_raider.module';
+import { NotificationModule } from './modules/superadmin_root/notification/notification.module';
 
 
 @Module({
@@ -61,6 +62,7 @@ import { MyRaiderModule } from './modules/users_root/my_raider/my_raider.module'
     MessageModule,
     MyRaiderModule,
     StripeModule,
+    NotificationModule,
 
 
   ],
