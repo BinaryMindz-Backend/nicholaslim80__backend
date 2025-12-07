@@ -1,9 +1,9 @@
 /* eslint-disable prefer-const */
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { RaiderStatus, RaiderVerification, UserRole } from '@prisma/client';
+import { LoginType, RaiderStatus, RaiderVerification, UserRole } from '@prisma/client';
 
 import { CreateUserDto } from 'src/modules/users_root/users/dto/create-user.dto';
 import { ApiResponses } from 'src/common/apiResponse';
@@ -11,6 +11,7 @@ import { ApiResponses } from 'src/common/apiResponse';
 import * as bcrypt from 'bcrypt';
 import { GetRidersQueryDto } from './dto/query-riders.dto';
 import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
+
 @Injectable()
 export class RidersProfileService {
   constructor(
@@ -195,11 +196,24 @@ export class RidersProfileService {
 
 
   // 
-  async remove(id: string) {
-    const res = await this.prisma.raiderRegistration.delete({
-      where: { id: Number(id) },
+  async remove(userId: number) {
+    // 
+    const record = await this.prisma.raider.findFirst({
+         where:{
+          userId
+         }
+    })
+    // 
+    if(!record){
+        throw new NotFoundException("User not found")
+    }
+    // 
+     
+    const res = await this.prisma.raider.delete({
+      where: { id: record.id},
     });
     return res;
+    // 
   }
 
 
@@ -235,52 +249,69 @@ export class RidersProfileService {
 
 
   //
-  async adminCreateRiderProfile(createRidersProfileDto: CreateRidersProfileDto) {
-    
-    // If DTO contains a raiderId, connect the existing raider relation; otherwise use the DTO as-is.
-    const { raiderId, ...rest } = createRidersProfileDto as any;
-    const data = raiderId
-      ? { ...rest, raider: { connect: { id: Number(raiderId) } } }
-      : { ...createRidersProfileDto };
-    // make the user first and then create the profile
-    const raidersDefaultPassword = process.env.RAIDER_DEFAULT_PASSWORD || '123456';
+  async adminCreateRiderProfile(dto: CreateRidersProfileDto) {
+      const record = await this.prisma.user.findFirst({
+            where:{
+                email:dto.email_address
+            }
+      })
+      const registration = await this.prisma.raiderRegistration.findFirst({
+            where:{
+                 OR:[
+                    {contact_number:dto.contact_number},
+                    {email_address:dto.email_address}
+                 ]
+            }
+      })
+      // 
+      if(record && registration){
+           throw new NotFoundException("record already exist")
+      }
+      // 
+    const cteatedUser = await this.prisma.$transaction(async(tx)=>{
+              // 
+           const user = await tx.user.create({
+                 data:{
+                    username:dto.raider_name,
+                    email:dto.email_address,
+                    phone:dto.contact_number,
+                    role:UserRole.RAIDER,
+                    regi_status:LoginType.ADMIN_SIGNIN  ,
+                    is_active:true,
+                    is_verified:true
+                 }
+             })
+            //  
+           const raider =  await tx.raider.create({
+                 data:{
+                    userId:user?.id,
+                    LoginType:LoginType.ADMIN_SIGNIN,
+                    raider_verificationFromAdmin:RaiderVerification.APPROVED,
+                    raider_status:RaiderStatus.ACTIVE
+                 }
+           }) 
+          // 
+          const reg =await tx.raiderRegistration.create({
+                data:{
+                    ...dto,
+                    raiderId:raider?.id
+                } 
+          })
 
-    if (!raidersDefaultPassword) {
-      throw new Error(' Default raider password is not set in environment variables');
-    }
-    const hashed = await bcrypt.hash(raidersDefaultPassword, 10);
-    const userExists = await this.prisma.user.findUnique({
-      where: {
-        email: createRidersProfileDto.email_address,
-      },
-    });
 
-    if (userExists) {
-      return ApiResponses.error('User with this email already exists');
-    }
-    const user = await this.prisma.user.create({
-      data: {
-        email: createRidersProfileDto.email_address,
-        password: hashed,
-        role: UserRole.RAIDER,
-        phone: createRidersProfileDto.contact_number,
-        is_verified: true,
-      },
-    });
+         return {
+             user,
+             raider,
+             reg 
+         }
 
-    const raider = await this.prisma.raider.create({
-      data: {
-        userId: user.id,
-      },
-    });
-
-    data['raiderId'] = raider.id;
-
-    const res = await this.prisma.raiderRegistration.create({
-      data,
-    });
-    return res;
+       })
+    //  send res
+    return cteatedUser
   }
+
+
+
 
 
   //
