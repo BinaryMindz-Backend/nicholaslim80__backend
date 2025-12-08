@@ -14,7 +14,7 @@ export class NotificationSchedulerService {
     private notificationService: NotificationService,
   ) {}
 
-  @Cron(CronExpression.EVERY_SECOND)
+  @Cron(CronExpression.EVERY_MINUTE)
   async handleScheduledNotifications() {
     const now = new Date();
     this.logger.log(`Cron running at ${now.toISOString()}`);
