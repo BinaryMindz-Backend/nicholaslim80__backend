@@ -12,7 +12,12 @@ enum AdminRole {
   SUPER_ADMIN
 }
 
-
+// 
+enum NotificationSentRole {
+  USER
+  RAIDER
+}
+// 
 
 enum NotificationType {
   ORDER_UPDATE
@@ -20,6 +25,7 @@ enum NotificationType {
   GENERAL
   PUSH_NOTIFICATION
   EMAIL
+  SMS
   WEB_ANNOUNCEMENT
 }
 

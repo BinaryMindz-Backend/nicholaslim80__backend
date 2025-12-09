@@ -46,16 +46,16 @@ export class QuestionsController {
   }
 
   // GET ALL QUESTIONS
-  @Get()
+  @Get(":quizId")
   @Auth()
   @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all questions' })
   @ApiResponse({ status: 200, description: 'Return all questions' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async findAll() {
+  async findAll(@Param('quizId') quizId: string) {
     try {
-      const res = await this.questionsService.findAll();
+      const res = await this.questionsService.findAllbyQuizId(+quizId);
       return ApiResponses.success(res, 'Questions fetched successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to fetch questions');

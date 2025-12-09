@@ -24,11 +24,11 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
   // ** Get all verified users
-  @Get("/verified")
+  @Get("/all")
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all verified users' })
+  @ApiOperation({ summary: 'Get all users and raider' })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
   async findAllVerified() {
     try {
@@ -40,7 +40,7 @@ export class UsersController {
   }
 
 
-  // ** Get all verified users
+  // ** Get all
     @Get()
     @Auth()
     @Roles(UserRole.SUPER_ADMIN)
