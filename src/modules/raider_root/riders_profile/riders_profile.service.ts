@@ -36,7 +36,6 @@ export class RidersProfileService {
         ...createRidersProfileDto,
       },
     });
-       console.log(userId ,createRidersProfileDto, riderExists);
     return res;
   }
 

@@ -194,7 +194,8 @@ async getAllRaiderResults(user: IUser, query: RaiderQuizFilterDto) {
 
   if (toDate)
     where.completed_at = { ...(where.completed_at || {}), lte: new Date(toDate) };
-
+    
+  console.log(where);
   // Fetch quiz results
   const results = await this.prisma.raiderQuiz.findMany({
     where,
@@ -208,6 +209,9 @@ async getAllRaiderResults(user: IUser, query: RaiderQuizFilterDto) {
       [sortBy]: sortOrder,
     },
   });
+
+  console.log("question--->",results);
+
 
   if (!results.length) {
     throw new NotFoundException('No quiz results found');

@@ -330,10 +330,16 @@ async findAllUsers(filterDto: UserFilterDto) {
 
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
+    // 
+    let is_active = true
+     if(user.is_active === true){
+          is_active = false
+     }
+    
 
     return this.prisma.user.update({
       where: { id },
-      data: {is_active:true}
+      data: {is_active}
     });
   }
 
