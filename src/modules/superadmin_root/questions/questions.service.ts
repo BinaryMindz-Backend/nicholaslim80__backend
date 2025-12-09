@@ -33,11 +33,23 @@ export class QuestionsService {
   }
 
   // GET ALL QUESTIONS
-  async findAll() {
+  // async findAll() {
+  //   return await this.prisma.question.findMany({
+  //     include: { options: true },
+  //   });
+  // }
+
+  // 
+    async findAllbyQuizId(quizId:number) {
     return await this.prisma.question.findMany({
+      where:{
+         quizId
+      },
       include: { options: true },
     });
   }
+
+
 
   // GET ONE QUESTION BY ID
   async findOne(id: number) {

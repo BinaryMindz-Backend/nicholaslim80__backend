@@ -37,11 +37,12 @@ export class AdminCreateNotificationDto {
   message?: string;
 
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: "Whether notification should be sent immediately",
     example: true,
   })
   @IsBoolean()
+  @IsOptional()
   send_immediately: boolean;
 
 

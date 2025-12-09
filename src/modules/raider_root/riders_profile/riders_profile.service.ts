@@ -18,6 +18,7 @@ export class RidersProfileService {
   ) { }
 
   async create(userId: number, createRidersProfileDto: CreateRidersProfileDto) {
+ 
     
     // 
     const riderExists = await this.prisma.raider.findFirst({
@@ -35,6 +36,7 @@ export class RidersProfileService {
         ...createRidersProfileDto,
       },
     });
+       console.log(userId ,createRidersProfileDto, riderExists);
     return res;
   }
 

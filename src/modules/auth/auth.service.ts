@@ -12,6 +12,7 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { UsersService } from '../users_root/users/users.service';
 
 import { OtpService } from './otp.service';
+import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
@@ -79,11 +80,11 @@ export class AuthService {
 
 
   // Validate email/password
-  async validateUserByEmailAndPassword(email: string, password: string) {
-    const user = await this.usersService.findByEmailOrPhone(email);
+  async validateUserByEmailAndPassword(dto:LoginDto) {
+    const user = await this.usersService.findByEmailOrPhone(dto.email,dto.phone);
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    const valid = await bcrypt.compare(password, user.password as string);
+    const valid = await bcrypt.compare(dto.password, user.password as string);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
     return user;
@@ -137,11 +138,11 @@ export class AuthService {
 
 
   // forgot password
-  async forgotPassword(email: string) {
-    const otp = await this.otpService.generateOtp(email);
+  async forgotPassword(email: string,  phone:string) {
+    const otp = await this.otpService.generateOtp(email, phone);
     // TODO:currently by email it will be in phone
     console.log(otp);
-    return { email, message: "OTP sent", otp};
+    return { email,phone, message: "OTP sent", otp};
   }
 
   
@@ -150,22 +151,36 @@ export class AuthService {
       const isOtpVerified = await this.otpService.verifyOtp(email, phone, otp);
       // 
       if(isOtpVerified){
-          await this.prisma.user.update({
-                where:{
-                    email
-                },
-                data:{
-                   reset_pass:true
-                }
-          })
+          // build conditions only for provided identifiers
+          const conditions: any[] = [];
+          if (email) conditions.push({ email });
+          if (phone) conditions.push({ phone });
+
+          if (conditions.length > 0) {
+            // updateMany accepts a non-unique where (UserWhereInput) with OR
+            await this.prisma.user.updateMany({
+              where: {
+                OR: conditions,
+              },
+              data: {
+                reset_pass: true,
+              },
+            });
+          }
       } 
   }
 
 
   // reset password
-  async resetPassword(email: string, newPassword: string) {
+  async resetPassword(email: string,phone:string, newPassword: string) {
     // 
-  const user = await this.prisma.user.findUnique({ where: { email } });
+
+    // 
+  const user = await this.prisma.user.findFirst({
+    where: {
+      OR: [{ email }, { phone }],
+    },
+  });
   if (!user) throw new BadRequestException('Invalid email');
 
    if(user.reset_pass === false){
@@ -174,16 +189,17 @@ export class AuthService {
   //  
   const hashed = await bcrypt.hash(newPassword, 10);
   const record = await bcrypt.compare(newPassword, user.password as string);
-  if (record) throw new NotAcceptableException('Password is correct you can login');
-
-  await this.prisma.user.update({
-    where: { email },
-    data: {
-      password: hashed,
-      reset_pass:false,
-    },
-  });
-
+  if (record) throw new NotAcceptableException('Password is correct you can login'); 
+        // 
+        await this.prisma.user.updateMany({
+        where: {
+          OR: [{email},{phone}],
+        },
+        data: {
+          password:hashed,
+          reset_pass: true,
+        },
+      });
   return { message: 'Password reset successful' };
 }
 

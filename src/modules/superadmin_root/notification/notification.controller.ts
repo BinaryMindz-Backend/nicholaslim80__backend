@@ -8,6 +8,8 @@ import { UserRole } from '@prisma/client';
 import { Auth } from 'src/decorators/auth.decorator';
 import { FindNotificationsDto } from './dto/find-notifications.dto';
 import { DeleteNotificationsDto } from './dto/delete-notifications.dto';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import  type { IUser } from 'src/types';
 
 
 //
@@ -19,6 +21,7 @@ export class NotificationController {
 
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   @Post('admin/broadcast')
   @ApiOperation({ summary: 'Create a new notification and send (admin only)' })
   @ApiBody({ type: AdminCreateNotificationDto })
@@ -41,13 +44,14 @@ export class NotificationController {
   // get all
   @Get()
   @Auth()
+  @Roles(UserRole.USER, UserRole.RAIDER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all notifications' })
   @ApiResponse({ status: 200, description: 'Notifications fetched successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async findAll(@Query() query: FindNotificationsDto) {
+  async findAll(@Query() query: FindNotificationsDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.notificationService.findAll(query);
+      const res = await this.notificationService.findAll(query,user);
       return ApiResponses.success(res, 'Notifications fetched successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to fetch notifications');
@@ -71,13 +75,14 @@ export class NotificationController {
 
   @Patch(':id/mark-read')
   @Auth()
+  @Roles(UserRole.USER, UserRole.RAIDER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark a notification as read' })
   @ApiResponse({ status: 200, description: 'Notification marked as read' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async markAsRead(@Param('id') id: string) {
+  async markAsRead(@Param('id') id: string, @CurrentUser() user:IUser) {
     try {
-      const res = await this.notificationService.markAsRead(+id);
+      const res = await this.notificationService.markAsRead(+id, user);
       return ApiResponses.success(res, 'Notification marked as read');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to mark notification as read');
@@ -87,6 +92,7 @@ export class NotificationController {
   @Delete(':id')
   @Auth()
   @ApiBearerAuth()
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete a notification by ID' })
   @ApiResponse({ status: 200, description: 'Notification deleted successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
@@ -102,6 +108,7 @@ export class NotificationController {
   @Post('delete-many')
   @Auth()
   @ApiBearerAuth()
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete multiple notifications' })
   @ApiResponse({ status: 200, description: 'Notifications deleted successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })

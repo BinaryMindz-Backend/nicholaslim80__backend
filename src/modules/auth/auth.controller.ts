@@ -104,15 +104,12 @@ export class AuthController {
 
   // ** Traditional login using password
   @Post('login')
-  @ApiOperation({ summary: 'Login with email & password' })
+  @ApiOperation({ summary: 'Login with email or phone & password' })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() dto: { email: string; password: string }) {
-    const user = await this.authService.validateUserByEmailAndPassword(
-      dto.email,
-      dto.password,
-    );
+  async login(@Body() dto: LoginDto) {
+    const user = await this.authService.validateUserByEmailAndPassword(dto);
     return this.authService.loginWithCredentials(user);
   }
 
@@ -177,7 +174,7 @@ export class AuthController {
   @Post('forgot-password')
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     try {
-     const res = await this.authService.forgotPassword(dto.email);
+     const res = await this.authService.forgotPassword(dto.email, dto.phone);
      console.log(res);
       return ApiResponses.success(res, 'otp send successfully');
     } catch (error) {
@@ -210,7 +207,7 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     //  
     try{
-       const res = await this.authService.resetPassword(dto.email, dto.newPassword);
+       const res = await this.authService.resetPassword(dto.email,dto.phone, dto.newPassword);
        return ApiResponses.success(res, 'Reset password successfully');
     }catch(err){
        return ApiResponses.success(err, 'Failed to forget password');

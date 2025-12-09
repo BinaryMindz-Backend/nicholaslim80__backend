@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable no-case-declarations */
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { NotificationType, UserRole, NotificationSentRole } from '@prisma/client';
@@ -9,6 +8,7 @@ import { SmsService } from 'src/common/services/sms.service';
 import { AdminCreateNotificationDto } from './dto/create-notification.dto';
 import { FindNotificationsDto } from './dto/find-notifications.dto';
 import { DeleteNotificationsDto } from './dto/delete-notifications.dto';
+import { IUser } from 'src/types';
 
 @Injectable()
 export class NotificationService {
@@ -36,7 +36,7 @@ export class NotificationService {
     const whereRole: any = {};
     if (dto.target_role === NotificationSentRole.USER) whereRole.role = UserRole.USER;
     if (dto.target_role === NotificationSentRole.RAIDER) whereRole.role = UserRole.RAIDER;
-
+     console.log(whereRole);
     const users = await this.prisma.user.findMany({
       where: whereRole,
       select: { email: true, phone: true, fcmToken: true },
@@ -50,6 +50,7 @@ export class NotificationService {
         send_immediately: dto.send_immediately,
         schedule_to_send: dto.schedule_to_send ? new Date(dto.schedule_to_send) : null,
         target_role: dto.target_role,
+        is_from_admin:true,
       },
     });
 
@@ -131,35 +132,45 @@ export class NotificationService {
     }
   }
 
-// 
-  async findAll(dto: FindNotificationsDto) {
-    const { page = '1', limit = '10', target_role, type, isRead } = dto;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const where: any = {};
-    if (target_role) where.targetRole = target_role;
-    if (type) where.type = type;
-    if (isRead !== undefined) where.isRead = isRead === 'true';
+    // finally working
+     async findAll(dto: FindNotificationsDto, user: IUser) {
+        const { page = '1', limit = '10', type, isRead } = dto;
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        const where: any = {
+          OR: [
+            { target_role: null },
+            { target_role: user.role }
+          ]
+        };
+        
+        if (type) where.type = type;
+        if (isRead !== undefined) where.is_read = isRead === 'true';
+        
+        const [data, total] = await Promise.all([
+          this.prisma.notification.findMany({
+            where,
+            orderBy: { created_at: 'desc' },
+            skip,
+            take: parseInt(limit),
+          }),
+          this.prisma.notification.count({ where }),
+        ]);
+        
+        return {
+          data,
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+        };
+      }
 
-    const [data, total] = await Promise.all([
-      this.prisma.notification.findMany({
-        where,
-        orderBy: { created_at: 'desc' },
-        skip,
-        take: parseInt(limit),
-      }),
-      this.prisma.notification.count({ where }),
-    ]);
 
-    return {
-      data,
-      total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-    };
-  }
-   
+
+
+
   // 
   async findOne(id: number) {
     const notification = await this.prisma.notification.findUnique({ where: { id } });
@@ -168,10 +179,10 @@ export class NotificationService {
   }
    
   // 
-  async markAsRead(id:number) {
+  async markAsRead(id:number, user:IUser) {
     const notification = await this.prisma.notification.update({
       where: { id },
-      data: { is_read: true },
+      data: { is_read: true, mark_as_read_id: [user?.id] },
     });
     if (!notification) throw new NotFoundException('Notification not found');
     return notification;

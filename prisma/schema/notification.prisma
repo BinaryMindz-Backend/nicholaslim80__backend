@@ -7,8 +7,10 @@ model Notification {
   message          String?          @db.Text
   is_read          Boolean          @default(false)
   created_at       DateTime         @default(now())
-  send_immediately Boolean          @default(true)
+  send_immediately Boolean          @default(false)
   schedule_to_send DateTime?
-  target_role      NotificationSentRole?      
+  target_role      NotificationSentRole? 
+  is_from_admin    Boolean          @default(false) 
+  mark_as_read_id  Int[]            
   @@map("notifications")
 }
