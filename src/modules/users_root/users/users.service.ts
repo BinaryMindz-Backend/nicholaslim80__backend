@@ -452,6 +452,7 @@ async findAllUsers(filterDto: UserFilterDto) {
       // 
       const res = await this.prisma.user.create({
         data: {
+          username:dto.username,
           email: dto.email,
           role: UserRole.USER,
           phone: dto.phone,
