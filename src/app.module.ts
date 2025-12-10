@@ -26,6 +26,9 @@ import { StripeModule } from './modules/stripe_root/stripe/stripe.module';
 import { MyRaiderModule } from './modules/users_root/my_raider/my_raider.module';
 import { NotificationModule } from './modules/superadmin_root/notification/notification.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { PolicyManagementModule } from './modules/superadmin_root/policy_management/policy_management.module';
+import { ContentManagementModule } from './modules/superadmin_root/content_management/content_management.module';
+import { CoinManagementModule } from './modules/superadmin_root/coin_management/coin_management.module';
 
 
 @Module({
@@ -65,6 +68,9 @@ import { ScheduleModule } from '@nestjs/schedule';
     StripeModule,
     NotificationModule,
     ScheduleModule.forRoot(),
+    PolicyManagementModule,
+    ContentManagementModule,
+    CoinManagementModule,
 
 
   ],
