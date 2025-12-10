@@ -30,6 +30,7 @@ import { PolicyManagementModule } from './modules/superadmin_root/policy_managem
 import { ContentManagementModule } from './modules/superadmin_root/content_management/content_management.module';
 import { CoinManagementModule } from './modules/superadmin_root/coin_management/coin_management.module';
 import { TransactionIdService } from './common/services/transaction-id.service';
+import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.module';
 
 
 @Module({
@@ -72,6 +73,7 @@ import { TransactionIdService } from './common/services/transaction-id.service';
     PolicyManagementModule,
     ContentManagementModule,
     CoinManagementModule,
+    AdvertiseModule,
 
 
   ],

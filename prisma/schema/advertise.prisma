@@ -1,0 +1,23 @@
+model Advertise {
+  id            Int               @id @default(autoincrement())
+  create_for    String
+  ad_title      String
+  ad_image      String
+  status        Boolean           @default(false) 
+  start_date    DateTime
+  end_date      DateTime
+  created_at    DateTime          @default(now())
+  updated_at    DateTime          @updatedAt
+
+  analytics     AdvertiseAnalytics[]
+}
+
+model AdvertiseAnalytics {
+  id          Int        @id @default(autoincrement())
+  advertiseId Int
+  impression  Int        @default(0)
+  click       Int        @default(0)
+  createdAt   DateTime   @default(now())
+
+  advertise   Advertise  @relation(fields: [advertiseId], references: [id], onDelete: Cascade)
+}

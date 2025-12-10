@@ -236,3 +236,10 @@ enum ContentManagementType {
     HELPARTICLES
     ABOUTUS
 }
+
+
+// advertisement for
+enum Advertisementfor {
+      USER
+      RAIDER
+}
