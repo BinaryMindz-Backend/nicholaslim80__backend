@@ -1,3 +1,4 @@
+
 /* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
 import { Injectable, ConflictException, NotFoundException, BadRequestException, NotAcceptableException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -295,7 +296,7 @@ async findAllUsers(filterDto: UserFilterDto) {
   // ** Get user by user id
   async findMe(user: IUser) {
     if (!user.id) throw new NotFoundException("User id not found")
-    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true} });
+    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true, adminProfiles:true} });
   }
 
 

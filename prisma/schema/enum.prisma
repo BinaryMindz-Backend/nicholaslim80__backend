@@ -94,11 +94,13 @@ enum TransactionType {
 
 enum TransactionStatus {
   PENDING
-  SUCCESS
+  COMPLETED
   FAILED
 }
 
 
+
+// 
 enum PayType {
    COD
    WALLET
@@ -233,4 +235,11 @@ enum ContentManagementType {
     FAQ
     HELPARTICLES
     ABOUTUS
+}
+
+
+// advertisement for
+enum Advertisementfor {
+      USER
+      RAIDER
 }

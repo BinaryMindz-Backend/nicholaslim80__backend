@@ -1,10 +1,10 @@
-import { Role } from '@prisma/client';
+import {UserRole } from '@prisma/client';
 
 export interface IUser {
   id: number;
   email: string;
   phone: string;
-  role: Role;
+  role: UserRole;
 }
 
 

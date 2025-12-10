@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "users" ALTER COLUMN "stripe_balance" SET DEFAULT 0,
-ALTER COLUMN "stripe_balance" SET DATA TYPE DOUBLE PRECISION;
