@@ -5,13 +5,16 @@ CREATE TYPE "UserRole" AS ENUM ('USER', 'SUPER_ADMIN', 'RAIDER');
 CREATE TYPE "AdminRole" AS ENUM ('ADMIN', 'MODERATOR', 'SUPER_ADMIN');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('ORDER_UPDATE', 'PROMOTION', 'GENERAL', 'PUSH_NOTIFICATION', 'EMAIL', 'WEB_ANNOUNCEMENT');
+CREATE TYPE "NotificationSentRole" AS ENUM ('USER', 'RAIDER');
+
+-- CreateEnum
+CREATE TYPE "NotificationType" AS ENUM ('ORDER_UPDATE', 'PROMOTION', 'GENERAL', 'PUSH_NOTIFICATION', 'EMAIL', 'SMS', 'WEB_ANNOUNCEMENT');
 
 -- CreateEnum
 CREATE TYPE "RewardType" AS ENUM ('SHARE', 'COMPLETED', 'REFER', 'DAILY_LOGIN', 'FIRST_SIGNUP');
 
 -- CreateEnum
-CREATE TYPE "OrderStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'PENDING', 'PROGRESS');
+CREATE TYPE "OrderStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'PENDING', 'PROGRESS', 'ONGOING', 'SCHEDULED');
 
 -- CreateEnum
 CREATE TYPE "DestinationType" AS ENUM ('SENDER', 'RECEIVER');
@@ -32,7 +35,7 @@ CREATE TYPE "PaymentStatus" AS ENUM ('UNPAID', 'PAID', 'PENDING', 'FAILED');
 CREATE TYPE "TransactionType" AS ENUM ('BOOK_ORDER', 'REFUND', 'ADD_FUND', 'WITHDRAW', 'PROMO');
 
 -- CreateEnum
-CREATE TYPE "TransactionStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED');
+CREATE TYPE "TransactionStatus" AS ENUM ('PENDING', 'COMPLETED', 'FAILED');
 
 -- CreateEnum
 CREATE TYPE "PayType" AS ENUM ('COD', 'WALLET', 'ONLINE_PAY');
@@ -89,6 +92,9 @@ CREATE TYPE "RaiderStatus" AS ENUM ('ACTIVE', 'IN_ACTIVE', 'SUSPENDED');
 CREATE TYPE "LoginType" AS ENUM ('DIRECT_SIGNIN', 'ADMIN_SIGNIN');
 
 -- CreateEnum
+CREATE TYPE "ContentManagementType" AS ENUM ('TERMSANDCONDITION', 'PRIVANCYPOLICY', 'CANCELLATIONANDWAITINGPOLICY', 'FAQ', 'HELPARTICLES', 'ABOUTUS');
+
+-- CreateEnum
 CREATE TYPE "MessageType" AS ENUM ('TEXT', 'IMAGE', 'PDF');
 
 -- CreateTable
@@ -118,6 +124,8 @@ CREATE TABLE "coins" (
     "coin_amount" DECIMAL(12,2),
     "expire_date" TIMESTAMP(3),
     "coin_value_in_cent" INTEGER,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "coins_pkey" PRIMARY KEY ("id")
 );
@@ -135,6 +143,17 @@ CREATE TABLE "coin_history" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "coin_history_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ContentManagement" (
+    "id" SERIAL NOT NULL,
+    "contenttype" "ContentManagementType" NOT NULL,
+    "description" TEXT NOT NULL,
+    "isPublished" BOOLEAN NOT NULL,
+    "version" INTEGER,
+
+    CONSTRAINT "ContentManagement_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -260,8 +279,11 @@ CREATE TABLE "notifications" (
     "message" TEXT,
     "is_read" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "send_immediately" BOOLEAN NOT NULL DEFAULT true,
+    "send_immediately" BOOLEAN NOT NULL DEFAULT false,
     "schedule_to_send" TIMESTAMP(3),
+    "target_role" "NotificationSentRole",
+    "is_from_admin" BOOLEAN NOT NULL DEFAULT false,
+    "mark_as_read_id" INTEGER[],
 
     CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
 );
@@ -381,6 +403,18 @@ CREATE TABLE "UserDynamicSurge" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "UserDynamicSurge_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Policy" (
+    "id" SERIAL NOT NULL,
+    "title" VARCHAR(255) NOT NULL,
+    "desc" TEXT NOT NULL,
+    "isPublist" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Policy_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -631,7 +665,7 @@ CREATE TABLE "tips" (
 CREATE TABLE "transactions" (
     "id" SERIAL NOT NULL,
     "transaction_code" VARCHAR(100),
-    "payment_status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
+    "payment_status" "PaymentStatus" DEFAULT 'PENDING',
     "payment_method_id" INTEGER,
     "delivery_fee" DECIMAL(12,2),
     "additional_fee" DECIMAL(12,2),
@@ -639,6 +673,8 @@ CREATE TABLE "transactions" (
     "base_fee" DECIMAL(12,2),
     "redeemed_coin" DECIMAL(12,2),
     "type" "TransactionType" NOT NULL,
+    "pay_type" TEXT,
+    "tx_status" "TransactionStatus" DEFAULT 'PENDING',
     "userId" INTEGER,
     "orderId" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -664,6 +700,11 @@ CREATE TABLE "users" (
     "referral_code" TEXT,
     "referral_link" TEXT,
     "regi_status" "LoginType" NOT NULL DEFAULT 'DIRECT_SIGNIN',
+    "stripe_customer_id" VARCHAR(100),
+    "stripe_payment_method_id" VARCHAR(100),
+    "stripe_balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "reset_pass" BOOLEAN NOT NULL DEFAULT false,
+    "fcmToken" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 

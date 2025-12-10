@@ -94,11 +94,13 @@ enum TransactionType {
 
 enum TransactionStatus {
   PENDING
-  SUCCESS
+  COMPLETED
   FAILED
 }
 
 
+
+// 
 enum PayType {
    COD
    WALLET
