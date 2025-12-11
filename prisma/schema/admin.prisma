@@ -7,7 +7,6 @@ model Admin {
   is_seed_admin     Boolean    @default(true)
   role              AdminRole  @default(SUPER_ADMIN) 
   role_id           Int?       // optional reference to Role model if you use Role table
-  roles             Role[]
 
 
   vehicle_type_id   Int?

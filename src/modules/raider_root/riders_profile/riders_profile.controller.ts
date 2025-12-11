@@ -41,7 +41,21 @@ export class RidersProfileController {
   
 
 
-  @Post('rider-profiles')
+  @Get('rider-profiles')
+  @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
+  @Auth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  async findAll(@Query() query: GetRidersQueryDto) {
+    try {
+      const res = await this.ridersProfileService.findAll(query);
+      return ApiResponses.success(res, 'Rider profiles fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+  // 
+  @Get('rider-profiles/new-joinee')
   @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)

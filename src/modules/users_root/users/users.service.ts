@@ -24,10 +24,21 @@ export class UsersService {
   // ** Create new user // signup with otp verify
   async createUser(dto: { email?: string; password?: string; username?: string; phone: string, referral_code?: string, role?: UserRole }) {
 
-    if (dto.role === UserRole.SUPER_ADMIN) {
-      throw new NotAcceptableException("You can't create superadmin or admin by general login")
+    // if (dto.role === UserRole.SUPER_ADMIN) {
+    //   throw new NotAcceptableException("You can't create superadmin or admin by general login")
+    // }
+
+    // role check
+   const role = await this.prisma.role.findFirst({
+         where:{
+              name:UserRole.USER
+         }
+        })
+    if(!role){
+        throw new NotFoundException("Role not found")
     }
 
+    // 
     let referredByUser;
 
     if (dto.referral_code) {
@@ -71,7 +82,7 @@ export class UsersService {
         referral_code: code,
         referral_link: link,
         is_acc_refered: dto.referral_code ? true : false,
-        role: dto.role
+        roleId:role.id
       },
     });
 
@@ -87,7 +98,7 @@ export class UsersService {
       })
     }
     // if the user role is raider 
-    if (user.role === UserRole.RAIDER) {
+    if (role.name === UserRole.RAIDER) {
       await this.prisma.raider.create({
         data: {
           userId: user.id,
@@ -437,6 +448,16 @@ async findAllUsers(filterDto: UserFilterDto) {
 
   // create user by admin
   async adminCreateUser(dto: CreateUserDto) {
+          // 
+      const role = await this.prisma.role.findFirst({
+        where:{
+            name:UserRole.USER
+        }
+        })
+      if(!role){
+          throw new NotFoundException("Role not found")
+      }
+
     // 
     const userExists = await this.prisma.user.findFirst({
         where: {
@@ -455,7 +476,7 @@ async findAllUsers(filterDto: UserFilterDto) {
         data: {
           username:dto.username,
           email: dto.email,
-          role: UserRole.USER,
+          roleId:role.id,
           phone: dto.phone,
           is_verified: true,
           is_active:true,

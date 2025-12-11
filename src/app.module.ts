@@ -31,6 +31,7 @@ import { ContentManagementModule } from './modules/superadmin_root/content_manag
 import { CoinManagementModule } from './modules/superadmin_root/coin_management/coin_management.module';
 import { TransactionIdService } from './common/services/transaction-id.service';
 import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.module';
+import { RbacModule } from './rbac/rbac.module';
 
 
 @Module({
@@ -74,6 +75,7 @@ import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.m
     ContentManagementModule,
     CoinManagementModule,
     AdvertiseModule,
+    RbacModule
 
 
   ],
