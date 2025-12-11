@@ -33,6 +33,7 @@ import { TransactionIdService } from './common/services/transaction-id.service';
 import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.module';
 import { FaqModule } from './modules/superadmin_root/faq/faq.module';
 import { ArticleModule } from './modules/superadmin_root/article/article.module';
+import { AboutusModule } from './modules/superadmin_root/aboutus/aboutus.module';
 
 
 
@@ -79,6 +80,7 @@ import { ArticleModule } from './modules/superadmin_root/article/article.module'
     AdvertiseModule,
     FaqModule,
     ArticleModule,
+    AboutusModule,
 
 
   ],

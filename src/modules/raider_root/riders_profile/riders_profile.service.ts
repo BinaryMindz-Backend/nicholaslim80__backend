@@ -51,11 +51,16 @@ export class RidersProfileService {
     const filter: any = {};
 
     if (query.raider_name) {
-      filter.raider_name = {
-        contains: query.raider_name,
-        mode: 'insensitive',
+      filter.registrations = {
+        some: {
+          raider_name: {
+            contains: query.raider_name,
+            mode: 'insensitive',
+          },
+        },
       };
     }
+
 
     if (query.raiderId) {
       filter.id = Number(query.raiderId);
