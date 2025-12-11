@@ -65,14 +65,9 @@ export class RidersProfileService {
       filter.raider_verificationFromAdmin = query.raider_verificationFromAdmin;
     }
 
-    // if (query.signInPortal) {
-    //   filter.signInPortal = query.signInPortal;
-    // }
-
+    // sorting
     let orderBy: any = {};
-
     if (query.type) {
-      // Accept both the DTO's 'asc'/'desc' values and legacy 'first'/'last' for compatibility
       const orderType = String(query.type).toLowerCase();
       if (orderType === 'asc' || orderType === 'first') {
         orderBy.createdAt = 'asc';
@@ -81,16 +76,38 @@ export class RidersProfileService {
       }
     }
 
-    const res = await this.prisma.raider.findMany({
+    // PAGINATION
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Total count
+    const total = await this.prisma.raider.count({ where: filter });
+
+    // Main data
+    const data = await this.prisma.raider.findMany({
       where: filter,
-      orderBy: orderBy,
+      orderBy,
+      skip,
+      take: limit,
       include: {
-        registrations: true
-      }
+        registrations: true,
+      },
     });
-    //
-    return res;
+
+    return {
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1,
+      },
+    };
   }
+
 
 
   // 

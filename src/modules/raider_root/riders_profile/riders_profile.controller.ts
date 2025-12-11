@@ -39,7 +39,7 @@ export class RidersProfileController {
 
 
 
-  @Post('rider-profiles')
+  @Get('rider-profiles')
   @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
   @Auth()
   @Roles(UserRole.SUPER_ADMIN)

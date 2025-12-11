@@ -3,7 +3,6 @@ import { IsNotEmpty } from "class-validator";
 
 export class SuspendRiderProfileDto {
 
-
   @ApiProperty({ description: 'Duration of the suspension' })
   @IsNotEmpty()
   suspendedDuration: Date;
