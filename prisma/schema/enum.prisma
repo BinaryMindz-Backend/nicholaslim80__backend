@@ -12,7 +12,12 @@ enum AdminRole {
   SUPER_ADMIN
 }
 
-
+// 
+enum NotificationSentRole {
+  USER
+  RAIDER
+}
+// 
 
 enum NotificationType {
   ORDER_UPDATE
@@ -20,6 +25,7 @@ enum NotificationType {
   GENERAL
   PUSH_NOTIFICATION
   EMAIL
+  SMS
   WEB_ANNOUNCEMENT
 }
 
@@ -88,11 +94,13 @@ enum TransactionType {
 
 enum TransactionStatus {
   PENDING
-  SUCCESS
+  COMPLETED
   FAILED
 }
 
 
+
+// 
 enum PayType {
    COD
    WALLET
@@ -218,4 +226,20 @@ enum RaiderStatus {
 enum LoginType {
     DIRECT_SIGNIN
     ADMIN_SIGNIN
+}
+
+enum ContentManagementType {
+    TERMSANDCONDITION
+    PRIVANCYPOLICY
+    CANCELLATIONANDWAITINGPOLICY
+    FAQ
+    HELPARTICLES
+    ABOUTUS
+}
+
+
+// advertisement for
+enum Advertisementfor {
+      USER
+      RAIDER
 }

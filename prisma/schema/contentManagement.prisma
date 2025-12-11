@@ -1,0 +1,9 @@
+model ContentManagement {
+     id               Int        @id @default(autoincrement())
+    contenttype ContentManagementType
+    description String
+    isPublished Boolean
+    version    Int?             
+}
+
+ 

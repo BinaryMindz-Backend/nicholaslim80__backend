@@ -1,0 +1,22 @@
+import { Module } from '@nestjs/common';
+import { NotificationService } from './notification.service';
+import { NotificationController } from './notification.controller';
+import { MailService } from 'src/common/services/mail.service';
+import { SmsService } from 'src/common/services/sms.service';
+import { PrismaService } from 'src/core/database/prisma.service';
+import { NotificationSchedulerService } from './scheduler.service';
+import { FirebaseService } from './firebase.service';
+
+@Module({
+  controllers: [NotificationController],
+  providers: [
+    // 
+    NotificationService,
+    FirebaseService,
+    MailService,
+    SmsService,
+    PrismaService,
+    NotificationSchedulerService
+  ],
+})
+export class NotificationModule {}

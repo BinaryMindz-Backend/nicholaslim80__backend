@@ -33,11 +33,23 @@ export class QuestionsService {
   }
 
   // GET ALL QUESTIONS
-  async findAll() {
+  // async findAll() {
+  //   return await this.prisma.question.findMany({
+  //     include: { options: true },
+  //   });
+  // }
+
+  // 
+    async findAllbyQuizId(quizId:number) {
     return await this.prisma.question.findMany({
+      where:{
+         quizId
+      },
       include: { options: true },
     });
   }
+
+
 
   // GET ONE QUESTION BY ID
   async findOne(id: number) {
@@ -182,7 +194,8 @@ async getAllRaiderResults(user: IUser, query: RaiderQuizFilterDto) {
 
   if (toDate)
     where.completed_at = { ...(where.completed_at || {}), lte: new Date(toDate) };
-
+    
+  console.log(where);
   // Fetch quiz results
   const results = await this.prisma.raiderQuiz.findMany({
     where,
@@ -196,6 +209,9 @@ async getAllRaiderResults(user: IUser, query: RaiderQuizFilterDto) {
       [sortBy]: sortOrder,
     },
   });
+
+  console.log("question--->",results);
+
 
   if (!results.length) {
     throw new NotFoundException('No quiz results found');

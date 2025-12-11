@@ -3,14 +3,19 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { IUser } from 'src/types';
-import { OrderStatus, PayType } from '@prisma/client';
+import { OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
+import { TransactionIdService } from 'src/common/services/transaction-id.service';
 
 
 @Injectable()
 export class OrderService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+     private prisma: PrismaService,
+     private txIdService:TransactionIdService,
+
+  ) {}
 
   async create(dto: CreateOrderDto, user:IUser) {
 
@@ -47,15 +52,50 @@ export class OrderService {
     if(!isUserExist){
         throw new UnauthorizedException("Unauthorize exception")
     }
-       
+         
+
+
+   const res =  await this.prisma.$transaction(async(tx)=>{
+             const order = await tx.order.create({
+                  data:{
+                    ...dto,
+                    userId:user.id
+                  }
+           })
+          // 
+              const txId = this.txIdService.generate();
+
+                await tx.transaction.create({
+                      data:{
+                           transaction_code:txId,
+                           payment_status:PaymentStatus.UNPAID,
+                           payment_method_id:order.payment_method_id,
+                           type:TransactionType.BOOK_ORDER,
+                           delivery_fee:order.total_cost,
+                           total_fee:order.total_cost,
+                           userId:order.userId,
+                           pay_type:order.pay_type,
+                           orderId:order.id 
+                      },
+                      include:{
+                          user:{
+                              select:{
+                                  username:true,
+
+                              },
+                          },
+                          order:{
+                              select:{
+                                 id:true,
+                                 order_status:true
+                              }
+                          }
+                      }
+                }) 
+          })
 
     // 
-    return this.prisma.order.create({
-      data:{
-         ...dto,
-         userId:user.id
-      }
-    });
+    return res
 
   }
 
@@ -72,9 +112,10 @@ export class OrderService {
         this.prisma.order.findMany({
           where: { userId },
           orderBy: { created_at: 'desc' },
-          include: { user: true },
+          include: { user: true , transactions:true},
           skip,
           take: limit,
+          
         }),
         
         this.prisma.order.count({
@@ -278,16 +319,59 @@ export class OrderService {
         extraData = { is_placed: false };
       }
       // 4. Update status
-      return this.prisma.order.update({
-        where: {
-          id,
-          userId
-        },
-        data: {
-          order_status: status,
-          ...extraData,
-        },
-      });}
+
+
+      const res = await this.prisma.$transaction(async (tx)=>{
+        const updatedStatus = await tx.order.update({
+              where: {
+                id,
+                userId
+              },
+              data: {
+                order_status: status,
+                ...extraData,
+              },
+            });
+            // 
+            const transaction = await tx.transaction.findFirst({
+              where: {
+                orderId: Number(id),
+              },
+            });
+
+            if (transaction && updatedStatus.order_status === OrderStatus.PENDING ) {
+              await tx.transaction.update({
+                   where:{
+                      id: transaction.id,
+                   },
+                   data:{
+                       tx_status:TransactionStatus.PENDING
+                   }
+              })
+            }
+            // 
+          if (transaction && updatedStatus.order_status === OrderStatus.CANCELLED ) {
+              await tx.transaction.update({
+                   where:{
+                      id: transaction.id,
+                   },
+                   data:{
+                       tx_status:TransactionStatus.FAILED
+                   }
+              })
+            }
+
+
+        return updatedStatus;
+      })
+    
+
+
+      return res
+    
+    
+    
+    }
 
 
   // order update for admin

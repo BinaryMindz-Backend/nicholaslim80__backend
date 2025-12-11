@@ -24,6 +24,13 @@ import { MessageModule } from './modules/message/message.module';
 import { JwtModule } from '@nestjs/jwt';
 import { StripeModule } from './modules/stripe_root/stripe/stripe.module';
 import { MyRaiderModule } from './modules/users_root/my_raider/my_raider.module';
+import { NotificationModule } from './modules/superadmin_root/notification/notification.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { PolicyManagementModule } from './modules/superadmin_root/policy_management/policy_management.module';
+import { ContentManagementModule } from './modules/superadmin_root/content_management/content_management.module';
+import { CoinManagementModule } from './modules/superadmin_root/coin_management/coin_management.module';
+import { TransactionIdService } from './common/services/transaction-id.service';
+import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.module';
 
 
 @Module({
@@ -61,10 +68,21 @@ import { MyRaiderModule } from './modules/users_root/my_raider/my_raider.module'
     MessageModule,
     MyRaiderModule,
     StripeModule,
+    NotificationModule,
+    ScheduleModule.forRoot(),
+    PolicyManagementModule,
+    ContentManagementModule,
+    CoinManagementModule,
+    AdvertiseModule,
 
 
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+     AppService,
+     TransactionIdService],
+  exports:[
+     TransactionIdService
+  ]
 })
 export class AppModule { }

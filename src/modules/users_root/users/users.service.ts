@@ -1,3 +1,5 @@
+
+/* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
 import { Injectable, ConflictException, NotFoundException, BadRequestException, NotAcceptableException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -8,6 +10,7 @@ import { IUser } from 'src/types';
 import { LoginType, UserRole } from '@prisma/client';
 import { UserFilterDto, UserStatusFilter } from './dto/user-filter.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { startOfDay, endOfDay, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 // 
 @Injectable()
@@ -131,7 +134,7 @@ export class UsersService {
   // ** Get all users
   async findAllActiveUsers() {
     return this.prisma.user.findMany({
-      where: { is_deleted: false, is_verified: true , role:UserRole.USER}, // only active users
+      where: { is_deleted: false},
       orderBy: { created_at: 'desc' },
     });
   }
@@ -139,50 +142,111 @@ export class UsersService {
 
   
   // 
-  async findAllUsers(filterDto: UserFilterDto) {
+async findAllUsers(filterDto: UserFilterDto) {
   const {
     page = 1,
     limit = 10,
-    status
+    status,
+    sortBy = 'created_at',
+    sortOrder = 'desc',
+    dateFilter
   } = filterDto;
 
   const skip = (Number(page) - 1) * Number(limit);
   const take = Number(limit);
 
-  // ---- Build WHERE filter ----
-const where: any = {};
+  const where: any = {};
+ 
+  // ==========================
+  if (status) {
+    switch (status) {
+      case UserStatusFilter.ACTIVE:
+        where.is_active = true;
+        break;
+      case UserStatusFilter.VERIFIED:
+        where.is_verified = true;
+        break;
+      case UserStatusFilter.DELETED:
+        where.is_deleted = true;
+        break;
+      case UserStatusFilter.ALL:
+        break;
+    }
+  }
 
-    if (status) {
-      switch (status) {
-        case UserStatusFilter.ACTIVE:
-          where.is_active = true;
-          break;
+  // DATE FILTER
 
-        case UserStatusFilter.VERIFIED:
-          where.is_verified = true;
-          break;
+  if (dateFilter) {
+    const now = new Date();
 
-        case UserStatusFilter.DELETED:
-          where.is_deleted = true;
-          break;
+    switch (dateFilter) {
+      case 'today':
+        where.created_at = {
+          gte: startOfDay(now),
+          lte: endOfDay(now),
+        };
+        break;
 
-        case UserStatusFilter.ALL:
-          break; // no filter
+      case 'yesterday': {
+        const yStart = startOfDay(subDays(now, 1));
+        const yEnd = endOfDay(subDays(now, 1));
+        where.created_at = {
+          gte: yStart,
+          lte: yEnd,
+        };
+        break;
+      }
+
+      case 'last_7_days':
+        where.created_at = {
+          gte: subDays(now, 7),
+        };
+        break;
+
+      case 'last_30_days':
+        where.created_at = {
+          gte: subDays(now, 30),
+        };
+        break;
+
+      case 'last_month': {
+        const firstDayPrevMonth = startOfMonth(subMonths(now, 1));
+        const lastDayPrevMonth = endOfMonth(subMonths(now, 1));
+        where.created_at = {
+          gte: firstDayPrevMonth,
+          lte: lastDayPrevMonth,
+        };
+        break;
       }
     }
+  }
 
+  // SAFE SORTING
+  const allowedSortFields = [
+    'created_at',
+    'username',
+    'email',
+    'phone',
+    'is_active',
+    'is_verified'
+  ];
 
-  // ---- Pagination + filtered users ----
+  const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'created_at';
+  const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
+
+  // FETCH USERS
+
   const users = await this.prisma.user.findMany({
     where,
     skip,
     take,
-    orderBy: { created_at: 'desc' },
+    orderBy: { [safeSortBy]: safeSortOrder },
   });
 
   const userIds = users.map(u => u.id);
 
-  // ---- Aggregation from orders ----
+  // AGGREGATION
+
   const aggregated = await this.prisma.order.groupBy({
     by: ['userId'],
     where: {
@@ -192,7 +256,6 @@ const where: any = {};
     _sum: { total_cost: true }
   });
 
-  // ---- Build final result ----
   const result = users.map(u => {
     const stat = aggregated.find(a => a.userId === u.id);
     return {
@@ -223,7 +286,6 @@ const where: any = {};
 
 
 
-
   // ** Get user by ID
   async findOneuser(id: number) {
     if (!id) throw new NotFoundException("User id not found")
@@ -234,7 +296,7 @@ const where: any = {};
   // ** Get user by user id
   async findMe(user: IUser) {
     if (!user.id) throw new NotFoundException("User id not found")
-    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true} });
+    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true, adminProfiles:true} });
   }
 
 
@@ -269,10 +331,16 @@ const where: any = {};
 
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
+    // 
+    let is_active = true
+     if(user.is_active === true){
+          is_active = false
+     }
+    
 
     return this.prisma.user.update({
       where: { id },
-      data: {is_active:true}
+      data: {is_active}
     });
   }
 
@@ -385,6 +453,7 @@ const where: any = {};
       // 
       const res = await this.prisma.user.create({
         data: {
+          username:dto.username,
           email: dto.email,
           role: UserRole.USER,
           phone: dto.phone,

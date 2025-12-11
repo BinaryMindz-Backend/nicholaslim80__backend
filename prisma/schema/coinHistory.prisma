@@ -15,3 +15,7 @@ model CoinHistory {
 
   @@map("coin_history")
 }
+// enum CoinHistoryType {
+//   ACCUMULATION
+//   APPLICATION
+// }
