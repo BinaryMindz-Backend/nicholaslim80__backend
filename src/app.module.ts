@@ -34,6 +34,7 @@ import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.m
 import { FaqModule } from './modules/superadmin_root/faq/faq.module';
 import { ArticleModule } from './modules/superadmin_root/article/article.module';
 import { AboutusModule } from './modules/superadmin_root/aboutus/aboutus.module';
+import { MoneyManagementModule } from './modules/superadmin_root/money-management/money-management.module';
 
 
 
@@ -81,6 +82,7 @@ import { AboutusModule } from './modules/superadmin_root/aboutus/aboutus.module'
     FaqModule,
     ArticleModule,
     AboutusModule,
+    MoneyManagementModule,
 
 
   ],
