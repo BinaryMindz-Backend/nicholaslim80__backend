@@ -32,6 +32,7 @@ import { CoinManagementModule } from './modules/superadmin_root/coin_management/
 import { TransactionIdService } from './common/services/transaction-id.service';
 import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.module';
 import { FaqModule } from './modules/superadmin_root/faq/faq.module';
+import { ArticleModule } from './modules/superadmin_root/article/article.module';
 
 
 
@@ -77,6 +78,7 @@ import { FaqModule } from './modules/superadmin_root/faq/faq.module';
     CoinManagementModule,
     AdvertiseModule,
     FaqModule,
+    ArticleModule,
 
 
   ],
