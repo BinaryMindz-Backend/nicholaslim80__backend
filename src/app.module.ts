@@ -31,6 +31,8 @@ import { ContentManagementModule } from './modules/superadmin_root/content_manag
 import { CoinManagementModule } from './modules/superadmin_root/coin_management/coin_management.module';
 import { TransactionIdService } from './common/services/transaction-id.service';
 import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.module';
+import { FaqModule } from './modules/superadmin_root/faq/faq.module';
+
 
 
 @Module({
@@ -74,15 +76,16 @@ import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.m
     ContentManagementModule,
     CoinManagementModule,
     AdvertiseModule,
+    FaqModule,
 
 
   ],
   controllers: [AppController],
   providers: [
-     AppService,
-     TransactionIdService],
-  exports:[
-     TransactionIdService
+    AppService,
+    TransactionIdService],
+  exports: [
+    TransactionIdService
   ]
 })
 export class AppModule { }
