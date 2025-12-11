@@ -182,7 +182,7 @@ export class RidersProfileService {
     const registration = await this.prisma.raiderRegistration.findFirst({
       where: { raiderId: Number(raiderExists.id) },
     });
-
+    console.log({ registration });
     if (!registration) {
       throw new Error('Rider registration not found for this rider');
     }
@@ -225,6 +225,7 @@ export class RidersProfileService {
       where: { id: Number(id) },
       include: { registrations: true },
     });
+    console.log({ res });
     if (!res) {
       throw new Error('Rider profile not found');
     }
@@ -232,7 +233,7 @@ export class RidersProfileService {
     const registration = await this.prisma.raiderRegistration.findFirst({
       where: { raiderId: Number(id) },
     });
-
+    console.log({ registration });
     if (!registration) {
       throw new Error('Rider registration not found for this rider');
     }
@@ -240,6 +241,7 @@ export class RidersProfileService {
     const updatedProfile = await this.prisma.raider.update({
       where: { id: registration.id },
       data: {
+        isSuspended: true,
         suspendedDuration: dto.suspendedDuration,
         suspensionReason: dto.suspensionReason,
       },
