@@ -225,21 +225,14 @@ export class RidersProfileService {
       where: { id: Number(id) },
       include: { registrations: true },
     });
-    console.log({ res });
     if (!res) {
       throw new Error('Rider profile not found');
     }
 
-    const registration = await this.prisma.raiderRegistration.findFirst({
-      where: { raiderId: Number(id) },
-    });
-    console.log({ registration });
-    if (!registration) {
-      throw new Error('Rider registration not found for this rider');
-    }
+
 
     const updatedProfile = await this.prisma.raider.update({
-      where: { id: registration.id },
+      where: { id: res.id },
       data: {
         isSuspended: true,
         suspendedDuration: dto.suspendedDuration,
@@ -249,7 +242,30 @@ export class RidersProfileService {
 
     return updatedProfile;
   }
+  async unsuspendRiderProfile(id: number) {
 
+    const res = await this.prisma.raider.findUnique({
+      where: { id: Number(id) },
+      include: { registrations: true },
+    });
+    console.log({ res });
+    if (!res) {
+      throw new Error('Rider profile not found');
+    }
+
+
+
+    const updatedProfile = await this.prisma.raider.update({
+      where: { id: res.id },
+      data: {
+        isSuspended: false,
+        suspendedDuration: null,
+        suspensionReason: null,
+      },
+    });
+
+    return updatedProfile;
+  }
 
   //
   async adminCreateRiderProfile(dto: CreateRidersProfileDto) {
