@@ -7,113 +7,113 @@ import { UpdateAdvertiseDto } from './dto/update-advertise.dto';
 
 @Injectable()
 export class AdvertiseService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // CREATE
-    async create(dto: CreateAdvertiseDto) {
-      const currentDate = new Date();
-      const startDate = new Date(dto.start_date);
-      const endDate = new Date(dto.end_date);
-      // Validate: start date must be in future
-      if (startDate < currentDate) {
-        throw new NotAcceptableException(
-          'Start date must be equal or greater than the current date',
-        );
-      }
-
-      // Validate: end date must be in future
-      if (endDate < currentDate) {
-        throw new NotAcceptableException(
-          'End date must be greater than the current date',
-        );
-      }
-
-      // Validate: end date must be after start date
-      if (endDate <= startDate) {
-        throw new NotAcceptableException(
-          'End date must be greater than start date',
-        );
-      }
-
-      const record = await this.prisma.advertise.findFirst({
-           where:{
-               ad_title:dto.ad_title
-           }
-      })
-
-       if(record){
-           throw new NotFoundException("Record exist")
-       } 
-      //  
-      const res = await this.prisma.advertise.create({
-        data: {
-          ...dto,
-          start_date: startDate,
-          end_date: endDate,
-        },
-      });
-
-      return res;
+  async create(dto: CreateAdvertiseDto) {
+    const currentDate = new Date();
+    const startDate = new Date(dto.start_date);
+    const endDate = new Date(dto.end_date);
+    // Validate: start date must be in future
+    if (startDate < currentDate) {
+      throw new NotAcceptableException(
+        'Start date must be equal or greater than the current date',
+      );
     }
+
+    // Validate: end date must be in future
+    if (endDate < currentDate) {
+      throw new NotAcceptableException(
+        'End date must be greater than the current date',
+      );
+    }
+
+    // Validate: end date must be after start date
+    if (endDate <= startDate) {
+      throw new NotAcceptableException(
+        'End date must be greater than start date',
+      );
+    }
+
+    const record = await this.prisma.advertise.findFirst({
+      where: {
+        ad_title: dto.ad_title
+      }
+    })
+
+    if (record) {
+      throw new NotFoundException("Record exist")
+    }
+    //  
+    const res = await this.prisma.advertise.create({
+      data: {
+        ...dto,
+        start_date: startDate,
+        end_date: endDate,
+      },
+    });
+
+    return res;
+  }
 
 
   // FIND ALL FOR ADMIN
-  async findAll( page: number = 1, limit: number = 20) {
+  async findAll(page: number = 1, limit: number = 20) {
     // 
-    const skip  = (page -1) * limit
+    const skip = (page - 1) * limit
     // 
 
     const advertise = await this.prisma.advertise.findMany({
       include: {
         analytics: true,
       },
-      take:limit,
+      take: limit,
       skip,
-      orderBy:{
-          created_at:"desc"
+      orderBy: {
+        created_at: "desc"
       }
     });
 
     const total = await this.prisma.advertise.count()
     return {
-        data: advertise,
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+      data: advertise,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     }
   }
 
-   
-    // FIND ALL
-   async findAllRoleBased( page: number = 1, limit: number = 20, role:string | undefined) {
-      // 
-      const skip  = (page -1) * limit
-      // 
 
-      const advertise = await this.prisma.advertise.findMany({
-        where:{
-          create_for:role,
-          status:true,
-        },
-        include: {
-          analytics: true,
-        },
-        orderBy:{
-          created_at:"desc"
-        },
-        take:limit,
-        skip
-      });
+  // FIND ALL
+  async findAllRoleBased(page: number = 1, limit: number = 20, role: string | undefined) {
+    // 
+    const skip = (page - 1) * limit
+    // 
 
-      const total = await this.prisma.advertise.count()
-      return {
-          data: advertise,
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-      }
+    const advertise = await this.prisma.advertise.findMany({
+      where: {
+        create_for: role,
+        status: true,
+      },
+      include: {
+        analytics: true,
+      },
+      orderBy: {
+        created_at: "desc"
+      },
+      take: limit,
+      skip
+    });
+
+    const total = await this.prisma.advertise.count()
+    return {
+      data: advertise,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    }
   }
 
   // FIND ONE
@@ -132,12 +132,12 @@ export class AdvertiseService {
   async update(id: number, dto: UpdateAdvertiseDto) {
     // 
     await this.prisma.advertise.findFirst({
-         where:{
-          ad_title:dto.ad_title,
-          id:{
-             not:id
-          }
-         }
+      where: {
+        ad_title: dto.ad_title,
+        id: {
+          not: id
+        }
+      }
     });
     // 
     return this.prisma.advertise.update({
@@ -146,18 +146,18 @@ export class AdvertiseService {
     });
   }
 
-// UPDATE STATUS (toggle true/false)
-async statusUpdate(id: number) {
-  const ad = await this.findOne(id);
-  if (!ad) throw new NotFoundException('Advertise not found');
+  // UPDATE STATUS (toggle true/false)
+  async statusUpdate(id: number) {
+    const ad = await this.findOne(id);
+    if (!ad) throw new NotFoundException('Advertise not found');
 
-  // Toggle status
-  const newStatus = !ad.status;
-  return this.prisma.advertise.update({
-    where: { id },
-    data: { status: newStatus },
-  });
-}
+    // Toggle status
+    const newStatus = !ad.status;
+    return this.prisma.advertise.update({
+      where: { id },
+      data: { status: newStatus },
+    });
+  }
 
 
   // DELETE
@@ -191,57 +191,72 @@ async statusUpdate(id: number) {
   }
 
   // GLOBAL TOTAL STATS
-    async getTotalStats() {
-        // Count total ads
-        const totalAds = await this.prisma.advertise.count();
+  async getTotalStats(role: string) {
+    // Count total ads
+    const totalAds = await this.prisma.advertise.count({
+      where: {
+        create_for: role
+      }
+    });
 
-        // Count active/expired/running
-        const now = new Date();
+    // Count active/expired/running
+    const now = new Date();
 
-        const activeAds = await this.prisma.advertise.count({
-          where: {
-            start_date: { lte: now },
-            end_date: { gte: now },
-          },
-        });
+    const activeAds = await this.prisma.advertise.count({
+      where: {
+        start_date: { lte: now },
+        end_date: { gte: now },
+        create_for: role
+      },
+    });
 
-        const expiredAds = await this.prisma.advertise.count({
-          where: {
-            end_date: { lt: now },
-          },
-        });
+    const expiredAds = await this.prisma.advertise.count({
+      where: {
+        end_date: { lt: now },
+        create_for: role
+      },
+    });
 
-        const scheduledAds = await this.prisma.advertise.count({
-          where: {
-            start_date: { gt: now },
-          },
-        });
+    const scheduledAds = await this.prisma.advertise.count({
+      where: {
+        start_date: { gt: now },
+        create_for: role
+      },
+    });
 
-        // Aggregate total impressions & clicks
-        const analytics = await this.prisma.advertiseAnalytics.aggregate({
-          _sum: {
-            impression: true,
-            click: true,
-          },
-        });
+    // Aggregate total impressions & clicks
+    const where: any = {};
 
-        const totalImpression = analytics._sum.impression || 0;
-        const totalClick = analytics._sum.click || 0;
+    // If role is provided, filter analytics by related advertisement role
+    if (role) {
+      where.advertise = {
+        create_for: role,
+      };
+    }
 
-        const avgCtr =
-          totalImpression > 0 ? Number(((totalClick / totalImpression) * 100).toFixed(2)) : 0;
+    const analytics = await this.prisma.advertiseAnalytics.aggregate({
+      where,
+      _sum: {
+        impression: true,
+        click: true,
+      },
+    });
+    const totalImpression = analytics._sum.impression || 0;
+    const totalClick = analytics._sum.click || 0;
 
-  return {
-    totalAds,
-    activeAds,
-    expiredAds,
-    scheduledAds,
-    totalImpression,
-    totalClick,
-    avgCtr,
-  };
-}
+    const avgCtr =
+      totalImpression > 0 ? Number(((totalClick / totalImpression) * 100).toFixed(2)) : 0;
 
+    return {
+      totalAds,
+      activeAds,
+      expiredAds,
+      scheduledAds,
+      totalImpression,
+      totalClick,
+      avgCtr,
+    };
+  }
   async addImpression(advertiseId: number) {
     return await this.prisma.advertiseAnalytics.create({
       data: { advertiseId, impression: 1 },

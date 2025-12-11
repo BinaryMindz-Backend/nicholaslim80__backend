@@ -26,7 +26,7 @@ import type { IUser } from 'src/types';
 @ApiTags('Advertise')
 @Controller('advertise')
 export class AdvertiseController {
-  constructor(private readonly advertiseService: AdvertiseService) {}
+  constructor(private readonly advertiseService: AdvertiseService) { }
 
   // CREATE
   @Post()
@@ -69,7 +69,7 @@ export class AdvertiseController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Advertise list fetched successfully' })
-  async findAllRoleBased(@Query() pagination: PaginationDto, @CurrentUser() user:IUser ) {
+  async findAllRoleBased(@Query() pagination: PaginationDto, @CurrentUser() user: IUser) {
     try {
       const res = await this.advertiseService.findAllRoleBased(
         pagination.page,
@@ -87,9 +87,16 @@ export class AdvertiseController {
   @Get('stats/global')
   @ApiOperation({ summary: 'Get global advertisement statistics' })
   @ApiResponse({ status: 200, description: 'Total stats fetched successfully' })
-  async getGlobalStats() {
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    type: String,
+    example: 'USER',
+    description: 'Filter stats based on role (optional)',
+  })
+  async getGlobalStats(@Query('role') role: string) {
     try {
-      const res = await this.advertiseService.getTotalStats();
+      const res = await this.advertiseService.getTotalStats(role);
       return ApiResponses.success(res, 'Total advertise stats fetched successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to fetch global stats');
@@ -129,7 +136,7 @@ export class AdvertiseController {
       return ApiResponses.error(error, 'Failed to update advertise');
     }
   }
-  
+
   // UPDATE status
   @Patch('status/:id')
   @ApiOperation({ summary: 'Update advertisement status by ID' })

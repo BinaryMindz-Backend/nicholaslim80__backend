@@ -9,60 +9,57 @@ import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class DeliveryTypeService {
-  constructor(private prisma: PrismaService) {}
-  
+  constructor(private prisma: PrismaService) { }
+
   // ** check role
   private verifyAdmin(user: any) {
     if (![UserRole.SUPER_ADMIN].includes(user.role)) {
       throw new ForbiddenException('Admin access only');
     }
   }
-  
+
   // create an delivery type
-    async create(dto: CreateDeliveryTypeDto, user: any) {
-      // Verify admin
-      this.verifyAdmin(user);
+  async create(dto: CreateDeliveryTypeDto, user: any) {
+    // Verify admin
+    this.verifyAdmin(user);
 
-      // Check if delivery type already exists
-      const isExist = await this.prisma.deliveryType.findFirst({
-        where: {
-          name: dto.name, 
-        },
-      });
+    // Check if delivery type already exists
+    const isExist = await this.prisma.deliveryType.findFirst({
+      where: {
+        name: dto.name,
+      },
+    });
 
-      if (isExist) {
-        throw new ConflictException('Delivery type already exists');
-      }
-
-      // Create delivery type
-      return await this.prisma.deliveryType.create({  
-          data: {
-          name: dto.name,
-          percentage: dto.percentage,
-          pickup_duration: dto.pickup_duration,
-          delivery_duration: dto.delivery_duration,
-          is_active: dto.is_active,
-          // map admin_id into nested relation
-          admin: {
-            connect: { id: user.id }
-          },
-          }, 
-      });
+    if (isExist) {
+      throw new ConflictException('Delivery type already exists');
     }
+
+    // Create delivery type
+    return await this.prisma.deliveryType.create({
+      data: {
+        name: dto.name,
+        percentage: dto.percentage,
+        pickup_duration: dto.pickup_duration,
+        delivery_duration: dto.delivery_duration,
+        is_active: dto.is_active,
+        // map admin_id into nested relation
+      },
+    });
+  }
 
 
   // find all delivery type
   async findAll() {
     return this.prisma.deliveryType.findMany();
   }
-   
+
   // find one delivery type
   async findOne(id: number) {
     const item = await this.prisma.deliveryType.findUnique({ where: { id } });
     if (!item) throw new NotFoundException('Delivery type not found');
     return item;
   }
-  
+
   // update one delivery type
   async update(id: number, data: UpdateDeliveryTypeDto, user: any) {
     this.verifyAdmin(user);
