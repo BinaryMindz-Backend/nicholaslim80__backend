@@ -28,9 +28,7 @@ export class RidersProfileController {
   @ApiBearerAuth()
   async create(@Body() createRidersProfileDto: CreateRidersProfileDto,
     @CurrentUser() user: IUser,
-
   ) {
-
     try {
       const res = await this.ridersProfileService.create(user.id, createRidersProfileDto);
       return ApiResponses.success(res, 'Rider profile created successfully');
