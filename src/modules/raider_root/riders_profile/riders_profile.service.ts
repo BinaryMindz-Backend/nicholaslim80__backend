@@ -7,7 +7,7 @@ import { LoginType, RaiderStatus, RaiderVerification, UserRole } from '@prisma/c
 import { ApiResponses } from 'src/common/apiResponse';
 import { GetRidersQueryDto } from './dto/query-riders.dto';
 import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
-import  bcrypt from "bcrypt"
+import bcrypt from "bcrypt"
 
 
 // 
@@ -18,8 +18,8 @@ export class RidersProfileService {
   ) { }
 
   async create(userId: number, createRidersProfileDto: CreateRidersProfileDto) {
- 
-    
+
+
     // 
     const riderExists = await this.prisma.raider.findFirst({
       where: {
@@ -122,48 +122,48 @@ export class RidersProfileService {
       throw new Error('Rider registration not found for this rider');
     }
 
-    if(verify === RaiderVerification.APPROVED){
+    if (verify === RaiderVerification.APPROVED) {
       // 
       const updatedProfile = await this.prisma.raider.update({
         where: { id: r.id },
         data: {
           raider_verificationFromAdmin: verify,
-          raider_status:RaiderStatus.ACTIVE
-        },
-      });
- 
-      return updatedProfile;
-      }     
-    
-        //  
-      if(verify === RaiderVerification.PENDING){
-      // 
-      const updatedProfile = await this.prisma.raider.update({
-        where: { id: r.id },
-        data: {
-          raider_verificationFromAdmin: verify,
-          raider_status:RaiderStatus.IN_ACTIVE
+          raider_status: RaiderStatus.ACTIVE
         },
       });
 
       return updatedProfile;
-      }     
+    }
+
+    //  
+    if (verify === RaiderVerification.PENDING) {
+      // 
+      const updatedProfile = await this.prisma.raider.update({
+        where: { id: r.id },
+        data: {
+          raider_verificationFromAdmin: verify,
+          raider_status: RaiderStatus.IN_ACTIVE
+        },
+      });
+
+      return updatedProfile;
+    }
     // 
 
-        if(verify === RaiderVerification.REJECTED){
+    if (verify === RaiderVerification.REJECTED) {
       // 
       const updatedProfile = await this.prisma.raider.update({
         where: { id: r.id },
         data: {
           raider_verificationFromAdmin: verify,
-          raider_status:RaiderStatus.IN_ACTIVE
+          raider_status: RaiderStatus.IN_ACTIVE
         },
       });
 
       return updatedProfile;
-      }  
-
     }
+
+  }
 
 
 
@@ -199,18 +199,18 @@ export class RidersProfileService {
   async remove(userId: number) {
     // 
     const record = await this.prisma.raider.findFirst({
-         where:{
-          userId
-         }
+      where: {
+        userId
+      }
     })
     // 
-    if(!record){
-        throw new NotFoundException("User not found")
+    if (!record) {
+      throw new NotFoundException("User not found")
     }
     // 
-     
+
     const res = await this.prisma.raider.delete({
-      where: { id: record.id},
+      where: { id: record.id },
     });
     return res;
     // 
@@ -220,6 +220,7 @@ export class RidersProfileService {
 
   // 
   async suspendRiderProfile(id: number, dto: SuspendRiderProfileDto) {
+    console.log(dto);
     const res = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
       include: { registrations: true },
@@ -252,73 +253,73 @@ export class RidersProfileService {
   async adminCreateRiderProfile(dto: CreateRidersProfileDto) {
 
     // 
-      const record = await this.prisma.user.findFirst({
-            where:{
-               OR:[
-                  {email:dto.email_address},
-                  {phone:dto.contact_number}
-               ]
-            }
-      })
-      const registration = await this.prisma.raiderRegistration.findFirst({
-            where:{
-                 OR:[
-                    {contact_number:dto.contact_number},
-                    {email_address:dto.email_address}
-                 ]
-            }
-      })
-      // 
-      if(record || registration){
-           throw new NotFoundException("record already exist")
+    const record = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: dto.email_address },
+          { phone: dto.contact_number }
+        ]
       }
+    })
+    const registration = await this.prisma.raiderRegistration.findFirst({
+      where: {
+        OR: [
+          { contact_number: dto.contact_number },
+          { email_address: dto.email_address }
+        ]
+      }
+    })
+    // 
+    if (record || registration) {
+      throw new NotFoundException("record already exist")
+    }
+    // 
+    const cteatedRaider = await this.prisma.$transaction(async (tx) => {
       // 
-    const cteatedRaider = await this.prisma.$transaction(async(tx)=>{
-            // 
-        const defaultpassword = process.env.RAIDER_DEFAULT_PASSWORD;
-            // 
-            if (!defaultpassword) {
-                  throw new NotFoundException('Default password is not set in environment variables');
-            }
-          const hashedPass = await bcrypt.hash(defaultpassword, 10);
-              // 
-           const user = await tx.user.create({
-                 data:{
-                    username:dto.raider_name,
-                    email:dto.email_address,
-                    phone:dto.contact_number,
-                    role:UserRole.RAIDER,
-                    regi_status:LoginType.ADMIN_SIGNIN  ,
-                    is_active:true,
-                    is_verified:true,
-                    password:hashedPass
-                 }
-             })
-            //  
-           const raider =  await tx.raider.create({
-                 data:{
-                    userId:user?.id,
-                    LoginType:LoginType.ADMIN_SIGNIN,
-                    raider_verificationFromAdmin:RaiderVerification.APPROVED,
-                    raider_status:RaiderStatus.ACTIVE
-                 }
-           }) 
-          // 
-          const reg =await tx.raiderRegistration.create({
-                data:{
-                    ...dto,
-                    raiderId:raider?.id
-                } 
-          })
+      const defaultpassword = process.env.RAIDER_DEFAULT_PASSWORD;
+      // 
+      if (!defaultpassword) {
+        throw new NotFoundException('Default password is not set in environment variables');
+      }
+      const hashedPass = await bcrypt.hash(defaultpassword, 10);
+      // 
+      const user = await tx.user.create({
+        data: {
+          username: dto.raider_name,
+          email: dto.email_address,
+          phone: dto.contact_number,
+          role: UserRole.RAIDER,
+          regi_status: LoginType.ADMIN_SIGNIN,
+          is_active: true,
+          is_verified: true,
+          password: hashedPass
+        }
+      })
+      //  
+      const raider = await tx.raider.create({
+        data: {
+          userId: user?.id,
+          LoginType: LoginType.ADMIN_SIGNIN,
+          raider_verificationFromAdmin: RaiderVerification.APPROVED,
+          raider_status: RaiderStatus.ACTIVE
+        }
+      })
+      // 
+      const reg = await tx.raiderRegistration.create({
+        data: {
+          ...dto,
+          raiderId: raider?.id
+        }
+      })
 
 
-         return {
-             user,
-             raider,
-             reg 
-         }
+      return {
+        user,
+        raider,
+        reg
+      }
 
-       })
+    })
     //  send res
     return cteatedRaider
   }
@@ -330,11 +331,11 @@ export class RidersProfileService {
   //
   async adminUpdateRiderProfile(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
     const raiderExists = await this.prisma.raider.findFirst({
-      where: { 
-          OR:[
-            {id: Number(id)}
-          ]
-       },
+      where: {
+        OR: [
+          { id: Number(id) }
+        ]
+      },
     });
 
     if (!raiderExists) {

@@ -14,15 +14,17 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { Auth } from 'src/decorators/auth.decorator';
 import { UserRole } from '@prisma/client';
 import { Roles } from 'src/decorators/roles.decorator';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Controller('content-management')
 export class ContentManagementController {
   constructor(
     private readonly contentManagementService: ContentManagementService,
-  ) {}
+  ) { }
 
   @Post()
   @Auth()
+  @ApiBearerAuth()
   @Roles(UserRole.SUPER_ADMIN)
   async create(@Body() createContentManagementDto: CreateContentManagementDto) {
     try {
@@ -39,6 +41,8 @@ export class ContentManagementController {
   }
 
   @Get()
+  @Auth()
+  @ApiBearerAuth()
   async findAll() {
     try {
       const res = await this.contentManagementService.findAll();
@@ -52,7 +56,8 @@ export class ContentManagementController {
   }
 
   @Get(':id')
-
+  @Auth()
+  @ApiBearerAuth()
   async findOne(@Param('id') id: string) {
     try {
       const res = await this.contentManagementService.findOne(+id);
@@ -66,7 +71,8 @@ export class ContentManagementController {
   }
 
   @Patch(':id')
-   @Auth()
+  @Auth()
+  @ApiBearerAuth()
   @Roles(UserRole.SUPER_ADMIN)
   async update(
     @Param('id') id: string,
@@ -87,7 +93,8 @@ export class ContentManagementController {
   }
 
   @Delete(':id')
-   @Auth()
+  @Auth()
+  @ApiBearerAuth()
   @Roles(UserRole.SUPER_ADMIN)
   async remove(@Param('id') id: string) {
     try {
