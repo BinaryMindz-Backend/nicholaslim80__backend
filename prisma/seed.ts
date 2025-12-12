@@ -3,30 +3,29 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-// ============================================
 // DEFINE YOUR MODULES (Add new modules here)
-// ============================================
 enum Module {
   USER = 'user',
   ORDER = 'order',
   TRANSACTION = 'transaction',
-  SERVICES = 'services',
-  // 🆕 Add new modules here
-  PAYMENT = 'payment',
-  PRODUCT = 'product',
-  INVENTORY = 'inventory',
+  RBAC="rbac",
+  
+
 }
 
-// ============================================
 // DEFINE GRANULAR PERMISSIONS
-// ============================================
 enum Permission {
   // Basic CRUD
   CREATE = 'create',
   READ = 'read',
   DELETE = 'delete',
+  UPDATE="update",
   
+
+  // 
+  UPDATE_RBAC_ROLE_PERMISSION="update_rbac_role_permission",
   // USER specific
+  GET_USER_PROFILE="get_user_profile",
   UPDATE_USER_PROFILE = 'update_user_profile',
   UPDATE_USER_ROLE = 'update_user_role',
   UPDATE_USER_STATUS = 'update_user_status',
@@ -42,39 +41,27 @@ enum Permission {
   UPDATE_TRANSACTION_AMOUNT = 'update_transaction_amount',
   APPROVE_TRANSACTION = 'approve_transaction',
   REFUND_TRANSACTION = 'refund_transaction',
-  
-  // SERVICES specific
-  UPDATE_SERVICE_DETAILS = 'update_service_details',
-  UPDATE_SERVICE_PRICING = 'update_service_pricing',
-  UPDATE_SERVICE_STATUS = 'update_service_status',
+
 
   // 🆕 PAYMENT specific (new module)
   UPDATE_PAYMENT_METHOD = 'update_payment_method',
   PROCESS_PAYMENT = 'process_payment',
   REFUND_PAYMENT = 'refund_payment',
 
-  // 🆕 PRODUCT specific (new module)
-  UPDATE_PRODUCT_DETAILS = 'update_product_details',
-  UPDATE_PRODUCT_PRICE = 'update_product_price',
-  UPDATE_PRODUCT_STATUS = 'update_product_status',
-
-  // 🆕 INVENTORY specific (new module)
-  UPDATE_INVENTORY_STOCK = 'update_inventory_stock',
-  ADJUST_INVENTORY = 'adjust_inventory',
 }
 
-// ============================================
 // DEFAULT PERMISSIONS FOR EACH ROLE
-// ============================================
 const ROLE_PERMISSIONS = {
   [UserRole.SUPER_ADMIN]: [
     // USER module - full access
     { module: Module.USER, action: Permission.CREATE },
     { module: Module.USER, action: Permission.READ },
+    { module: Module.USER, action: Permission.UPDATE },
     { module: Module.USER, action: Permission.UPDATE_USER_PROFILE },
     { module: Module.USER, action: Permission.UPDATE_USER_ROLE },
     { module: Module.USER, action: Permission.UPDATE_USER_STATUS },
     { module: Module.USER, action: Permission.DELETE },
+    { module: Module.USER, action: Permission.GET_USER_PROFILE },
     
     // ORDER module - full access
     { module: Module.ORDER, action: Permission.CREATE },
@@ -94,69 +81,36 @@ const ROLE_PERMISSIONS = {
     { module: Module.TRANSACTION, action: Permission.REFUND_TRANSACTION },
     { module: Module.TRANSACTION, action: Permission.DELETE },
     
-    // SERVICES module - full access
-    { module: Module.SERVICES, action: Permission.CREATE },
-    { module: Module.SERVICES, action: Permission.READ },
-    { module: Module.SERVICES, action: Permission.UPDATE_SERVICE_DETAILS },
-    { module: Module.SERVICES, action: Permission.UPDATE_SERVICE_PRICING },
-    { module: Module.SERVICES, action: Permission.UPDATE_SERVICE_STATUS },
-    { module: Module.SERVICES, action: Permission.DELETE },
-
-    // 🆕 PAYMENT module - full access
-    { module: Module.PAYMENT, action: Permission.CREATE },
-    { module: Module.PAYMENT, action: Permission.READ },
-    { module: Module.PAYMENT, action: Permission.UPDATE_PAYMENT_METHOD },
-    { module: Module.PAYMENT, action: Permission.PROCESS_PAYMENT },
-    { module: Module.PAYMENT, action: Permission.REFUND_PAYMENT },
-    { module: Module.PAYMENT, action: Permission.DELETE },
-
-    // 🆕 PRODUCT module - full access
-    { module: Module.PRODUCT, action: Permission.CREATE },
-    { module: Module.PRODUCT, action: Permission.READ },
-    { module: Module.PRODUCT, action: Permission.UPDATE_PRODUCT_DETAILS },
-    { module: Module.PRODUCT, action: Permission.UPDATE_PRODUCT_PRICE },
-    { module: Module.PRODUCT, action: Permission.UPDATE_PRODUCT_STATUS },
-    { module: Module.PRODUCT, action: Permission.DELETE },
-
-    // 🆕 INVENTORY module - full access
-    { module: Module.INVENTORY, action: Permission.CREATE },
-    { module: Module.INVENTORY, action: Permission.READ },
-    { module: Module.INVENTORY, action: Permission.UPDATE_INVENTORY_STOCK },
-    { module: Module.INVENTORY, action: Permission.ADJUST_INVENTORY },
-    { module: Module.INVENTORY, action: Permission.DELETE },
+    // RBAC MODULE
+    {module:Module.RBAC, action:Permission.CREATE},
+    {module:Module.RBAC, action:Permission.READ},
+    {module:Module.RBAC, action:Permission.DELETE},
+    {module:Module.RBAC, action:Permission.READ} ,
+    {module:Module.RBAC, action:Permission.UPDATE_RBAC_ROLE_PERMISSION}   
+  
   ],
   
   [UserRole.RAIDER]: [
-    // ORDER module - limited access
-    { module: Module.ORDER, action: Permission.CREATE },
-    { module: Module.ORDER, action: Permission.READ },
-    { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS },
-    
-    // SERVICES module - read only
-    { module: Module.SERVICES, action: Permission.READ },
-
-    // 🆕 INVENTORY module - read and update stock
-    { module: Module.INVENTORY, action: Permission.READ },
-    { module: Module.INVENTORY, action: Permission.UPDATE_INVENTORY_STOCK },
+    // User module - limited access
+    { module: Module.USER, action: Permission.GET_USER_PROFILE },
+    { module: Module.USER, action: Permission.UPDATE },
   ],
+
+
+
   
   [UserRole.USER]: [
-    // ORDER module - basic access
-    { module: Module.ORDER, action: Permission.CREATE },
-    { module: Module.ORDER, action: Permission.READ },
-    
-    // SERVICES module - read only
-    { module: Module.SERVICES, action: Permission.READ },
+    // User module - basic access
+  { module: Module.USER, action: Permission.READ },
+  { module: Module.USER, action: Permission.UPDATE },
 
-    // 🆕 PRODUCT module - read only
-    { module: Module.PRODUCT, action: Permission.READ },
+
+
   ],
 };
 
-// ============================================
 // SYNC PERMISSIONS FOR EXISTING ROLES
 // (Run this to update permissions for existing roles)
-// ============================================
 async function syncPermissionsForExistingRoles() {
   console.log('🔄 Syncing permissions for existing roles...\n');
 
@@ -231,9 +185,7 @@ async function syncPermissionsForExistingRoles() {
   console.log('🎉 Permission sync completed!\n');
 }
 
-// ============================================
 // INITIAL SEED (First time setup)
-// ============================================
 async function initialSeed() {
   const superAdminEmail = process.env.SUPER_ADMIN_EMAIL;
   const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD;
@@ -356,9 +308,7 @@ async function initialSeed() {
   return true; // Return true to indicate seed was successful
 }
 
-// ============================================
 // MAIN FUNCTION - Smart Seeding
-// ============================================
 async function main() {
   // Check if this is first time or update
   const existingRoles = await prisma.role.count();

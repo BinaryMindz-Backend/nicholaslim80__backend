@@ -42,34 +42,28 @@ export class RbacService implements OnModuleInit {
           { module: Module.TRANSACTION, action: Permission.APPROVE_TRANSACTION },
           { module: Module.TRANSACTION, action: Permission.REFUND_TRANSACTION },
           { module: Module.TRANSACTION, action: Permission.DELETE },
-          
-          { module: Module.SERVICES, action: Permission.CREATE },
-          { module: Module.SERVICES, action: Permission.READ },
-          { module: Module.SERVICES, action: Permission.UPDATE_SERVICE_DETAILS },
-          { module: Module.SERVICES, action: Permission.UPDATE_SERVICE_PRICING },
-          { module: Module.SERVICES, action: Permission.UPDATE_SERVICE_STATUS },
-          { module: Module.SERVICES, action: Permission.DELETE },
         ],
       },
       {
         name: STATIC_ROLES.RAIDER,
         permissions: [
-          { module: Module.ORDER, action: Permission.CREATE },
-          { module: Module.ORDER, action: Permission.READ },
-          { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS },
-          { module: Module.SERVICES, action: Permission.READ },
+            { module: Module.USER, action: Permission.GET_USER_PROFILE },
+            { module: Module.USER, action: Permission.UPDATE },
         ],
       },
       {
         name: STATIC_ROLES.USER,
         permissions: [
-          { module: Module.ORDER, action: Permission.CREATE },
-          { module: Module.ORDER, action: Permission.READ },
-          { module: Module.SERVICES, action: Permission.READ },
+                { module: Module.USER, action: Permission.READ },
+                { module: Module.USER, action: Permission.UPDATE },
+                { module: Module.USER, action: Permission.GET_USER_PROFILE },
+
+          
         ],
       },
     ];
-
+    
+    // Creating Dynamic role
     for (const role of staticRoles) {
       const existingRole = await this.prisma.role.findUnique({
         where: { name: role.name },
@@ -286,15 +280,7 @@ export class RbacService implements OnModuleInit {
         Permission.APPROVE_TRANSACTION,
         Permission.REFUND_TRANSACTION,
         Permission.DELETE,
-      ],
-      [Module.SERVICES]: [
-        Permission.CREATE,
-        Permission.READ,
-        Permission.UPDATE_SERVICE_DETAILS,
-        Permission.UPDATE_SERVICE_PRICING,
-        Permission.UPDATE_SERVICE_STATUS,
-        Permission.DELETE,
-      ],
+      ]
     };
   }
 }

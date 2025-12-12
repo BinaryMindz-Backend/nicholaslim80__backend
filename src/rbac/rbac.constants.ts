@@ -2,7 +2,7 @@ export enum Module {
   USER = 'user',
   ORDER = 'order',
   TRANSACTION = 'transaction',
-  SERVICES = 'services',
+  RBAC="rbac"
 }
 
 // Granular permissions with specific actions
@@ -11,6 +11,11 @@ export enum Permission {
   CREATE = 'create',
   READ = 'read',
   DELETE = 'delete',
+  UPDATE="update",
+
+
+  // RBAC UPDATE
+  UPDATE_RBAC_ROLE_PERMISSION="update_rbac_role_permission",
   
   // ORDER specific granular permissions
   UPDATE_ORDER_STATUS = 'update_order_status',
@@ -25,14 +30,11 @@ export enum Permission {
   REFUND_TRANSACTION = 'refund_transaction',
   
   // USER specific granular permissions
+  GET_USER_PROFILE="get_user_profile",
   UPDATE_USER_PROFILE = 'update_user_profile',
   UPDATE_USER_ROLE = 'update_user_role',
   UPDATE_USER_STATUS = 'update_user_status',
   
-  // SERVICES specific granular permissions
-  UPDATE_SERVICE_DETAILS = 'update_service_details',
-  UPDATE_SERVICE_PRICING = 'update_service_pricing',
-  UPDATE_SERVICE_STATUS = 'update_service_status',
 }
 
 

@@ -87,9 +87,16 @@ export class AdvertiseController {
   @Get('stats/global')
   @ApiOperation({ summary: 'Get global advertisement statistics' })
   @ApiResponse({ status: 200, description: 'Total stats fetched successfully' })
-  async getGlobalStats() {
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    type: String,
+    example: 'USER',
+    description: 'Filter stats based on role (optional)',
+  })
+  async getGlobalStats(@Query('role') role: string) {
     try {
-      const res = await this.advertiseService.getTotalStats();
+      const res = await this.advertiseService.getTotalStats(role);
       return ApiResponses.success(res, 'Total advertise stats fetched successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to fetch global stats');

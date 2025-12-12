@@ -127,6 +127,9 @@ export class UsersService {
           { phone }
         ]
       },
+      include:{
+          role:true,
+      }
     });
   }
 
@@ -307,7 +310,7 @@ async findAllUsers(filterDto: UserFilterDto) {
   // ** Get user by user id
   async findMe(user: IUser) {
     if (!user.id) throw new NotFoundException("User id not found")
-    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true, adminProfiles:true} });
+    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true,role:true, adminProfiles:true} });
   }
 
 
@@ -451,7 +454,7 @@ async findAllUsers(filterDto: UserFilterDto) {
           // 
       const role = await this.prisma.role.findFirst({
         where:{
-            name:UserRole.USER
+            name:dto.role_name
         }
         })
       if(!role){
@@ -485,6 +488,7 @@ async findAllUsers(filterDto: UserFilterDto) {
       });
       return res;
   } 
+  // 
   
 
 

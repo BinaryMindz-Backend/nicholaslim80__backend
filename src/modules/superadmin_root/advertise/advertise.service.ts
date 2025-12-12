@@ -191,9 +191,13 @@ async statusUpdate(id: number) {
   }
 
   // GLOBAL TOTAL STATS
-    async getTotalStats() {
+    async getTotalStats(role:string) {
         // Count total ads
-        const totalAds = await this.prisma.advertise.count();
+        const totalAds = await this.prisma.advertise.count({
+            where:{
+              create_for:role
+            }
+        });
 
         // Count active/expired/running
         const now = new Date();
@@ -202,44 +206,56 @@ async statusUpdate(id: number) {
           where: {
             start_date: { lte: now },
             end_date: { gte: now },
+            create_for:role
           },
         });
 
         const expiredAds = await this.prisma.advertise.count({
           where: {
             end_date: { lt: now },
+            create_for:role
           },
         });
 
         const scheduledAds = await this.prisma.advertise.count({
           where: {
             start_date: { gt: now },
+            create_for:role
           },
         });
 
         // Aggregate total impressions & clicks
-        const analytics = await this.prisma.advertiseAnalytics.aggregate({
-          _sum: {
-            impression: true,
-            click: true,
-          },
-        });
+          const where: any = {};
 
+            // If role is provided, filter analytics by related advertisement role
+            if (role) {
+              where.advertise = {
+                create_for: role,
+              };
+            }
+
+            const analytics = await this.prisma.advertiseAnalytics.aggregate({
+              where,
+              _sum: {
+                impression: true,
+                click: true,
+              },
+            });
         const totalImpression = analytics._sum.impression || 0;
         const totalClick = analytics._sum.click || 0;
 
         const avgCtr =
           totalImpression > 0 ? Number(((totalClick / totalImpression) * 100).toFixed(2)) : 0;
 
-  return {
-    totalAds,
-    activeAds,
-    expiredAds,
-    scheduledAds,
-    totalImpression,
-    totalClick,
-    avgCtr,
-  };
+        return {
+          totalAds,
+          activeAds,
+          expiredAds,
+          scheduledAds,
+          totalImpression,
+          totalClick,
+          avgCtr,
+        };
 }
 
   async addImpression(advertiseId: number) {
