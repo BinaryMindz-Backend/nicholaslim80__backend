@@ -372,12 +372,10 @@ export class RidersProfileService {
   async adminUpdateRiderProfile(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
     const raiderExists = await this.prisma.raider.findFirst({
       where: {
-        OR: [
-          { id: Number(id) }
-        ]
+        id: Number(id)
       },
     });
-
+    console.log({ raiderExists });
     if (!raiderExists) {
       return ApiResponses.error('Rider not found');
     }
@@ -386,7 +384,6 @@ export class RidersProfileService {
     const registration = await this.prisma.raiderRegistration.findFirst({
       where: { raiderId: Number(raiderExists.id) },
     });
-
     if (!registration) {
       return ApiResponses.error('Rider profile not found for this rider');
     }

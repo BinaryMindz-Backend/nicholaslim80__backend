@@ -17,7 +17,6 @@ export class MoneyManagementService {
         total_cost: true,
         created_at: true,
 
-
       }
     });
     console.log({ allorderDetailsInformation });
