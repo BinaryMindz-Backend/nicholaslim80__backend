@@ -191,13 +191,9 @@ export class AdvertiseService {
   }
 
   // GLOBAL TOTAL STATS
-  async getTotalStats(role: string) {
+  async getTotalStats() {
     // Count total ads
-    const totalAds = await this.prisma.advertise.count({
-      where: {
-        create_for: role
-      }
-    });
+    const totalAds = await this.prisma.advertise.count();
 
     // Count active/expired/running
     const now = new Date();
@@ -206,41 +202,29 @@ export class AdvertiseService {
       where: {
         start_date: { lte: now },
         end_date: { gte: now },
-        create_for: role
       },
     });
 
     const expiredAds = await this.prisma.advertise.count({
       where: {
         end_date: { lt: now },
-        create_for: role
       },
     });
 
     const scheduledAds = await this.prisma.advertise.count({
       where: {
         start_date: { gt: now },
-        create_for: role
       },
     });
 
     // Aggregate total impressions & clicks
-    const where: any = {};
-
-    // If role is provided, filter analytics by related advertisement role
-    if (role) {
-      where.advertise = {
-        create_for: role,
-      };
-    }
-
     const analytics = await this.prisma.advertiseAnalytics.aggregate({
-      where,
       _sum: {
         impression: true,
         click: true,
       },
     });
+
     const totalImpression = analytics._sum.impression || 0;
     const totalClick = analytics._sum.click || 0;
 
@@ -257,6 +241,7 @@ export class AdvertiseService {
       avgCtr,
     };
   }
+
   async addImpression(advertiseId: number) {
     return await this.prisma.advertiseAnalytics.create({
       data: { advertiseId, impression: 1 },

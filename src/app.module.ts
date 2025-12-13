@@ -91,7 +91,8 @@ import { MoneyManagementModule } from './modules/superadmin_root/money-managemen
     AppService,
     TransactionIdService],
   exports: [
-    TransactionIdService
-  ]
+    TransactionIdService,
+  ],
+
 })
 export class AppModule { }
