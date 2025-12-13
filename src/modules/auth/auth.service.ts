@@ -141,7 +141,7 @@ export class AuthService {
   async forgotPassword(email: string,  phone:string) {
     const otp = await this.otpService.generateOtp(email, phone);
     // TODO:currently by email it will be in phone
-    console.log(otp);
+ 
     return { email,phone, message: "OTP sent", otp};
   }
 

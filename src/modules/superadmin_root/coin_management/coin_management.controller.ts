@@ -57,7 +57,7 @@ export class CoinManagementController {
   @Delete(':id')
   async remove(@Param('id') id: string) {
     try {
-     const data =  await this.coinManagementService.remove(+id);
+      const data = await this.coinManagementService.remove(+id);
       return ApiResponses.success(
         data,
         `${id} coin information is deleted successfully `,
@@ -66,4 +66,5 @@ export class CoinManagementController {
       return ApiResponses.error(error);
     }
   }
+  
 }

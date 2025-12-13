@@ -8,7 +8,14 @@ import { ApiResponses } from 'src/common/apiResponse';
 export class CoinManagementService {
   constructor(private readonly prisma: PrismaService) {}
   async create(createCoinManagementDto: CreateCoinManagementDto) {
-     
+     const dataexit = await this.prisma.coin.findFirst({
+      where:{
+        event_triggered: createCoinManagementDto.event_triggered
+      }
+     })
+     if(dataexit){
+      return ApiResponses.error("This Event Coin data already exit")
+     }
     const data = await this.prisma.coin.create({
       data: {
         ...createCoinManagementDto,
