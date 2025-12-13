@@ -1,18 +1,7 @@
 model ContentManagement {
-<<<<<<< HEAD
     id          Int                   @id @default(autoincrement())
     contenttype ContentManagementType
     description String
-    isPublished Boolean               @default(true)
+    isPublished Boolean
     version     Int?
 }
-=======
-     id               Int        @id @default(autoincrement())
-    contenttype ContentManagementType
-    description String
-    isPublished Boolean
-    version    Int?             
-}
-
- 
->>>>>>> fdd51d00e789624ecc53735cd31d1624eeccd080

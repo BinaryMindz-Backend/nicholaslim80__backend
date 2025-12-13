@@ -18,13 +18,10 @@ export class RidersProfileService {
   ) { }
 
   async create(userId: number, createRidersProfileDto: CreateRidersProfileDto) {
-<<<<<<< HEAD
 
 
-=======
- 
-    
->>>>>>> fdd51d00e789624ecc53735cd31d1624eeccd080
+
+
     // 
     const riderExists = await this.prisma.raider.findFirst({
       where: {
