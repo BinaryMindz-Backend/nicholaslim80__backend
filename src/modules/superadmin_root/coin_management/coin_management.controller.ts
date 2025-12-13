@@ -11,6 +11,12 @@ import { CoinManagementService } from './coin_management.service';
 import { CreateCoinManagementDto } from './dto/create-coin_management.dto';
 import { UpdateCoinManagementDto } from './dto/update-coin_management.dto';
 import { ApiResponses } from 'src/common/apiResponse';
+import { Auth } from 'src/decorators/auth.decorator';
+import { Roles } from 'src/decorators/roles.decorator';
+import { UserRole } from '@prisma/client';
+import { ApiBearerAuth } from '@nestjs/swagger';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 @Controller('coin-management')
 export class CoinManagementController {
@@ -66,5 +72,19 @@ export class CoinManagementController {
       return ApiResponses.error(error);
     }
   }
-  
+  @Post('reedom-coin/:id')
+  @Auth()
+  @Roles(UserRole.USER)
+  @ApiBearerAuth()
+  async reedomCoin(@Param('id') id: string, @CurrentUser() user: IUser,) {
+    try {
+      const data = await this.coinManagementService.reedomCoin(user, +id);
+      return ApiResponses.success(
+        data,
+        `User coin reedomed successfully `,
+      );
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
 }
