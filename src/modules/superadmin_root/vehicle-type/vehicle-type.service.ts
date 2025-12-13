@@ -2,13 +2,14 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateVehicleTypeDto } from './dto/create-vehicle-type.dto';
 import { UpdateVehicleTypeDto } from './dto/update-vehicle-type.dto';
+import type { IUser } from 'src/types';
 
 @Injectable()
 export class VehicleTypeService {
   constructor(private readonly prisma: PrismaService) { }
 
   // CREATE
-  async create(dto: CreateVehicleTypeDto, user: any) {
+  async create(dto: CreateVehicleTypeDto, user: IUser) {
     // 
     const exists = await this.prisma.vehicleType.findFirst({
       where: { vehicle_type: dto.vehicle_type, dimension: dto.dimension },

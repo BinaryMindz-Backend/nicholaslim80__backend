@@ -187,7 +187,6 @@ export class AuthService {
    if(user.reset_pass === false){
        throw new NotAcceptableException("Please verify your account through Otp")
    }
-   console.log(user);
   //  
   const hashed = await bcrypt.hash(newPassword, 10);
   const record = await bcrypt.compare(newPassword, user.password as string);

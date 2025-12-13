@@ -87,7 +87,7 @@ export class AdvertiseController {
       const res = await this.advertiseService.findAllRoleBased(
         pagination.page,
         pagination.limit,
-        user.role
+        user.role.name
       );
       return ApiResponses.success(res, 'Advertise list fetched successfully');
     } catch (error) {
@@ -118,6 +118,41 @@ export class AdvertiseController {
       return ApiResponses.error(error, 'Failed to fetch global stats');
     }
   }
+  
+    // GLOBAL STATS
+    @Get('stats/performance-trends')
+    @Auth()
+    @RequirePermission(Module.ADVERTISEMENT, Permission.JUST_ADMIN)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get global advertisement performance trends' })
+    @ApiResponse({ status: 200, description: 'Performance stats fetched successfully' })
+    @ApiQuery({
+      name: 'role',
+      required: false,
+      type: String,
+      example: 'USER',
+      description: 'Filter stats based on role (optional)',
+    })
+    @ApiQuery({
+      name: 'months',
+      required: false,
+      type: Number,
+      example: 3,
+      description: 'Number of past months to include (1, 2, or 3)',
+    })
+    async getPerformanceTrands(
+      @Query('role') role?: string,
+      @Query('months') months?: number,
+    ) {
+      try {
+        const res = await this.advertiseService.getPerformanceTrands(role, months);
+        return ApiResponses.success(res, 'Advertise performance trends fetched successfully');
+      } catch (error) {
+        return ApiResponses.error(error, 'Failed to fetch performance trends');
+      }
+    }
+
+
 
   // FIND ONE
   @Get(':id')

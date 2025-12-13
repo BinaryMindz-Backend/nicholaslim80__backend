@@ -4,6 +4,7 @@ import { CreateDeliveryTypeDto } from './dto/create-delivery-type.dto';
 import { UpdateDeliveryTypeDto } from './dto/update-delivery-type.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { UserRole } from '@prisma/client';
+import type { IUser } from 'src/types';
 
 
 
@@ -12,14 +13,15 @@ export class DeliveryTypeService {
   constructor(private prisma: PrismaService) {}
   
   // ** check role
-  private verifyAdmin(user: any) {
-    if (![UserRole.SUPER_ADMIN].includes(user.role)) {
-      throw new ForbiddenException('Admin access only');
+    private verifyAdmin(user: IUser) {
+      if (user.role.name !== UserRole.SUPER_ADMIN) {
+        throw new ForbiddenException('Admin access only');
+      }
     }
-  }
+
   
   // create an delivery type
-    async create(dto: CreateDeliveryTypeDto, user: any) {
+    async create(dto: CreateDeliveryTypeDto, user: IUser) {
       // Verify admin
       this.verifyAdmin(user);
 

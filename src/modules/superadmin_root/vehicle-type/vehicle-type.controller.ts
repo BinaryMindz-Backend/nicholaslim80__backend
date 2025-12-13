@@ -21,6 +21,7 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { Public } from 'src/decorators/public.decorator';
+import type{ IUser } from 'src/types';
 
 
 
@@ -40,7 +41,7 @@ export class VehicleTypeController {
   @ApiOperation({ summary: 'Create Vehicle Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @ApiResponse({ status: 201, description: 'Vehicle Type created successfully' })
-  async create(@Body() dto: CreateVehicleTypeDto, @CurrentUser() user: any) {
+  async create(@Body() dto: CreateVehicleTypeDto, @CurrentUser() user: IUser) {
     try {
       const result = await this.service.create(dto, user);
       return ApiResponses.success(result, 'Vehicle Type created successfully');

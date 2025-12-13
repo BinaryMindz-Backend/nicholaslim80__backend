@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, NotAcceptableException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateAdvertiseDto } from './dto/create-advertise.dto';
 import { UpdateAdvertiseDto } from './dto/update-advertise.dto';
+import { performanceCountType } from 'src/types';
 
 
 @Injectable()
@@ -258,6 +258,133 @@ async statusUpdate(id: number) {
         };
 }
 
+  // GLOBAL PERFORMANCE STATS
+async getPerformanceTrands(role?: string, months = 1) {
+  const { start, end } = this.getDateRange(months);
+  const now = new Date();
+
+  const advertiseWhere: any = {
+    created_at: {
+      gte: start,
+      lte: end,
+    },
+  };
+
+  if (role) advertiseWhere.create_for = role;
+
+  // -----------------------------
+  // AD COUNTS
+  // -----------------------------
+  const totalAds = await this.prisma.advertise.count({
+    where: advertiseWhere,
+  });
+
+  const activeAds = await this.prisma.advertise.count({
+    where: {
+      ...advertiseWhere,
+      start_date: { lte: now },
+      end_date: { gte: now },
+    },
+  });
+
+  const expiredAds = await this.prisma.advertise.count({
+    where: {
+      ...advertiseWhere,
+      end_date: { lt: now },
+    },
+  });
+
+  const scheduledAds = await this.prisma.advertise.count({
+    where: {
+      ...advertiseWhere,
+      start_date: { gt: now },
+    },
+  });
+
+  // -----------------------------
+  // ANALYTICS (TOTAL)
+  // -----------------------------
+  const analyticsWhere: any = {
+    createdAt: {
+      gte: start,
+      lte: end,
+    },
+  };
+
+  if (role) {
+    analyticsWhere.advertise = { create_for: role };
+  }
+
+  const analytics = await this.prisma.advertiseAnalytics.aggregate({
+    where: analyticsWhere,
+    _sum: {
+      impression: true,
+      click: true,
+    },
+  });
+
+  const totalImpression = analytics._sum.impression ?? 0;
+  const totalClick = analytics._sum.click ?? 0;
+  const avgCtr = totalImpression > 0 ? +(totalClick / totalImpression * 100).toFixed(2) : 0;
+
+  // -----------------------------
+  // WEEKLY BREAKDOWN (ARRAY)
+  // -----------------------------
+  const weeklyStats:performanceCountType= [];
+
+  for (let i = 0; i < 4; i++) {
+    const weekStart = new Date(start);
+    weekStart.setDate(start.getDate() + i * 7);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    const weekly = await this.prisma.advertiseAnalytics.aggregate({
+      where: {
+        createdAt: {
+          gte: weekStart,
+          lte: weekEnd,
+        },
+        ...(role && { advertise: { create_for: role } }),
+      },
+      _sum: {
+        impression: true,
+        click: true,
+      },
+    });
+
+    const impression = weekly._sum.impression ?? 0;
+    const click = weekly._sum.click ?? 0;
+    weeklyStats.push({
+      week: `Week ${i + 1}`,
+      impression,
+      click,
+      ctr: impression > 0 ? +(click / impression * 100).toFixed(2) : 0,
+    });
+  }
+
+  // -----------------------------
+  // RESPONSE
+  // -----------------------------
+  return {
+    range: {
+      from: start,
+      to: end,
+      months,
+    },
+    totalAds,
+    activeAds,
+    expiredAds,
+    scheduledAds,
+    totalImpression,
+    totalClick,
+    avgCtr,
+    weeklyStats,
+  };
+}
+
+
+
   async addImpression(advertiseId: number) {
     return await this.prisma.advertiseAnalytics.create({
       data: { advertiseId, impression: 1 },
@@ -272,6 +399,12 @@ async statusUpdate(id: number) {
 
 
 
+    private getDateRange(months = 1) {
+      const end = new Date();
+      const start = new Date();
+      start.setMonth(start.getMonth() - months);
+      return { start, end };
+    }
 
 
 
