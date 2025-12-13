@@ -2,11 +2,11 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, ParseIntPipe } from 
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RaiderDeductionFeeService } from './deduction_fee.service';
 import { Auth } from 'src/decorators/auth.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
 import { CreateRaiderDeductionFeeDto } from './dto/create_deduction_fee.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { UpdateRaiderDeductionFeeDto } from './dto/update-platform_fee.dto';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 
 @ApiTags('Raider Deduction Fee (platform fee) (admin only)')
@@ -16,7 +16,8 @@ export class RaiderDeductionFeeController {
 
   @Post()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a raider deduction fee' })
   async create(@Body() dto: CreateRaiderDeductionFeeDto) {
@@ -30,7 +31,8 @@ export class RaiderDeductionFeeController {
 
   @Get()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all raider deduction fees' })
   async findAll() {
@@ -44,7 +46,8 @@ export class RaiderDeductionFeeController {
 
   @Get(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single raider deduction fee by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
@@ -58,7 +61,8 @@ export class RaiderDeductionFeeController {
 
   @Patch(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a raider deduction fee by ID' })
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRaiderDeductionFeeDto) {
@@ -72,7 +76,8 @@ export class RaiderDeductionFeeController {
 
   @Delete(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a raider deduction fee by ID' })
   async remove(@Param('id', ParseIntPipe) id: number) {

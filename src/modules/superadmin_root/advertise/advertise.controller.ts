@@ -20,8 +20,12 @@ import {
   ApiResponse,
   ApiTags,
   ApiParam,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import type { IUser } from 'src/types';
+import { Auth } from 'src/decorators/auth.decorator';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 @ApiTags('Advertise')
 @Controller('advertise')
@@ -31,6 +35,9 @@ export class AdvertiseController {
   // CREATE
   @Post()
   @ApiOperation({ summary: 'Create a new advertisement' })
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.CREATE)
+  @ApiBearerAuth()
   @ApiResponse({ status: 201, description: 'Advertise created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid payload' })
   async create(@Body() dto: CreateAdvertiseDto) {
@@ -47,6 +54,9 @@ export class AdvertiseController {
 
   // FIND ALL (PAGINATED)
   @Get()
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.JUST_ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get list of advertisements for admin (paginated)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -65,6 +75,9 @@ export class AdvertiseController {
 
   // FIND ALL (PAGINATED)
   @Get()
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.READ)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get list of advertisements for users raider (paginated)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -85,11 +98,21 @@ export class AdvertiseController {
 
   // GLOBAL STATS
   @Get('stats/global')
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.JUST_ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get global advertisement statistics' })
   @ApiResponse({ status: 200, description: 'Total stats fetched successfully' })
-  async getGlobalStats() {
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    type: String,
+    example: 'USER',
+    description: 'Filter stats based on role (optional)',
+  })
+  async getGlobalStats(@Query('role') role: string) {
     try {
-      const res = await this.advertiseService.getTotalStats();
+      const res = await this.advertiseService.getTotalStats(role);
       return ApiResponses.success(res, 'Total advertise stats fetched successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to fetch global stats');
@@ -98,6 +121,9 @@ export class AdvertiseController {
 
   // FIND ONE
   @Get(':id')
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.READ)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get advertisement by ID' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Advertise fetched successfully' })
@@ -115,6 +141,9 @@ export class AdvertiseController {
 
   // UPDATE
   @Patch(':id')
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.UPDATE)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update advertisement by ID' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Advertise updated successfully' })
@@ -132,6 +161,9 @@ export class AdvertiseController {
   
   // UPDATE status
   @Patch('status/:id')
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.UPDATE)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update advertisement status by ID' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Advertise  status updated successfully' })
@@ -150,6 +182,9 @@ export class AdvertiseController {
 
   // DELETE
   @Delete(':id')
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.DELETE)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete advertisement by ID' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Advertise deleted successfully' })
@@ -167,6 +202,9 @@ export class AdvertiseController {
 
   // SINGLE AD STATS
   @Get(':id/stats')
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.JUST_ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get statistics for a single advertisement' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Advertise stats fetched successfully' })
@@ -181,6 +219,9 @@ export class AdvertiseController {
 
   // RECORD IMPRESSION
   @Post(':id/impression')
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.READ)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Record an impression on advertisement' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 201, description: 'Impression recorded successfully' })
@@ -200,6 +241,9 @@ export class AdvertiseController {
 
   // RECORD CLICK
   @Post(':id/click')
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.READ)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Record a click on advertisement' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 201, description: 'Click recorded successfully' })

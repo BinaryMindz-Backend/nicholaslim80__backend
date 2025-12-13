@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/core/database/prisma.service";
 import { NotificationService } from "./notification.service";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -17,8 +17,16 @@ export class NotificationSchedulerService {
   @Cron(CronExpression.EVERY_SECOND)
   async handleScheduledNotifications() {
     const now = new Date();
-    this.logger.log(`Cron running at ${now.toISOString()}`);
-
+    // this.logger.log(`Cron running at ${now.toISOString()}`);
+     
+    
+    // find the role
+    const role = await this.prisma.role.findMany({})
+    // console.log(role);
+    if(!role){
+       throw new NotFoundException("Role not found")
+    }
+    // 
     const notifications = await this.prisma.notification.findMany({
       where: {
         send_immediately: false,
@@ -26,13 +34,25 @@ export class NotificationSchedulerService {
       },
     });
     //  
-    this.logger.log(`${notifications.length} notifications to process`);
+    // TODO:need to active logger
+    // this.logger.log(`${notifications.length} notifications to process`);
+    
+
+    // check current role
+    let whereRole: Prisma.UserWhereInput = {};
 
     for (const n of notifications) {
-      const whereRole: Prisma.UserWhereInput = {};
-      if (n.target_role === UserRole.USER) whereRole.role = UserRole.USER;
-      else if (n.target_role === UserRole.RAIDER) whereRole.role = UserRole.RAIDER;
 
+      // if (n.target_role === UserRole.USER) whereRole.role.name = UserRole.USER;
+      // else if (n.target_role === UserRole.RAIDER) whereRole.role.name = UserRole.RAIDER;
+      
+       if (n.target_role === UserRole.USER) {
+            whereRole = { role: { name: UserRole.USER } };
+          } else if (n.target_role === UserRole.RAIDER) {
+            whereRole = { role: { name: UserRole.RAIDER } };
+          }
+
+      // 
       const users = await this.prisma.user.findMany({
         where: whereRole,
         select: { email: true, phone: true, fcmToken: true },

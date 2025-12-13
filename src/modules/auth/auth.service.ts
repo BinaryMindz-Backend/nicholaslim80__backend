@@ -62,6 +62,7 @@ export class AuthService {
 
   // Login using OTP
   async loginWithOtp(user: any) {
+    
     const tokens = await this.generateTokens(user);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
 
@@ -174,7 +175,7 @@ export class AuthService {
   // reset password
   async resetPassword(email: string,phone:string, newPassword: string) {
     // 
-
+    console.log(phone, newPassword);
     // 
   const user = await this.prisma.user.findFirst({
     where: {
@@ -186,9 +187,11 @@ export class AuthService {
    if(user.reset_pass === false){
        throw new NotAcceptableException("Please verify your account through Otp")
    }
+   console.log(user);
   //  
   const hashed = await bcrypt.hash(newPassword, 10);
   const record = await bcrypt.compare(newPassword, user.password as string);
+  console.log("hased",hashed, record,user );
   if (record) throw new NotAcceptableException('Password is correct you can login'); 
         // 
         await this.prisma.user.updateMany({

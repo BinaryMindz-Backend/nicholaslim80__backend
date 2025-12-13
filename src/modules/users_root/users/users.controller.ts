@@ -11,10 +11,10 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { AddMoneyDto } from './dto/add-money.dto';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 
 
@@ -26,7 +26,7 @@ export class UsersController {
   // ** Get all verified users
   @Get("/all")
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.USER, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users and raider' })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
@@ -43,7 +43,7 @@ export class UsersController {
   // ** Get all
     @Get()
     @Auth()
-    @Roles(UserRole.SUPER_ADMIN)
+    @RequirePermission(Module.USER, Permission.READ)
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Get all users (with filters & pagination)' })
     @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
@@ -57,7 +57,7 @@ export class UsersController {
     }
 
 
-  //  TODO:need to verify by role
+  //  TODO:need to verify by role currently hold
   // add money to wallet 
   @Patch('add-money')
   @Auth()
@@ -92,6 +92,7 @@ export class UsersController {
   // find me
   @Get("me")
   @Auth()
+  @RequirePermission(Module.USER, Permission.GET_USER_PROFILE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get Own profile' })
   @ApiResponse({ status: 200, description: 'User Own profile retrieved successfully' })
@@ -112,6 +113,7 @@ export class UsersController {
   @Get(':id')
   @Auth()
   @ApiBearerAuth()
+  @RequirePermission(Module.USER, Permission.GET_USER_PROFILE)
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'User retrieved successfully' })
@@ -132,7 +134,7 @@ export class UsersController {
   // ** Get delete single user
   @Get('deleted/:id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.USER, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get deleted user by ID' })
   @ApiParam({ name: 'id', description: 'User ID' })
@@ -156,6 +158,7 @@ export class UsersController {
   @Patch(':id')
   @Auth()
   @ApiBearerAuth()
+  @RequirePermission(Module.USER, Permission.UPDATE)
   @ApiOperation({ summary: 'Update user by ID' })
   @ApiResponse({ status: 200, description: 'User updated successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -174,7 +177,7 @@ export class UsersController {
   // ** is active for admin 
   @Patch('active/:id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.USER, Permission.UPDATE_USER_STATUS)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update active status user by ID' })
   @ApiResponse({ status: 200, description: 'User active status updated successfully' })
@@ -193,7 +196,7 @@ export class UsersController {
   // ** Soft delete user
   @Delete('soft/:id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.USER, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Soft delete user by ID' })
   @ApiBody({
@@ -218,7 +221,7 @@ export class UsersController {
   // ---------------------------------------------
   @Delete('permanent')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.USER, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Permanently delete multiple users' })
   @ApiBody({
@@ -240,13 +243,28 @@ export class UsersController {
   // admin create user 
   @Post('admin/create-user')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.USER, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create user by admin (Admin only)' })
   async adminCreateUser(@Body() dto: CreateUserDto) {
     try {
       const res = await this.usersService.adminCreateUser(dto);
       return ApiResponses.success(res, 'User created successfully by admin');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+
+    // admin create role user 
+  @Post('admin/custom-role-user')
+  @Auth()
+  @RequirePermission(Module.USER, Permission.CREATE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create custom by admin (Admin only)' })
+  async adminCreateRole(@Body() dto: CreateUserDto) {
+    try {
+      const res = await this.usersService.adminCreateUser(dto);
+      return ApiResponses.success(res, `${dto.role_name} created successfully by admin`);
     } catch (error) {
       return ApiResponses.error(error);
     }

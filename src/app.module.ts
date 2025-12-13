@@ -31,6 +31,12 @@ import { ContentManagementModule } from './modules/superadmin_root/content_manag
 import { CoinManagementModule } from './modules/superadmin_root/coin_management/coin_management.module';
 import { TransactionIdService } from './common/services/transaction-id.service';
 import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.module';
+import { RbacModule } from './rbac/rbac.module';
+import { APP_GUARD } from '@nestjs/core';
+import { PermissionGuard } from './rbac/guards/permission.guard';
+import { RbacController } from './rbac/rbac.controller';
+import { RbacService } from './rbac/rbac.service';
+import { JwtAuthGuard } from './guards/jwt.guard';
 
 
 @Module({
@@ -74,15 +80,29 @@ import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.m
     ContentManagementModule,
     CoinManagementModule,
     AdvertiseModule,
+    RbacModule
 
 
   ],
-  controllers: [AppController],
+  controllers: [AppController, RbacController],
   providers: [
      AppService,
-     TransactionIdService],
+     TransactionIdService,
+
+        {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard, // ← This runs FIRST
+    },
+      {
+      provide: APP_GUARD,
+      useClass: PermissionGuard,
+    }, 
+    RbacService
+    
+    ],
   exports:[
      TransactionIdService
-  ]
+  ],
+  
 })
 export class AppModule { }

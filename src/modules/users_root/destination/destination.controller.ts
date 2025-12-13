@@ -19,12 +19,12 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 
-import { Roles } from 'src/decorators/roles.decorator';
 import { Auth } from 'src/decorators/auth.decorator';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { ApiResponses } from 'src/common/apiResponse';
-import { UserRole } from '../users/dto/create-user.dto';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 
 
@@ -33,7 +33,8 @@ import { UserRole } from '../users/dto/create-user.dto';
 @ApiBearerAuth()
 @Controller('destination')
 @Auth()
-@Roles(UserRole.USER)
+// @Roles(UserRole.USER)
+@RequirePermission(Module.DESTINATION, Permission.ALL)
 export class DestinationController {
   constructor(private readonly service: DestinationService) { }
 

@@ -8,10 +8,10 @@ import type { IUser } from 'src/types';
 import { Auth } from 'src/decorators/auth.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
 import { RaiderVerification } from '@prisma/client';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from 'src/modules/users_root/users/dto/create-user.dto';
 import { GetRidersQueryDto } from './dto/query-riders.dto';
 import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 
 
@@ -22,7 +22,8 @@ export class RidersProfileController {
 
   @Post('raider-registration')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  // @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  @RequirePermission(Module.RAIDER, Permission.CREATE)
   @ApiOperation({ summary: 'Rider profile creation (Rider only)' })
   @ApiBody({ type: CreateRidersProfileDto })
   @ApiBearerAuth()
@@ -41,10 +42,11 @@ export class RidersProfileController {
   
 
 
-  @Post('rider-profiles')
+  @Get('rider-profiles')
   @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.RAIDER, Permission.JUST_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   async findAll(@Query() query: GetRidersQueryDto) {
     try {
@@ -54,6 +56,20 @@ export class RidersProfileController {
       return ApiResponses.error(error);
     }
   }
+  // 
+  // @Get('rider-profiles/new-joinee')
+  // @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
+  // @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  // @ApiBearerAuth()
+  // async findAll(@Query() query: GetRidersQueryDto) {
+  //   try {
+  //     const res = await this.ridersProfileService.findAll(query);
+  //     return ApiResponses.success(res, 'Rider profiles fetched successfully');
+  //   } catch (error) {
+  //     return ApiResponses.error(error);
+  //   }
+  // }
   
 
 
@@ -61,7 +77,8 @@ export class RidersProfileController {
   @ApiOperation({ summary: 'Rider profile fetching by id (Admin only)' })
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  @RequirePermission(Module.RAIDER, Permission.READ)
+  // @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
   async findOne(@Param('id') id: string) {
     try {
       const res = await this.ridersProfileService.findOne(id);
@@ -73,7 +90,8 @@ export class RidersProfileController {
 
   @Patch('verify-rider/:raiderId/:verify')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.RAIDER, Permission.JUST_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
   @ApiParam({
     name: 'verify',
     enum: RaiderVerification,
@@ -95,7 +113,8 @@ export class RidersProfileController {
   // 
   @Patch('update-rider-profile')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  // @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  @RequirePermission(Module.RAIDER, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update rider profile (Rider only)' })
   async update(@Body() updateRidersProfileDto: UpdateRidersProfileDto, @CurrentUser() user: IUser) {
@@ -110,7 +129,8 @@ export class RidersProfileController {
   @Delete(':userId')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.RAIDER, Permission.DELETE)
   @ApiOperation({ summary: 'Delete rider profile by id (Admin only)' })
   async remove(@Param('userId') userId: string) {
     try {
@@ -124,7 +144,8 @@ export class RidersProfileController {
   @Patch('suspend/:id')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.RAIDER, Permission.JUST_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Suspend rider profile by id (Admin only)' })
   async Suspend(@Param('id') id: string, @Body() suspendRiderProfileDto: SuspendRiderProfileDto) {
     try {
@@ -138,7 +159,8 @@ export class RidersProfileController {
   // create rider profile by admin 
   @Post('admin/create-rider')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.RAIDER, Permission.JUST_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create rider profile for a user (Admin only)' })
   async adminCreateRiderProfile(
@@ -155,7 +177,8 @@ export class RidersProfileController {
   // admin update rider profile
   @Patch('admin/update-rider/:id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.RAIDER, Permission.JUST_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update rider profile by admin (Admin only)' })
   async adminUpdateRiderProfile(

@@ -250,8 +250,19 @@ export class RidersProfileService {
 
   //
   async adminCreateRiderProfile(dto: CreateRidersProfileDto) {
+         // 
+        const role = await this.prisma.role.findFirst({
+         where:{
+              name:UserRole.RAIDER
+         }
+         })
+        if(!role){
+            throw new NotFoundException("Role not found")
+        }
 
-    // 
+
+
+       // 
       const record = await this.prisma.user.findFirst({
             where:{
                OR:[
@@ -275,7 +286,7 @@ export class RidersProfileService {
       // 
     const cteatedRaider = await this.prisma.$transaction(async(tx)=>{
             // 
-        const defaultpassword = process.env.RAIDER_DEFAULT_PASSWORD;
+           const defaultpassword = process.env.RAIDER_DEFAULT_PASSWORD;
             // 
             if (!defaultpassword) {
                   throw new NotFoundException('Default password is not set in environment variables');
@@ -287,8 +298,8 @@ export class RidersProfileService {
                     username:dto.raider_name,
                     email:dto.email_address,
                     phone:dto.contact_number,
-                    role:UserRole.RAIDER,
-                    regi_status:LoginType.ADMIN_SIGNIN  ,
+                    roleId:role.id,
+                    regi_status:LoginType.ADMIN_SIGNIN,
                     is_active:true,
                     is_verified:true,
                     password:hashedPass
