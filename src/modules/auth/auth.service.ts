@@ -10,10 +10,9 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { UsersService } from '../users_root/users/users.service';
-
 import { OtpService } from './otp.service';
 import { LoginDto } from './dto/login.dto';
-
+import { ForgotPasswordDto } from './dto/forgot.password';
 @Injectable()
 export class AuthService {
   constructor(
@@ -138,11 +137,19 @@ export class AuthService {
 
 
   // forgot password
-  async forgotPassword(email: string,  phone:string) {
-    const otp = await this.otpService.generateOtp(email, phone);
+  async forgotPassword( dto: ForgotPasswordDto) {
+        const user = await this.usersService.findByEmailOrPhone(dto.email,dto.phone); 
+        console.log(user);
+        if(!user){
+            throw new BadRequestException("User not found with provided email or phone")
+        }
+        if(!user.is_verified){
+            throw new BadRequestException("User not verified")
+        }
+    const otp = await this.otpService.generateOtp(dto.email, dto.phone);
     // TODO:currently by email it will be in phone
  
-    return { email,phone, message: "OTP sent", otp};
+    return { email: dto.email, phone: dto.phone, message: "OTP sent", otp};
   }
 
   
