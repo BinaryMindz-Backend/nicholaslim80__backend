@@ -2,10 +2,10 @@
 // require-permission.decorator.ts
 import { SetMetadata } from '@nestjs/common';
 import { Module, Permission } from '../rbac.constants';
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
 export const PERMISSION_KEY = 'permissions';
 export const RequirePermission = (module: Module, action: Permission) =>{
-  console.log("require permission --->",module, action);
      return SetMetadata(PERMISSION_KEY, { module, action });
 }
 
@@ -19,13 +19,10 @@ export const RequireAllPermissions = (...permissions: Array<{ module: Module; ac
   SetMetadata('all_permissions', permissions);
 
 // current-user.decorator.ts
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-// import { Module, Permission } from '../rbac.constants'
 
 export const CurrentUser = createParamDecorator(
   (data: unknown, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
-    console.log("form permission-->new", request.user);
     return request.user;
   },
 );

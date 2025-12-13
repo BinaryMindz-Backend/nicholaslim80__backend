@@ -164,7 +164,7 @@ export class RbacService implements OnModuleInit {
         action,
       },
     });
-
+    console.log("permission--->",permission, userId, module, action);
     return !!permission;
   }
 

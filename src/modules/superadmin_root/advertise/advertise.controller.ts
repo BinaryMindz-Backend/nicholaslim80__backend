@@ -74,7 +74,7 @@ export class AdvertiseController {
   }
 
   // FIND ALL (PAGINATED)
-  @Get()
+  @Get("/role-based")
   @Auth()
   @RequirePermission(Module.ADVERTISEMENT, Permission.READ)
   @ApiBearerAuth()
