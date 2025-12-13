@@ -451,18 +451,27 @@ async findAllUsers(filterDto: UserFilterDto) {
 
   // create user by admin
   async adminCreateUser(dto: CreateUserDto) {
-          // 
-      const role = await this.prisma.role.findFirst({
+
+    //  
+   const res = await this.prisma.$transaction(async(tx) => {
+              // 
+     let role = await tx.role.findFirst({
         where:{
             name:dto.role_name
         }
         })
+        // 
       if(!role){
-          throw new NotFoundException("Role not found")
+          role = await tx.role.create({
+            data:{
+                name:dto.role_name!
+            }
+        })  
       }
-
+      // 
+      
     // 
-    const userExists = await this.prisma.user.findFirst({
+    const userExists = await tx.user.findFirst({
         where: {
             OR:[
                {email: dto.email},
@@ -470,22 +479,42 @@ async findAllUsers(filterDto: UserFilterDto) {
             ]
         },
       });
+      
       // 
       if (userExists) {
           throw new ConflictException("User already exist")
       }
-      // 
-      const res = await this.prisma.user.create({
-        data: {
-          username:dto.username,
-          email: dto.email,
-          roleId:role.id,
-          phone: dto.phone,
-          is_verified: true,
-          is_active:true,
-          regi_status:LoginType.ADMIN_SIGNIN
-        },
-      });
+           const user = await tx.user.create({
+              data: {
+                username:dto.username,
+                email: dto.email,
+                roleId:role.id,
+                phone: dto.phone,
+                is_verified: true,
+                is_active:true,
+                regi_status:LoginType.ADMIN_SIGNIN
+              },
+              include:{
+                  role:true
+              }
+            });
+
+           const adminProfile = await tx.admin.create({
+              data:{
+                  userId:user.id,
+                  first_name:dto.username,
+                  email:dto.email,
+                  phone_number:dto.phone,
+                  password:dto.password,
+                  role_id:role.id
+              }
+           })
+           return {
+               user,
+               adminProfile
+           };
+   })
+
       return res;
   } 
   // 

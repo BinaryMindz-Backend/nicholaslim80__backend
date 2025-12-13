@@ -337,7 +337,7 @@ async getPerformanceTrands(role?: string, months = 1) {
     weekStart.setDate(start.getDate() + i * 7);
 
     const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setDate(weekStart.getDate() + 10);// TODO: change 6 to 10 for testing
 
     const weekly = await this.prisma.advertiseAnalytics.aggregate({
       where: {
@@ -352,7 +352,7 @@ async getPerformanceTrands(role?: string, months = 1) {
         click: true,
       },
     });
-
+  console.log(weekly, weekEnd, "week start -->",weekStart);
     const impression = weekly._sum.impression ?? 0;
     const click = weekly._sum.click ?? 0;
     weeklyStats.push({
