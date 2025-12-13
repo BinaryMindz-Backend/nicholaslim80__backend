@@ -1,8 +1,33 @@
 export enum Module {
   USER = 'user',
+  RAIDER="raider",  
   ORDER = 'order',
-  TRANSACTION = 'transaction',
-  RBAC="rbac"
+  SUPPORT_DISPUTE = 'support_dispute',
+  PAYMENT_TRANSACTION = 'payment_transaction',
+  LIVE_MAP="live_map",
+  NOTIFICATION="notification",
+  REPORT_ANALYTICS="report_analytics",
+  VECHICLE_PRICING="vechicle_pricing",
+  WALLET="wallet",
+  COIN="coin",
+  QUIZ="quiz",
+  ADVERTISEMENT="advertisement",
+  PLATFORM_FEE="platform_fee",
+  CONTENT_MANAGEMENT="content_management",
+  DRIVER_ORDER_COMPETITION="driver_order_competition",
+  CUSTOMER_ORDER_CONFIRMATION="customer_order_confirmation",
+  ORDER_PLACEMENT="order_placement",
+  RBAC="rbac",
+  //DESTINATION
+  DESTINATION='destination', 
+  // my raider
+  MY_RAIDER="my_raider",
+  // Payment_option module
+  PAYMENT_METHOD="payment_method",
+    // referral module
+  REFERRAL="referral",
+
+
 }
 
 // Granular permissions with specific actions
@@ -12,16 +37,22 @@ export enum Permission {
   READ = 'read',
   DELETE = 'delete',
   UPDATE="update",
+  ALL="all",
+  JUST_ADMIN="just_admin",
+  GET_ONE="get_one",
 
 
   // RBAC UPDATE
   UPDATE_RBAC_ROLE_PERMISSION="update_rbac_role_permission",
-  
   // ORDER specific granular permissions
   UPDATE_ORDER_STATUS = 'update_order_status',
-  UPDATE_ORDER_DETAILS = 'update_order_details',
-  UPDATE_ORDER_PRICE = 'update_order_price',
+  GET_ORDER_DETAILS = 'get_order_details',
+  ADD_DESTINATION_TO_ORDER = 'add_destination_to_order',
   CANCEL_ORDER = 'cancel_order',
+  // admin
+  ORDER_READ_MINE='order_read_mine',
+   // my raider
+  READ_ADMIN_MY_RAIDER='read_admin_my_raider',
   
   // TRANSACTION specific granular permissions
   UPDATE_TRANSACTION_STATUS = 'update_transaction_status',

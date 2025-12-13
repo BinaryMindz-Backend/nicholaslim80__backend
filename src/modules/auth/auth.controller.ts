@@ -123,6 +123,7 @@ export class AuthController {
   //** REFRESH TOKEN endpoint for new token generation
   @Post('refresh')
   @Auth()
+  @Public()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
   @ApiBody({
@@ -139,6 +140,7 @@ export class AuthController {
   @Post('logout')
   @ApiOperation({ summary: 'Logout user' })
   @Auth()
+  @Public()
   @ApiBearerAuth()
   async logout(@Req() req) {
     // console.log(req.user);
@@ -151,6 +153,7 @@ export class AuthController {
   // image upload for profile picture
   @ApiTags('File Upload')
   @Post('upload')
+  @Public()
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadImageDto })
   @UseInterceptors(

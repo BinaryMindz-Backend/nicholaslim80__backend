@@ -2,11 +2,11 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, ParseIntPipe } from 
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserFeeStructureService } from './fee_structure.service';
 import { Auth } from 'src/decorators/auth.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
 import { CreateUserFeeStructureDto } from './dto/create_ user_fee_structure.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { UpdateUserFeeStructureDto } from './dto/update-platform_fee.dto';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 
 @ApiTags('User Fee Structure (platform fee) (admin only)')
@@ -16,7 +16,8 @@ export class UserFeeStructureController {
 
   @Post()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a user fee structure' })
   async create(@Body() dto: CreateUserFeeStructureDto) {
@@ -30,7 +31,8 @@ export class UserFeeStructureController {
 
   @Get()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all user fee structures' })
   async findAll() {
@@ -44,7 +46,8 @@ export class UserFeeStructureController {
 
   @Get(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single user fee structure by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
@@ -58,7 +61,8 @@ export class UserFeeStructureController {
 
   @Patch(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a user fee structure by ID' })
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserFeeStructureDto) {
@@ -72,7 +76,8 @@ export class UserFeeStructureController {
 
   @Delete(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a user fee structure by ID' })
   async remove(@Param('id', ParseIntPipe) id: number) {

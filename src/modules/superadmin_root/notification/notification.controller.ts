@@ -2,14 +2,15 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { Controller, Post, Body, Patch, Param, Get, Query, Delete } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { AdminCreateNotificationDto } from './dto/create-notification.dto';
-import { Roles } from 'src/decorators/roles.decorator';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import { Auth } from 'src/decorators/auth.decorator';
 import { FindNotificationsDto } from './dto/find-notifications.dto';
 import { DeleteNotificationsDto } from './dto/delete-notifications.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import  type { IUser } from 'src/types';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
+import { Public } from 'src/decorators/public.decorator';
 
 
 //
@@ -20,8 +21,9 @@ export class NotificationController {
    
 
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
+  @RequirePermission(Module.NOTIFICATION, Permission.CREATE)
   @Post('admin/broadcast')
   @ApiOperation({ summary: 'Create a new notification and send (admin only)' })
   @ApiBody({ type: AdminCreateNotificationDto })
@@ -44,7 +46,8 @@ export class NotificationController {
   // get all
   @Get()
   @Auth()
-  @Roles(UserRole.USER, UserRole.RAIDER)
+  // @Roles(UserRole.USER, UserRole.RAIDER)
+  @RequirePermission(Module.NOTIFICATION, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all notifications' })
   @ApiResponse({ status: 200, description: 'Notifications fetched successfully' })
@@ -60,6 +63,7 @@ export class NotificationController {
 
   @Get(':id')
   @Auth()
+  @Public()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a notification by ID' })
   @ApiResponse({ status: 200, description: 'Notification fetched successfully' })
@@ -75,7 +79,8 @@ export class NotificationController {
 
   @Patch(':id/mark-read')
   @Auth()
-  @Roles(UserRole.USER, UserRole.RAIDER)
+  // @Roles(UserRole.USER, UserRole.RAIDER)
+  @RequirePermission(Module.NOTIFICATION, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark a notification as read' })
   @ApiResponse({ status: 200, description: 'Notification marked as read' })
@@ -92,7 +97,8 @@ export class NotificationController {
   @Delete(':id')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.NOTIFICATION, Permission.DELETE)
   @ApiOperation({ summary: 'Delete a notification by ID' })
   @ApiResponse({ status: 200, description: 'Notification deleted successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
@@ -108,7 +114,8 @@ export class NotificationController {
   @Post('delete-many')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.NOTIFICATION, Permission.DELETE)
   @ApiOperation({ summary: 'Delete multiple notifications' })
   @ApiResponse({ status: 200, description: 'Notifications deleted successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })

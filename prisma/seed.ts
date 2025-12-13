@@ -4,12 +4,35 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 // DEFINE YOUR MODULES (Add new modules here)
-enum Module {
+export enum Module {
   USER = 'user',
+  RAIDER="raider",  
   ORDER = 'order',
-  TRANSACTION = 'transaction',
+  SUPPORT_DISPUTE = 'support_dispute',
+  PAYMENT_TRANSACTION = 'payment_transaction',
+  LIVE_MAP="live_map",
+  NOTIFICATION="notification",
+  REPORT_ANALYTICS="report_analytics",
+  VECHICLE_PRICING="vechicle_pricing",
+  WALLET="wallet",
+  COIN="coin",
+  QUIZ="quiz",
+  ADVERTISEMENT="advertisement",
+  PLATFORM_FEE="platform_fee",
+  CONTENT_MANAGEMENT="content_management",
+  DRIVER_ORDER_COMPETITION="driver_order_competition",
+  CUSTOMER_ORDER_CONFIRMATION="customer_order_confirmation",
+  ORDER_PLACEMENT="order_placement",
   RBAC="rbac",
-  
+  // ** sub modules
+  //DESTINATION
+  DESTINATION='destination', 
+  // my raider
+  MY_RAIDER="my_raider",
+  // Payment_option module
+  PAYMENT_METHOD="payment_method",
+  // referral module
+  REFERRAL="referral",
 
 }
 
@@ -20,21 +43,33 @@ enum Permission {
   READ = 'read',
   DELETE = 'delete',
   UPDATE="update",
+  ALL="all",
+  JUST_ADMIN="just_admin",
+  GET_ONE="get_one",
   
-
+  //  
   // 
   UPDATE_RBAC_ROLE_PERMISSION="update_rbac_role_permission",
+  // ORDER specific granular permissions
+  UPDATE_ORDER_STATUS = 'update_order_status',
+  GET_ORDER_DETAILS = 'get_order_details',
+  ADD_DESTINATION_TO_ORDER = 'add_destination_to_order',
+  CANCEL_ORDER = 'cancel_order',
+
+  // admin
+  ORDER_READ_MINE='order_read_mine',
+  // my raider
+  READ_ADMIN_MY_RAIDER='read_admin_my_raider',
+  
+
+
+
+
   // USER specific
   GET_USER_PROFILE="get_user_profile",
   UPDATE_USER_PROFILE = 'update_user_profile',
   UPDATE_USER_ROLE = 'update_user_role',
   UPDATE_USER_STATUS = 'update_user_status',
-  
-  // ORDER specific
-  UPDATE_ORDER_STATUS = 'update_order_status',
-  UPDATE_ORDER_DETAILS = 'update_order_details',
-  UPDATE_ORDER_PRICE = 'update_order_price',
-  CANCEL_ORDER = 'cancel_order',
   
   // TRANSACTION specific
   UPDATE_TRANSACTION_STATUS = 'update_transaction_status',
@@ -62,25 +97,93 @@ const ROLE_PERMISSIONS = {
     { module: Module.USER, action: Permission.UPDATE_USER_STATUS },
     { module: Module.USER, action: Permission.DELETE },
     { module: Module.USER, action: Permission.GET_USER_PROFILE },
+    // auth module
+    { module: Module.PAYMENT_TRANSACTION, action: Permission.CREATE },
     
     // ORDER module - full access
     { module: Module.ORDER, action: Permission.CREATE },
     { module: Module.ORDER, action: Permission.READ },
+    { module: Module.ORDER, action: Permission.UPDATE },
+    { module: Module.ORDER, action: Permission.ADD_DESTINATION_TO_ORDER },
+    { module: Module.ORDER, action: Permission.GET_ORDER_DETAILS },
+    { module: Module.ORDER, action: Permission.ORDER_READ_MINE},
     { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS },
-    { module: Module.ORDER, action: Permission.UPDATE_ORDER_DETAILS },
-    { module: Module.ORDER, action: Permission.UPDATE_ORDER_PRICE },
     { module: Module.ORDER, action: Permission.CANCEL_ORDER },
     { module: Module.ORDER, action: Permission.DELETE },
-    
+    // RAIDER MODULE - FULL ACCESS
+    { module: Module.RAIDER, action: Permission.CREATE },
+    { module: Module.RAIDER, action: Permission.READ },
+    { module: Module.RAIDER, action: Permission.UPDATE },
+    { module: Module.RAIDER, action: Permission.DELETE },
+    { module: Module.RAIDER, action: Permission.JUST_ADMIN },
+    //Advertise MODULE
+    {module:Module.ADVERTISEMENT, action:Permission.CREATE},
+    {module:Module.ADVERTISEMENT, action:Permission.READ},
+    {module:Module.ADVERTISEMENT, action:Permission.DELETE},
+    {module:Module.ADVERTISEMENT, action:Permission.UPDATE},
+    {module:Module.ADVERTISEMENT, action:Permission.JUST_ADMIN},
+    //Content mangement module
+    {module:Module.CONTENT_MANAGEMENT, action:Permission.CREATE},
+    {module:Module.CONTENT_MANAGEMENT, action:Permission.READ},
+    {module:Module.CONTENT_MANAGEMENT, action:Permission.DELETE},
+    {module:Module.CONTENT_MANAGEMENT, action:Permission.UPDATE},
+    //Wallet mangement module
+    {module:Module.WALLET, action:Permission.CREATE},
+    {module:Module.WALLET, action:Permission.READ},
+    {module:Module.WALLET, action:Permission.DELETE},
+    {module:Module.WALLET, action:Permission.UPDATE},
+    //Notification module
+    {module:Module.NOTIFICATION, action:Permission.CREATE},
+    {module:Module.NOTIFICATION, action:Permission.DELETE},
+    {module:Module.NOTIFICATION, action:Permission.UPDATE},
+    //Platform fee module
+    {module:Module.PLATFORM_FEE, action:Permission.CREATE},
+    {module:Module.PLATFORM_FEE, action:Permission.DELETE},
+    {module:Module.PLATFORM_FEE, action:Permission.UPDATE},
+    {module:Module.PLATFORM_FEE, action:Permission.READ},
+    //Quiz module
+    {module:Module.QUIZ, action:Permission.CREATE},
+    {module:Module.QUIZ, action:Permission.DELETE},
+    {module:Module.QUIZ, action:Permission.UPDATE},
+    {module:Module.QUIZ, action:Permission.READ},
+    {module:Module.QUIZ, action:Permission.GET_ONE},
+    //  vehicle pricing module
+    {module:Module.VECHICLE_PRICING, action:Permission.CREATE},
+    {module:Module.VECHICLE_PRICING, action:Permission.READ},
+    {module:Module.VECHICLE_PRICING, action:Permission.DELETE},
+    {module:Module.VECHICLE_PRICING, action:Permission.UPDATE},
+    {module:Module.VECHICLE_PRICING, action:Permission.JUST_ADMIN},
+
+    // Destination module - full access
+    { module: Module.DESTINATION, action: Permission.CREATE },
+    { module: Module.DESTINATION, action: Permission.READ },
+    { module: Module.DESTINATION, action: Permission.UPDATE },
+    { module: Module.DESTINATION, action: Permission.DELETE },
+    { module: Module.DESTINATION, action: Permission.JUST_ADMIN },
     // TRANSACTION module - full access
-    { module: Module.TRANSACTION, action: Permission.CREATE },
-    { module: Module.TRANSACTION, action: Permission.READ },
-    { module: Module.TRANSACTION, action: Permission.UPDATE_TRANSACTION_STATUS },
-    { module: Module.TRANSACTION, action: Permission.UPDATE_TRANSACTION_AMOUNT },
-    { module: Module.TRANSACTION, action: Permission.APPROVE_TRANSACTION },
-    { module: Module.TRANSACTION, action: Permission.REFUND_TRANSACTION },
-    { module: Module.TRANSACTION, action: Permission.DELETE },
+    // { module: Module.TRANSACTION, action: Permission.CREATE },
+    // { module: Module.TRANSACTION, action: Permission.READ },
+    // { module: Module.TRANSACTION, action: Permission.UPDATE_TRANSACTION_STATUS },
+    // { module: Module.TRANSACTION, action: Permission.UPDATE_TRANSACTION_AMOUNT },
+    // { module: Module.TRANSACTION, action: Permission.APPROVE_TRANSACTION },
+    // { module: Module.TRANSACTION, action: Permission.REFUND_TRANSACTION },
+    // { module: Module.TRANSACTION, action: Permission.DELETE },
     
+
+    // MY RAIDER MODULE
+    {module:Module.MY_RAIDER, action:Permission.CREATE},
+    {module:Module.MY_RAIDER, action:Permission.READ},
+    {module:Module.MY_RAIDER, action:Permission.DELETE},
+    {module:Module.MY_RAIDER, action:Permission.UPDATE},
+    {module:Module.MY_RAIDER, action:Permission.READ_ADMIN_MY_RAIDER},
+    
+    // MY REFERAL MODULE
+    {module:Module.REFERRAL, action:Permission.CREATE},
+    {module:Module.REFERRAL, action:Permission.READ},
+    {module:Module.REFERRAL, action:Permission.DELETE},
+    {module:Module.REFERRAL, action:Permission.UPDATE},
+    
+
     // RBAC MODULE
     {module:Module.RBAC, action:Permission.CREATE},
     {module:Module.RBAC, action:Permission.READ},
@@ -94,6 +197,24 @@ const ROLE_PERMISSIONS = {
     // User module - limited access
     { module: Module.USER, action: Permission.GET_USER_PROFILE },
     { module: Module.USER, action: Permission.UPDATE },
+    // Order module - limited access
+    // MY REFERAL MODULE  -- - limited access
+    {module:Module.REFERRAL, action:Permission.CREATE},
+    {module:Module.REFERRAL, action:Permission.READ},
+    {module:Module.REFERRAL, action:Permission.DELETE},
+    {module:Module.REFERRAL, action:Permission.UPDATE},
+    // RAIDER MODULE -- - limited access
+    { module: Module.RAIDER, action: Permission.CREATE },
+    { module: Module.RAIDER, action: Permission.READ },
+    { module: Module.RAIDER, action: Permission.UPDATE },
+    // Advertise MODULE
+    {module:Module.ADVERTISEMENT, action:Permission.READ},
+    // notification
+    {module:Module.NOTIFICATION, action:Permission.READ},
+    // qize module
+    {module:Module.QUIZ, action:Permission.GET_ONE},
+
+   
   ],
 
 
@@ -101,11 +222,37 @@ const ROLE_PERMISSIONS = {
   
   [UserRole.USER]: [
     // User module - basic access
-  { module: Module.USER, action: Permission.READ },
+  { module: Module.USER, action: Permission.GET_USER_PROFILE },
   { module: Module.USER, action: Permission.UPDATE },
+  //  Order module - basic access
+  { module: Module.ORDER, action: Permission.CREATE },
+  { module: Module.ORDER, action: Permission.ORDER_READ_MINE},
+  { module: Module.ORDER, action: Permission.ADD_DESTINATION_TO_ORDER },
+  { module: Module.ORDER, action: Permission.GET_ORDER_DETAILS},
+  { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS},
+  // Advertise MODULE
+  {module:Module.ADVERTISEMENT, action:Permission.READ},
+  // notification
+  {module:Module.NOTIFICATION, action:Permission.READ},
 
 
+  //sub module
+  // Destination module - basic access
+  { module: Module.DESTINATION, action: Permission.ALL },
+  // my raider module - basic access
+  {module:Module.MY_RAIDER, action:Permission.CREATE},
+  {module:Module.MY_RAIDER, action:Permission.READ},
+  {module:Module.MY_RAIDER, action:Permission.DELETE},
+  {module:Module.MY_RAIDER, action:Permission.UPDATE},
+  //PAYMENT_METHOD - full access
+  { module: Module.PAYMENT_METHOD, action: Permission.ALL },
 
+  // MY REFERAL MODULE - basic access
+  {module:Module.REFERRAL, action:Permission.CREATE},
+  {module:Module.REFERRAL, action:Permission.READ},
+  {module:Module.REFERRAL, action:Permission.DELETE},
+  {module:Module.REFERRAL, action:Permission.UPDATE},
+   
   ],
 };
 

@@ -30,18 +30,8 @@ export class RbacService implements OnModuleInit {
           { module: Module.ORDER, action: Permission.CREATE },
           { module: Module.ORDER, action: Permission.READ },
           { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS },
-          { module: Module.ORDER, action: Permission.UPDATE_ORDER_DETAILS },
-          { module: Module.ORDER, action: Permission.UPDATE_ORDER_PRICE },
           { module: Module.ORDER, action: Permission.CANCEL_ORDER },
           { module: Module.ORDER, action: Permission.DELETE },
-          
-          { module: Module.TRANSACTION, action: Permission.CREATE },
-          { module: Module.TRANSACTION, action: Permission.READ },
-          { module: Module.TRANSACTION, action: Permission.UPDATE_TRANSACTION_STATUS },
-          { module: Module.TRANSACTION, action: Permission.UPDATE_TRANSACTION_AMOUNT },
-          { module: Module.TRANSACTION, action: Permission.APPROVE_TRANSACTION },
-          { module: Module.TRANSACTION, action: Permission.REFUND_TRANSACTION },
-          { module: Module.TRANSACTION, action: Permission.DELETE },
         ],
       },
       {
@@ -267,20 +257,10 @@ export class RbacService implements OnModuleInit {
         Permission.CREATE,
         Permission.READ,
         Permission.UPDATE_ORDER_STATUS,
-        Permission.UPDATE_ORDER_DETAILS,
-        Permission.UPDATE_ORDER_PRICE,
         Permission.CANCEL_ORDER,
         Permission.DELETE,
       ],
-      [Module.TRANSACTION]: [
-        Permission.CREATE,
-        Permission.READ,
-        Permission.UPDATE_TRANSACTION_STATUS,
-        Permission.UPDATE_TRANSACTION_AMOUNT,
-        Permission.APPROVE_TRANSACTION,
-        Permission.REFUND_TRANSACTION,
-        Permission.DELETE,
-      ]
+
     };
   }
 }

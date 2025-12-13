@@ -17,9 +17,10 @@ import { CreateVehicleTypeDto } from './dto/create-vehicle-type.dto';
 import { UpdateVehicleTypeDto } from './dto/update-vehicle-type.dto';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Auth } from 'src/decorators/auth.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
 import { ApiResponses } from 'src/common/apiResponse';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
+import { Public } from 'src/decorators/public.decorator';
 
 
 
@@ -33,7 +34,8 @@ export class VehicleTypeController {
   // CREATE
   @Post('create')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.VECHICLE_PRICING, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create Vehicle Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
@@ -49,6 +51,7 @@ export class VehicleTypeController {
 
   // GET ALL
   @Get()
+  @Public()
   @Auth()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all Vehicle Types' })
@@ -65,6 +68,7 @@ export class VehicleTypeController {
 
   // GET ONE (ACTIVE)
   @Get(':id')
+  @Public()
   @Auth()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get Vehicle Type by ID' })
@@ -87,7 +91,8 @@ export class VehicleTypeController {
   // UPDATE
   @Patch('update/:id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.VECHICLE_PRICING, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update Vehicle Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
@@ -109,7 +114,8 @@ export class VehicleTypeController {
   //DELETE
   @Delete('delete/:id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.VECHICLE_PRICING, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'delete Vehicle Type' })
   @ApiParam({ name: 'id', description: 'Vehicle Type ID' })

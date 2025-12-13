@@ -22,6 +22,8 @@ import { QuizResultdto } from './dto/raider-quiz-result.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { RaiderQuizFilterDto } from './dto/raiderQuizFilterDto';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 @ApiTags('questions')
 @Controller('questions')
@@ -31,7 +33,8 @@ export class QuestionsController {
   // CREATE QUESTION
   @Post()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.QUIZ, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new question (Admin Only)' })
   @ApiResponse({ status: 201, description: 'Question created successfully' })
@@ -48,7 +51,8 @@ export class QuestionsController {
   // GET ALL QUESTIONS
   @Get(":quizId")
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  // @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  @RequirePermission(Module.QUIZ, Permission.GET_ONE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all questions' })
   @ApiResponse({ status: 200, description: 'Return all questions' })
@@ -65,7 +69,8 @@ export class QuestionsController {
   // GET ONE QUESTION BY ID
   @Get(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  // @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
+  @RequirePermission(Module.QUIZ, Permission.GET_ONE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single question by ID' })
   @ApiParam({ name: 'id', type: 'number', description: 'Question ID' })
@@ -89,7 +94,8 @@ export class QuestionsController {
   // UPDATE QUESTION
   @Patch(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.QUIZ, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a question (admin only)' })
   @ApiResponse({ status: 200, description: 'Question updated' })
@@ -106,7 +112,8 @@ export class QuestionsController {
   // DELETE QUESTION
   @Delete(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.QUIZ, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a question by ID (admin only)' })
   @ApiResponse({ status: 200, description: 'Question deleted' })
@@ -124,6 +131,7 @@ export class QuestionsController {
   @Post(':quizId')
   @Auth()
   @Roles(UserRole.RAIDER)
+  @RequirePermission(Module.QUIZ, Permission.GET_ONE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Post raider quiz result by ID (raider only)' })
   @ApiResponse({ status: 200, description: 'Question Result Saved' })
@@ -139,7 +147,8 @@ export class QuestionsController {
   
 @Get('quiz/ans/all')
 @Auth()
-@Roles(UserRole.SUPER_ADMIN)
+// @Roles(UserRole.SUPER_ADMIN)
+@RequirePermission(Module.QUIZ, Permission.READ)
 @ApiBearerAuth()
 @ApiOperation({ summary: 'Get all quiz results (Admin only)' })
 @ApiResponse({ status: 200, description: 'All results fetched successfully' })
@@ -161,7 +170,8 @@ async getAllRaiderResults(
   //indivitual Raider quiz result
 @Get('quiz/ans/:raiderId')
 @Auth()
-@Roles(UserRole.RAIDER, UserRole.SUPER_ADMIN)
+// @Roles(UserRole.RAIDER, UserRole.SUPER_ADMIN)
+@RequirePermission(Module.QUIZ, Permission.GET_ONE)
 @ApiBearerAuth()
 @ApiOperation({ summary: 'Get quiz results details for the logged-in raider(admin only)' })
 @ApiResponse({ status: 200, description: ' results fetched successfully' })
@@ -178,7 +188,8 @@ async deleteIndivitualraiderResults(@Param("raiderId") id:string) {
 // Raider quiz result
 @Delete('quiz/ans/:id')
 @Auth()
-@Roles(UserRole.SUPER_ADMIN)
+// @Roles(UserRole.SUPER_ADMIN)
+@RequirePermission(Module.QUIZ, Permission.DELETE)
 @ApiBearerAuth()
 @ApiOperation({ summary: 'Delete quiz results details for the logged-in raider(admin only)' })
 @ApiResponse({ status: 200, description: 'deleted successfully successfully' })

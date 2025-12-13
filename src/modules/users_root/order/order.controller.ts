@@ -21,11 +21,11 @@ import { Auth } from 'src/decorators/auth.decorator';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
 import type { IUser } from 'src/types';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 @ApiTags('Order (User)')
 @Controller('order')
@@ -39,7 +39,8 @@ export class OrderController {
   // CREATE
   @Post()
   @Auth()
-  @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.ORDER, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new order' })
   async create(@Body() dto: CreateOrderDto, @CurrentUser() user:IUser) {
@@ -54,7 +55,8 @@ export class OrderController {
     // 
     @Get('stats')
     @Auth()
-    @Roles(UserRole.SUPER_ADMIN)
+    // @Roles( UserRole.SUPER_ADMIN)
+    @RequirePermission(Module.ORDER, Permission.READ)
     @ApiBearerAuth()
     @ApiOperation({ summary: "Get order statistics (admin only)" })
     @ApiResponse({ status: 200, description: 'Order stats retrieved successfully' })
@@ -71,7 +73,8 @@ export class OrderController {
   // GET MY ORDERS
   @Get('mine')
   @Auth()
-  @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.ORDER, Permission.ORDER_READ_MINE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get logged-in user orders' })
   @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
@@ -95,7 +98,8 @@ export class OrderController {
     // GET MY ORDERS
       @Get('user-history/:userId')
       @Auth()
-      @Roles(UserRole.SUPER_ADMIN)
+      // @Roles( UserRole.SUPER_ADMIN)
+      @RequirePermission(Module.ORDER, Permission.READ)
       @ApiBearerAuth()
       @ApiOperation({ summary: 'Get logged-in user orders (admin only)' })
       @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
@@ -119,7 +123,8 @@ export class OrderController {
     // GET ALL ORDERS (ADMIN OR SYSTEM USE)
     @Get()
     @Auth()
-    @Roles(UserRole.SUPER_ADMIN)
+    // @Roles(UserRole.SUPER_ADMIN)
+    @RequirePermission(Module.ORDER, Permission.READ)
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Get all orders with filters' })
     async findAll(@Query() filterDto: OrderFilterDto) {
@@ -137,7 +142,8 @@ export class OrderController {
   @Get(':id')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.RAIDER, UserRole.SUPER_ADMIN, UserRole.USER)
+  // @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.ORDER, Permission.GET_ORDER_DETAILS)
   @ApiOperation({ summary: 'Get order by ID' })
   async findOne(@Param('id') id: string) {
     try {
@@ -152,7 +158,8 @@ export class OrderController {
   @Patch(':id')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.ORDER, Permission.UPDATE)
   @ApiOperation({ summary: 'Update order by ID (Admin only)' })
   async update(@Param('id') id: string, @Body() dto: UpdateOrderDto) {
     try {
@@ -167,7 +174,8 @@ export class OrderController {
   @Patch(':order_id/destination/update')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.USER)
+  // @Roles(UserRole.USER)
+  @RequirePermission(Module.ORDER, Permission.ADD_DESTINATION_TO_ORDER)
   @ApiOperation({ summary: 'Update order by ID (user only)' })
   async destinationUpdateByUser(@Param('order_id') order_id: string, @Query("desti_id") desti_id:string, @CurrentUser() user:IUser ) {
     // 
@@ -183,7 +191,8 @@ export class OrderController {
 @Patch('status/:id/orderId/:userId')
 @Auth()
 @ApiBearerAuth()
-@Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+// @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+@RequirePermission(Module.ORDER, Permission.UPDATE_ORDER_STATUS)
 @ApiOperation({ summary: 'Update order status' })
 async updateOrderStatus(
   @Param('id') id: string,
@@ -201,7 +210,8 @@ async updateOrderStatus(
   // DELETE
   @Delete(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.ORDER, Permission.DELETE) 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete order by ID(Admin only)' })
   async remove(@Param('id') id: string) {
@@ -217,7 +227,8 @@ async updateOrderStatus(
   @Patch('assign/driver/:id')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.ORDER, Permission.UPDATE)
   @ApiOperation({ summary: "Assign driver by order ID (admin only)" })
   async assignDriver(
     @Param('id') id: string,
