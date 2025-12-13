@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsEmail, IsOptional, IsString } from "class-validator";
 
 export class ForgotPasswordDto {
@@ -7,7 +7,8 @@ export class ForgotPasswordDto {
   @IsOptional()
   email: string;
 
-  @ApiProperty({ example: '+990-98298824' })
+  @ApiPropertyOptional({ example: '+990-98298824' })
   @IsString()
+  @IsOptional()
   phone: string;
 }

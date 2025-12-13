@@ -139,7 +139,7 @@ export class AuthService {
 
 
   // forgot password
-  async forgotPassword(email: string,  phone:string) {
+  async forgotPassword(email?: string,  phone?:string) {
     const otp = await this.otpService.generateOtp(email, phone);
     // TODO:currently by email it will be in phone
     console.log(otp);
@@ -175,7 +175,7 @@ export class AuthService {
   // reset password
   async resetPassword(email: string,phone:string, newPassword: string) {
     // 
-    console.log(phone, newPassword);
+    // console.log(phone, newPassword);
     // 
   const user = await this.prisma.user.findFirst({
     where: {
@@ -191,7 +191,7 @@ export class AuthService {
   //  
   const hashed = await bcrypt.hash(newPassword, 10);
   const record = await bcrypt.compare(newPassword, user.password as string);
-  console.log("hased",hashed, record,user );
+  // console.log("hased",hashed, record,user );
   if (record) throw new NotAcceptableException('Password is correct you can login'); 
         // 
         await this.prisma.user.updateMany({
