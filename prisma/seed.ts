@@ -153,6 +153,11 @@ const ROLE_PERMISSIONS = {
     {module:Module.DRIVER_ORDER_COMPETITION, action:Permission.READ},
     {module:Module.DRIVER_ORDER_COMPETITION, action:Permission.DELETE},
     {module:Module.DRIVER_ORDER_COMPETITION, action:Permission.UPDATE},
+    // customner confirmation module
+    {module:Module.CUSTOMER_ORDER_CONFIRMATION, action:Permission.CREATE},
+    {module:Module.CUSTOMER_ORDER_CONFIRMATION, action:Permission.READ},
+    {module:Module.CUSTOMER_ORDER_CONFIRMATION, action:Permission.DELETE},
+    {module:Module.CUSTOMER_ORDER_CONFIRMATION, action:Permission.UPDATE},
 
     //  vehicle pricing module
     {module:Module.VECHICLE_PRICING, action:Permission.CREATE},
@@ -455,12 +460,23 @@ async function initialSeed() {
       },
     });
     console.log(`✅ Driver Order Competition Config seeded: ${driverCompititionConfig.id}\n`); 
+    // 7 customer order confirmation config
+    const customerOrderConfirmationConfig = await tx.customer_order_confirmation.create({
+      data: {
+        is_new_customer_weight: 50,
+        completed_orders_weight: 0,
+        followers_weight: 50,
+      },
+    });
+    console.log(`✅ Customer Order Confirmation Config seeded: ${customerOrderConfirmationConfig.id}\n`);
+
     // 
     return {
       roles: [superAdminRole, userRole, raiderRole],
       user,
       admin,
-      driverCompititionConfig
+      driverCompititionConfig,
+      customerOrderConfirmationConfig
     };
   });
 
