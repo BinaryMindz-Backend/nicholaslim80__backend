@@ -12,6 +12,7 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { UsersService } from '../users_root/users/users.service';
 import { OtpService } from './otp.service';
 import { LoginDto } from './dto/login.dto';
+import type { IUser } from 'src/types';
 @Injectable()
 export class AuthService {
   constructor(
@@ -23,7 +24,7 @@ export class AuthService {
 
 
   //** Generate Access + Refresh tokens
-  async generateTokens(user: any) {
+  async generateTokens(user: IUser) {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -108,9 +109,14 @@ export class AuthService {
       // Compare provided token with stored hashed token
       const isValid = await bcrypt.compare(refreshToken, user.refresh_token);
       if (!isValid) throw new ForbiddenException('Invalid refresh token');
-
+       const validData:IUser = {
+        id: user.id,
+        email: user.email!,
+        role: user.role,
+        phone: user.phone
+       }
       // Generate new tokens
-      const tokens = await this.generateTokens(user);
+      const tokens = await this.generateTokens(validData);
 
       // Save new refresh token
       await this.updateRefreshToken(user.id, tokens.refresh_token);

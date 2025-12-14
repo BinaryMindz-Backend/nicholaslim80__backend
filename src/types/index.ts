@@ -1,12 +1,12 @@
-import {UserRole } from '@prisma/client';
+// import {UserRole } from '@prisma/client';
 
 
 export interface IUserRole {
   id: number;
-  name: UserRole;     // or string if you prefer
+  name: string;     // or string if you prefer
   isStatic: boolean;
-  createdAt: string; // ISO string
-  updatedAt: string; // ISO string
+  createdAt: Date;// ISO string
+  updatedAt: Date; // ISO string
 }
 
 export interface IUser {

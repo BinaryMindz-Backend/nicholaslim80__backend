@@ -24,9 +24,9 @@ export class UsersService {
   // ** Create new user // signup with otp verify
   async createUser(dto: { email?: string; password?: string; username?: string; phone: string, referral_code?: string, role?: UserRole }) {
 
-    // if (dto.role === UserRole.SUPER_ADMIN) {
-    //   throw new NotAcceptableException("You can't create superadmin or admin by general login")
-    // }
+    if (dto.role === UserRole.SUPER_ADMIN) {
+      throw new NotAcceptableException("You can't create superadmin or admin by general login")
+    }
 
     // role check
    const role = await this.prisma.role.findFirst({
@@ -304,13 +304,13 @@ async findAllUsers(filterDto: UserFilterDto) {
   async findOneuser(id: number) {
     if (!id) throw new NotFoundException("User id not found")
 
-    return this.prisma.user.findUnique({ where: { id, is_deleted: false } });
+    return await this.prisma.user.findUnique({ where: { id, is_deleted: false } ,include:{raiderProfile:true,role:true, adminProfiles:true}});
   }
 
   // ** Get user by user id
   async findMe(user: IUser) {
     if (!user.id) throw new NotFoundException("User id not found")
-    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true,role:true, adminProfiles:true} });
+    return await this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true,role:true, adminProfiles:true} });
   }
 
 
@@ -320,7 +320,7 @@ async findAllUsers(filterDto: UserFilterDto) {
   async findDeletedOneuser(id: number) {
     if (!id) throw new NotFoundException("User id not found")
 
-    return this.prisma.user.findUnique({ where: { id } });
+    return await this.prisma.user.findUnique({ where: { id } });
   }
 
 
