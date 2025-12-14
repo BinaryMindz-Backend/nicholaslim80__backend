@@ -7,6 +7,8 @@ model DeliveryType {
   is_active         Boolean          @default(true)
   created_at        DateTime         @default(now())
   updated_at        DateTime         @updatedAt
+  admin_id    Int
+  admin       Admin           @relation(fields: [admin_id], references: [id])
 
   @@map("delivery_types")
 }

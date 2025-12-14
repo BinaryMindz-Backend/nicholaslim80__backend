@@ -37,6 +37,10 @@ import { PermissionGuard } from './rbac/guards/permission.guard';
 import { RbacController } from './rbac/rbac.controller';
 import { RbacService } from './rbac/rbac.service';
 import { JwtAuthGuard } from './guards/jwt.guard';
+import { FaqModule } from './modules/superadmin_root/faq/faq.module';
+import { ArticleModule } from './modules/superadmin_root/article/article.module';
+import { AboutusModule } from './modules/superadmin_root/aboutus/aboutus.module';
+import { MoneyManagementModule } from './modules/superadmin_root/money-management/money-management.module';
 
 
 @Module({

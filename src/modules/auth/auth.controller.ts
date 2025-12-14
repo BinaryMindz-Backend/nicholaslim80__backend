@@ -184,7 +184,7 @@ export class AuthController {
   @Public()
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     try {
-     const res = await this.authService.forgotPassword( dto);
+     const res = await this.authService.forgotPassword( dto.email, dto.phone);
       return ApiResponses.success(res, 'otp send successfully');
     } catch (error) {
        return ApiResponses.error(error, "Forget Password failed")
