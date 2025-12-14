@@ -157,7 +157,7 @@ export class RidersProfileController {
   @Patch('unsuspend/:id')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.RAIDER, Permission.JUST_ADMIN)
   @ApiOperation({ summary: 'Unsuspend rider profile by id (Admin only)' })
   async Unsuspend(@Param('id') id: string) {
     try {
