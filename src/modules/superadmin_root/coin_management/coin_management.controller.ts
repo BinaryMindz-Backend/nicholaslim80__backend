@@ -14,7 +14,7 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { Auth } from 'src/decorators/auth.decorator';
 import { Roles } from 'src/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 
@@ -73,6 +73,7 @@ export class CoinManagementController {
     }
   }
   @Post('reedom-coin/:id')
+  @ApiOperation({ summary: 'User reedom coin (Only USER role)' })
   @Auth()
   @Roles(UserRole.USER)
   @ApiBearerAuth()
@@ -87,4 +88,42 @@ export class CoinManagementController {
       return ApiResponses.error(error);
     }
   }
+
+
+  @Get('reedom-coin-history-all-users')
+  @ApiOperation({ summary: 'User reedom coin  History (Only SUPER_ADMIN role)' })
+  // @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  async reedomCoinHistory() {
+    try {
+      const data = await this.coinManagementService.reedomCoinHistory();
+      return ApiResponses.success(
+        data,
+        `User coin history fetched successfully `,
+      );
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+
+
+
+  @Get('user-wallet-history/:userId')
+  @ApiOperation({ summary: 'User wallet history (Only SUPER_ADMIN role)' })
+  // @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  async userWalletHistory(@Param('userId') userId: string) {
+    try {
+      const data = await this.coinManagementService.userWalletHistory(+userId);
+      return ApiResponses.success(
+        data,
+        `User wallet history fetched successfully `,
+      );
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+
 }

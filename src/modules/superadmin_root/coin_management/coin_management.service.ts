@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common';
 import { CreateCoinManagementDto } from './dto/create-coin_management.dto';
 import { UpdateCoinManagementDto } from './dto/update-coin_management.dto';
@@ -70,8 +71,6 @@ export class CoinManagementService {
     })
   }
   async reedomCoin(user: IUser, id: number) {
-    console.log({ user });
-
     try {
       const userExit = await this.prisma.user.findFirst({
         where: {
@@ -101,13 +100,62 @@ export class CoinManagementService {
         data: {
           userId: user.id,
           username: userExit.username,
-          total_coin_acc: Number(userExit.reward_points) + Number(coinExit.coin_amount),
+          total_coin_acc: coinExit.coin_amount,
           type: CoinHistoryType.ACCUMULATION,
         }
       })
       return data;
     } catch (error) {
       return ApiResponses.error(error);
+    }
+  }
+
+  async reedomCoinHistory() {
+    try {
+      const data = await this.prisma.coinHistory.findMany({
+        orderBy: {
+          created_at: 'desc',
+        }
+      });
+
+      const userMap = new Map<number, any>();
+
+      for (const item of data) {
+        if (!userMap.has(item.userId)) {
+          userMap.set(item.userId, {
+            id: item.id,
+            userId: item.userId,
+            acumulated_coin: Number(item.total_coin_acc),
+            name: item.username,
+            totalCoin: (await this.prisma.user.findFirst({
+              where: { id: item.userId }
+            }))?.reward_points || 0,
+          });
+        }
+
+        const userData = userMap.get(item.userId);
+        userData.totalCoin += Number(item.total_coin_acc ?? 0);
+      }
+
+      return Array.from(userMap.values())
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to fetch coin history');
+    }
+  }
+
+  async userWalletHistory(id: number) {
+    try {
+      const data = await this.prisma.coinHistory.findMany({
+        where: {
+          userId: id
+        },
+        orderBy: {
+          created_at: 'desc',
+        }
+      });
+      return data;
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to fetch user wallet history');
     }
   }
 
