@@ -12,7 +12,6 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { UsersService } from '../users_root/users/users.service';
 import { OtpService } from './otp.service';
 import { LoginDto } from './dto/login.dto';
-import { ForgotPasswordDto } from './dto/forgot.password';
 @Injectable()
 export class AuthService {
   constructor(
@@ -142,7 +141,7 @@ export class AuthService {
     const otp = await this.otpService.generateOtp(email, phone);
     // TODO:currently by email it will be in phone
  
-    return { email: dto.email, phone: dto.phone, message: "OTP sent", otp};
+    return { email: email,phone, message: "OTP sent", otp};
   }
 
   
