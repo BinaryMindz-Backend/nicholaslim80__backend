@@ -4,6 +4,7 @@ import { CreateDeliveryTypeDto } from './dto/create-delivery-type.dto';
 import { UpdateDeliveryTypeDto } from './dto/update-delivery-type.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { UserRole } from '@prisma/client';
+import type { IUser } from 'src/types';
 
 
 
@@ -12,26 +13,43 @@ export class DeliveryTypeService {
   constructor(private prisma: PrismaService) { }
 
   // ** check role
-  private verifyAdmin(user: any) {
-    if (![UserRole.SUPER_ADMIN].includes(user.role)) {
-      throw new ForbiddenException('Admin access only');
+    private verifyAdmin(user: IUser) {
+      if (user.role.name !== UserRole.SUPER_ADMIN) {
+        throw new ForbiddenException('Admin access only');
+      }
     }
-  }
 
+  
   // create an delivery type
-  async create(dto: CreateDeliveryTypeDto, user: any) {
-    // Verify admin
-    this.verifyAdmin(user);
+    async create(dto: CreateDeliveryTypeDto, user: IUser) {
+      // Verify admin
+      this.verifyAdmin(user);
 
-    // Check if delivery type already exists
-    const isExist = await this.prisma.deliveryType.findFirst({
-      where: {
-        name: dto.name,
-      },
-    });
+      // Check if delivery type already exists
+      const isExist = await this.prisma.deliveryType.findFirst({
+        where: {
+          name: dto.name, 
+        },
+      });
 
-    if (isExist) {
-      throw new ConflictException('Delivery type already exists');
+      if (isExist) {
+        throw new ConflictException('Delivery type already exists');
+      }
+
+      // Create delivery type
+      return await this.prisma.deliveryType.create({  
+          data: {
+          name: dto.name,
+          percentage: dto.percentage,
+          pickup_duration: dto.pickup_duration,
+          delivery_duration: dto.delivery_duration,
+          is_active: dto.is_active,
+          // map admin_id into nested relation
+          admin: {
+            connect: { id: user.id }
+          },
+          }, 
+      });
     }
 
     // Create delivery type

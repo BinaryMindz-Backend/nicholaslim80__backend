@@ -2,11 +2,11 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, ParseIntPipe } from 
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserDynamicSurgeService } from './dynamic_surge.services';
 import { Auth } from 'src/decorators/auth.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
 import { CreateUserDynamicSurgeDto } from './dto/create_dynamic_surge.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { UpdateUserDynamicSurgeDto } from './dto/update-platform_fee.dto';
+import { Module, Permission } from 'src/rbac/rbac.constants';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 
 
 @ApiTags('User Dynamic Surge (platform fee) (admin only)')
@@ -16,7 +16,8 @@ export class UserDynamicSurgeController {
 
   @Post()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new dynamic surge rule' })
   async create(@Body() dto: CreateUserDynamicSurgeDto) {
@@ -30,7 +31,8 @@ export class UserDynamicSurgeController {
 
   @Get()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all dynamic surge rules' })
   async findAll() {
@@ -44,7 +46,8 @@ export class UserDynamicSurgeController {
 
   @Get(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get dynamic surge rule by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
@@ -58,7 +61,8 @@ export class UserDynamicSurgeController {
 
   @Patch(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a dynamic surge rule' })
   async update(
@@ -75,7 +79,8 @@ export class UserDynamicSurgeController {
 
   @Delete(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a dynamic surge rule' })
   async remove(@Param('id', ParseIntPipe) id: number) {

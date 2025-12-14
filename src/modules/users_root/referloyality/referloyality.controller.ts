@@ -2,9 +2,11 @@ import { Controller, Delete, Get, Param, Query } from '@nestjs/common';
 import { ReferloyalityService } from './referloyality.service';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Auth } from 'src/decorators/auth.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+// import { Roles } from 'src/decorators/roles.decorator';
+// import { UserRole } from '@prisma/client';
 import { ApiResponses } from 'src/common/apiResponse';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 @ApiTags("Refer and loyality (only for user)")
 @Controller('referloyality')
@@ -14,7 +16,8 @@ export class ReferloyalityController {
   // FIND ALL
   @Get()
   @Auth()
-  @Roles(UserRole.USER, UserRole.SUPER_ADMIN) // TODO:need to correct the role
+  @RequirePermission(Module.REFERRAL, Permission.READ)
+  // @Roles(UserRole.USER, UserRole.SUPER_ADMIN) // TODO:need to correct the role
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all referrals' })
   async findAll() {
@@ -29,7 +32,8 @@ export class ReferloyalityController {
 // count all
 @Get("count")
 @Auth()
-@Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+// @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+@RequirePermission(Module.REFERRAL, Permission.READ)
 @ApiBearerAuth()
 @ApiOperation({ summary: 'Get refer count by refer code' })
 @ApiQuery({ name: 'refer_code', required: false, description: 'Referral code (optional)' })
@@ -48,7 +52,8 @@ async referCount(@Query('refer_code') refer_code?: string) {
   // find one
   @Get(":id")
   @Auth()
-  @Roles(UserRole.USER, UserRole.SUPER_ADMIN) // TODO:need to correct the role
+  @RequirePermission(Module.REFERRAL, Permission.READ)
+  // @Roles(UserRole.USER, UserRole.SUPER_ADMIN) // TODO:need to correct the role
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get referral details' })
   async findOne(@Param("id") id:string) {
@@ -62,6 +67,7 @@ async referCount(@Query('refer_code') refer_code?: string) {
 
 
   @Delete(":id")
+  @RequirePermission(Module.REFERRAL, Permission.DELETE)
   @ApiOperation({ summary: 'Temporarry' })
   async delete(@Param("id") id:string){
        await this.referloyalityService.delete(+id)

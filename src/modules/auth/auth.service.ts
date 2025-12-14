@@ -61,6 +61,7 @@ export class AuthService {
 
   // Login using OTP
   async loginWithOtp(user: any) {
+    
     const tokens = await this.generateTokens(user);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
 
@@ -137,16 +138,8 @@ export class AuthService {
 
 
   // forgot password
-  async forgotPassword( dto: ForgotPasswordDto) {
-        const user = await this.usersService.findByEmailOrPhone(dto.email,dto.phone); 
-        console.log(user);
-        if(!user){
-            throw new BadRequestException("User not found with provided email or phone")
-        }
-        if(!user.is_verified){
-            throw new BadRequestException("User not verified")
-        }
-    const otp = await this.otpService.generateOtp(dto.email, dto.phone);
+  async forgotPassword(email?: string,  phone?:string) {
+    const otp = await this.otpService.generateOtp(email, phone);
     // TODO:currently by email it will be in phone
  
     return { email: dto.email, phone: dto.phone, message: "OTP sent", otp};
@@ -181,7 +174,7 @@ export class AuthService {
   // reset password
   async resetPassword(email: string,phone:string, newPassword: string) {
     // 
-
+    // console.log(phone, newPassword);
     // 
   const user = await this.prisma.user.findFirst({
     where: {
@@ -196,6 +189,7 @@ export class AuthService {
   //  
   const hashed = await bcrypt.hash(newPassword, 10);
   const record = await bcrypt.compare(newPassword, user.password as string);
+  // console.log("hased",hashed, record,user );
   if (record) throw new NotAcceptableException('Password is correct you can login'); 
         // 
         await this.prisma.user.updateMany({

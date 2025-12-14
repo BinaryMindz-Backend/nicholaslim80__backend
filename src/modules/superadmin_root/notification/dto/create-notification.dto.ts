@@ -58,7 +58,7 @@ export class AdminCreateNotificationDto {
 
   @ApiProperty({
     description: "Who will receive this notification",
-    example: "BOTH",
+    example: "USER",
     enum: NotificationSentRole, // USER / DRIVER / BOTH
   })
   @ApiPropertyOptional()

@@ -31,11 +31,12 @@ import { ContentManagementModule } from './modules/superadmin_root/content_manag
 import { CoinManagementModule } from './modules/superadmin_root/coin_management/coin_management.module';
 import { TransactionIdService } from './common/services/transaction-id.service';
 import { AdvertiseModule } from './modules/superadmin_root/advertise/advertise.module';
-import { FaqModule } from './modules/superadmin_root/faq/faq.module';
-import { ArticleModule } from './modules/superadmin_root/article/article.module';
-import { AboutusModule } from './modules/superadmin_root/aboutus/aboutus.module';
-import { MoneyManagementModule } from './modules/superadmin_root/money-management/money-management.module';
-
+import { RbacModule } from './rbac/rbac.module';
+import { APP_GUARD } from '@nestjs/core';
+import { PermissionGuard } from './rbac/guards/permission.guard';
+import { RbacController } from './rbac/rbac.controller';
+import { RbacService } from './rbac/rbac.service';
+import { JwtAuthGuard } from './guards/jwt.guard';
 
 
 @Module({
@@ -83,16 +84,29 @@ import { MoneyManagementModule } from './modules/superadmin_root/money-managemen
     ArticleModule,
     AboutusModule,
     MoneyManagementModule,
+    RbacModule
 
 
   ],
-  controllers: [AppController],
+  controllers: [AppController, RbacController],
   providers: [
-    AppService,
-    TransactionIdService],
-  exports: [
-    TransactionIdService,
-  ],
+     AppService,
+     TransactionIdService,
 
+        {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard, // ← This runs FIRST
+    },
+      {
+      provide: APP_GUARD,
+      useClass: PermissionGuard,
+    }, 
+    RbacService
+    
+    ],
+  exports:[
+     TransactionIdService
+  ],
+  
 })
 export class AppModule { }

@@ -6,7 +6,7 @@ model User {
   email         String?  @unique @db.VarChar(200)
   phone         String   @db.VarChar(20)
   password      String?  @db.VarChar(255)
-  role          UserRole @default(USER)
+  // role          UserRole @default(USER)
   balance       Int      @default(0)
   reward_points Int      @default(0)
   is_active     Boolean  @default(false)
@@ -47,6 +47,11 @@ model User {
   receivedMessages   Message[]      @relation("ReceivedMessages")
   user1Conversations Conversation[] @relation("User1Conversations")
   user2Conversations Conversation[] @relation("User2Conversations")
+  // 
+  roleId    Int          @map("role_id")
+  role      Role         @relation(fields: [roleId], references: [id])
+
+  // 
   created_at         DateTime       @default(now())
   updated_at         DateTime       @updatedAt
 

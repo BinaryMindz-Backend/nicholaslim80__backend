@@ -1,12 +1,12 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, ParseIntPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Auth } from 'src/decorators/auth.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
 import { StandardCommissionRateService } from './commision_rate.services';
 import { CreateStandardCommissionRateDto } from './dto/create-commission_rate.dto';
 import { UpdateStandardCommissionRateDto } from './dto/update-platform_fee.dto';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 
 // 
@@ -17,7 +17,8 @@ export class StandardCommissionRateController {
 
   @Post()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a standard commission rate)' })
   @ApiResponse({ status: 200, description: 'Record created successfully' })
@@ -34,7 +35,8 @@ export class StandardCommissionRateController {
 
   @Get()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all standard commission rates' })
   @ApiResponse({ status: 200, description: 'Records fetched successfully' })
@@ -50,7 +52,8 @@ export class StandardCommissionRateController {
 
   @Get(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single standard commission rate by ID' })
   @ApiResponse({ status: 200, description: 'Record fetched successfully' })
@@ -66,7 +69,8 @@ export class StandardCommissionRateController {
 
   @Patch(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a standard commission rate by ID' })
   @ApiResponse({ status: 200, description: 'Record updated successfully' })
@@ -85,7 +89,8 @@ export class StandardCommissionRateController {
 
   @Delete(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a standard commission rate by ID' })
   @ApiResponse({ status: 200, description: 'Record deleted successfully' })

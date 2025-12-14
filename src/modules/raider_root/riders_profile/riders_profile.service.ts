@@ -293,49 +293,26 @@ export class RidersProfileService {
 
   //
   async adminCreateRiderProfile(dto: CreateRidersProfileDto) {
-
-    // 
-    const record = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: dto.email_address },
-          { phone: dto.contact_number }
-        ]
-      }
-    })
-    const registration = await this.prisma.raiderRegistration.findFirst({
-      where: {
-        OR: [
-          { contact_number: dto.contact_number },
-          { email_address: dto.email_address }
-        ]
-      }
-    })
-    // 
-    if (record || registration) {
-      throw new NotFoundException("record already exist")
-    }
-    // 
-    const cteatedRaider = await this.prisma.$transaction(async (tx) => {
-      // 
-      const defaultpassword = process.env.RAIDER_DEFAULT_PASSWORD;
-      // 
-      if (!defaultpassword) {
-        throw new NotFoundException('Default password is not set in environment variables');
-      }
-      const hashedPass = await bcrypt.hash(defaultpassword, 10);
-      // 
-      const user = await tx.user.create({
-        data: {
-          username: dto.raider_name,
-          email: dto.email_address,
-          phone: dto.contact_number,
-          role: UserRole.RAIDER,
-          regi_status: LoginType.ADMIN_SIGNIN,
-          is_active: true,
-          is_verified: true,
-          password: hashedPass
+         // 
+        const role = await this.prisma.role.findFirst({
+         where:{
+              name:UserRole.RAIDER
+         }
+         })
+        if(!role){
+            throw new NotFoundException("Role not found")
         }
+
+
+
+       // 
+      const record = await this.prisma.user.findFirst({
+            where:{
+               OR:[
+                  {email:dto.email_address},
+                  {phone:dto.contact_number}
+               ]
+            }
       })
       //  
       const raider = await tx.raider.create({
@@ -360,8 +337,53 @@ export class RidersProfileService {
         raider,
         reg
       }
+      // 
+    const cteatedRaider = await this.prisma.$transaction(async(tx)=>{
+            // 
+           const defaultpassword = process.env.RAIDER_DEFAULT_PASSWORD;
+            // 
+            if (!defaultpassword) {
+                  throw new NotFoundException('Default password is not set in environment variables');
+            }
+          const hashedPass = await bcrypt.hash(defaultpassword, 10);
+              // 
+           const user = await tx.user.create({
+                 data:{
+                    username:dto.raider_name,
+                    email:dto.email_address,
+                    phone:dto.contact_number,
+                    roleId:role.id,
+                    regi_status:LoginType.ADMIN_SIGNIN,
+                    is_active:true,
+                    is_verified:true,
+                    password:hashedPass
+                 }
+             })
+            //  
+           const raider =  await tx.raider.create({
+                 data:{
+                    userId:user?.id,
+                    LoginType:LoginType.ADMIN_SIGNIN,
+                    raider_verificationFromAdmin:RaiderVerification.APPROVED,
+                    raider_status:RaiderStatus.ACTIVE
+                 }
+           }) 
+          // 
+          const reg =await tx.raiderRegistration.create({
+                data:{
+                    ...dto,
+                    raiderId:raider?.id
+                } 
+          })
 
-    })
+
+         return {
+             user,
+             raider,
+             reg 
+         }
+
+       })
     //  send res
     return cteatedRaider
   }

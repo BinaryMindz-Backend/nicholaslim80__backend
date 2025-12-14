@@ -14,8 +14,7 @@ import { CreateIncentiveDto } from './dto/create-incentive.dto';
 import { UpdateIncentiveDto } from './dto/update-incentive.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Auth } from 'src/decorators/auth.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+// 
 import {
   ApiTags,
   ApiOperation,
@@ -24,6 +23,8 @@ import {
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 @ApiTags('incentives (admin)') // Group endpoints under the "incentives" tag in Swagger UI
 @ApiBearerAuth() // Indicates that the endpoints require a Bearer token
@@ -34,7 +35,8 @@ export class IncentiveController {
   @Post()
   @UsePipes(new ValidationPipe())
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.WALLET, Permission.CREATE)
   @ApiOperation({ summary: 'Create a new incentive(admin only)' })
   @ApiBody({ type: CreateIncentiveDto })
   @ApiResponse({
@@ -63,6 +65,8 @@ export class IncentiveController {
     description: 'Incentives fetched successfully',
   })
   @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.WALLET, Permission.READ)
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async findAll() {
     try {
@@ -74,6 +78,9 @@ export class IncentiveController {
   }
 
   @Get(':id')
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.WALLET, Permission.READ)
   @ApiOperation({ summary: 'Get an incentive by ID (admin only)' })
   @ApiParam({ name: 'id', type: 'string', description: 'Incentive ID' })
   @ApiResponse({
@@ -95,6 +102,9 @@ export class IncentiveController {
   }
 
   @Patch(':id')
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.WALLET, Permission.UPDATE)
   @UsePipes(new ValidationPipe())
   @ApiOperation({ summary: 'Update an incentive by ID (admin only)' })
   @ApiParam({ name: 'id', type: 'string', description: 'Incentive ID' })
@@ -122,6 +132,9 @@ export class IncentiveController {
 // 
 
   @Patch(':id/status')
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.WALLET, Permission.UPDATE)
   @UsePipes(new ValidationPipe())
   @ApiOperation({ summary: 'Update an Incentive status by ID (admin only)' })
   @ApiParam({ name: 'id', type: 'string', description: 'Incentive ID' })
@@ -154,6 +167,9 @@ export class IncentiveController {
   // 
 
   @Delete(':id')
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.WALLET, Permission.DELETE)
   @ApiOperation({ summary: 'Delete an incentive by ID (admin only)' })
   @ApiParam({ name: 'id', type: 'string', description: 'Incentive ID' })
   @ApiResponse({

@@ -22,6 +22,7 @@ import { storageConfig } from 'src/common/fileUpload/file';
 import { ApiResponses } from 'src/common/apiResponse';
 import { ForgotPasswordDto } from './dto/forgot.password';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { Public } from 'src/decorators/public.decorator';
 
 
 @ApiTags('Authentication')
@@ -36,6 +37,7 @@ export class AuthController {
 
   //** Signup + Send OTP
   @Post('signup')
+  @Public()
   @ApiOperation({ summary: 'Create new user & send OTP to email or phone' })
   @ApiBody({ type: CreateUserDto })
   @ApiResponse({ status: 201, description: 'User created & OTP sent' })
@@ -50,6 +52,7 @@ export class AuthController {
 
   //** Verify Signup OTP
   @Post('verify')
+  @Public()
   @ApiOperation({ summary: 'Verify OTP sent during signup' })
   @ApiBody({ type: VerifyOtpDto })
   @ApiResponse({ status: 200, description: 'User verified successfully' })
@@ -66,6 +69,7 @@ export class AuthController {
 
   //** Login Request OTP //login by otp
   @Post('login/request-otp')
+  @Public()
   @ApiOperation({ summary: 'Request OTP for login' })
   @ApiBody({
     type: RequestOtpDto
@@ -85,6 +89,7 @@ export class AuthController {
 
   //** */ Verify Login OTP → returns Access + Refresh Tokens
   @Post('login/verify-otp')
+  @Public()
   @ApiOperation({ summary: 'Verify login OTP & return JWT tokens' })
   @ApiBody({
     type: VerifyOtpDto
@@ -104,6 +109,7 @@ export class AuthController {
 
   // ** Traditional login using password
   @Post('login')
+  @Public()
   @ApiOperation({ summary: 'Login with email or phone & password' })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
@@ -117,6 +123,7 @@ export class AuthController {
   //** REFRESH TOKEN endpoint for new token generation
   @Post('refresh')
   @Auth()
+  @Public()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
   @ApiBody({
@@ -133,6 +140,7 @@ export class AuthController {
   @Post('logout')
   @ApiOperation({ summary: 'Logout user' })
   @Auth()
+  @Public()
   @ApiBearerAuth()
   async logout(@Req() req) {
     // console.log(req.user);
@@ -145,6 +153,7 @@ export class AuthController {
   // image upload for profile picture
   @ApiTags('File Upload')
   @Post('upload')
+  @Public()
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadImageDto })
   @UseInterceptors(
@@ -172,6 +181,7 @@ export class AuthController {
   
   // forgot password 
   @Post('forgot-password')
+  @Public()
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     try {
      const res = await this.authService.forgotPassword( dto);
@@ -183,6 +193,7 @@ export class AuthController {
 
   // 
   @Post('forgetpass/verify-otp')
+  @Public()
   @ApiOperation({ summary: 'Verify OTP for reset password' })
   @ApiBody({
     type: VerifyOtpDto
@@ -203,12 +214,14 @@ export class AuthController {
 
   // reset pass
   @Post('reset-password')
+  @Public()
   async resetPassword(@Body() dto: ResetPasswordDto) {
     //  
     try{
        const res = await this.authService.resetPassword(dto.email,dto.phone, dto.newPassword);
        return ApiResponses.success(res, 'Reset password successfully');
     }catch(err){
+      console.log(err);
        return ApiResponses.success(err, 'Failed to forget password');
     }
   }
