@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { DriverOrderCompitionService } from './driver_order_compition.service';
-import { DriverOrderCompitionController } from './driver_order_compition.controller';
+import { DriverCompetitionController } from './driver_order_compition.controller';
+import { DriverCompetitionService } from './driver_order_compition.service';
 
 @Module({
-  controllers: [DriverOrderCompitionController],
-  providers: [DriverOrderCompitionService],
+  controllers: [DriverCompetitionController],
+  providers: [DriverCompetitionService],
 })
 export class DriverOrderCompitionModule {}
