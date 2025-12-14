@@ -1,0 +1,11 @@
+model Driver_order_competition {
+  id                Int       @id @default(autoincrement())
+  rank_weight       Int @default(0)
+  rating_weight     Int @default(0) 
+  followers_weight  Int @default(0)
+  total_weights     Int @default(0)
+  challenges_timeout Int @default(0)
+  max_users_to_join Int @default(0)
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+}
