@@ -29,9 +29,7 @@ export class RidersProfileController {
   @ApiBearerAuth()
   async create(@Body() createRidersProfileDto: CreateRidersProfileDto,
     @CurrentUser() user: IUser,
-
   ) {
-      
     try {
       const res = await this.ridersProfileService.create(user.id, createRidersProfileDto);
       return ApiResponses.success(res, 'Rider profile created successfully');
@@ -39,7 +37,6 @@ export class RidersProfileController {
       return ApiResponses.error(error);
     }
   }
-  
 
 
   @Get('rider-profiles')
@@ -108,7 +105,7 @@ export class RidersProfileController {
       return ApiResponses.error(error);
     }
   }
-  
+
 
   // 
   @Patch('update-rider-profile')
@@ -156,6 +153,25 @@ export class RidersProfileController {
       return ApiResponses.error(message);
     }
   }
+
+  @Patch('unsuspend/:id')
+  @Auth()
+  @ApiBearerAuth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Unsuspend rider profile by id (Admin only)' })
+  async Unsuspend(@Param('id') id: string) {
+    try {
+      const res = await this.ridersProfileService.unsuspendRiderProfile(Number(id));
+      return ApiResponses.success(res, 'Rider profile unsuspended successfully');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return ApiResponses.error(message);
+    }
+  }
+
+
+
+
   // create rider profile by admin 
   @Post('admin/create-rider')
   @Auth()

@@ -95,7 +95,22 @@ CREATE TYPE "LoginType" AS ENUM ('DIRECT_SIGNIN', 'ADMIN_SIGNIN');
 CREATE TYPE "ContentManagementType" AS ENUM ('TERMSANDCONDITION', 'PRIVANCYPOLICY', 'CANCELLATIONANDWAITINGPOLICY', 'FAQ', 'HELPARTICLES', 'ABOUTUS');
 
 -- CreateEnum
+CREATE TYPE "Advertisementfor" AS ENUM ('USER', 'RAIDER');
+
+-- CreateEnum
 CREATE TYPE "MessageType" AS ENUM ('TEXT', 'IMAGE', 'PDF');
+
+-- CreateTable
+CREATE TABLE "AboutUs" (
+    "id" SERIAL NOT NULL,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AboutUs_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "admins" (
@@ -115,6 +130,44 @@ CREATE TABLE "admins" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "admins_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Advertise" (
+    "id" SERIAL NOT NULL,
+    "create_for" TEXT NOT NULL,
+    "ad_title" TEXT NOT NULL,
+    "ad_image" TEXT NOT NULL,
+    "status" BOOLEAN NOT NULL DEFAULT false,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Advertise_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AdvertiseAnalytics" (
+    "id" SERIAL NOT NULL,
+    "advertiseId" INTEGER NOT NULL,
+    "impression" INTEGER NOT NULL DEFAULT 0,
+    "click" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AdvertiseAnalytics_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "article" (
+    "id" SERIAL NOT NULL,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "published" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "article_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -166,7 +219,6 @@ CREATE TABLE "delivery_types" (
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    "admin_id" INTEGER NOT NULL,
 
     CONSTRAINT "delivery_types_pkey" PRIMARY KEY ("id")
 );
@@ -210,6 +262,18 @@ CREATE TABLE "disputes" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "disputes_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "FAQ" (
+    "id" SERIAL NOT NULL,
+    "question" TEXT NOT NULL,
+    "answer" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "FAQ_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -455,7 +519,7 @@ CREATE TABLE "quizzes" (
 );
 
 -- CreateTable
-CREATE TABLE "raiders" (
+CREATE TABLE "Raider" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
     "is_online" BOOLEAN NOT NULL DEFAULT false,
@@ -469,7 +533,7 @@ CREATE TABLE "raiders" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "raiders_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Raider_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -721,7 +785,6 @@ CREATE TABLE "vehicle_types" (
     "dimension" TEXT,
     "max_load" DECIMAL(12,2),
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "admin_id" INTEGER NOT NULL,
 
     CONSTRAINT "vehicle_types_pkey" PRIMARY KEY ("id")
 );
@@ -762,7 +825,7 @@ CREATE INDEX "Message_createdAt_idx" ON "Message"("createdAt");
 CREATE INDEX "orders_userId_idx" ON "orders"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "raiders_userId_key" ON "raiders"("userId");
+CREATE UNIQUE INDEX "Raider_userId_key" ON "Raider"("userId");
 
 -- CreateIndex
 CREATE INDEX "raider_locations_raiderId_idx" ON "raider_locations"("raiderId");
@@ -807,10 +870,10 @@ CREATE INDEX "_AdminToRole_B_index" ON "_AdminToRole"("B");
 ALTER TABLE "admins" ADD CONSTRAINT "admins_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "coin_history" ADD CONSTRAINT "coin_history_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AdvertiseAnalytics" ADD CONSTRAINT "AdvertiseAnalytics_advertiseId_fkey" FOREIGN KEY ("advertiseId") REFERENCES "Advertise"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "delivery_types" ADD CONSTRAINT "delivery_types_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "admins"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "coin_history" ADD CONSTRAINT "coin_history_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "destinations" ADD CONSTRAINT "destinations_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -852,7 +915,7 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_vehicle_type_id_fkey" FOREIGN KEY ("
 ALTER TABLE "orders" ADD CONSTRAINT "orders_payment_method_id_fkey" FOREIGN KEY ("payment_method_id") REFERENCES "payment_methods"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "orders" ADD CONSTRAINT "orders_assign_rider_id_fkey" FOREIGN KEY ("assign_rider_id") REFERENCES "raiders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "orders" ADD CONSTRAINT "orders_assign_rider_id_fkey" FOREIGN KEY ("assign_rider_id") REFERENCES "Raider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "payment_methods" ADD CONSTRAINT "payment_methods_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -870,16 +933,16 @@ ALTER TABLE "options" ADD CONSTRAINT "options_questionId_fkey" FOREIGN KEY ("que
 ALTER TABLE "quizzes" ADD CONSTRAINT "quizzes_created_by_id_fkey" FOREIGN KEY ("created_by_id") REFERENCES "admins"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "raiders" ADD CONSTRAINT "raiders_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Raider" ADD CONSTRAINT "Raider_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "raider_locations" ADD CONSTRAINT "raider_locations_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "raiders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "raider_locations" ADD CONSTRAINT "raider_locations_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "raider_location_history" ADD CONSTRAINT "raider_location_history_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "raiders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "raider_location_history" ADD CONSTRAINT "raider_location_history_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "raider_quizzes" ADD CONSTRAINT "raider_quizzes_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "raiders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "raider_quizzes" ADD CONSTRAINT "raider_quizzes_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "raider_quizzes" ADD CONSTRAINT "raider_quizzes_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quizzes"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -894,7 +957,7 @@ ALTER TABLE "raider_answers" ADD CONSTRAINT "raider_answers_question_id_fkey" FO
 ALTER TABLE "raider_answers" ADD CONSTRAINT "raider_answers_selected_option_id_fkey" FOREIGN KEY ("selected_option_id") REFERENCES "options"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "raider_registrations" ADD CONSTRAINT "raider_registrations_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "raiders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "raider_registrations" ADD CONSTRAINT "raider_registrations_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "refers" ADD CONSTRAINT "refers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -903,7 +966,7 @@ ALTER TABLE "refers" ADD CONSTRAINT "refers_user_id_fkey" FOREIGN KEY ("user_id"
 ALTER TABLE "reviews" ADD CONSTRAINT "reviews_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "reviews" ADD CONSTRAINT "reviews_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "raiders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "reviews" ADD CONSTRAINT "reviews_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "rewards" ADD CONSTRAINT "rewards_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -924,7 +987,7 @@ ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_roleId_fkey" FOR
 ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "permissions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "tips" ADD CONSTRAINT "tips_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "raiders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "tips" ADD CONSTRAINT "tips_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tips" ADD CONSTRAINT "tips_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -940,9 +1003,6 @@ ALTER TABLE "transactions" ADD CONSTRAINT "transactions_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "vehicle_types" ADD CONSTRAINT "vehicle_types_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "admins"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_AdminToRole" ADD CONSTRAINT "_AdminToRole_A_fkey" FOREIGN KEY ("A") REFERENCES "admins"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -80,6 +80,10 @@ import { JwtAuthGuard } from './guards/jwt.guard';
     ContentManagementModule,
     CoinManagementModule,
     AdvertiseModule,
+    FaqModule,
+    ArticleModule,
+    AboutusModule,
+    MoneyManagementModule,
     RbacModule
 
 

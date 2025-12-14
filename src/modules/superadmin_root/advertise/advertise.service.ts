@@ -7,80 +7,80 @@ import { performanceCountType } from 'src/types';
 
 @Injectable()
 export class AdvertiseService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // CREATE
-    async create(dto: CreateAdvertiseDto) {
-      const currentDate = new Date();
-      const startDate = new Date(dto.start_date);
-      const endDate = new Date(dto.end_date);
-      // Validate: start date must be in future
-      if (startDate < currentDate) {
-        throw new NotAcceptableException(
-          'Start date must be equal or greater than the current date',
-        );
-      }
-
-      // Validate: end date must be in future
-      if (endDate < currentDate) {
-        throw new NotAcceptableException(
-          'End date must be greater than the current date',
-        );
-      }
-
-      // Validate: end date must be after start date
-      if (endDate <= startDate) {
-        throw new NotAcceptableException(
-          'End date must be greater than start date',
-        );
-      }
-
-      const record = await this.prisma.advertise.findFirst({
-           where:{
-               ad_title:dto.ad_title
-           }
-      })
-
-       if(record){
-           throw new NotFoundException("Record exist")
-       } 
-      //  
-      const res = await this.prisma.advertise.create({
-        data: {
-          ...dto,
-          start_date: startDate,
-          end_date: endDate,
-        },
-      });
-
-      return res;
+  async create(dto: CreateAdvertiseDto) {
+    const currentDate = new Date();
+    const startDate = new Date(dto.start_date);
+    const endDate = new Date(dto.end_date);
+    // Validate: start date must be in future
+    if (startDate < currentDate) {
+      throw new NotAcceptableException(
+        'Start date must be equal or greater than the current date',
+      );
     }
+
+    // Validate: end date must be in future
+    if (endDate < currentDate) {
+      throw new NotAcceptableException(
+        'End date must be greater than the current date',
+      );
+    }
+
+    // Validate: end date must be after start date
+    if (endDate <= startDate) {
+      throw new NotAcceptableException(
+        'End date must be greater than start date',
+      );
+    }
+
+    const record = await this.prisma.advertise.findFirst({
+      where: {
+        ad_title: dto.ad_title
+      }
+    })
+
+    if (record) {
+      throw new NotFoundException("Record exist")
+    }
+    //  
+    const res = await this.prisma.advertise.create({
+      data: {
+        ...dto,
+        start_date: startDate,
+        end_date: endDate,
+      },
+    });
+
+    return res;
+  }
 
 
   // FIND ALL FOR ADMIN
-  async findAll( page: number = 1, limit: number = 20) {
+  async findAll(page: number = 1, limit: number = 20) {
     // 
-    const skip  = (page -1) * limit
+    const skip = (page - 1) * limit
     // 
 
     const advertise = await this.prisma.advertise.findMany({
       include: {
         analytics: true,
       },
-      take:limit,
+      take: limit,
       skip,
-      orderBy:{
-          created_at:"desc"
+      orderBy: {
+        created_at: "desc"
       }
     });
 
     const total = await this.prisma.advertise.count()
     return {
-        data: advertise,
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+      data: advertise,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     }
   }
 
@@ -132,12 +132,12 @@ export class AdvertiseService {
   async update(id: number, dto: UpdateAdvertiseDto) {
     // 
     await this.prisma.advertise.findFirst({
-         where:{
-          ad_title:dto.ad_title,
-          id:{
-             not:id
-          }
-         }
+      where: {
+        ad_title: dto.ad_title,
+        id: {
+          not: id
+        }
+      }
     });
     // 
     return this.prisma.advertise.update({
@@ -146,18 +146,18 @@ export class AdvertiseService {
     });
   }
 
-// UPDATE STATUS (toggle true/false)
-async statusUpdate(id: number) {
-  const ad = await this.findOne(id);
-  if (!ad) throw new NotFoundException('Advertise not found');
+  // UPDATE STATUS (toggle true/false)
+  async statusUpdate(id: number) {
+    const ad = await this.findOne(id);
+    if (!ad) throw new NotFoundException('Advertise not found');
 
-  // Toggle status
-  const newStatus = !ad.status;
-  return this.prisma.advertise.update({
-    where: { id },
-    data: { status: newStatus },
-  });
-}
+    // Toggle status
+    const newStatus = !ad.status;
+    return this.prisma.advertise.update({
+      where: { id },
+      data: { status: newStatus },
+    });
+  }
 
 
   // DELETE

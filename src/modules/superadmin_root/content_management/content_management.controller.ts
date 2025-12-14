@@ -24,7 +24,7 @@ import { Public } from 'src/decorators/public.decorator';
 export class ContentManagementController {
   constructor(
     private readonly contentManagementService: ContentManagementService,
-  ) {}
+  ) { }
 
   @Post()
   @Auth()

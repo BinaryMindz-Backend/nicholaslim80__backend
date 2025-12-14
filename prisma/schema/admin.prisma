@@ -8,27 +8,21 @@ model Admin {
   role              AdminRole  @default(SUPER_ADMIN) 
   role_id           Int?       // optional reference to Role model if you use Role table
 
+  vehicle_type_id  Int?
+  delivery_type_id Int?
 
-  vehicle_type_id   Int?
-  delivery_type_id  Int?
+  first_name   String?
+  last_name    String?
+  email        String? @unique
+  phone_number String?
+  password     String?
 
-  first_name        String?
-  last_name         String?
-  email             String?    @unique
-  phone_number      String?
-  password          String?
+  incentives Incentive[]
 
-  vehicle_type      VehicleType []
-  delivery_type     DeliveryType[]
+  quizs Quiz[]
 
-  incentives        Incentive[]
-
-  quizs             Quiz[]
-
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@map("admins")
 }
-
-

@@ -30,7 +30,8 @@ import { Module, Permission } from 'src/rbac/rbac.constants';
 @ApiTags('Advertise')
 @Controller('advertise')
 export class AdvertiseController {
-  constructor(private readonly advertiseService: AdvertiseService) {}
+  constructor(private readonly advertiseService: AdvertiseService) { }
+
 
   // CREATE
   @Post()
@@ -82,7 +83,8 @@ export class AdvertiseController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Advertise list fetched successfully' })
-  async findAllRoleBased(@Query() pagination: PaginationDto, @CurrentUser() user:IUser ) {
+
+  async findAllRoleBased(@Query() pagination: PaginationDto, @CurrentUser() user: IUser) {
     try {
       const res = await this.advertiseService.findAllRoleBased(
         pagination.page,
@@ -193,7 +195,6 @@ export class AdvertiseController {
       return ApiResponses.error(error, 'Failed to update advertise');
     }
   }
-  
   // UPDATE status
   @Patch('status/:id')
   @Auth()

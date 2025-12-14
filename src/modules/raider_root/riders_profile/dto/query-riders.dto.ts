@@ -1,27 +1,36 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { RaiderVerification } from '@prisma/client';
-import { IsOptional, IsString, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsNumberString } from 'class-validator';
 
 export class GetRidersQueryDto {
-  @ApiProperty({ required: false, description: 'Raider name to filter by' })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   raider_name?: string;
 
-  @ApiProperty({ required: false, description: 'Raider ID to filter by' })
+  @ApiProperty({ required: false })
   @IsOptional()
-  @IsString()
+  @IsNumberString()
   raiderId?: number;
 
-
-  @ApiProperty({ required: false, enum: RaiderVerification, description: 'Raider verification status from admin to filter by' })
+  @ApiProperty({ required: false, enum: RaiderVerification })
   @IsOptional()
   @IsEnum(RaiderVerification)
   raider_verificationFromAdmin?: RaiderVerification;
 
-
-  @ApiProperty({ required: false, description: 'Type of sorting: first (ascending) or last (descending)' })
+  @ApiProperty({ required: false, description: 'asc or desc' })
   @IsOptional()
   @IsString()
   type?: 'asc' | 'desc';
+
+  // NEW PAGINATION ↓↓↓
+  @ApiProperty({ required: false, default: 1 })
+  @IsOptional()
+  @IsNumberString()
+  page?: number;
+
+  @ApiProperty({ required: false, default: 10 })
+  @IsOptional()
+  @IsNumberString()
+  limit?: number;
 }

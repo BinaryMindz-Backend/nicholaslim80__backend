@@ -12,7 +12,7 @@ export class NotificationSchedulerService {
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationService,
-  ) {}
+  ) { }
 
   @Cron(CronExpression.EVERY_SECOND)
   async handleScheduledNotifications() {

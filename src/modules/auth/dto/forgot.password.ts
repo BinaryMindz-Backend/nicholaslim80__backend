@@ -5,7 +5,7 @@ export class ForgotPasswordDto {
   @ApiPropertyOptional({ example: 'user@exmaple.com' })
   @IsEmail()
   @IsOptional()
-  email: string;
+  email?: string;
 
   @ApiPropertyOptional({ example: '+990-98298824' })
   @IsString()
