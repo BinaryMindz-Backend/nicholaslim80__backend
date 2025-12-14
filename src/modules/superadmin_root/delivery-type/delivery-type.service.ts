@@ -52,20 +52,6 @@ export class DeliveryTypeService {
       });
     }
 
-    // Create delivery type
-    return await this.prisma.deliveryType.create({
-      data: {
-        name: dto.name,
-        percentage: dto.percentage,
-        pickup_duration: dto.pickup_duration,
-        delivery_duration: dto.delivery_duration,
-        is_active: dto.is_active,
-        // map admin_id into nested relation
-      },
-    });
-  }
-
-
   // find all delivery type
   async findAll() {
     return this.prisma.deliveryType.findMany();
