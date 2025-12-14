@@ -2,12 +2,14 @@ import {
   Controller,
   Get,
   Patch,
-  Delete,
   Param,
   Body,
   UsePipes,
   ValidationPipe,
   Post,
+  Query,
+  ParseIntPipe,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -24,6 +26,9 @@ import { Auth } from 'src/decorators/auth.decorator';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { CreateDriverCompetitionDto } from './dto/create-driver_order_compition.dto';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
+import { DateByFilterDto } from './dto/date-by-filter.dto';
 
 
 
@@ -68,6 +73,23 @@ export class DriverCompetitionController {
     }
   }
 
+    // GET ALL Logs
+  @Get("logs")
+  @Auth()
+  @RequirePermission(Module.DRIVER_ORDER_COMPETITION, Permission.READ)
+  @ApiOperation({ summary: 'Get all competition configurations changes logs (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Configurations changes logs fetched successfully' })
+  // @ApiQuery({ type: DateByFilterDto })
+  async findAllLogs(@Query() filterDto:DateByFilterDto) {
+    //  
+    try {
+      const res = await this.service.findAllLogs(filterDto.date);
+      return ApiResponses.success(res, 'Configurations changes logs fetched successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch configurations changes logs ');
+    }
+  }
+
   // GET ONE
   @Get(':id')
   @Auth()
@@ -75,7 +97,7 @@ export class DriverCompetitionController {
   @ApiOperation({ summary: 'Get competition configuration by ID' })
   @ApiParam({ name: 'id', example: 1 })
   async findOne(
-    @Param('id') id: string,
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE })) id: string,
   ) {
     try {
       const res = await this.service.findOne(+id);
@@ -93,31 +115,16 @@ export class DriverCompetitionController {
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @ApiParam({ name: 'id', example: 1 })
   async update(
-    @Param('id') id: string,
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE })) id: string,
     @Body() dto: UpdateDriverOrderCompitionDto,
+    @CurrentUser() user:IUser, 
   ) {
     try {
-      const res = await this.service.update(+id, dto);
+      const res = await this.service.update(+id, dto, user);
       return ApiResponses.success(res, 'Configuration updated successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Update failed');
     }
   }
-
-  // DELETE
-  @Delete(':id')
-  @Auth()
-  @RequirePermission(Module.DRIVER_ORDER_COMPETITION, Permission.DELETE)
-  @ApiOperation({ summary: 'Delete competition configuration (Admin only)' })
-  @ApiParam({ name: 'id', example: 1 })
-  async remove(
-    @Param('id') id: string,
-  ) {
-    try {
-      const res = await this.service.remove(+id);
-      return ApiResponses.success(res, 'Configuration deleted successfully');
-    } catch (err) {
-      return ApiResponses.error(err, 'Deletion failed');
-    }
-  }
+// closing bracket
 }
