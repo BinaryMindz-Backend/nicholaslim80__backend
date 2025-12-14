@@ -3,7 +3,6 @@ import {
   Post,
   Body,
   BadRequestException,
-  Req,
   UseInterceptors,
   UploadedFiles,
 } from '@nestjs/common';
@@ -23,6 +22,8 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { ForgotPasswordDto } from './dto/forgot.password';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from 'src/decorators/public.decorator';
+import type { IUser } from 'src/types';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
 
 
 @ApiTags('Authentication')
@@ -140,11 +141,11 @@ export class AuthController {
   @Post('logout')
   @ApiOperation({ summary: 'Logout user' })
   @Auth()
-  @Public()
+  // @Public()
   @ApiBearerAuth()
-  async logout(@Req() req) {
+  async logout(@CurrentUser() user: IUser) {
     // console.log(req.user);
-    await this.authService.logout(+req.user.id);
+    await this.authService.logout(+user.id);
     return { message: 'Logged out successfully' };
   }
 

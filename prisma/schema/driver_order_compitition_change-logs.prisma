@@ -1,0 +1,11 @@
+model Driver_order_competition_change_logs {
+  id                 Int       @id @default(autoincrement())
+  rank               Int @default(0)
+  rating             Int @default(0) 
+  followers_weight   Int @default(0)
+  challenges_timeout Int @default(0)
+  max_users_to_join  Int @default(0)
+  created_at         DateTime  @default(now())
+  created_by         Int
+  admin              Admin      @relation(fields: [created_by], references: [id], onDelete: Cascade)
+}

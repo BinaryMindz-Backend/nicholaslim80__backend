@@ -41,6 +41,7 @@ import { FaqModule } from './modules/superadmin_root/faq/faq.module';
 import { ArticleModule } from './modules/superadmin_root/article/article.module';
 import { AboutusModule } from './modules/superadmin_root/aboutus/aboutus.module';
 import { MoneyManagementModule } from './modules/superadmin_root/money-management/money-management.module';
+import { DriverOrderCompitionModule } from './modules/superadmin_root/driver_order_compition/driver_order_compition.module';
 
 
 @Module({
@@ -88,7 +89,8 @@ import { MoneyManagementModule } from './modules/superadmin_root/money-managemen
     ArticleModule,
     AboutusModule,
     MoneyManagementModule,
-    RbacModule
+    RbacModule,
+    DriverOrderCompitionModule
 
 
   ],
