@@ -1,5 +1,5 @@
 /* eslint-disable prefer-const */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -291,103 +291,180 @@ export class RidersProfileService {
     return updatedProfile;
   }
 
-  //
-  async adminCreateRiderProfile(dto: CreateRidersProfileDto) {
-         // 
-        const role = await this.prisma.role.findFirst({
-         where:{
-              name:UserRole.RAIDER
-         }
-         })
-        if(!role){
-            throw new NotFoundException("Role not found")
-        }
+  // //
+  // async adminCreateRiderProfile(dto: CreateRidersProfileDto) {
+  //        // 
+  //       const role = await this.prisma.role.findFirst({
+  //        where:{
+  //             name:UserRole.RAIDER
+  //        }
+  //        })
+  //       if(!role){
+  //           throw new NotFoundException("Role not found")
+  //       }
 
 
 
-       // 
-      const record = await this.prisma.user.findFirst({
-            where:{
-               OR:[
-                  {email:dto.email_address},
-                  {phone:dto.contact_number}
-               ]
-            }
-      })
-      //  
-      const raider = await tx.raider.create({
-        data: {
-          userId: user?.id,
-          LoginType: LoginType.ADMIN_SIGNIN,
-          raider_verificationFromAdmin: RaiderVerification.APPROVED,
-          raider_status: RaiderStatus.ACTIVE
-        }
-      })
-      // 
-      const reg = await tx.raiderRegistration.create({
-        data: {
-          ...dto,
-          raiderId: raider?.id
-        }
-      })
+  //      // 
+  //     const record = await this.prisma.user.findFirst({
+  //           where:{
+  //              OR:[
+  //                 {email:dto.email_address},
+  //                 {phone:dto.contact_number}
+  //              ]
+  //           }
+  //     })
+  //     //  
+  //     const raider = await tx.raider.create({
+  //       data: {
+  //         userId: user?.id,
+  //         LoginType: LoginType.ADMIN_SIGNIN,
+  //         raider_verificationFromAdmin: RaiderVerification.APPROVED,
+  //         raider_status: RaiderStatus.ACTIVE
+  //       }
+  //     })
+  //     // 
+  //     const reg = await tx.raiderRegistration.create({
+  //       data: {
+  //         ...dto,
+  //         raiderId: raider?.id
+  //       }
+  //     })
 
 
-      return {
-        user,
-        raider,
-        reg
+  //     return {
+  //       user,
+  //       raider,
+  //       reg
+  //     }
+  //     // 
+  //   const cteatedRaider = await this.prisma.$transaction(async(tx)=>{
+  //           // 
+  //          const defaultpassword = process.env.RAIDER_DEFAULT_PASSWORD;
+  //           // 
+  //           if (!defaultpassword) {
+  //                 throw new NotFoundException('Default password is not set in environment variables');
+  //           }
+  //         const hashedPass = await bcrypt.hash(defaultpassword, 10);
+  //             // 
+  //          const user = await tx.user.create({
+  //                data:{
+  //                   username:dto.raider_name,
+  //                   email:dto.email_address,
+  //                   phone:dto.contact_number,
+  //                   roleId:role.id,
+  //                   regi_status:LoginType.ADMIN_SIGNIN,
+  //                   is_active:true,
+  //                   is_verified:true,
+  //                   password:hashedPass
+  //                }
+  //            })
+  //           //  
+  //          const raider =  await tx.raider.create({
+  //                data:{
+  //                   userId:user?.id,
+  //                   LoginType:LoginType.ADMIN_SIGNIN,
+  //                   raider_verificationFromAdmin:RaiderVerification.APPROVED,
+  //                   raider_status:RaiderStatus.ACTIVE
+  //                }
+  //          }) 
+  //         // 
+  //         const reg =await tx.raiderRegistration.create({
+  //               data:{
+  //                   ...dto,
+  //                   raiderId:raider?.id
+  //               } 
+  //         })
+
+
+  //        return {
+  //            user,
+  //            raider,
+  //            reg 
+  //        }
+
+  //      })
+  //   //  send res
+  //   return cteatedRaider
+  // }
+
+    async adminCreateRiderProfile(dto: CreateRidersProfileDto) {
+      // Ensure role exists
+      const role = await this.prisma.role.findUnique({
+        where: { name: UserRole.RAIDER },
+      });
+
+      if (!role) {
+        throw new NotFoundException('Role not found');
       }
-      // 
-    const cteatedRaider = await this.prisma.$transaction(async(tx)=>{
-            // 
-           const defaultpassword = process.env.RAIDER_DEFAULT_PASSWORD;
-            // 
-            if (!defaultpassword) {
-                  throw new NotFoundException('Default password is not set in environment variables');
-            }
-          const hashedPass = await bcrypt.hash(defaultpassword, 10);
-              // 
-           const user = await tx.user.create({
-                 data:{
-                    username:dto.raider_name,
-                    email:dto.email_address,
-                    phone:dto.contact_number,
-                    roleId:role.id,
-                    regi_status:LoginType.ADMIN_SIGNIN,
-                    is_active:true,
-                    is_verified:true,
-                    password:hashedPass
-                 }
-             })
-            //  
-           const raider =  await tx.raider.create({
-                 data:{
-                    userId:user?.id,
-                    LoginType:LoginType.ADMIN_SIGNIN,
-                    raider_verificationFromAdmin:RaiderVerification.APPROVED,
-                    raider_status:RaiderStatus.ACTIVE
-                 }
-           }) 
-          // 
-          const reg =await tx.raiderRegistration.create({
-                data:{
-                    ...dto,
-                    raiderId:raider?.id
-                } 
-          })
 
+      // Check if user already exists
+      const existingUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: dto.email_address },
+            { phone: dto.contact_number },
+          ],
+        },
+      });
 
-         return {
-             user,
-             raider,
-             reg 
-         }
+      if (existingUser) {
+        throw new ConflictException('User already exists');
+      }
 
-       })
-    //  send res
-    return cteatedRaider
-  }
+      // Transaction
+      const createdRaider = await this.prisma.$transaction(async (tx) => {
+        const defaultPassword = process.env.RAIDER_DEFAULT_PASSWORD;
 
+        if (!defaultPassword) {
+          throw new NotFoundException(
+            'Default password is not set in environment variables',
+          );
+        }
+
+        const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+        // Create user
+        const user = await tx.user.create({
+          data: {
+            username: dto.raider_name,
+            email: dto.email_address,
+            phone: dto.contact_number,
+            roleId: role.id,
+            regi_status: LoginType.ADMIN_SIGNIN,
+            is_active: true,
+            is_verified: true,
+            password: hashedPassword,
+          },
+        });
+
+        // Create raider
+        const raider = await tx.raider.create({
+          data: {
+            userId: user.id,
+            LoginType: LoginType.ADMIN_SIGNIN,
+            raider_verificationFromAdmin: RaiderVerification.APPROVED,
+            raider_status: RaiderStatus.ACTIVE,
+          },
+        });
+
+        // Create raider registration
+        const registration = await tx.raiderRegistration.create({
+          data: {
+            ...dto,
+            raiderId: raider.id,
+          },
+        });
+
+        return {
+          user,
+          raider,
+          registration,
+        };
+      });
+
+      return createdRaider;
+    }
 
 
 
