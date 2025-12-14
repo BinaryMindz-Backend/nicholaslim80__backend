@@ -42,6 +42,7 @@ import { ArticleModule } from './modules/superadmin_root/article/article.module'
 import { AboutusModule } from './modules/superadmin_root/aboutus/aboutus.module';
 import { MoneyManagementModule } from './modules/superadmin_root/money-management/money-management.module';
 import { DriverOrderCompitionModule } from './modules/superadmin_root/driver_order_compition/driver_order_compition.module';
+import { CustomerOrderConfirmationModule } from './modules/superadmin_root/customer_order_confirmation/customer_order_confirmation.module';
 
 
 @Module({
@@ -90,7 +91,8 @@ import { DriverOrderCompitionModule } from './modules/superadmin_root/driver_ord
     AboutusModule,
     MoneyManagementModule,
     RbacModule,
-    DriverOrderCompitionModule
+    DriverOrderCompitionModule,
+    CustomerOrderConfirmationModule
 
 
   ],

@@ -1,4 +1,4 @@
-import { PrismaClient, AdminRole, UserRole } from '@prisma/client';
+import { PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -147,6 +147,18 @@ const ROLE_PERMISSIONS = {
     {module:Module.QUIZ, action:Permission.UPDATE},
     {module:Module.QUIZ, action:Permission.READ},
     {module:Module.QUIZ, action:Permission.GET_ONE},
+
+    // driver competition module
+    {module:Module.DRIVER_ORDER_COMPETITION, action:Permission.CREATE},
+    {module:Module.DRIVER_ORDER_COMPETITION, action:Permission.READ},
+    {module:Module.DRIVER_ORDER_COMPETITION, action:Permission.DELETE},
+    {module:Module.DRIVER_ORDER_COMPETITION, action:Permission.UPDATE},
+    // customner confirmation module
+    {module:Module.CUSTOMER_ORDER_CONFIRMATION, action:Permission.CREATE},
+    {module:Module.CUSTOMER_ORDER_CONFIRMATION, action:Permission.READ},
+    {module:Module.CUSTOMER_ORDER_CONFIRMATION, action:Permission.DELETE},
+    {module:Module.CUSTOMER_ORDER_CONFIRMATION, action:Permission.UPDATE},
+
     //  vehicle pricing module
     {module:Module.VECHICLE_PRICING, action:Permission.CREATE},
     {module:Module.VECHICLE_PRICING, action:Permission.READ},
@@ -332,6 +344,7 @@ async function syncPermissionsForExistingRoles() {
   console.log('🎉 Permission sync completed!\n');
 }
 
+
 // INITIAL SEED (First time setup)
 async function initialSeed() {
   const superAdminEmail = process.env.SUPER_ADMIN_EMAIL;
@@ -428,19 +441,45 @@ async function initialSeed() {
         email: superAdminEmail,
         userId: user.id,
         password: hashed,
-        role: AdminRole.SUPER_ADMIN,
+        role_id:superAdminRole.id,
         phone_number: user.phone,
         first_name: user.username,
       },
     });
     console.log(`✅ Admin created: ${admin.email}\n`);
 
+    // 6 Create default Driver Order Competition Config
+    const driverCompititionConfig = await tx.driver_order_competition.create({
+      data: {
+        rank_weight: 40,
+        rating_weight: 30,
+        followers_weight: 30,
+        total_weights: 100,
+        max_users_to_join: 5,
+        challenges_timeout: 8
+      },
+    });
+    console.log(`✅ Driver Order Competition Config seeded: ${driverCompititionConfig.id}\n`); 
+    // 7 customer order confirmation config
+    const customerOrderConfirmationConfig = await tx.customer_order_confirmation.create({
+      data: {
+        is_new_customer_weight: 50,
+        completed_orders_weight: 0,
+        followers_weight: 50,
+      },
+    });
+    console.log(`✅ Customer Order Confirmation Config seeded: ${customerOrderConfirmationConfig.id}\n`);
+
+    // 
     return {
       roles: [superAdminRole, userRole, raiderRole],
       user,
       admin,
+      driverCompititionConfig,
+      customerOrderConfirmationConfig
     };
   });
+
 
   // Print summary
   console.log('🎉 Initial seed completed successfully!\n');
@@ -478,6 +517,11 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+
+
+
+
 
 // ============================================
 // HOW TO USE THIS SEED STRATEGY
