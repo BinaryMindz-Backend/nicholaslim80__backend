@@ -131,6 +131,7 @@ export class AuthService {
 
   //user logout
   async logout(userId: number) {
+    console.log(userId);
     await this.prisma.user.update({
       where: {
         id: userId
