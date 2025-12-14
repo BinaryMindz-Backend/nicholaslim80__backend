@@ -36,7 +36,7 @@ export class NotificationService {
     const whereRole: any = {};
     if (dto.target_role === NotificationSentRole.USER) whereRole.role = UserRole.USER;
     if (dto.target_role === NotificationSentRole.RAIDER) whereRole.role = UserRole.RAIDER;
-     console.log(whereRole);
+    //  console.log(whereRole);
     const users = await this.prisma.user.findMany({
       where: whereRole,
       select: { email: true, phone: true, fcmToken: true },
@@ -127,7 +127,19 @@ export class NotificationService {
             }))
         );
         break;
-
+      // 
+      case NotificationType.WEB_ANNOUNCEMENT:
+        // For web announcements, we might just log or store them
+          await this.prisma.notification.create({
+              data: {
+                type,
+                title,
+                message,
+                is_from_admin:true,
+              },
+            });
+          
+        break;
 
     }
   }
@@ -142,7 +154,7 @@ export class NotificationService {
         const where: any = {
           OR: [
             { target_role: null },
-            { target_role: user.role }
+            { target_role: user.role.name }
           ]
         };
         
