@@ -52,6 +52,7 @@ export class DeliveryTypeService {
       });
     }
 
+
   // find all delivery type
   async findAll() {
     return this.prisma.deliveryType.findMany();
