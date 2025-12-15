@@ -20,7 +20,19 @@ export class ServiceZoneService {
   }
 
   async findAll() {
-    return await this.prisma.serviceZone.findMany();
+
+
+    const res = await this.prisma.serviceZone.findMany();
+    const data = {
+      totalZone: res.length,
+      activeZone: res.filter(zone => zone.isActive).length,
+      inactiveZone: res.filter(zone => !zone.isActive).length,
+      data: res,
+    }
+    return {
+      data,
+      message: 'Service zones fetched successfully'
+    }
   }
 
   async updateActiveStatus(id: number) {
@@ -57,6 +69,7 @@ export class ServiceZoneService {
         where: { id },
         data: updateServiceZoneDto,
       });
+
       return ApiResponses.success(updatedZone, 'Service zone updated successfully');
     } catch (error) {
       return ApiResponses.error(error.message);
