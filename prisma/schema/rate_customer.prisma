@@ -5,7 +5,7 @@ model RateCustomer {
   raider           Raider?         @relation(fields: [raiderId], references: [id], onDelete: SetNull)
   raiderId         Int?
   user_id          Int?
-  user             User?           @relation(fields:[user_id], references:[id], onDelete: SetNull)
+  user             User?            @relation(fields:[user_id], references:[id], onDelete: SetNull)
   rating_star      Int
   notes            String?
 
