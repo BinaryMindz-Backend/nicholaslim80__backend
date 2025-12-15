@@ -444,7 +444,7 @@ export class OrderService {
           data: { competition_started_at: new Date() },
         });
 
-        // 🔹 Schedule BullMQ job to auto-close competition
+        // Schedule BullMQ job to auto-close competition
         await competitionQueue.add(
           'close-competition',          // job name
           { orderId },                  // job data
