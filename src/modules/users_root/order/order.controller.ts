@@ -151,6 +151,28 @@ export class OrderController {
     }
   }
 
+    //
+  @Post('driver/compitition/:order_id')
+  // @Public()
+  @Auth()
+  @ApiBearerAuth()
+  // TODO:need to check role
+  // @Roles(UserRole.USER)
+  // @RequirePermission(Module.ORDER, Permission.ADD_DESTINATION_TO_ORDER)
+  @ApiOperation({ summary: 'driver compitition on order by raider ID (raider only)' })
+  async driverCompitition(@Param('order_id') order_id: string, @CurrentUser() user:IUser ) {
+    console.log(user, order_id);
+    // 
+    try {
+      const order = await this.orderService.driverCompitition(user, +order_id);
+      return ApiResponses.success(order, 'Order updated successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to update order');
+    }
+  } 
+
+
+
   // UPDATE
   @Patch(':id')
   @Auth()
