@@ -42,7 +42,8 @@ model Order {
   // 
   pick_up_items           String[]
 
-  reviews                 Review[]
+  rate_raiders            RateRaider?
+  rate_customers          RateCustomer?
   tips                    Tip[]
 
   created_at              DateTime @default(now())

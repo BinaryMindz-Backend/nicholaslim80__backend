@@ -463,7 +463,13 @@ export class OrderService {
           { delay: config.challenges_timeout * 1000 } // delay in ms
         );
       }
+      // auto order confirmation
+      
 
+
+
+
+      // 
       return updated;
     } finally {
       await this.redisService.releaseLock(lockKey);
@@ -547,6 +553,8 @@ export class OrderService {
     pending,
   };
 }
+
+
 
 
 

@@ -23,7 +23,8 @@ model Raider {
   locationHistory RaiderLocationHistory[]
   raiderQuizzes   RaiderQuiz[]
   tips            Tip[]
-  reviews         Review[]
+  customer_ratings RateCustomer[]
+  raider_ratings  RateRaider[]
   assignedOrders  Order[]                 @relation("AssignedRaider")
 
   created_at DateTime @default(now())
