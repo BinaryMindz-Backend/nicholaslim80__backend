@@ -1,0 +1,9 @@
+model Customer_order_confirmation_ratio_logs {
+  id                    Int       @id @default(autoincrement())
+  customer_id           Int?
+  raider_id             Int?
+  confirmation_ratio_type  OrderConfirmationRatioType
+  is_auto_confirm       Boolean @default(false)
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+}

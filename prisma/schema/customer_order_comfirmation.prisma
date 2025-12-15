@@ -1,0 +1,8 @@
+model Customer_order_confirmation {
+  id                Int       @id @default(autoincrement())
+  is_new_customer_weight   Int        @default(0)
+  completed_orders_weight   Int        @default(0)
+  followers_weight        Int        @default(0)
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+}

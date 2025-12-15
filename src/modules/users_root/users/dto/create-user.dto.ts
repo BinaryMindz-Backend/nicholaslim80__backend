@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, IsEnum } from 'class-validator';
+import { IsEmail, IsOptional, IsString } from 'class-validator';
 
 
 
@@ -32,10 +32,10 @@ export class CreateUserDto {
   @IsString()
   password?: string;
 
-  @ApiPropertyOptional({ enum: UserRole, example: UserRole.USER, description: 'User role' })
-  @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
+  // @ApiPropertyOptional({ enum: UserRole, example: UserRole.USER, description: 'User role' })
+  // @IsOptional()
+  // @IsEnum(UserRole)
+  // role?: UserRole;
 
 
   @ApiPropertyOptional({ example: 'kl345678', description: "Referrel code" })
@@ -43,6 +43,9 @@ export class CreateUserDto {
   @IsString()
   referral_code?: string;
 
-
+  @ApiPropertyOptional({ example: 'custom name', description: "custom name" })
+  @IsOptional()
+  @IsString()
+  role_name?: string;
 
 }

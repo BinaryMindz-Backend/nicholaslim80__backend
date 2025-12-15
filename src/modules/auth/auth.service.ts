@@ -12,7 +12,7 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { UsersService } from '../users_root/users/users.service';
 import { OtpService } from './otp.service';
 import { LoginDto } from './dto/login.dto';
-import { ForgotPasswordDto } from './dto/forgot.password';
+import type { IUser } from 'src/types';
 @Injectable()
 export class AuthService {
   constructor(
@@ -24,7 +24,7 @@ export class AuthService {
 
 
   //** Generate Access + Refresh tokens
-  async generateTokens(user: any) {
+  async generateTokens(user: IUser) {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -61,6 +61,7 @@ export class AuthService {
 
   // Login using OTP
   async loginWithOtp(user: any) {
+    
     const tokens = await this.generateTokens(user);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
 
@@ -108,9 +109,14 @@ export class AuthService {
       // Compare provided token with stored hashed token
       const isValid = await bcrypt.compare(refreshToken, user.refresh_token);
       if (!isValid) throw new ForbiddenException('Invalid refresh token');
-
+       const validData:IUser = {
+        id: user.id,
+        email: user.email!,
+        role: user.role,
+        phone: user.phone
+       }
       // Generate new tokens
-      const tokens = await this.generateTokens(user);
+      const tokens = await this.generateTokens(validData);
 
       // Save new refresh token
       await this.updateRefreshToken(user.id, tokens.refresh_token);
@@ -125,6 +131,7 @@ export class AuthService {
 
   //user logout
   async logout(userId: number) {
+    console.log(userId);
     await this.prisma.user.update({
       where: {
         id: userId
@@ -137,19 +144,11 @@ export class AuthService {
 
 
   // forgot password
-  async forgotPassword( dto: ForgotPasswordDto) {
-        const user = await this.usersService.findByEmailOrPhone(dto.email,dto.phone); 
-        console.log(user);
-        if(!user){
-            throw new BadRequestException("User not found with provided email or phone")
-        }
-        if(!user.is_verified){
-            throw new BadRequestException("User not verified")
-        }
-    const otp = await this.otpService.generateOtp(dto.email, dto.phone);
+  async forgotPassword(email?: string,  phone?:string) {
+    const otp = await this.otpService.generateOtp(email, phone);
     // TODO:currently by email it will be in phone
  
-    return { email: dto.email, phone: dto.phone, message: "OTP sent", otp};
+    return { email: email,phone, message: "OTP sent", otp};
   }
 
   
@@ -181,7 +180,7 @@ export class AuthService {
   // reset password
   async resetPassword(email: string,phone:string, newPassword: string) {
     // 
-
+    // console.log(phone, newPassword);
     // 
   const user = await this.prisma.user.findFirst({
     where: {
@@ -196,6 +195,7 @@ export class AuthService {
   //  
   const hashed = await bcrypt.hash(newPassword, 10);
   const record = await bcrypt.compare(newPassword, user.password as string);
+  // console.log("hased",hashed, record,user );
   if (record) throw new NotAcceptableException('Password is correct you can login'); 
         // 
         await this.prisma.user.updateMany({

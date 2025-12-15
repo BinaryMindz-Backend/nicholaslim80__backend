@@ -28,6 +28,17 @@ export class UsersService {
       throw new NotAcceptableException("You can't create superadmin or admin by general login")
     }
 
+    // role check
+   const role = await this.prisma.role.findFirst({
+         where:{
+              name:UserRole.USER
+         }
+        })
+    if(!role){
+        throw new NotFoundException("Role not found")
+    }
+
+    // 
     let referredByUser;
 
     if (dto.referral_code) {
@@ -71,7 +82,7 @@ export class UsersService {
         referral_code: code,
         referral_link: link,
         is_acc_refered: dto.referral_code ? true : false,
-        role: dto.role
+        roleId:role.id
       },
     });
 
@@ -87,7 +98,7 @@ export class UsersService {
       })
     }
     // if the user role is raider 
-    if (user.role === UserRole.RAIDER) {
+    if (role.name === UserRole.RAIDER) {
       await this.prisma.raider.create({
         data: {
           userId: user.id,
@@ -116,6 +127,9 @@ export class UsersService {
           { phone }
         ]
       },
+      include:{
+          role:true,
+      }
     });
   }
 
@@ -290,13 +304,13 @@ async findAllUsers(filterDto: UserFilterDto) {
   async findOneuser(id: number) {
     if (!id) throw new NotFoundException("User id not found")
 
-    return this.prisma.user.findUnique({ where: { id, is_deleted: false } });
+    return await this.prisma.user.findUnique({ where: { id, is_deleted: false } ,include:{raiderProfile:true,role:true, adminProfiles:true}});
   }
 
   // ** Get user by user id
   async findMe(user: IUser) {
     if (!user.id) throw new NotFoundException("User id not found")
-    return this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true, adminProfiles:true} });
+    return await this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true,role:true, adminProfiles:true} });
   }
 
 
@@ -306,7 +320,7 @@ async findAllUsers(filterDto: UserFilterDto) {
   async findDeletedOneuser(id: number) {
     if (!id) throw new NotFoundException("User id not found")
 
-    return this.prisma.user.findUnique({ where: { id } });
+    return await this.prisma.user.findUnique({ where: { id } });
   }
 
 
@@ -437,8 +451,27 @@ async findAllUsers(filterDto: UserFilterDto) {
 
   // create user by admin
   async adminCreateUser(dto: CreateUserDto) {
+
+    //  
+   const res = await this.prisma.$transaction(async(tx) => {
+              // 
+     let role = await tx.role.findFirst({
+        where:{
+            name:dto.role_name
+        }
+        })
+        // 
+      if(!role){
+          role = await tx.role.create({
+            data:{
+                name:dto.role_name!
+            }
+        })  
+      }
+      // 
+      
     // 
-    const userExists = await this.prisma.user.findFirst({
+    const userExists = await tx.user.findFirst({
         where: {
             OR:[
                {email: dto.email},
@@ -446,24 +479,45 @@ async findAllUsers(filterDto: UserFilterDto) {
             ]
         },
       });
+      
       // 
       if (userExists) {
           throw new ConflictException("User already exist")
       }
-      // 
-      const res = await this.prisma.user.create({
-        data: {
-          username:dto.username,
-          email: dto.email,
-          role: UserRole.USER,
-          phone: dto.phone,
-          is_verified: true,
-          is_active:true,
-          regi_status:LoginType.ADMIN_SIGNIN
-        },
-      });
+           const user = await tx.user.create({
+              data: {
+                username:dto.username,
+                email: dto.email,
+                roleId:role.id,
+                phone: dto.phone,
+                is_verified: true,
+                is_active:true,
+                regi_status:LoginType.ADMIN_SIGNIN
+              },
+              include:{
+                  role:true
+              }
+            });
+
+           const adminProfile = await tx.admin.create({
+              data:{
+                  userId:user.id,
+                  first_name:dto.username,
+                  email:dto.email,
+                  phone_number:dto.phone,
+                  password:dto.password,
+                  role_id:role.id
+              }
+           })
+           return {
+               user,
+               adminProfile
+           };
+   })
+
       return res;
   } 
+  // 
   
 
 

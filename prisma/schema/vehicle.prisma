@@ -7,7 +7,10 @@ model VehicleType {
   dimension    String?
   max_load     Decimal?        @db.Decimal(12, 2)
   isActive     Boolean         @default(true)
-
+  admin_id    Int
+  admin       Admin           @relation(fields: [admin_id], references: [id])
+  created_at   DateTime        @default(now())
+  updated_at   DateTime        @updatedAt
   orders Order[]
 
   @@map("vehicle_types")

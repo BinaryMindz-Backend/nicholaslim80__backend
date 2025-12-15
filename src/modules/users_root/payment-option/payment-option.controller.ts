@@ -9,12 +9,17 @@ import type { IUser } from 'src/types';
 import { Auth } from 'src/decorators/auth.decorator';
 import { UpdatePaymentMethodDto } from './dto/update-payment-option.dto';
 import { PaymentMethodService } from './payment-option.service';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
+// import { Roles } from 'src/decorators/roles.decorator';
+// import { UserRole } from '@prisma/client';
 
 
 @ApiTags('Payment Methods (for users)')
 @Controller('payment-method')
+@RequirePermission(Module.PAYMENT_METHOD, Permission.ALL)
+// @Roles(UserRole.USER)
+@ApiBearerAuth()
 export class PaymentMethodController {
   constructor(private readonly service: PaymentMethodService) {}
 
@@ -22,8 +27,8 @@ export class PaymentMethodController {
   // CREATE
   @Post()
   @Auth()
-  @Roles(UserRole.USER)
-  @ApiBearerAuth()
+  // @Roles(UserRole.USER)
+  // @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a payment method' })
   @ApiResponse({ status: 201, description: 'Payment method created successfully' })
   async create(@Body() dto: CreatePaymentMethodDto, @CurrentUser() user: IUser) {
@@ -38,7 +43,7 @@ export class PaymentMethodController {
   // FIND ALL
   @Get()
   @Auth()
-  @Roles(UserRole.USER)
+  // @Roles(UserRole.USER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all payment methods for logged-in user' })
   async findAll(@CurrentUser() user: IUser) {
@@ -54,7 +59,7 @@ export class PaymentMethodController {
   @Get(':id')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.USER)
+  // @Roles(UserRole.USER)
   @ApiOperation({ summary: 'Get a payment method by ID' })
   @ApiParam({ name: 'id', description: 'Payment Method ID' })
   async findOne(@Param('id') id: string, @CurrentUser() user: IUser) {
@@ -70,7 +75,7 @@ export class PaymentMethodController {
   @Patch(':id')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.USER)
+  // @Roles(UserRole.USER)
   @ApiOperation({ summary: 'Update a payment method' })
   async update(
     @Param('id') id: string,
@@ -89,7 +94,7 @@ export class PaymentMethodController {
   @Delete(':id')
   @Auth()
   @ApiBearerAuth()
-  @Roles(UserRole.USER)
+  // @Roles(UserRole.USER)
   @ApiOperation({ summary: 'Delete a payment method' })
   async remove(@Param('id') id: string, @CurrentUser() user: IUser) {
     try {

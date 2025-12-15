@@ -16,11 +16,12 @@ import { CreateDeliveryTypeDto } from './dto/create-delivery-type.dto';
 import { UpdateDeliveryTypeDto } from './dto/update-delivery-type.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Auth } from 'src/decorators/auth.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
-import { UserRole } from '@prisma/client';
 import type { IUser } from 'src/types';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
+import { Public } from 'src/decorators/public.decorator';
 
 
 @ApiTags('Delivery Types (admin)')
@@ -32,7 +33,8 @@ export class DeliveryTypeController {
   // create delivery type
   @Post('create')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.VECHICLE_PRICING, Permission.CREATE)
   @ApiOperation({ summary: 'Create Delivery Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async create(@CurrentUser() user: IUser,
@@ -47,6 +49,7 @@ export class DeliveryTypeController {
   }
   // 
   @Get()
+  @Public()
   @Auth()
   @ApiOperation({ summary: 'Get all Delivery Types' })
   async findAll() {
@@ -60,6 +63,7 @@ export class DeliveryTypeController {
   // 
   @Get(':id')
   @Auth()
+  @Public()
   @ApiOperation({ summary: 'Get single Delivery Type' })
   async findOne(
     @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }))
@@ -76,7 +80,8 @@ export class DeliveryTypeController {
   // 
   @Patch(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.VECHICLE_PRICING, Permission.UPDATE)
+  // @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update Delivery Type (Admin only)' })
   async update(
     @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }))
@@ -95,7 +100,8 @@ export class DeliveryTypeController {
   // 
   @Delete(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.VECHICLE_PRICING, Permission.DELETE)
   @ApiOperation({ summary: 'Delete Delivery Type (Admin only)' })
   async remove(
     @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }))

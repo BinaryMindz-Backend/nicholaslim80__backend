@@ -12,8 +12,6 @@ import {
 
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { MyRaiderService } from './my_raider.service';
-import { UserRole } from '@prisma/client';
-import { Roles } from 'src/decorators/roles.decorator';
 import { Auth } from 'src/decorators/auth.decorator';
 import { CreateMyRaiderDto } from './dto/create-my_raider.dto';
 import { ApiResponses } from 'src/common/apiResponse';
@@ -21,6 +19,8 @@ import { UpdateMyRaiderDto } from './dto/update-my_raider.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 @ApiTags('My Raiders (User & admin Only)')
 @Controller('my-raider')
@@ -29,7 +29,8 @@ export class MyRaiderController {
 
   @Post()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.USER)
+  // @Roles(UserRole.SUPER_ADMIN, UserRole.USER)
+  @RequirePermission(Module.MY_RAIDER, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create my raider entry(user)' })
   @ApiResponse({ status: 201, description: 'My Raider created successfully' })
@@ -45,7 +46,8 @@ export class MyRaiderController {
   // for admin
   @Get('admin/:userID')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.MY_RAIDER, Permission.READ_ADMIN_MY_RAIDER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all my raiders for admin(admin) on fav driver' })
   async findAllforAdmin(@Param("userID") id:string) {
@@ -59,7 +61,8 @@ export class MyRaiderController {
   // for user
   @Get('/my-raider')
   @Auth()
-  @Roles(UserRole.USER)
+  // @Roles(UserRole.USER)
+  @RequirePermission(Module.MY_RAIDER, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all my raiders (user)' })
   // @ApiQuery({type:PaginationDto})
@@ -75,7 +78,8 @@ export class MyRaiderController {
 
   @Get(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.USER)
+  // @Roles(UserRole.SUPER_ADMIN, UserRole.USER)
+  @RequirePermission(Module.MY_RAIDER, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get single my raider by ID' })
   async findOne(@Param('id') id: string) {
@@ -89,7 +93,8 @@ export class MyRaiderController {
 
   @Patch(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.USER)
+  // @Roles(UserRole.SUPER_ADMIN, UserRole.USER)
+  @RequirePermission(Module.MY_RAIDER, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update my raider' })
   async update(@Param('id') id: string, @Body() dto: UpdateMyRaiderDto) {
@@ -104,7 +109,8 @@ export class MyRaiderController {
   // 
   @Patch('makefav/:id')
   @Auth()
-  @Roles( UserRole.USER)
+  // @Roles( UserRole.USER)
+  @RequirePermission(Module.MY_RAIDER, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Make is fav to raider my raider' })
   async isFavourite(@Param('id') id: string) {
@@ -120,7 +126,8 @@ export class MyRaiderController {
 
   @Delete(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.USER)
+  // @Roles(UserRole.SUPER_ADMIN, UserRole.USER)
+  @RequirePermission(Module.MY_RAIDER, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete my raider' })
   async remove(@Param('id') id: string) {

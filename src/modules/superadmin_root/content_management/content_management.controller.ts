@@ -12,9 +12,13 @@ import { CreateContentManagementDto } from './dto/create-content_management.dto'
 import { UpdateContentManagementDto } from './dto/update-content_management.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Auth } from 'src/decorators/auth.decorator';
-import { UserRole } from '@prisma/client';
-import { Roles } from 'src/decorators/roles.decorator';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
+import { Public } from 'src/decorators/public.decorator';
+
+
+
 
 @Controller('content-management')
 export class ContentManagementController {
@@ -24,8 +28,9 @@ export class ContentManagementController {
 
   @Post()
   @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.CREATE)
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN)
   async create(@Body() createContentManagementDto: CreateContentManagementDto) {
     try {
       const data = await this.contentManagementService.create(
@@ -42,7 +47,7 @@ export class ContentManagementController {
 
   @Get()
   @Auth()
-  @ApiBearerAuth()
+  @Public()
   async findAll() {
     try {
       const res = await this.contentManagementService.findAll();
@@ -56,8 +61,7 @@ export class ContentManagementController {
   }
 
   @Get(':id')
-  @Auth()
-  @ApiBearerAuth()
+  @Public()
   async findOne(@Param('id') id: string) {
     try {
       const res = await this.contentManagementService.findOne(+id);
@@ -72,8 +76,8 @@ export class ContentManagementController {
 
   @Patch(':id')
   @Auth()
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.UPDATE)
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN)
   async update(
     @Param('id') id: string,
     @Body() updateContentManagementDto: UpdateContentManagementDto,
@@ -94,8 +98,8 @@ export class ContentManagementController {
 
   @Delete(':id')
   @Auth()
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.DELETE)
   @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN)
   async remove(@Param('id') id: string) {
     try {
       await this.contentManagementService.remove(+id);

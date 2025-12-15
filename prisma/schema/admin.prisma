@@ -1,26 +1,21 @@
-// prisma/models/admin.prisma
-
 model Admin {
-  id            Int       @id @default(autoincrement())
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId        Int
-  is_seed_admin Boolean   @default(true)
-  role          AdminRole @default(SUPER_ADMIN)
-  role_id       Int? // optional reference to Role model if you use Role table
-  roles         Role[]
-
-  vehicle_type_id  Int?
-  delivery_type_id Int?
-
+  id                Int        @id @default(autoincrement())
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            Int
+  is_seed_admin     Boolean    @default(true)
+  role_id           Int?       // optional reference to Role model if you use Role table
   first_name   String?
   last_name    String?
   email        String? @unique
   phone_number String?
-  password     String?
-
+  password     String? 
+  // Relations (dont remove any relation fields, they are needed for relations)
+  vehicle_type      VehicleType[]
+  delivery_type     DeliveryType[]
   incentives Incentive[]
-
   quizs Quiz[]
+  driver_order_competition_change_logs Driver_order_competition_change_logs[] 
+  // 
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

@@ -243,3 +243,9 @@ enum Advertisementfor {
       USER
       RAIDER
 }
+// order confirmation ratio type
+enum OrderConfirmationRatioType {
+      GENIUNE
+      MANUAL_CHECK
+      SUSPICIOUS
+}

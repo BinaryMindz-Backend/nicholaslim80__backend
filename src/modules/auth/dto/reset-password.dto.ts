@@ -10,11 +10,12 @@ export class ResetPasswordDto {
   @IsOptional()
   email: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '+88032424487',
     description: 'phone of the user requesting password reset',
   })
   @IsString()
+  @IsOptional()
   phone: string;
 
   @ApiProperty({

@@ -1,0 +1,11 @@
+model RolePermission {
+  id          Int      @id @default(autoincrement())
+  
+  module      String
+  action      String   // Granular action like "update_status", "update_price", "create", "read", "delete"
+  roleId      Int     
+  role        Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  // @@unique([roleId, module, action])
+  @@map("role_permissions")
+}
