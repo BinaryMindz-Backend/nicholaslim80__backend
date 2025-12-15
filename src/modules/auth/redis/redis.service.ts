@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Inject, Injectable } from '@nestjs/common';
 import type { RedisClientType } from 'redis';
 
@@ -33,4 +31,25 @@ export class RedisService {
   async del(key: string) {
     return this.client.del(key);
   }
+  
+
+  // aquirelock for order timing 
+  async acquireLock(key: string, ttlMs = 5000): Promise<boolean> {
+    const result = await this.client.set(key, '1', {
+      PX: ttlMs,
+      NX: true,
+    });
+
+    return result === 'OK';
+  }
+  
+  // release lock
+  async releaseLock(key: string): Promise<void> {
+    await this.client.del(key);
+  }
+
+
+
+
+
 }

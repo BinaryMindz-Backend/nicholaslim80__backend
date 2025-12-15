@@ -15,6 +15,9 @@ model Raider {
   suspendedDuration DateTime?
   suspensionReason  String?
 
+  rank            Int?   @default(0)
+  reviews_count   Int?   @default(0)
+
   registrations   RaiderRegistration[]
   locations       RaiderLocation[]
   locationHistory RaiderLocationHistory[]
