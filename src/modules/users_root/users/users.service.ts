@@ -22,16 +22,16 @@ export class UsersService {
 
 
   // ** Create new user // signup with otp verify
-  async createUser(dto: { email?: string; password?: string; username?: string; phone: string, referral_code?: string, role?: UserRole }) {
+  async createUser(dto: { email?: string; password?: string; username?: string; phone: string, referral_code?: string, role_name:string }) {
 
-    if (dto.role === UserRole.SUPER_ADMIN) {
+    if (dto.role_name === UserRole.SUPER_ADMIN) {
       throw new NotAcceptableException("You can't create superadmin or admin by general login")
     }
 
     // role check
    const role = await this.prisma.role.findFirst({
          where:{
-              name:UserRole.USER
+              name:dto.role_name
          }
         })
     if(!role){

@@ -392,8 +392,20 @@ export class OrderService {
     });
   }
 
+  
+  // driver compitition algoridom
+  async driverCompitition(user:IUser, orderId: number) {
+    console.log("form order compition--->", user, orderId);
+     //  
+     const raider = await this.prisma.raider.findFirst({
+            where:{
+                userId:user.id
+            }
+     })
+    if(!raider){
+        throw new NotFoundException("Raider not found")
+    }  
 
-  async driverCompitition(raiderId: number, orderId: number) {
     const lockKey = `order:competition:${orderId}`;
 
     const lockAcquired = await this.redisService.acquireLock(lockKey, 3000);
@@ -417,7 +429,7 @@ export class OrderService {
         throw new BadRequestException('Competition already closed');
       }
 
-      if (order.compititor_id.includes(raiderId)) {
+      if (order.compititor_id.includes(raider.id)) {
         return order; // already joined
       }
 
@@ -430,13 +442,13 @@ export class OrderService {
       const updated = await this.prisma.order.update({
         where: { id: orderId },
         data: {
-          compititor_id: { push: raiderId },
+          compititor_id: { push: raider.id },
         },
       });
-
+      // console.log(updated,updated.compititor_id.length === 1, raider );
       // Start competition only once
       if (
-        updated.compititor_id.length === 2 &&
+        updated.compititor_id.length === 1 &&
         !updated.competition_started_at
       ) {
         await this.prisma.order.update({
