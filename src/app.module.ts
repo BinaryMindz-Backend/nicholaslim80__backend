@@ -43,6 +43,7 @@ import { AboutusModule } from './modules/superadmin_root/aboutus/aboutus.module'
 import { MoneyManagementModule } from './modules/superadmin_root/money-management/money-management.module';
 import { DriverOrderCompitionModule } from './modules/superadmin_root/driver_order_compition/driver_order_compition.module';
 import { CustomerOrderConfirmationModule } from './modules/superadmin_root/customer_order_confirmation/customer_order_confirmation.module';
+import { ServiceZoneModule } from './modules/superadmin_root/service-zone/service-zone.module';
 
 
 @Module({
@@ -92,7 +93,8 @@ import { CustomerOrderConfirmationModule } from './modules/superadmin_root/custo
     MoneyManagementModule,
     RbacModule,
     DriverOrderCompitionModule,
-    CustomerOrderConfirmationModule
+    CustomerOrderConfirmationModule,
+    ServiceZoneModule
 
 
   ],
