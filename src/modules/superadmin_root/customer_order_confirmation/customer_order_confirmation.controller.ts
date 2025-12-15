@@ -27,7 +27,7 @@ import { UpdateCustomerOrderConfirmationDto } from './dto/update-customer_order_
 
 
 
-@ApiTags('Customer Order Confirmation')
+@ApiTags('Customer Order Confirmation (admin only)')
 @ApiBearerAuth()
 @Controller('customer-order-confirmation')
 export class CustomerOrderConfirmationController {

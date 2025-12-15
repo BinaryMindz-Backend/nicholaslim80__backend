@@ -1,12 +1,14 @@
-import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { IUser } from 'src/types';
-import { OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
+import { RedisService } from 'src/modules/auth/redis/redis.service';
+import { competitionQueue } from 'src/core/queues/competition.queue';
 
 
 @Injectable()
@@ -14,6 +16,7 @@ export class OrderService {
   constructor(
      private prisma: PrismaService,
      private txIdService:TransactionIdService,
+      private redisService: RedisService,
 
   ) {}
 
@@ -99,12 +102,13 @@ export class OrderService {
 
   }
 
-  // 
-  async findMine(
+
+    // 
+   async findMine(
       userId: number,
       page: number = 1,
       limit: number = 20,
-  ) {
+   ) {
     // 
     const skip = (page - 1) * limit;
     // 
@@ -133,7 +137,7 @@ export class OrderService {
   }
 
   // admin only
-      async findUserOrder(
+  async findUserOrder(
         userId: number,
         page: number = 1,
         limit: number = 20,
@@ -164,8 +168,8 @@ export class OrderService {
       }
   
 
-      // ** for system use user(admin only)
-    async findAll(filters: OrderFilterDto) {
+   // ** for system use user(admin only)
+   async findAll(filters: OrderFilterDto) {
       const {
         page = 1,
         limit = 20,
@@ -304,13 +308,13 @@ export class OrderService {
       const already = await this.prisma.order.findFirst({
         where: { id, order_status: status },
       });
-
+      //  
       if (already) {
         throw new ConflictException(`This order is already ${status}`);
       }
       // 3. Extra rules
       let extraData = {};
-
+      // 
       if (status === OrderStatus.PENDING) {
         extraData = { is_placed: true };
       }
@@ -319,8 +323,6 @@ export class OrderService {
         extraData = { is_placed: false };
       }
       // 4. Update status
-
-
       const res = await this.prisma.$transaction(async (tx)=>{
         const updatedStatus = await tx.order.update({
               where: {
@@ -360,17 +362,12 @@ export class OrderService {
                    }
               })
             }
-
-
+        //  
         return updatedStatus;
       })
-    
+      // 
+      return res;
 
-
-      return res
-    
-    
-    
     }
 
 
@@ -395,8 +392,151 @@ export class OrderService {
     });
   }
 
+
+  async driverCompitition(raiderId: number, orderId: number) {
+    const lockKey = `order:competition:${orderId}`;
+
+    const lockAcquired = await this.redisService.acquireLock(lockKey, 3000);
+    if (!lockAcquired) {
+      throw new ConflictException(
+        'Competition is processing, please try again',
+      );
+    }
+
+    try {
+      const config = await this.prisma.driver_order_competition.findFirst();
+      if (!config) throw new NotFoundException('Competition config missing');
+
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+      });
+
+      if (!order) throw new NotFoundException('Order not found');
+
+      if (order.competition_closed) {
+        throw new BadRequestException('Competition already closed');
+      }
+
+      if (order.compititor_id.includes(raiderId)) {
+        return order; // already joined
+      }
+
+      if (order.compititor_id.length >= config.max_users_to_join) {
+        throw new BadRequestException(
+          'Maximum number of competitors has been reached',
+        );
+      }
+
+      const updated = await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          compititor_id: { push: raiderId },
+        },
+      });
+
+      // Start competition only once
+      if (
+        updated.compititor_id.length === 2 &&
+        !updated.competition_started_at
+      ) {
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: { competition_started_at: new Date() },
+        });
+
+        // 🔹 Schedule BullMQ job to auto-close competition
+        await competitionQueue.add(
+          'close-competition',          // job name
+          { orderId },                  // job data
+          { delay: config.challenges_timeout * 1000 } // delay in ms
+        );
+      }
+
+      return updated;
+    } finally {
+      await this.redisService.releaseLock(lockKey);
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // 
+  // async driverCompitition(raiderId: number, orderId: number) {
+  //   // Fetch order with competition start time
+  //   const order = await this.prisma.order.findUnique({
+  //     where: { id: orderId },
+  //     select: {
+  //       compititor_id: true,
+  //       competition_started_at: true, // or created_at
+  //     },
+  //   });
+
+  //   if (!order) {
+  //     throw new NotFoundException('Order not found');
+  //   }
+    
+  //   // need to check minimun
+  //   // Fetch competition config (latest / active)
+  //   const config = await this.prisma.driver_order_competition.findFirst({
+  //     orderBy: { updated_at: 'desc' },
+  //   });
+
+  //   if (!config) {
+  //     throw new BadRequestException('Competition configuration not found');
+  //   }
+
+  //   const timeoutMs = config.challenges_timeout * 1000;
+  //   const now = Date.now();
+  //   const startTime = new Date(order.competition_started_at).getTime();
+
+  //   // TIME WINDOW CHECK
+  //   if (now - startTime > timeoutMs) {
+  //     throw new BadRequestException('Competition time window has expired');
+  //   }
+
+  //   // Already joined
+  //   if (order.compititor_id.includes(raiderId)) {
+  //     return order;
+  //   }
+
+  //   // Max competitors check
+  //   if (order.compititor_id.length >= config.max_users_to_join) {
+  //     throw new BadRequestException(
+  //       'Maximum number of competitors has been reached for this order',
+  //     );
+  //   }
+
+  //   // Add raider to competition
+  //   const res = await this.prisma.order.update({
+  //     where: { id: orderId },
+  //     data: {
+  //       compititor_id: {
+  //         push: raiderId,
+  //       },
+  //     },
+  //   });
+
+  //   return res;
+  // }
+
   
-  // order update for admin
+  // order assign by admin
     async assignDriver(id: number, riderId: number) {
       // 1. Check order exists
       const order = await this.prisma.order.findUnique({
@@ -454,7 +594,7 @@ export class OrderService {
 
     // Scheduled Orders
     this.prisma.order.count({
-      where: { order_status: OrderStatus.SCHEDULED },
+      where: { collect_time:CollectTime.SCHEDULED  },
     }),
 
     // Pending Orders

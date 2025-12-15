@@ -34,7 +34,7 @@ import { DateByFilterDto } from './dto/date-by-filter.dto';
 
 
 
-@ApiTags('Driver Order Competition')
+@ApiTags('Driver Order Competition (admin only)')
 @ApiBearerAuth()
 @Controller('driver-order-competition')
 export class DriverCompetitionController {
