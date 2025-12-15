@@ -14,13 +14,16 @@ CREATE TYPE "NotificationType" AS ENUM ('ORDER_UPDATE', 'PROMOTION', 'GENERAL', 
 CREATE TYPE "RewardType" AS ENUM ('SHARE', 'COMPLETED', 'REFER', 'DAILY_LOGIN', 'FIRST_SIGNUP');
 
 -- CreateEnum
-CREATE TYPE "OrderStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'PENDING', 'PROGRESS', 'ONGOING', 'SCHEDULED');
+CREATE TYPE "OrderStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'PENDING', 'PROGRESS', 'ONGOING', 'FAILED');
 
 -- CreateEnum
 CREATE TYPE "DestinationType" AS ENUM ('SENDER', 'RECEIVER');
 
 -- CreateEnum
 CREATE TYPE "RouteType" AS ENUM ('ONE_WAY', 'ROUND');
+
+-- CreateEnum
+CREATE TYPE "CollectTime" AS ENUM ('ASAP', 'SCHEDULED');
 
 -- CreateEnum
 CREATE TYPE "DeliveryQuality" AS ENUM ('EXCELLENT', 'GOOD', 'AVERAGE', 'POOR');
@@ -414,12 +417,16 @@ CREATE TABLE "orders" (
     "route_type" "RouteType" NOT NULL DEFAULT 'ONE_WAY',
     "delivery_type" "DeliveryTypeName" NOT NULL DEFAULT 'EXPRESS',
     "pay_type" "PayType" NOT NULL DEFAULT 'WALLET',
+    "collect_time" "CollectTime" NOT NULL DEFAULT 'ASAP',
     "vehicle_type_id" INTEGER NOT NULL,
     "total_cost" DECIMAL(12,2) NOT NULL,
     "has_additional_services" BOOLEAN NOT NULL DEFAULT false,
     "is_promo_used" BOOLEAN NOT NULL DEFAULT false,
     "notify_favorite_raider" BOOLEAN NOT NULL DEFAULT false,
     "payment_method_id" INTEGER,
+    "compititor_id" INTEGER[] DEFAULT ARRAY[]::INTEGER[],
+    "competition_started_at" TIMESTAMP(3),
+    "competition_closed" BOOLEAN NOT NULL DEFAULT false,
     "assign_rider_id" INTEGER,
     "raider_confirmation" BOOLEAN NOT NULL DEFAULT false,
     "is_reviewed" BOOLEAN NOT NULL DEFAULT false,
@@ -585,6 +592,8 @@ CREATE TABLE "Raider" (
     "isSuspended" BOOLEAN NOT NULL DEFAULT false,
     "suspendedDuration" TIMESTAMP(3),
     "suspensionReason" TEXT,
+    "rank" INTEGER DEFAULT 0,
+    "reviews_count" INTEGER DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
