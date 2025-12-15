@@ -29,6 +29,7 @@ enum NotificationType {
   WEB_ANNOUNCEMENT
 }
 
+// 
 enum RewardType {
   SHARE
   COMPLETED
@@ -37,14 +38,14 @@ enum RewardType {
   FIRST_SIGNUP
 }
 
-
+// order enum
 enum OrderStatus {
   COMPLETED
   CANCELLED
   PENDING
   PROGRESS
   ONGOING
-  SCHEDULED
+  FAILED
 }
 
 enum DestinationType {
@@ -58,8 +59,12 @@ enum RouteType {
    ROUND
 }
 
+enum CollectTime {
+  ASAP
+  SCHEDULED
+}
 
-
+// review enum
 enum DeliveryQuality {
   EXCELLENT
   GOOD

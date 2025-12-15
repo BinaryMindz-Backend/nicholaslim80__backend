@@ -1,47 +1,52 @@
 model Order {
-  id Int @id @default(autoincrement())
+  id                      Int @id @default(autoincrement())
+   
+  user                    User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId                  Int?
 
-  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-  userId Int?
+  route_type              RouteType        @default(ONE_WAY)
+  delivery_type           DeliveryTypeName @default(EXPRESS)
 
-  route_type    RouteType        @default(ONE_WAY)
-  delivery_type DeliveryTypeName @default(EXPRESS)
+  pay_type                PayType @default(WALLET)
+  collect_time            CollectTime @default(ASAP) 
 
-  pay_type PayType @default(WALLET)
-
-  vehicle_type_id Int
-  vehicle         VehicleType @relation(fields: [vehicle_type_id], references: [id], onDelete: SetNull)
+  vehicle_type_id         Int
+  vehicle                 VehicleType @relation(fields: [vehicle_type_id], references: [id], onDelete: SetNull)
 
   total_cost              Decimal @db.Decimal(12, 2)
   has_additional_services Boolean @default(false)
   is_promo_used           Boolean @default(false)
   notify_favorite_raider  Boolean @default(false)
 
-  payment_method_id Int?
-  payment_method    PaymentMethod? @relation(fields: [payment_method_id], references: [id], onDelete: SetNull)
+  payment_method_id       Int?
+  payment_method          PaymentMethod? @relation(fields: [payment_method_id], references: [id], onDelete: SetNull)
+  
+  compititor_id           Int[] @default([])
+  competition_started_at  DateTime?
+  competition_closed      Boolean @default(false)
 
-  assign_rider_id Int?
-  assign_rider    Raider? @relation("AssignedRaider", fields: [assign_rider_id], references: [id], onDelete: SetNull)
+  assign_rider_id         Int?
+  assign_rider            Raider? @relation("AssignedRaider", fields: [assign_rider_id], references: [id], onDelete: SetNull)
 
-  raider_confirmation Boolean     @default(false)
-  is_reviewed         Boolean     @default(false)
-  is_placed           Boolean     @default(false)
-  is_pickup           Boolean     @default(false)
-  order_status        OrderStatus @default(PROGRESS)
-  is_out_for_delivery Boolean     @default(false)
+  raider_confirmation     Boolean     @default(false)
+  is_reviewed             Boolean     @default(false)
+  is_placed               Boolean     @default(false)
+  is_pickup               Boolean     @default(false)
+  order_status            OrderStatus @default(PROGRESS)
+  is_out_for_delivery     Boolean     @default(false)
 
-  destinations Destination[]
-  transactions Transaction[]
+  destinations            Destination[]
+  transactions            Transaction[]
 
-  rewards       Reward[]
+  rewards                 Reward[]
   // 
-  pick_up_items String[]
+  pick_up_items           String[]
 
-  reviews Review[]
-  tips    Tip[]
+  reviews                 Review[]
+  tips                    Tip[]
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
 
   @@index([userId])
   @@map("orders")

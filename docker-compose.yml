@@ -20,16 +20,23 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   app:
     build: .
     container_name: nicho_app
     restart: always
     depends_on:
-      - db
-      - redis
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_started
     env_file:
-      - .env 
+      - .env
     ports:
       - "${PORT}:${PORT}"
     command: pnpm run start:dev
