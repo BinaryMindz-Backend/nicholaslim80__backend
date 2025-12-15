@@ -37,9 +37,12 @@ export class ServiceZoneController {
 
   @Patch(':id')
   @Auth()
+
   @ApiBearerAuth()
   async update(@Param('id') id: string, @Body() updateServiceZoneDto: UpdateServiceZoneDto) {
-    return await this.serviceZoneService.update(+id, updateServiceZoneDto);
+
+    const res = await this.serviceZoneService.update(+id, updateServiceZoneDto);
+    return ApiResponses.success(res, 'Service zone updated successfully');
   }
 
   @Delete(':id')
