@@ -1,5 +1,5 @@
 model serviceZone {
-  id              String   @id @default(uuid())
+  id              Int      @id @default(autoincrement())
   name            String
   zoneName        String
   coordinates     Json
