@@ -49,6 +49,7 @@ export class ServiceZoneController {
   @Auth()
   @ApiBearerAuth()
   async remove(@Param('id') id: string) {
-    return await this.serviceZoneService.remove(+id);
+    const res = await this.serviceZoneService.remove(+id);
+    return ApiResponses.success(res, 'Service zone deleted successfully');
   }
 }
