@@ -1,0 +1,14 @@
+model serviceZone {
+  id              String   @id @default(uuid())
+  name            String
+  zoneName        String
+  coordinates     Json
+  deliveryFee     Float
+  priority        Int?
+  color           String?
+  minOrderAmmount Float?
+  isActive        Boolean  @default(true)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
