@@ -463,14 +463,84 @@ export class OrderService {
           { delay: config.challenges_timeout * 1000 } // delay in ms
         );
       }
-      // auto order confirmation
-      
 
 
+        // Auto Order Confirmation
+        const c = await this.prisma.customer_order_confirmation.findFirst();
+        if (!c) return;
 
+        // Get customer's completed order count
+        const orderCount = await this.prisma.order.count({
+          where: {
+            userId: user.id,
+            order_status: 'COMPLETED'
+          }
+        });
 
-      // 
-      return updated;
+        // Get average rating from drivers for this customer
+        const avgRating = await this.prisma.rateCustomer.aggregate({
+          where: {
+            user_id: user.id
+          },
+          _avg: {
+            rating_star: true
+          }
+        });
+
+        // Check if driver follows this customer (from past orders)
+        // const isFollower = await this.prisma.driverFollowsCustomer.findFirst({
+        //   where: {
+        //     driver_id: driver.id, // Current driver who accepted the order
+        //     customer_id: user.id
+        //   }
+        // });
+
+        // Default rating for new customers (no ratings yet)
+        const customerRating = avgRating._avg.rating_star ?? 3.0;
+
+        // Determine if new customer
+        const isNewCustomer = orderCount === 0;
+
+        // Calculate score components (normalized to 0-5 scale for consistency)
+        const newCustomerScore = isNewCustomer ? 0 : 5; // New customer = 0, Existing = 5
+        const completedOrdersScore = Math.min(orderCount / 10, 1) * 5; // Scale: 0-5 based on orders
+        // const followerScore = isFollower ? 5 : 0; // Is follower = 5, Not follower = 0
+
+        // Apply weights (convert percentage to decimal)
+        const score = 
+          (newCustomerScore * (c.is_new_customer_weight / 100)) +
+          (completedOrdersScore * (c.completed_orders_weight / 100));
+          // (followerScore * (config.followers_weight / 100));
+
+        // With your weights: 50% + 0% + 50%
+        // Max possible score = 5 (if not new customer + is follower)
+        // Example: (5 × 0.50) + (x × 0.00) + (5 × 0.50) = 2.5 + 0 + 2.5 = 5.0
+
+        // Determine if auto-confirm
+        const autoConfirmThreshold = 3.0; // Configurable
+        const shouldAutoConfirm = score >= autoConfirmThreshold;
+
+        console.log({
+          userId: user.id,
+          orderCount,
+          isNewCustomer,
+          customerRating,
+          components: {
+            newCustomer: newCustomerScore * (c.is_new_customer_weight / 100),
+            completedOrders: completedOrdersScore * (c.completed_orders_weight / 100),
+            // follower: followerScore * (config.followers_weight / 100)
+          },
+          finalScore: score,
+          shouldAutoConfirm
+        });
+
+        return {
+          updated,
+          score,
+          shouldAutoConfirm,
+          requiresManualConfirmation: !shouldAutoConfirm
+        };
+
     } finally {
       await this.redisService.releaseLock(lockKey);
     }
