@@ -92,6 +92,28 @@ export class OrderController {
   }
 
 
+    // GET FOR FEED
+    @Get('feed')
+    @Auth()
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get Order feed' })
+    @ApiResponse({ status: 200, description: 'Orders feed retrieved successfully' })
+    async orderForFeed(
+      @Query() pagination: PaginationDto,
+  ) {
+      try {
+        const orders = await this.orderService.orderForFeed(
+          pagination.page,
+          pagination.limit,
+        );
+        return ApiResponses.success(orders, 'Orders feed retrieved successfully');
+      } catch (err) {
+        return ApiResponses.error(err, 'Failed to fetch orders');
+      }
+    }
+
+
+
     // GET MY ORDERS
       @Get('user-history/:userId')
       @Auth()
@@ -153,12 +175,9 @@ export class OrderController {
 
     //
   @Post('driver/compitition/:order_id')
-  // @Public()
   @Auth()
   @ApiBearerAuth()
-  // TODO:need to check role
-  // @Roles(UserRole.USER)
-  // @RequirePermission(Module.ORDER, Permission.ADD_DESTINATION_TO_ORDER)
+  @RequirePermission(Module.ORDER, Permission.ORDER_COMPITITION)
   @ApiOperation({ summary: 'driver compitition on order by raider ID (raider only)' })
   async driverCompitition(@Param('order_id') order_id: string, @CurrentUser() user:IUser ) {
     console.log(user, order_id);

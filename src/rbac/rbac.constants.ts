@@ -51,6 +51,9 @@ export enum Permission {
   CANCEL_ORDER = 'cancel_order',
   // admin
   ORDER_READ_MINE='order_read_mine',
+  // raider
+  ORDER_COMPITITION="order_compitition",
+  ORDER_READ_FEED="order_read_feed",
    // my raider
   READ_ADMIN_MY_RAIDER='read_admin_my_raider',
   

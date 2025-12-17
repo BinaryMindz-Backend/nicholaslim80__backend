@@ -424,6 +424,9 @@ export class OrderService {
       });
 
       if (!order) throw new NotFoundException('Order not found');
+      if(order.order_status !== OrderStatus.PENDING){
+            throw new NotFoundException("Order is not ready for compitition")
+      }
 
       if (order.competition_closed) {
         throw new BadRequestException('Competition already closed');
@@ -670,8 +673,35 @@ export class OrderService {
   };
 }
 
+// 
+  // feed only order
+  async orderForFeed(
+        page: number = 1,
+        limit: number = 100,
+      ) {
+        const skip = (page - 1) * limit;
 
+        const [orders, total] = await this.prisma.$transaction([
+          this.prisma.order.findMany({
+            orderBy: { created_at: 'desc' },
+            include: { user: true },
+            skip,
+            take: limit,
+          }),
+          
+          this.prisma.order.count({
+          }),
+        ]);
 
+        return {
+          data: orders,
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        };
+      }
+  
 
 
   }

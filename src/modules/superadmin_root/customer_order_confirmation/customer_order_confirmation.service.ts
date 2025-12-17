@@ -34,9 +34,12 @@ export class CustomerOrderConfirmationService {
    //  for stats
   async findConfirmationRatioStats() {
 
-   const r = await this.prisma.customer_order_confirmation_ratio_logs.findMany({
+      await this.prisma.customer_order_confirmation_ratio_logs.findMany({
       orderBy: { created_at: 'desc' },
     });
+    // count
+   const count = await this.prisma.customer_order_confirmation_ratio_logs.count({
+   })
     // GENIUNE
    const geniune = await this.prisma.customer_order_confirmation_ratio_logs.count({
         where:{
@@ -63,12 +66,13 @@ export class CustomerOrderConfirmationService {
         }
    })
 
-   r['geniune_count'] = geniune;
-   r['manual_check_count'] = manual_check;
-   r['suspicious_count'] = suspicious;
-   r['auto_confirmation_count'] = autoConfirmation; 
     // Return the result
-    return r;
+    return {
+        geniune_count :geniune / count * 100 ,
+        manual_check_count : manual_check / count * 100,
+        suspicious_count : suspicious / count * 100,
+        auto_confirmation_count : autoConfirmation
+    };
   }
    
    
