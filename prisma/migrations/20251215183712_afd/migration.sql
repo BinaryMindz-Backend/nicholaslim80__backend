@@ -14,13 +14,16 @@ CREATE TYPE "NotificationType" AS ENUM ('ORDER_UPDATE', 'PROMOTION', 'GENERAL', 
 CREATE TYPE "RewardType" AS ENUM ('SHARE', 'COMPLETED', 'REFER', 'DAILY_LOGIN', 'FIRST_SIGNUP');
 
 -- CreateEnum
-CREATE TYPE "OrderStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'PENDING', 'PROGRESS', 'ONGOING', 'SCHEDULED');
+CREATE TYPE "OrderStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'PENDING', 'PROGRESS', 'ONGOING', 'FAILED');
 
 -- CreateEnum
 CREATE TYPE "DestinationType" AS ENUM ('SENDER', 'RECEIVER');
 
 -- CreateEnum
 CREATE TYPE "RouteType" AS ENUM ('ONE_WAY', 'ROUND');
+
+-- CreateEnum
+CREATE TYPE "CollectTime" AS ENUM ('ASAP', 'SCHEDULED');
 
 -- CreateEnum
 CREATE TYPE "DeliveryQuality" AS ENUM ('EXCELLENT', 'GOOD', 'AVERAGE', 'POOR');
@@ -98,6 +101,9 @@ CREATE TYPE "ContentManagementType" AS ENUM ('TERMSANDCONDITION', 'PRIVANCYPOLIC
 CREATE TYPE "Advertisementfor" AS ENUM ('USER', 'RAIDER');
 
 -- CreateEnum
+CREATE TYPE "OrderConfirmationRatioType" AS ENUM ('GENIUNE', 'MANUAL_CHECK', 'SUSPICIOUS');
+
+-- CreateEnum
 CREATE TYPE "MessageType" AS ENUM ('TEXT', 'IMAGE', 'PDF');
 
 -- CreateTable
@@ -117,10 +123,7 @@ CREATE TABLE "admins" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
     "is_seed_admin" BOOLEAN NOT NULL DEFAULT true,
-    "role" "AdminRole" NOT NULL DEFAULT 'SUPER_ADMIN',
     "role_id" INTEGER,
-    "vehicle_type_id" INTEGER,
-    "delivery_type_id" INTEGER,
     "first_name" TEXT,
     "last_name" TEXT,
     "email" TEXT,
@@ -210,6 +213,31 @@ CREATE TABLE "ContentManagement" (
 );
 
 -- CreateTable
+CREATE TABLE "Customer_order_confirmation" (
+    "id" SERIAL NOT NULL,
+    "is_new_customer_weight" INTEGER NOT NULL DEFAULT 0,
+    "completed_orders_weight" INTEGER NOT NULL DEFAULT 0,
+    "followers_weight" INTEGER NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Customer_order_confirmation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Customer_order_confirmation_ratio_logs" (
+    "id" SERIAL NOT NULL,
+    "customer_id" INTEGER,
+    "raider_id" INTEGER,
+    "confirmation_ratio_type" "OrderConfirmationRatioType" NOT NULL,
+    "is_auto_confirm" BOOLEAN NOT NULL DEFAULT false,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Customer_order_confirmation_ratio_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "delivery_types" (
     "id" SERIAL NOT NULL,
     "name" "DeliveryTypeName" NOT NULL,
@@ -219,6 +247,7 @@ CREATE TABLE "delivery_types" (
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "admin_id" INTEGER NOT NULL,
 
     CONSTRAINT "delivery_types_pkey" PRIMARY KEY ("id")
 );
@@ -262,6 +291,35 @@ CREATE TABLE "disputes" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "disputes_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Driver_order_competition" (
+    "id" SERIAL NOT NULL,
+    "rank_weight" INTEGER NOT NULL DEFAULT 0,
+    "rating_weight" INTEGER NOT NULL DEFAULT 0,
+    "followers_weight" INTEGER NOT NULL DEFAULT 0,
+    "total_weights" INTEGER NOT NULL DEFAULT 0,
+    "challenges_timeout" INTEGER NOT NULL DEFAULT 0,
+    "max_users_to_join" INTEGER NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Driver_order_competition_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Driver_order_competition_change_logs" (
+    "id" SERIAL NOT NULL,
+    "rank" INTEGER NOT NULL DEFAULT 0,
+    "rating" INTEGER NOT NULL DEFAULT 0,
+    "followers_weight" INTEGER NOT NULL DEFAULT 0,
+    "challenges_timeout" INTEGER NOT NULL DEFAULT 0,
+    "max_users_to_join" INTEGER NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_by" INTEGER NOT NULL,
+
+    CONSTRAINT "Driver_order_competition_change_logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -359,12 +417,16 @@ CREATE TABLE "orders" (
     "route_type" "RouteType" NOT NULL DEFAULT 'ONE_WAY',
     "delivery_type" "DeliveryTypeName" NOT NULL DEFAULT 'EXPRESS',
     "pay_type" "PayType" NOT NULL DEFAULT 'WALLET',
+    "collect_time" "CollectTime" NOT NULL DEFAULT 'ASAP',
     "vehicle_type_id" INTEGER NOT NULL,
     "total_cost" DECIMAL(12,2) NOT NULL,
     "has_additional_services" BOOLEAN NOT NULL DEFAULT false,
     "is_promo_used" BOOLEAN NOT NULL DEFAULT false,
     "notify_favorite_raider" BOOLEAN NOT NULL DEFAULT false,
     "payment_method_id" INTEGER,
+    "compititor_id" INTEGER[] DEFAULT ARRAY[]::INTEGER[],
+    "competition_started_at" TIMESTAMP(3),
+    "competition_closed" BOOLEAN NOT NULL DEFAULT false,
     "assign_rider_id" INTEGER,
     "raider_confirmation" BOOLEAN NOT NULL DEFAULT false,
     "is_reviewed" BOOLEAN NOT NULL DEFAULT false,
@@ -530,6 +592,8 @@ CREATE TABLE "Raider" (
     "isSuspended" BOOLEAN NOT NULL DEFAULT false,
     "suspendedDuration" TIMESTAMP(3),
     "suspensionReason" TEXT,
+    "rank" INTEGER DEFAULT 0,
+    "reviews_count" INTEGER DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -689,27 +753,20 @@ CREATE TABLE "rewards" (
 -- CreateTable
 CREATE TABLE "roles" (
     "id" SERIAL NOT NULL,
-    "name" VARCHAR(50) NOT NULL,
-    "description" TEXT,
+    "name" TEXT NOT NULL,
+    "is_static" BOOLEAN NOT NULL DEFAULT false,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "roles_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "permissions" (
-    "id" SERIAL NOT NULL,
-    "module" VARCHAR(100) NOT NULL,
-    "action" "PermissionAction" NOT NULL,
-    "description" TEXT,
-
-    CONSTRAINT "permissions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "role_permissions" (
     "id" SERIAL NOT NULL,
+    "module" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
     "roleId" INTEGER NOT NULL,
-    "permissionId" INTEGER NOT NULL,
 
     CONSTRAINT "role_permissions_pkey" PRIMARY KEY ("id")
 );
@@ -753,7 +810,6 @@ CREATE TABLE "users" (
     "email" VARCHAR(200),
     "phone" VARCHAR(20) NOT NULL,
     "password" VARCHAR(255),
-    "role" "UserRole" NOT NULL DEFAULT 'USER',
     "balance" INTEGER NOT NULL DEFAULT 0,
     "reward_points" INTEGER NOT NULL DEFAULT 0,
     "is_active" BOOLEAN NOT NULL DEFAULT false,
@@ -769,6 +825,7 @@ CREATE TABLE "users" (
     "stripe_balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "reset_pass" BOOLEAN NOT NULL DEFAULT false,
     "fcmToken" TEXT,
+    "role_id" INTEGER NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -785,16 +842,11 @@ CREATE TABLE "vehicle_types" (
     "dimension" TEXT,
     "max_load" DECIMAL(12,2),
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "admin_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "vehicle_types_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "_AdminToRole" (
-    "A" INTEGER NOT NULL,
-    "B" INTEGER NOT NULL,
-
-    CONSTRAINT "_AdminToRole_AB_pkey" PRIMARY KEY ("A","B")
 );
 
 -- CreateIndex
@@ -852,7 +904,7 @@ CREATE INDEX "rewards_userId_idx" ON "rewards"("userId");
 CREATE INDEX "rewards_refer_id_idx" ON "rewards"("refer_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "role_permissions_roleId_permissionId_key" ON "role_permissions"("roleId", "permissionId");
+CREATE UNIQUE INDEX "roles_name_key" ON "roles"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
@@ -862,9 +914,6 @@ CREATE UNIQUE INDEX "users_referral_code_key" ON "users"("referral_code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_referral_link_key" ON "users"("referral_link");
-
--- CreateIndex
-CREATE INDEX "_AdminToRole_B_index" ON "_AdminToRole"("B");
 
 -- AddForeignKey
 ALTER TABLE "admins" ADD CONSTRAINT "admins_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -876,10 +925,16 @@ ALTER TABLE "AdvertiseAnalytics" ADD CONSTRAINT "AdvertiseAnalytics_advertiseId_
 ALTER TABLE "coin_history" ADD CONSTRAINT "coin_history_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "delivery_types" ADD CONSTRAINT "delivery_types_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "admins"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "destinations" ADD CONSTRAINT "destinations_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "destinations" ADD CONSTRAINT "destinations_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Driver_order_competition_change_logs" ADD CONSTRAINT "Driver_order_competition_change_logs_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "admins"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "incentives" ADD CONSTRAINT "incentives_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "admins"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -984,9 +1039,6 @@ ALTER TABLE "rewards" ADD CONSTRAINT "rewards_refer_id_fkey" FOREIGN KEY ("refer
 ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "permissions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "tips" ADD CONSTRAINT "tips_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1005,7 +1057,7 @@ ALTER TABLE "transactions" ADD CONSTRAINT "transactions_userId_fkey" FOREIGN KEY
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "_AdminToRole" ADD CONSTRAINT "_AdminToRole_A_fkey" FOREIGN KEY ("A") REFERENCES "admins"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "users" ADD CONSTRAINT "users_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "_AdminToRole" ADD CONSTRAINT "_AdminToRole_B_fkey" FOREIGN KEY ("B") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "vehicle_types" ADD CONSTRAINT "vehicle_types_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "admins"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
