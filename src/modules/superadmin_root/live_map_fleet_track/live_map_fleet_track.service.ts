@@ -15,7 +15,11 @@ export class LiveMapFleetTrackService {
             order_status:OrderStatus.ONGOING
          },
          include:{
-             assign_rider:true,
+             assign_rider:{
+                 include:{
+                    locations:true
+                 }
+             },
              vehicle:true,
          }
     })
