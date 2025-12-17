@@ -124,6 +124,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.RAIDER, action: Permission.UPDATE },
     { module: Module.RAIDER, action: Permission.DELETE },
     { module: Module.RAIDER, action: Permission.JUST_ADMIN },
+    // live map fleet track
+    { module: Module.LIVE_MAP, action: Permission.READ },
     //Advertise MODULE
     { module: Module.ADVERTISEMENT, action: Permission.CREATE },
     { module: Module.ADVERTISEMENT, action: Permission.READ },
@@ -187,13 +189,13 @@ const ROLE_PERMISSIONS = {
     { module: Module.DESTINATION, action: Permission.DELETE },
     { module: Module.DESTINATION, action: Permission.JUST_ADMIN },
     // TRANSACTION module - full access
-    // { module: Module.TRANSACTION, action: Permission.CREATE },
-    // { module: Module.TRANSACTION, action: Permission.READ },
-    // { module: Module.TRANSACTION, action: Permission.UPDATE_TRANSACTION_STATUS },
-    // { module: Module.TRANSACTION, action: Permission.UPDATE_TRANSACTION_AMOUNT },
-    // { module: Module.TRANSACTION, action: Permission.APPROVE_TRANSACTION },
-    // { module: Module.TRANSACTION, action: Permission.REFUND_TRANSACTION },
-    // { module: Module.TRANSACTION, action: Permission.DELETE },
+    { module: Module.PAYMENT_TRANSACTION, action: Permission.CREATE },
+    { module: Module.PAYMENT_TRANSACTION, action: Permission.READ },
+    { module: Module.PAYMENT_TRANSACTION, action: Permission.UPDATE_TRANSACTION_STATUS },
+    { module: Module.PAYMENT_TRANSACTION, action: Permission.UPDATE_TRANSACTION_AMOUNT },
+    { module: Module.PAYMENT_TRANSACTION, action: Permission.APPROVE_TRANSACTION },
+    { module: Module.PAYMENT_TRANSACTION, action: Permission.REFUND_TRANSACTION },
+    { module: Module.PAYMENT_TRANSACTION, action: Permission.DELETE },
 
 
     // MY RAIDER MODULE

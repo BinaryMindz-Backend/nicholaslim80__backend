@@ -3,7 +3,7 @@
 model RaiderLocation {
   id         Int      @id @default(autoincrement())
   raider     Raider   @relation(fields: [raiderId], references: [id], onDelete: Cascade)
-  raiderId   Int
+  raiderId   Int      @unique
   latitude   Decimal  @db.Decimal(10,7)
   longitude  Decimal  @db.Decimal(10,7)
   accuracy   Float?
