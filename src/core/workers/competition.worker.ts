@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Worker } from 'bullmq';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { connection } from '../queues/competition.queue';
+import { OrderStatus } from '@prisma/client';
 
 @Injectable()
 export class CompetitionWorker implements OnModuleInit {
@@ -52,6 +53,7 @@ export class CompetitionWorker implements OnModuleInit {
           data: {
             assign_rider_id: winner.driverId,
             competition_closed: true,
+            order_status:OrderStatus.ONGOING
           },
         });
 

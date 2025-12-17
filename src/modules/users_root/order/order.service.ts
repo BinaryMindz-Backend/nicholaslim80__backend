@@ -522,7 +522,7 @@ export class OrderService {
         // Determine if auto-confirm
         const autoConfirmThreshold = 3.0; // Configurable
         const shouldAutoConfirm = score >= autoConfirmThreshold;
-
+        // 
         console.log({
           userId: user.id,
           orderCount,
@@ -683,8 +683,12 @@ export class OrderService {
 
         const [orders, total] = await this.prisma.$transaction([
           this.prisma.order.findMany({
+            where:{
+                order_status:OrderStatus.PENDING,
+                is_placed:true
+            },
             orderBy: { created_at: 'desc' },
-            include: { user: true },
+            include: { user: true , vehicle:true},
             skip,
             take: limit,
           }),
