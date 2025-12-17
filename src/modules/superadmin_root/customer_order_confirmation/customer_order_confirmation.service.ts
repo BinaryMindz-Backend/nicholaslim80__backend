@@ -66,6 +66,7 @@ export class CustomerOrderConfirmationService {
         }
    })
 
+   
     // Return the result
     return {
         geniune_count :geniune / count * 100 ,
