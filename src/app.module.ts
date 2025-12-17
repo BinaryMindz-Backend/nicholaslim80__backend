@@ -102,7 +102,6 @@ import { LiveMapFleetTrackModule } from './modules/superadmin_root/live_map_flee
     DisputeModule,
     LiveMapFleetTrackModule
 
-
   ],
   controllers: [AppController, RbacController],
   providers: [
