@@ -46,6 +46,7 @@ import { CustomerOrderConfirmationModule } from './modules/superadmin_root/custo
 import { RatingsModule } from './modules/users_root/ratings/ratings.module';
 import { ServiceZoneModule } from './modules/superadmin_root/service-zone/service-zone.module';
 import { DisputeModule } from './modules/superadmin_root/dispute/dispute.module';
+import { LiveMapFleetTrackModule } from './modules/superadmin_root/live_map_fleet_track/live_map_fleet_track.module';
 
 
 @Module({
@@ -96,9 +97,10 @@ import { DisputeModule } from './modules/superadmin_root/dispute/dispute.module'
     RbacModule,
     DriverOrderCompitionModule,
     CustomerOrderConfirmationModule,
-    RatingsModule
+    RatingsModule,
     ServiceZoneModule,
-    DisputeModule
+    DisputeModule,
+    LiveMapFleetTrackModule
 
 
   ],

@@ -429,6 +429,7 @@ CREATE TABLE "orders" (
     "competition_closed" BOOLEAN NOT NULL DEFAULT false,
     "assign_rider_id" INTEGER,
     "raider_confirmation" BOOLEAN NOT NULL DEFAULT false,
+    "is_auto_confirmation" BOOLEAN NOT NULL DEFAULT false,
     "is_reviewed" BOOLEAN NOT NULL DEFAULT false,
     "is_placed" BOOLEAN NOT NULL DEFAULT false,
     "is_pickup" BOOLEAN NOT NULL DEFAULT false,
@@ -708,6 +709,32 @@ CREATE TABLE "raider_registrations" (
 );
 
 -- CreateTable
+CREATE TABLE "rate_customers" (
+    "id" SERIAL NOT NULL,
+    "orderId" INTEGER NOT NULL,
+    "raiderId" INTEGER,
+    "user_id" INTEGER,
+    "rating_star" INTEGER NOT NULL,
+    "notes" TEXT,
+
+    CONSTRAINT "rate_customers_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "rate_raiders" (
+    "id" SERIAL NOT NULL,
+    "orderId" INTEGER NOT NULL,
+    "raiderId" INTEGER,
+    "user_id" INTEGER,
+    "delivery_quality" "DeliveryQuality" NOT NULL,
+    "delivery_status" "DeliveryStatus" NOT NULL,
+    "rating_star" INTEGER NOT NULL,
+    "notes" TEXT,
+
+    CONSTRAINT "rate_raiders_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "refers" (
     "id" SERIAL NOT NULL,
     "how_its_work" TEXT,
@@ -717,19 +744,6 @@ CREATE TABLE "refers" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "refers_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "reviews" (
-    "id" SERIAL NOT NULL,
-    "orderId" INTEGER NOT NULL,
-    "raiderId" INTEGER,
-    "delivery_quality" "DeliveryQuality" NOT NULL,
-    "delivery_status" "DeliveryStatus" NOT NULL,
-    "rating_star" INTEGER NOT NULL,
-    "notes" TEXT,
-
-    CONSTRAINT "reviews_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -769,6 +783,24 @@ CREATE TABLE "role_permissions" (
     "roleId" INTEGER NOT NULL,
 
     CONSTRAINT "role_permissions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "serviceZone" (
+    "id" SERIAL NOT NULL,
+    "name" TEXT NOT NULL,
+    "zoneName" TEXT NOT NULL,
+    "coordinates" JSONB NOT NULL,
+    "deliveryFee" DOUBLE PRECISION NOT NULL,
+    "priority" INTEGER,
+    "color" TEXT,
+    "minOrderAmmount" DOUBLE PRECISION,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "serviceZone_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -898,6 +930,12 @@ CREATE UNIQUE INDEX "raider_answers_selected_option_id_key" ON "raider_answers"(
 CREATE UNIQUE INDEX "raider_registrations_raiderId_key" ON "raider_registrations"("raiderId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "rate_customers_orderId_key" ON "rate_customers"("orderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "rate_raiders_orderId_key" ON "rate_raiders"("orderId");
+
+-- CreateIndex
 CREATE INDEX "rewards_userId_idx" ON "rewards"("userId");
 
 -- CreateIndex
@@ -1015,13 +1053,25 @@ ALTER TABLE "raider_answers" ADD CONSTRAINT "raider_answers_selected_option_id_f
 ALTER TABLE "raider_registrations" ADD CONSTRAINT "raider_registrations_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "rate_customers" ADD CONSTRAINT "rate_customers_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "rate_customers" ADD CONSTRAINT "rate_customers_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "rate_customers" ADD CONSTRAINT "rate_customers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "rate_raiders" ADD CONSTRAINT "rate_raiders_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "rate_raiders" ADD CONSTRAINT "rate_raiders_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "rate_raiders" ADD CONSTRAINT "rate_raiders_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "refers" ADD CONSTRAINT "refers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "reviews" ADD CONSTRAINT "reviews_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "reviews" ADD CONSTRAINT "reviews_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "rewards" ADD CONSTRAINT "rewards_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
