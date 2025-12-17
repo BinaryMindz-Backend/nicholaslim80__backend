@@ -29,11 +29,13 @@ model Order {
   assign_rider            Raider? @relation("AssignedRaider", fields: [assign_rider_id], references: [id], onDelete: SetNull)
 
   raider_confirmation     Boolean     @default(false)
+  is_auto_confirmation    Boolean     @default(false)
   is_reviewed             Boolean     @default(false)
   is_placed               Boolean     @default(false)
   is_pickup               Boolean     @default(false)
   order_status            OrderStatus @default(PROGRESS)
   is_out_for_delivery     Boolean     @default(false)
+
 
   destinations            Destination[]
   transactions            Transaction[]
@@ -42,7 +44,8 @@ model Order {
   // 
   pick_up_items           String[]
 
-  reviews                 Review[]
+  rate_raiders            RateRaider?
+  rate_customers          RateCustomer?
   tips                    Tip[]
 
   created_at              DateTime @default(now())

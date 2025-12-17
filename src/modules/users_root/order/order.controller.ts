@@ -92,6 +92,28 @@ export class OrderController {
   }
 
 
+    // GET FOR FEED
+    @Get('feed')
+    @Auth()
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get Order feed' })
+    @ApiResponse({ status: 200, description: 'Orders feed retrieved successfully' })
+    async orderForFeed(
+      @Query() pagination: PaginationDto,
+  ) {
+      try {
+        const orders = await this.orderService.orderForFeed(
+          pagination.page,
+          pagination.limit,
+        );
+        return ApiResponses.success(orders, 'Orders feed retrieved successfully');
+      } catch (err) {
+        return ApiResponses.error(err, 'Failed to fetch orders');
+      }
+    }
+
+
+
     // GET MY ORDERS
       @Get('user-history/:userId')
       @Auth()
@@ -150,6 +172,25 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to fetch order');
     }
   }
+
+    //
+  @Post('driver/compitition/:order_id')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER, Permission.ORDER_COMPITITION)
+  @ApiOperation({ summary: 'driver compitition on order by raider ID (raider only)' })
+  async driverCompitition(@Param('order_id') order_id: string, @CurrentUser() user:IUser ) {
+    console.log(user, order_id);
+    // 
+    try {
+      const order = await this.orderService.driverCompitition(user, +order_id);
+      return ApiResponses.success(order, 'Order updated successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to update order');
+    }
+  } 
+
+
 
   // UPDATE
   @Patch(':id')

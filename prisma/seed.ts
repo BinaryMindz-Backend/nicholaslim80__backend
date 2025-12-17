@@ -58,6 +58,9 @@ enum Permission {
 
   // admin
   ORDER_READ_MINE = 'order_read_mine',
+  // raider
+  ORDER_COMPITITION = "order_compitition",
+  ORDER_READ_FEED = "order_read_feed",
   // my raider
   READ_ADMIN_MY_RAIDER = 'read_admin_my_raider',
   // coin reedom
@@ -107,8 +110,11 @@ const ROLE_PERMISSIONS = {
     { module: Module.ORDER, action: Permission.READ },
     { module: Module.ORDER, action: Permission.UPDATE },
     { module: Module.ORDER, action: Permission.ADD_DESTINATION_TO_ORDER },
+    { module: Module.ORDER, action: Permission.ORDER_COMPITITION },
     { module: Module.ORDER, action: Permission.GET_ORDER_DETAILS },
     { module: Module.ORDER, action: Permission.ORDER_READ_MINE },
+    { module: Module.ORDER, action: Permission.ORDER_READ_MINE },
+    { module: Module.ORDER, action: Permission.ORDER_READ_FEED },
     { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS },
     { module: Module.ORDER, action: Permission.CANCEL_ORDER },
     { module: Module.ORDER, action: Permission.DELETE },
@@ -218,6 +224,10 @@ const ROLE_PERMISSIONS = {
     { module: Module.USER, action: Permission.GET_USER_PROFILE },
     { module: Module.USER, action: Permission.UPDATE },
     // Order module - limited access
+    { module: Module.ORDER, action: Permission.GET_ORDER_DETAILS },
+    { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS },
+    { module: Module.ORDER, action: Permission.ORDER_COMPITITION },
+    { module: Module.ORDER, action: Permission.ORDER_READ_FEED },
     // MY REFERAL MODULE  -- - limited access
     { module: Module.REFERRAL, action: Permission.CREATE },
     { module: Module.REFERRAL, action: Permission.READ },
@@ -247,6 +257,19 @@ const ROLE_PERMISSIONS = {
     //  Order module - basic access
     { module: Module.ORDER, action: Permission.CREATE },
     { module: Module.ORDER, action: Permission.ORDER_READ_MINE },
+    { module: Module.ORDER, action: Permission.ADD_DESTINATION_TO_ORDER },
+    { module: Module.ORDER, action: Permission.GET_ORDER_DETAILS },
+    { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS },
+    // Advertise MODULE
+    { module: Module.ADVERTISEMENT, action: Permission.READ },
+    // notification
+    { module: Module.NOTIFICATION, action: Permission.READ },
+    { module: Module.USER, action: Permission.GET_USER_PROFILE },
+    { module: Module.USER, action: Permission.UPDATE },
+    //  Order module - basic access
+    { module: Module.ORDER, action: Permission.CREATE },
+    { module: Module.ORDER, action: Permission.ORDER_READ_MINE },
+    { module: Module.ORDER, action: Permission.ORDER_READ_FEED },
     { module: Module.ORDER, action: Permission.ADD_DESTINATION_TO_ORDER },
     { module: Module.ORDER, action: Permission.GET_ORDER_DETAILS },
     { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS },

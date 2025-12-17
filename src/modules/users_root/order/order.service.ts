@@ -3,7 +3,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { IUser } from 'src/types';
-import { CollectTime, OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -392,8 +392,20 @@ export class OrderService {
     });
   }
 
+  
+  // driver compitition algoridom (If you dont understand it then dont touch it)
+  async driverCompitition(user:IUser, orderId: number) {
+    console.log("form order compition--->", user, orderId);
+     //  
+     const raider = await this.prisma.raider.findFirst({
+            where:{
+                userId:user.id
+            }
+     })
+    if(!raider){
+        throw new NotFoundException("Raider not found")
+    }  
 
-  async driverCompitition(raiderId: number, orderId: number) {
     const lockKey = `order:competition:${orderId}`;
 
     const lockAcquired = await this.redisService.acquireLock(lockKey, 3000);
@@ -412,12 +424,15 @@ export class OrderService {
       });
 
       if (!order) throw new NotFoundException('Order not found');
+      if(order.order_status !== OrderStatus.PENDING){
+            throw new NotFoundException("Order is not ready for compitition")
+      }
 
       if (order.competition_closed) {
         throw new BadRequestException('Competition already closed');
       }
 
-      if (order.compititor_id.includes(raiderId)) {
+      if (order.compititor_id.includes(raider.id)) {
         return order; // already joined
       }
 
@@ -430,13 +445,13 @@ export class OrderService {
       const updated = await this.prisma.order.update({
         where: { id: orderId },
         data: {
-          compititor_id: { push: raiderId },
+          compititor_id: { push: raider.id },
         },
       });
-
+      // console.log(updated,updated.compititor_id.length === 1, raider );
       // Start competition only once
       if (
-        updated.compititor_id.length === 2 &&
+        updated.compititor_id.length === 1 &&
         !updated.competition_started_at
       ) {
         await this.prisma.order.update({
@@ -452,88 +467,135 @@ export class OrderService {
         );
       }
 
-      return updated;
+
+        // Auto Order Confirmation
+        const c = await this.prisma.customer_order_confirmation.findFirst();
+        if (!c) return;
+
+        // Get customer's completed order count
+        const orderCount = await this.prisma.order.count({
+          where: {
+            userId: user.id,
+            order_status: 'COMPLETED'
+          }
+        });
+
+        // Get average rating from drivers for this customer
+        const avgRating = await this.prisma.rateCustomer.aggregate({
+          where: {
+            user_id: user.id
+          },
+          _avg: {
+            rating_star: true
+          }
+        });
+
+        // Check if driver follows this customer (from past orders)
+        // const isFollower = await this.prisma.driverFollowsCustomer.findFirst({
+        //   where: {
+        //     driver_id: driver.id, // Current driver who accepted the order
+        //     customer_id: user.id
+        //   }
+        // });
+
+        // Default rating for new customers (no ratings yet)
+        const customerRating = avgRating._avg.rating_star ?? 3.0;
+
+        // Determine if new customer
+        const isNewCustomer = orderCount === 0;
+
+        // Calculate score components (normalized to 0-5 scale for consistency)
+        const newCustomerScore = isNewCustomer ? 0 : 5; // New customer = 0, Existing = 5
+        const completedOrdersScore = Math.min(orderCount / 10, 1) * 5; // Scale: 0-5 based on orders
+        // const followerScore = isFollower ? 5 : 0; // Is follower = 5, Not follower = 0
+
+        // Apply weights (convert percentage to decimal)
+        const score = 
+          (newCustomerScore * (c.is_new_customer_weight / 100)) +
+          (completedOrdersScore * (c.completed_orders_weight / 100));
+          // (followerScore * (config.followers_weight / 100));
+
+        // With your weights: 50% + 0% + 50%
+        // Max possible score = 5 (if not new customer + is follower)
+        // Example: (5 × 0.50) + (x × 0.00) + (5 × 0.50) = 2.5 + 0 + 2.5 = 5.0
+
+        // Determine if auto-confirm
+        const autoConfirmThreshold = 3.0; // Configurable
+        const shouldAutoConfirm = score >= autoConfirmThreshold;
+        // 
+        console.log({
+          userId: user.id,
+          orderCount,
+          isNewCustomer,
+          customerRating,
+          components: {
+            newCustomer: newCustomerScore * (c.is_new_customer_weight / 100),
+            completedOrders: completedOrdersScore * (c.completed_orders_weight / 100),
+            // follower: followerScore * (config.followers_weight / 100)
+          },
+          finalScore: score,
+          shouldAutoConfirm
+        });
+        //  check and create logs
+        if(shouldAutoConfirm){
+              const res = await this.prisma.$transaction(async(tx)=>{
+                     await tx.order.update({
+                         where:{
+                           id:order.id
+                         },
+                         data:{
+                           raider_confirmation:true,
+                           is_auto_confirmation:true
+                         }
+                     })
+                     await tx.customer_order_confirmation_ratio_logs.create({
+                        data:{
+                            customer_id:user?.id,
+                            raider_id:raider.id,
+                            confirmation_ratio_type: OrderConfirmationRatioType.GENIUNE,
+                            is_auto_confirm:true
+                        }
+                     })
+              })
+              return res;
+        }
+        else if (!shouldAutoConfirm && customerRating < 3){
+             await this.prisma.customer_order_confirmation_ratio_logs.create({
+                 data:{
+                    customer_id:user?.id,
+                    raider_id:raider?.id,
+                    confirmation_ratio_type:OrderConfirmationRatioType.SUSPICIOUS,
+                    is_auto_confirm:false
+                    
+                 }
+             })  
+        }
+        else{
+             await this.prisma.customer_order_confirmation_ratio_logs.create({
+                 data:{
+                    customer_id:user?.id,
+                    raider_id:raider?.id,
+                    confirmation_ratio_type:OrderConfirmationRatioType.MANUAL_CHECK,
+                    is_auto_confirm:false
+                    
+                 }
+             })  
+        }
+
+
+        return {
+          updated,
+          score,
+          shouldAutoConfirm,
+          requiresManualConfirmation: !shouldAutoConfirm
+        };
+
     } finally {
       await this.redisService.releaseLock(lockKey);
     }
   }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // 
-  // async driverCompitition(raiderId: number, orderId: number) {
-  //   // Fetch order with competition start time
-  //   const order = await this.prisma.order.findUnique({
-  //     where: { id: orderId },
-  //     select: {
-  //       compititor_id: true,
-  //       competition_started_at: true, // or created_at
-  //     },
-  //   });
-
-  //   if (!order) {
-  //     throw new NotFoundException('Order not found');
-  //   }
-    
-  //   // need to check minimun
-  //   // Fetch competition config (latest / active)
-  //   const config = await this.prisma.driver_order_competition.findFirst({
-  //     orderBy: { updated_at: 'desc' },
-  //   });
-
-  //   if (!config) {
-  //     throw new BadRequestException('Competition configuration not found');
-  //   }
-
-  //   const timeoutMs = config.challenges_timeout * 1000;
-  //   const now = Date.now();
-  //   const startTime = new Date(order.competition_started_at).getTime();
-
-  //   // TIME WINDOW CHECK
-  //   if (now - startTime > timeoutMs) {
-  //     throw new BadRequestException('Competition time window has expired');
-  //   }
-
-  //   // Already joined
-  //   if (order.compititor_id.includes(raiderId)) {
-  //     return order;
-  //   }
-
-  //   // Max competitors check
-  //   if (order.compititor_id.length >= config.max_users_to_join) {
-  //     throw new BadRequestException(
-  //       'Maximum number of competitors has been reached for this order',
-  //     );
-  //   }
-
-  //   // Add raider to competition
-  //   const res = await this.prisma.order.update({
-  //     where: { id: orderId },
-  //     data: {
-  //       compititor_id: {
-  //         push: raiderId,
-  //       },
-  //     },
-  //   });
-
-  //   return res;
-  // }
 
   
   // order assign by admin
@@ -611,6 +673,39 @@ export class OrderService {
   };
 }
 
+// 
+  // feed only order
+  async orderForFeed(
+        page: number = 1,
+        limit: number = 100,
+      ) {
+        const skip = (page - 1) * limit;
+
+        const [orders, total] = await this.prisma.$transaction([
+          this.prisma.order.findMany({
+            where:{
+                order_status:OrderStatus.PENDING,
+                is_placed:true
+            },
+            orderBy: { created_at: 'desc' },
+            include: { user: true , vehicle:true},
+            skip,
+            take: limit,
+          }),
+          
+          this.prisma.order.count({
+          }),
+        ]);
+
+        return {
+          data: orders,
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        };
+      }
+  
 
 
   }

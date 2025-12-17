@@ -43,6 +43,7 @@ import { AboutusModule } from './modules/superadmin_root/aboutus/aboutus.module'
 import { MoneyManagementModule } from './modules/superadmin_root/money-management/money-management.module';
 import { DriverOrderCompitionModule } from './modules/superadmin_root/driver_order_compition/driver_order_compition.module';
 import { CustomerOrderConfirmationModule } from './modules/superadmin_root/customer_order_confirmation/customer_order_confirmation.module';
+import { RatingsModule } from './modules/users_root/ratings/ratings.module';
 import { ServiceZoneModule } from './modules/superadmin_root/service-zone/service-zone.module';
 import { DisputeModule } from './modules/superadmin_root/dispute/dispute.module';
 
@@ -95,6 +96,7 @@ import { DisputeModule } from './modules/superadmin_root/dispute/dispute.module'
     RbacModule,
     DriverOrderCompitionModule,
     CustomerOrderConfirmationModule,
+    RatingsModule
     ServiceZoneModule,
     DisputeModule
 
