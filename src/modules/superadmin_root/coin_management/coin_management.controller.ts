@@ -12,19 +12,25 @@ import { CreateCoinManagementDto } from './dto/create-coin_management.dto';
 import { UpdateCoinManagementDto } from './dto/update-coin_management.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Auth } from 'src/decorators/auth.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Permission, Module } from 'src/rbac/rbac.constants';
 
 @Controller('coin-management')
 export class CoinManagementController {
   constructor(private readonly coinManagementService: CoinManagementService) { }
 
   @Post()
+  @ApiOperation({ summary: 'Create a new coin (Only SUPER_ADMIN role)' })
+  @Auth()
+  @RequirePermission(Module.COIN, Permission.CREATE)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   async create(@Body() createCoinManagementDto: CreateCoinManagementDto) {
     try {
+
       const res = await this.coinManagementService.create(
         createCoinManagementDto,
       );
@@ -35,6 +41,10 @@ export class CoinManagementController {
   }
 
   @Get()
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.COIN, Permission.READ)
+  @ApiOperation({ summary: 'Get all coins (Only SUPER_ADMIN role)' })
   async findAll() {
     try {
       const res = await this.coinManagementService.findAll();
@@ -45,6 +55,11 @@ export class CoinManagementController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Update coin data (Only SUPER_ADMIN role)' })
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @RequirePermission(Module.COIN, Permission.UPDATE)
   async update(
     @Param('id') id: string,
     @Body() updateCoinManagementDto: UpdateCoinManagementDto,
@@ -61,6 +76,11 @@ export class CoinManagementController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete coin data (Only SUPER_ADMIN role)' })
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.COIN, Permission.DELETE)
+  @ApiBearerAuth()
   async remove(@Param('id') id: string) {
     try {
       const data = await this.coinManagementService.remove(+id);
@@ -72,11 +92,14 @@ export class CoinManagementController {
       return ApiResponses.error(error);
     }
   }
+  // 
   @Post('reedom-coin/:id')
   @ApiOperation({ summary: 'User reedom coin (Only USER role)' })
   @Auth()
-  @Roles(UserRole.USER)
+  // @Roles(UserRole.USER)
+  @RequirePermission(Module.COIN, Permission.REEDOM_COIN)
   @ApiBearerAuth()
+  @RequirePermission(Module.COIN, Permission.READ)
   async reedomCoin(@Param('id') id: string, @CurrentUser() user: IUser,) {
     try {
       const data = await this.coinManagementService.reedomCoin(user, +id);
@@ -92,9 +115,10 @@ export class CoinManagementController {
 
   @Get('reedom-coin-history-all-users')
   @ApiOperation({ summary: 'User reedom coin  History (Only SUPER_ADMIN role)' })
-  // @Auth()
+  @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
+  @RequirePermission(Module.COIN, Permission.READ)
   async reedomCoinHistory() {
     try {
       const data = await this.coinManagementService.reedomCoinHistory();
@@ -114,6 +138,7 @@ export class CoinManagementController {
   // @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
+  @RequirePermission(Module.COIN, Permission.READ)
   async userWalletHistory(@Param('userId') userId: string) {
     try {
       const data = await this.coinManagementService.userWalletHistory(+userId);
