@@ -19,7 +19,7 @@ model Raider {
   reviews_count   Int?   @default(0)
 
   registrations   RaiderRegistration[]
-  locations       RaiderLocation[]
+  locations       RaiderLocation?
   locationHistory RaiderLocationHistory[]
   raiderQuizzes   RaiderQuiz[]
   tips            Tip[]

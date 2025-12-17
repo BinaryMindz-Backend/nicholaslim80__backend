@@ -124,6 +124,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.RAIDER, action: Permission.UPDATE },
     { module: Module.RAIDER, action: Permission.DELETE },
     { module: Module.RAIDER, action: Permission.JUST_ADMIN },
+    // live map fleet track
+    { module: Module.LIVE_MAP, action: Permission.READ },
     //Advertise MODULE
     { module: Module.ADVERTISEMENT, action: Permission.CREATE },
     { module: Module.ADVERTISEMENT, action: Permission.READ },
