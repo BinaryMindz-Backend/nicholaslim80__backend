@@ -533,6 +533,27 @@ export class OrderService {
           finalScore: score,
           shouldAutoConfirm
         });
+        //  
+        if(shouldAutoConfirm){
+              const res = await this.prisma.$transaction(async(tx)=>{
+                     const r = await tx.order.update({
+                         where:{
+                           id:order.id
+                         },
+                         data:{
+                           raider_confirmation:true,
+                         }
+                     })
+              })
+        }
+
+
+
+
+
+
+
+
 
         return {
           updated,
