@@ -1,0 +1,13 @@
+model RateCustomer {
+  id               Int             @id @default(autoincrement())
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId          Int             @unique 
+  raider           Raider?         @relation(fields: [raiderId], references: [id], onDelete: SetNull)
+  raiderId         Int?
+  user_id          Int?
+  user             User?            @relation(fields:[user_id], references:[id], onDelete: SetNull)
+  rating_star      Int
+  notes            String?
+
+  @@map("rate_customers")
+}

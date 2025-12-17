@@ -42,6 +42,8 @@ model User {
   coinHistory    CoinHistory[]
   destinations   Destination[]
   my_raiders     myRaider[]
+  customer_ratings RateCustomer[]
+  raider_ratings  RateRaider[]
 
   sentMessages       Message[]      @relation("SentMessages")
   receivedMessages   Message[]      @relation("ReceivedMessages")
