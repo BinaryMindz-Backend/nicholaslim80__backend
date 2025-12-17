@@ -44,6 +44,7 @@ import { MoneyManagementModule } from './modules/superadmin_root/money-managemen
 import { DriverOrderCompitionModule } from './modules/superadmin_root/driver_order_compition/driver_order_compition.module';
 import { CustomerOrderConfirmationModule } from './modules/superadmin_root/customer_order_confirmation/customer_order_confirmation.module';
 import { ServiceZoneModule } from './modules/superadmin_root/service-zone/service-zone.module';
+import { DisputeModule } from './modules/superadmin_root/dispute/dispute.module';
 
 
 @Module({
@@ -94,7 +95,8 @@ import { ServiceZoneModule } from './modules/superadmin_root/service-zone/servic
     RbacModule,
     DriverOrderCompitionModule,
     CustomerOrderConfirmationModule,
-    ServiceZoneModule
+    ServiceZoneModule,
+    DisputeModule
 
 
   ],
