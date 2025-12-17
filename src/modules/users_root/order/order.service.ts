@@ -3,7 +3,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { IUser } from 'src/types';
-import { CollectTime, OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -393,7 +393,7 @@ export class OrderService {
   }
 
   
-  // driver compitition algoridom
+  // driver compitition algoridom (If you dont understand it then dont touch it)
   async driverCompitition(user:IUser, orderId: number) {
     console.log("form order compition--->", user, orderId);
      //  
@@ -533,26 +533,51 @@ export class OrderService {
           finalScore: score,
           shouldAutoConfirm
         });
-        //  
+        //  check and create logs
         if(shouldAutoConfirm){
               const res = await this.prisma.$transaction(async(tx)=>{
-                     const r = await tx.order.update({
+                     await tx.order.update({
                          where:{
                            id:order.id
                          },
                          data:{
                            raider_confirmation:true,
+                           is_auto_confirmation:true
                          }
                      })
+                     await tx.customer_order_confirmation_ratio_logs.create({
+                        data:{
+                            customer_id:user?.id,
+                            raider_id:raider.id,
+                            confirmation_ratio_type: OrderConfirmationRatioType.GENIUNE,
+                            is_auto_confirm:true
+                        }
+                     })
               })
+              return res;
         }
-
-
-
-
-
-
-
+        else if (!shouldAutoConfirm && customerRating < 3){
+             await this.prisma.customer_order_confirmation_ratio_logs.create({
+                 data:{
+                    customer_id:user?.id,
+                    raider_id:raider?.id,
+                    confirmation_ratio_type:OrderConfirmationRatioType.SUSPICIOUS,
+                    is_auto_confirm:false
+                    
+                 }
+             })  
+        }
+        else{
+             await this.prisma.customer_order_confirmation_ratio_logs.create({
+                 data:{
+                    customer_id:user?.id,
+                    raider_id:raider?.id,
+                    confirmation_ratio_type:OrderConfirmationRatioType.MANUAL_CHECK,
+                    is_auto_confirm:false
+                    
+                 }
+             })  
+        }
 
 
         return {
