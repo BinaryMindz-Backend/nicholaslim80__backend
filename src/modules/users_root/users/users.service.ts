@@ -493,7 +493,8 @@ export class UsersService {
           is_verified: true,
           is_active: true,
           regi_status: LoginType.ADMIN_SIGNIN,
-          password: hasedPass
+          password: hasedPass,
+          image: dto.image,
         },
         include: {
           role: true
@@ -507,7 +508,8 @@ export class UsersService {
           email: dto.email,
           phone_number: dto.phone,
           password: hasedPass,
-          role_id: role.id
+          role_id: role.id,
+
         }
       })
       return {
