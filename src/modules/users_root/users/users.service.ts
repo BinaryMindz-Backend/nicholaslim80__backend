@@ -22,20 +22,20 @@ export class UsersService {
 
 
   // ** Create new user // signup with otp verify
-  async createUser(dto: { email?: string; password?: string; username?: string; phone: string, referral_code?: string, role_name:string }) {
+  async createUser(dto: { email?: string; password?: string; username?: string; phone: string, referral_code?: string, role_name: string }) {
 
     if (dto.role_name === UserRole.SUPER_ADMIN) {
       throw new NotAcceptableException("You can't create superadmin or admin by general login")
     }
 
     // role check
-   const role = await this.prisma.role.findFirst({
-         where:{
-              name:dto.role_name
-         }
-        })
-    if(!role){
-        throw new NotFoundException("Role not found")
+    const role = await this.prisma.role.findFirst({
+      where: {
+        name: dto.role_name
+      }
+    })
+    if (!role) {
+      throw new NotFoundException("Role not found")
     }
 
     // 
@@ -82,7 +82,7 @@ export class UsersService {
         referral_code: code,
         referral_link: link,
         is_acc_refered: dto.referral_code ? true : false,
-        roleId:role.id
+        roleId: role.id
       },
     });
 
@@ -107,7 +107,7 @@ export class UsersService {
     }
 
     // pass to otp verify method
-   const otp = await this.otpService.generateOtp(user.email, user.phone);
+    const otp = await this.otpService.generateOtp(user.email, user.phone);
     // TODO:For Dev
     return {
       otp
@@ -127,8 +127,8 @@ export class UsersService {
           { phone }
         ]
       },
-      include:{
-          role:true,
+      include: {
+        role: true,
       }
     });
   }
@@ -148,153 +148,153 @@ export class UsersService {
   // ** Get all users
   async findAllActiveUsers() {
     return this.prisma.user.findMany({
-      where: { is_deleted: false},
+      where: { is_deleted: false },
       orderBy: { created_at: 'desc' },
     });
   }
 
 
-  
+
   // 
-async findAllUsers(filterDto: UserFilterDto) {
-  const {
-    page = 1,
-    limit = 10,
-    status,
-    sortBy = 'created_at',
-    sortOrder = 'desc',
-    dateFilter
-  } = filterDto;
+  async findAllUsers(filterDto: UserFilterDto) {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      sortBy = 'created_at',
+      sortOrder = 'desc',
+      dateFilter
+    } = filterDto;
 
-  const skip = (Number(page) - 1) * Number(limit);
-  const take = Number(limit);
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
 
-  const where: any = {};
- 
-  // ==========================
-  if (status) {
-    switch (status) {
-      case UserStatusFilter.ACTIVE:
-        where.is_active = true;
-        break;
-      case UserStatusFilter.VERIFIED:
-        where.is_verified = true;
-        break;
-      case UserStatusFilter.DELETED:
-        where.is_deleted = true;
-        break;
-      case UserStatusFilter.ALL:
-        break;
-    }
-  }
+    const where: any = {};
 
-  // DATE FILTER
-
-  if (dateFilter) {
-    const now = new Date();
-
-    switch (dateFilter) {
-      case 'today':
-        where.created_at = {
-          gte: startOfDay(now),
-          lte: endOfDay(now),
-        };
-        break;
-
-      case 'yesterday': {
-        const yStart = startOfDay(subDays(now, 1));
-        const yEnd = endOfDay(subDays(now, 1));
-        where.created_at = {
-          gte: yStart,
-          lte: yEnd,
-        };
-        break;
-      }
-
-      case 'last_7_days':
-        where.created_at = {
-          gte: subDays(now, 7),
-        };
-        break;
-
-      case 'last_30_days':
-        where.created_at = {
-          gte: subDays(now, 30),
-        };
-        break;
-
-      case 'last_month': {
-        const firstDayPrevMonth = startOfMonth(subMonths(now, 1));
-        const lastDayPrevMonth = endOfMonth(subMonths(now, 1));
-        where.created_at = {
-          gte: firstDayPrevMonth,
-          lte: lastDayPrevMonth,
-        };
-        break;
+    // ==========================
+    if (status) {
+      switch (status) {
+        case UserStatusFilter.ACTIVE:
+          where.is_active = true;
+          break;
+        case UserStatusFilter.VERIFIED:
+          where.is_verified = true;
+          break;
+        case UserStatusFilter.DELETED:
+          where.is_deleted = true;
+          break;
+        case UserStatusFilter.ALL:
+          break;
       }
     }
-  }
 
-  // SAFE SORTING
-  const allowedSortFields = [
-    'created_at',
-    'username',
-    'email',
-    'phone',
-    'is_active',
-    'is_verified'
-  ];
+    // DATE FILTER
 
-  const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'created_at';
-  const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
+    if (dateFilter) {
+      const now = new Date();
 
-  // FETCH USERS
+      switch (dateFilter) {
+        case 'today':
+          where.created_at = {
+            gte: startOfDay(now),
+            lte: endOfDay(now),
+          };
+          break;
 
-  const users = await this.prisma.user.findMany({
-    where,
-    skip,
-    take,
-    orderBy: { [safeSortBy]: safeSortOrder },
-  });
+        case 'yesterday': {
+          const yStart = startOfDay(subDays(now, 1));
+          const yEnd = endOfDay(subDays(now, 1));
+          where.created_at = {
+            gte: yStart,
+            lte: yEnd,
+          };
+          break;
+        }
 
-  const userIds = users.map(u => u.id);
+        case 'last_7_days':
+          where.created_at = {
+            gte: subDays(now, 7),
+          };
+          break;
 
-  // AGGREGATION
+        case 'last_30_days':
+          where.created_at = {
+            gte: subDays(now, 30),
+          };
+          break;
 
-  const aggregated = await this.prisma.order.groupBy({
-    by: ['userId'],
-    where: {
-      userId: { in: userIds }
-    },
-    _count: { id: true },
-    _sum: { total_cost: true }
-  });
+        case 'last_month': {
+          const firstDayPrevMonth = startOfMonth(subMonths(now, 1));
+          const lastDayPrevMonth = endOfMonth(subMonths(now, 1));
+          where.created_at = {
+            gte: firstDayPrevMonth,
+            lte: lastDayPrevMonth,
+          };
+          break;
+        }
+      }
+    }
 
-  const result = users.map(u => {
-    const stat = aggregated.find(a => a.userId === u.id);
+    // SAFE SORTING
+    const allowedSortFields = [
+      'created_at',
+      'username',
+      'email',
+      'phone',
+      'is_active',
+      'is_verified'
+    ];
+
+    const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'created_at';
+    const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
+
+    // FETCH USERS
+
+    const users = await this.prisma.user.findMany({
+      where,
+      skip,
+      take,
+      orderBy: { [safeSortBy]: safeSortOrder },
+    });
+
+    const userIds = users.map(u => u.id);
+
+    // AGGREGATION
+
+    const aggregated = await this.prisma.order.groupBy({
+      by: ['userId'],
+      where: {
+        userId: { in: userIds }
+      },
+      _count: { id: true },
+      _sum: { total_cost: true }
+    });
+
+    const result = users.map(u => {
+      const stat = aggregated.find(a => a.userId === u.id);
+      return {
+        id: u.id,
+        name: u.username,
+        contactNum: u.phone,
+        contactEmail: u.email,
+        totalOrders: stat?._count?.id ?? 0,
+        totalCost: stat?._sum?.total_cost ?? 0,
+        joiningDate: u.created_at,
+        activeStatus: u.is_active,
+        is_verified: u.is_verified,
+        is_deleted: u.is_deleted
+      };
+    });
+
+    const total = await this.prisma.user.count({ where });
+
     return {
-      id: u.id,
-      name: u.username,
-      contactNum: u.phone,
-      contactEmail: u.email,
-      totalOrders: stat?._count?.id ?? 0,
-      totalCost: stat?._sum?.total_cost ?? 0,
-      joiningDate: u.created_at,
-      activeStatus: u.is_active,
-      is_verified: u.is_verified,
-      is_deleted: u.is_deleted
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      data: result
     };
-  });
-
-  const total = await this.prisma.user.count({ where });
-
-  return {
-    page: Number(page),
-    limit: Number(limit),
-    total,
-    data: result
-  };
-}
+  }
 
 
 
@@ -304,13 +304,13 @@ async findAllUsers(filterDto: UserFilterDto) {
   async findOneuser(id: number) {
     if (!id) throw new NotFoundException("User id not found")
 
-    return await this.prisma.user.findUnique({ where: { id, is_deleted: false } ,include:{raiderProfile:true,role:true, adminProfiles:true}});
+    return await this.prisma.user.findUnique({ where: { id, is_deleted: false }, include: { raiderProfile: true, role: true, adminProfiles: true } });
   }
 
   // ** Get user by user id
   async findMe(user: IUser) {
     if (!user.id) throw new NotFoundException("User id not found")
-    return await this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include:{raiderProfile:true,role:true, adminProfiles:true} });
+    return await this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include: { raiderProfile: true, role: true, adminProfiles: true } });
   }
 
 
@@ -339,7 +339,7 @@ async findAllUsers(filterDto: UserFilterDto) {
   }
 
 
-    // ** Update user active status
+  // ** Update user active status
   async activeStatusChange(id: number) {
     if (!id) throw new NotFoundException("User id not found")
 
@@ -347,14 +347,14 @@ async findAllUsers(filterDto: UserFilterDto) {
     if (!user) throw new NotFoundException('User not found');
     // 
     let is_active = true
-     if(user.is_active === true){
-          is_active = false
-     }
-    
+    if (user.is_active === true) {
+      is_active = false
+    }
+
 
     return this.prisma.user.update({
       where: { id },
-      data: {is_active}
+      data: { is_active }
     });
   }
 
@@ -453,72 +453,73 @@ async findAllUsers(filterDto: UserFilterDto) {
   async adminCreateUser(dto: CreateUserDto) {
 
     //  
-   const res = await this.prisma.$transaction(async(tx) => {
-              // 
-     let role = await tx.role.findFirst({
-        where:{
-            name:dto.role_name
+    const res = await this.prisma.$transaction(async (tx) => {
+      // 
+      let role = await tx.role.findFirst({
+        where: {
+          name: dto.role_name
         }
+      })
+      // 
+      if (!role) {
+        role = await tx.role.create({
+          data: {
+            name: dto.role_name!
+          }
         })
-        // 
-      if(!role){
-          role = await tx.role.create({
-            data:{
-                name:dto.role_name!
-            }
-        })  
       }
       // 
-      
-    // 
-    const userExists = await tx.user.findFirst({
+      const hasedPass = await bcrypt.hash(dto.password!, Number(process.env.SALT_ROUNDS ?? 10));
+      // 
+      const userExists = await tx.user.findFirst({
         where: {
-            OR:[
-               {email: dto.email},
-               {phone:dto.phone}
-            ]
+          OR: [
+            { email: dto.email },
+            { phone: dto.phone }
+          ]
         },
       });
-      
+
       // 
       if (userExists) {
-          throw new ConflictException("User already exist")
+        throw new ConflictException("User already exist")
       }
-           const user = await tx.user.create({
-              data: {
-                username:dto.username,
-                email: dto.email,
-                roleId:role.id,
-                phone: dto.phone,
-                is_verified: true,
-                is_active:true,
-                regi_status:LoginType.ADMIN_SIGNIN
-              },
-              include:{
-                  role:true
-              }
-            });
+      const user = await tx.user.create({
+        data: {
+          username: dto.username,
+          email: dto.email,
+          roleId: role.id,
+          phone: dto.phone,
+          is_verified: true,
+          is_active: true,
+          regi_status: LoginType.ADMIN_SIGNIN,
+          password: hasedPass
+        },
+        include: {
+          role: true
+        }
+      });
 
-           const adminProfile = await tx.admin.create({
-              data:{
-                  userId:user.id,
-                  first_name:dto.username,
-                  email:dto.email,
-                  phone_number:dto.phone,
-                  password:dto.password,
-                  role_id:role.id
-              }
-           })
-           return {
-               user,
-               adminProfile
-           };
-   })
+      const adminProfile = await tx.admin.create({
+        data: {
+          userId: user.id,
+          first_name: dto.username,
+          email: dto.email,
+          phone_number: dto.phone,
+          password: hasedPass,
+          role_id: role.id
+        }
+      })
+      return {
+        user,
+        adminProfile
+      };
+    })
 
-      return res;
-  } 
+    return res;
+  }
   // 
-  
+
 
 
 }

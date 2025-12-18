@@ -61,7 +61,7 @@ export class AuthService {
 
   // Login using OTP
   async loginWithOtp(user: any) {
-    
+
     const tokens = await this.generateTokens(user);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
 
@@ -80,8 +80,8 @@ export class AuthService {
 
 
   // Validate email/password
-  async validateUserByEmailAndPassword(dto:LoginDto) {
-    const user = await this.usersService.findByEmailOrPhone(dto.email,dto.phone);
+  async validateUserByEmailAndPassword(dto: LoginDto) {
+    const user = await this.usersService.findByEmailOrPhone(dto.email, dto.phone);
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const valid = await bcrypt.compare(dto.password, user.password as string);
@@ -109,12 +109,12 @@ export class AuthService {
       // Compare provided token with stored hashed token
       const isValid = await bcrypt.compare(refreshToken, user.refresh_token);
       if (!isValid) throw new ForbiddenException('Invalid refresh token');
-       const validData:IUser = {
+      const validData: IUser = {
         id: user.id,
         email: user.email!,
         role: user.role,
         phone: user.phone
-       }
+      }
       // Generate new tokens
       const tokens = await this.generateTokens(validData);
 
@@ -144,70 +144,70 @@ export class AuthService {
 
 
   // forgot password
-  async forgotPassword(email?: string,  phone?:string) {
+  async forgotPassword(email?: string, phone?: string) {
     const otp = await this.otpService.generateOtp(email, phone);
     // TODO:currently by email it will be in phone
- 
-    return { email: email,phone, message: "OTP sent", otp};
+
+    return { email: email, phone, message: "OTP sent", otp };
   }
 
-  
-  // verify otp
-  async verifyOtpForForgetPass(email: string | undefined, phone: string | undefined, otp: string){
-      const isOtpVerified = await this.otpService.verifyOtp(email, phone, otp);
-      // 
-      if(isOtpVerified){
-          // build conditions only for provided identifiers
-          const conditions: any[] = [];
-          if (email) conditions.push({ email });
-          if (phone) conditions.push({ phone });
 
-          if (conditions.length > 0) {
-            // updateMany accepts a non-unique where (UserWhereInput) with OR
-            await this.prisma.user.updateMany({
-              where: {
-                OR: conditions,
-              },
-              data: {
-                reset_pass: true,
-              },
-            });
-          }
-      } 
+  // verify otp
+  async verifyOtpForForgetPass(email: string | undefined, phone: string | undefined, otp: string) {
+    const isOtpVerified = await this.otpService.verifyOtp(email, phone, otp);
+    // 
+    if (isOtpVerified) {
+      // build conditions only for provided identifiers
+      const conditions: any[] = [];
+      if (email) conditions.push({ email });
+      if (phone) conditions.push({ phone });
+
+      if (conditions.length > 0) {
+        // updateMany accepts a non-unique where (UserWhereInput) with OR
+        await this.prisma.user.updateMany({
+          where: {
+            OR: conditions,
+          },
+          data: {
+            reset_pass: true,
+          },
+        });
+      }
+    }
   }
 
 
   // reset password
-  async resetPassword(email: string,phone:string, newPassword: string) {
+  async resetPassword(email: string, phone: string, newPassword: string) {
     // 
     // console.log(phone, newPassword);
     // 
-  const user = await this.prisma.user.findFirst({
-    where: {
-      OR: [{ email }, { phone }],
-    },
-  });
-  if (!user) throw new BadRequestException('Invalid email');
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ email }, { phone }],
+      },
+    });
+    if (!user) throw new BadRequestException('Invalid email');
 
-   if(user.reset_pass === false){
-       throw new NotAcceptableException("Please verify your account through Otp")
-   }
-  //  
-  const hashed = await bcrypt.hash(newPassword, 10);
-  const record = await bcrypt.compare(newPassword, user.password as string);
-  // console.log("hased",hashed, record,user );
-  if (record) throw new NotAcceptableException('Password is correct you can login'); 
-        // 
-        await this.prisma.user.updateMany({
-        where: {
-          OR: [{email},{phone}],
-        },
-        data: {
-          password:hashed,
-          reset_pass: true,
-        },
-      });
-  return { message: 'Password reset successful' };
-}
+    if (user.reset_pass === false) {
+      throw new NotAcceptableException("Please verify your account through Otp")
+    }
+    //  
+    const hashed = await bcrypt.hash(newPassword, 10);
+    const record = await bcrypt.compare(newPassword, user.password as string);
+    // console.log("hased",hashed, record,user );
+    if (record) throw new NotAcceptableException('Password is correct you can login');
+    // 
+    await this.prisma.user.updateMany({
+      where: {
+        OR: [{ email }, { phone }],
+      },
+      data: {
+        password: hashed,
+        reset_pass: true,
+      },
+    });
+    return { message: 'Password reset successful' };
+  }
 
 }
