@@ -94,8 +94,37 @@ export class TransactionsService {
       orderBy: {
         created_at: 'desc',
       },
+      include: {
+        user: true,
+      },
     })
     return res
   }
+
+
+  // findOne  
+  async findOne(id: number) {
+
+    if (!id) {
+      throw new Error('Invalid ID');
+    }
+    // 
+
+
+    // 
+    const res = await this.prisma.transaction.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        order: true,
+        user: true,
+      },
+    })
+    return res
+  }
+
+
+
 
 }

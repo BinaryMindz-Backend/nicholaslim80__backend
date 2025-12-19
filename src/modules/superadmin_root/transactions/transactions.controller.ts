@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { Auth } from 'src/decorators/auth.decorator';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -26,6 +26,24 @@ export class TransactionsController {
       return ApiResponses.error(error, 'Transactions data fleet tracking list');
     }
   }
+
+  // 
+  // GET ONE
+  @Get(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.PAYMENT_TRANSACTION, Permission.READ)
+  @ApiOperation({ summary: 'Get single transaction records' })
+  @ApiResponse({ status: 200, description: 'Transactions data fetched successfully' })
+  async findOne(@Param('id') id: string) {
+    try {
+      const res = await this.transactionsService.findOne(+id);
+      return ApiResponses.success(res, 'Transactions data fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Transactions data fleet tracking list');
+    }
+  }
+
 
 
 }
