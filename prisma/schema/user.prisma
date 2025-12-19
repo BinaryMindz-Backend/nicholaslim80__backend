@@ -20,10 +20,23 @@ model User {
   regi_status    LoginType @default(DIRECT_SIGNIN)
 
 
-  // stripe fields
+  // stripe fields(existing)
   stripe_customer_id       String? @db.VarChar(100)
   stripe_payment_method_id String? @db.VarChar(100)
   stripe_balance           Float   @default(0)
+
+
+  //new fields(stripe)
+  totalWalletBalance    Float  @default(0)
+  currentWalletBalance  Float  @default(0)
+  stripeCustomerId String?  // For saved payment methods
+  stripeAccountId  String?  // Connected Stripe Account for withdrawals
+  //new fields(wallet)
+  paymentMethods   PaymentMethod[]
+  walletHistories  WalletHistory[]
+
+
+
   // 
   reset_pass               Boolean @default(false)
   // 
@@ -33,7 +46,6 @@ model User {
   // Relations
   notifications  Notification[]
   places         Place[]
-  paymentMethods PaymentMethod[]
   refers         Refer[]
   rewards        Reward[]
   orders         Order[]

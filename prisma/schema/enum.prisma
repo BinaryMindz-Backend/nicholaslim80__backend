@@ -254,3 +254,18 @@ enum OrderConfirmationRatioType {
       MANUAL_CHECK
       SUSPICIOUS
 }
+
+
+//
+enum WalletTransactionType {
+  PAYOUT
+  PAYMENT
+  REFUND
+  DEDUCTION
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
