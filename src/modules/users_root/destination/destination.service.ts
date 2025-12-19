@@ -6,127 +6,129 @@ import type { IUser } from 'src/types';
 
 @Injectable()
 export class DestinationService {
-  constructor(private prisma: PrismaService) {}
-   
+  constructor(private prisma: PrismaService) { }
+
 
   // 
-  async create(dto: CreateDestinationDto, user:IUser){
+  async create(dto: CreateDestinationDto, user: IUser) {
 
-     if(!user){
-         throw new NotFoundException("Verified User Not found")
-     }
+    if (!user) {
+      throw new NotFoundException("Verified User Not found")
+    }
 
-     const isUserExist = this.prisma.user.findUnique({
-       where:{
-          id:user?.id,
-       }
-     })
-     if(isUserExist === null) throw new UnauthorizedException("You Are Not Authorize")
+    const isUserExist = this.prisma.user.findUnique({
+      where: {
+        id: user?.id,
+      }
+    })
+    if (isUserExist === null) throw new UnauthorizedException("You Are Not Authorize")
 
     const isExist = await this.prisma.destination.findFirst({
       where: {
-           OR:[
-            {latitude: dto.latitude},
-            {longitude: dto.longitude},
-           ],
-           user_id:user?.id
+        OR: [
+          { latitude: dto.latitude },
+          { longitude: dto.longitude },
+        ],
+        user_id: user?.id
       }
     })
-     if(isExist){
-          throw new ConflictException("Destination is already exists")
-     }
+    if (isExist) {
+      throw new ConflictException("Destination is already exists")
+    }
 
-   
-    return this.prisma.destination.create({ data:{
-          address:dto.address,
-          floor_unit:dto.floor_unit,
-          contact_name:dto.contact_name,
-          contact_number:dto.contact_number,
-          note_to_driver:dto.note_to_driver,
-          is_saved:dto.is_saved,
-          type:dto.type,
-          latitude:dto.latitude,
-          longitude:dto.longitude,
-          accuracy:dto.accuracy,
-          user_id:user.id,
-          order_id:dto.order_id
-    } });
-  }
-  
-  //
-  async findAll(user:IUser) {
-    return this.prisma.destination.findMany({
-       where:{
-          user_id:user.id
-       }
+
+    return this.prisma.destination.create({
+      data: {
+        address: dto.address,
+        floor_unit: dto.floor_unit,
+        contact_name: dto.contact_name,
+        contact_number: dto.contact_number,
+        note_to_driver: dto.note_to_driver,
+        is_saved: dto.is_saved,
+        type: dto.type,
+        latitude: dto.latitude,
+        longitude: dto.longitude,
+        accuracy: dto.accuracy,
+        user_id: user.id
+        // order_id:dto.order_id
+      }
     });
   }
-  
+
+  //
+  async findAll(user: IUser) {
+    return this.prisma.destination.findMany({
+      where: {
+        user_id: user.id
+      }
+    });
+  }
+
   // 
   async findOne(id: number) {
 
-    return this.prisma.destination.findUnique({ where: { id }});
+    return this.prisma.destination.findUnique({ where: { id } });
   }
-  
+
   // 
-  async update(id: number, dto: UpdateDestinationDto, user:IUser) {
+  async update(id: number, dto: UpdateDestinationDto, user: IUser) {
     //  
-    if(!id){
-       throw new NotFoundException("destination id not found")
+    if (!id) {
+      throw new NotFoundException("destination id not found")
     }
     // 
     const isUserExist = this.prisma.user.findUnique({
-      where:{
-        id:user?.id,
+      where: {
+        id: user?.id,
       }
     })
-    if(isUserExist === null) throw new UnauthorizedException("You Are Not Authorize")
+    if (isUserExist === null) throw new UnauthorizedException("You Are Not Authorize")
 
     // 
     const isExist = await this.prisma.destination.findUnique({
       where: {
-          id
+        id
       }
     })
     // 
-     if(!isExist){
-          throw new ConflictException("Destination is already exists")
-     }
+    if (!isExist) {
+      throw new ConflictException("Destination is already exists")
+    }
 
     // 
     return this.prisma.destination.update({
       where: { id },
-      data:dto,
+      data: dto,
     });
   }
-  
+
   // 
- async remove(id: number, user:IUser) {
-        //  
-        if(!id){
-           throw new NotFoundException("destination id not found")
-        }
-        
-          const isUserExist = this.prisma.user.findUnique({
-            where:{
-                id:user?.id,
-            }
-          })
-          if(isUserExist === null) throw new UnauthorizedException("You Are Not Authorize")
+  async remove(id: number, user: IUser) {
+    //  
+    if (!id) {
+      throw new NotFoundException("destination id not found")
+    }
 
-        // 
-        const isExist = await this.prisma.destination.findFirst({
-            where: {
-              id,
-              user_id:user?.id
-            }
-        })
-        // 
-        if(!isExist){
-          throw new ConflictException("destination not found by this id")
-        }
-        // 
+    const isUserExist = this.prisma.user.findUnique({
+      where: {
+        id: user?.id,
+      }
+    })
+    if (isUserExist === null) throw new UnauthorizedException("You Are Not Authorize")
 
-      return this.prisma.destination.delete({ where: { id } });
+    // 
+    const isExist = await this.prisma.destination.findFirst({
+      where: {
+        id,
+        user_id: user?.id
+      }
+    })
+    // 
+    if (!isExist) {
+      throw new ConflictException("destination not found by this id")
+    }
+    // 
+
+    return this.prisma.destination.delete({ where: { id } });
   }
 }
