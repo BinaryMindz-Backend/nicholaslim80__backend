@@ -126,6 +126,24 @@ const ROLE_PERMISSIONS = {
     { module: Module.RAIDER, action: Permission.JUST_ADMIN },
     // live map fleet track
     { module: Module.LIVE_MAP, action: Permission.READ },
+    // 
+    { module: Module.SUPPORT_DISPUTE, action: Permission.CREATE },
+    { module: Module.SUPPORT_DISPUTE, action: Permission.READ },
+    { module: Module.SUPPORT_DISPUTE, action: Permission.DELETE },
+    { module: Module.SUPPORT_DISPUTE, action: Permission.UPDATE },
+    { module: Module.SUPPORT_DISPUTE, action: Permission.JUST_ADMIN },
+    // 
+    { module: Module.ORDER_PLACEMENT, action: Permission.CREATE },
+    { module: Module.ORDER_PLACEMENT, action: Permission.READ },
+    { module: Module.ORDER_PLACEMENT, action: Permission.DELETE },
+    { module: Module.ORDER_PLACEMENT, action: Permission.UPDATE },
+    { module: Module.ORDER_PLACEMENT, action: Permission.JUST_ADMIN },
+    // 
+    { module: Module.REPORT_ANALYTICS, action: Permission.CREATE },
+    { module: Module.REPORT_ANALYTICS, action: Permission.READ },
+    { module: Module.REPORT_ANALYTICS, action: Permission.DELETE },
+    { module: Module.REPORT_ANALYTICS, action: Permission.UPDATE },
+    { module: Module.REPORT_ANALYTICS, action: Permission.JUST_ADMIN },
     //Advertise MODULE
     { module: Module.ADVERTISEMENT, action: Permission.CREATE },
     { module: Module.ADVERTISEMENT, action: Permission.READ },

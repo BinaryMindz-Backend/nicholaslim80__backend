@@ -1,6 +1,6 @@
 import { Controller, Post, Put, Delete, Get, Body, Param, ParseIntPipe } from '@nestjs/common';
 import { RbacService } from './rbac.service';
-import {  RequirePermission } from './decorators/require-permission.decorator';
+import { RequirePermission } from './decorators/require-permission.decorator';
 import { Module, Permission } from './rbac.constants';
 import { Auth } from 'src/decorators/auth.decorator';
 import { ApiBearerAuth } from '@nestjs/swagger';
@@ -12,7 +12,7 @@ import { CurrentUser } from 'src/decorators/current-user.decorator';
 
 @Controller('roles')
 export class RbacController {
-  constructor(private readonly rbacService: RbacService) {}
+  constructor(private readonly rbacService: RbacService) { }
 
   @Post()
   @Auth()
@@ -48,7 +48,7 @@ export class RbacController {
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.RBAC, Permission.READ)
-  async getAllRoles(@CurrentUser() user:any) {
+  async getAllRoles(@CurrentUser() user: any) {
     console.log(user);
     return this.rbacService.getAllRoles();
   }
@@ -68,29 +68,29 @@ export class RbacController {
   async getRole(@Param('id', ParseIntPipe) id: number) {
     return this.rbacService.getRoleById(id);
   }
-   
+
 
   // find all available role
   @Get('user/permissions')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.RBAC, Permission.READ)
+  // @RequirePermission(Module.RBAC, Permission.READ)
   async getMyPermissions(@CurrentUser() user: any) {
-    console.log(user);
+    // console.log(user);
     return this.rbacService.getUserPermissions(user.id);
   }
   // 
-//   @Get('debug/my-permissions')
-// @Auth()
-// @ApiBearerAuth()
-// async debugMyPermissions(@CurrentUser() user: any) {
-//   const permissions = await this.rbacService.getUserPermissions(user.id);
-//   return {
-//     userId: user.id,
-//     permissions,
-//     hasUserRead: permissions.some(
-//       p => p.module === 'user' && p.action === 'read'
-//     )
-//   };
-// }
+  //   @Get('debug/my-permissions')
+  // @Auth()
+  // @ApiBearerAuth()
+  // async debugMyPermissions(@CurrentUser() user: any) {
+  //   const permissions = await this.rbacService.getUserPermissions(user.id);
+  //   return {
+  //     userId: user.id,
+  //     permissions,
+  //     hasUserRead: permissions.some(
+  //       p => p.module === 'user' && p.action === 'read'
+  //     )
+  //   };
+  // }
 }

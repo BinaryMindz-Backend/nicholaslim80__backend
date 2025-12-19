@@ -48,4 +48,8 @@ export class CreateUserDto {
   @IsString()
   role_name?: string;
 
+  @ApiPropertyOptional({ example: 'Provide image url', description: "User image" })
+  @IsOptional()
+  @IsString()
+  image?: string;
 }

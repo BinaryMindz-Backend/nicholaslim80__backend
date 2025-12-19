@@ -19,6 +19,7 @@ model User {
   referral_link  String?   @unique
   regi_status    LoginType @default(DIRECT_SIGNIN)
 
+
   // stripe fields
   stripe_customer_id       String? @db.VarChar(100)
   stripe_payment_method_id String? @db.VarChar(100)
@@ -28,6 +29,7 @@ model User {
   // 
 
   fcmToken       String?
+  image          String?
   // Relations
   notifications  Notification[]
   places         Place[]
