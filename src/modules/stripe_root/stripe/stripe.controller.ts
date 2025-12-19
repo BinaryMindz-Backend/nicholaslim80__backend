@@ -7,6 +7,7 @@ import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
 import { Auth } from 'src/decorators/auth.decorator';
 import { AddFundsDto } from './dto/add-funds.dto';
+import { Public } from 'src/decorators/public.decorator';
 export interface IUser {
   id: number;
   email: string;
@@ -18,6 +19,7 @@ export class StripeController {
   constructor(private readonly stripeService: StripeService) { }
 
   @Get('credentials')
+  @Public()
   getCredentials() {
     const publicKey = process.env.STRIPE_PUBLIC_KEY;
     const secretKey = process.env.STRIPE_SECRET_KEY;

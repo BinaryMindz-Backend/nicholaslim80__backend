@@ -1,14 +1,17 @@
 model PaymentMethod {
-  id          Int       @id @default(autoincrement())
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      Int
-  card_number String?   @db.VarChar(50)
-  expiry_date DateTime?
-  cvv         String?   @db.VarChar(10)
-  card_name   String?   @db.VarChar(100)
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  user           User     @relation(fields: [userId], references: [id])
+  stripeMethodId String
+  type           String   // "card", "apple_pay", etc.
+  last4          String
+  expMonth       Int
+  expYear        Int
+  isDefault      Boolean  @default(false)
 
-  transactions Transaction[]
   order        Order[]
+  //transaction
+  transactions   Transaction[] 
 
 
   @@map("payment_methods")

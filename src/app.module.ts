@@ -48,6 +48,7 @@ import { ServiceZoneModule } from './modules/superadmin_root/service-zone/servic
 import { DisputeModule } from './modules/superadmin_root/dispute/dispute.module';
 import { LiveMapFleetTrackModule } from './modules/superadmin_root/live_map_fleet_track/live_map_fleet_track.module';
 import { TransactionsModule } from './modules/superadmin_root/transactions/transactions.module';
+import { WalletModule } from './common/wallet/wallet.module';
 
 
 @Module({
@@ -102,28 +103,29 @@ import { TransactionsModule } from './modules/superadmin_root/transactions/trans
     ServiceZoneModule,
     DisputeModule,
     LiveMapFleetTrackModule,
-    TransactionsModule
+    TransactionsModule,
+    WalletModule
 
   ],
   controllers: [AppController, RbacController],
   providers: [
-     AppService,
-     TransactionIdService,
+    AppService,
+    TransactionIdService,
 
-        {
+    {
       provide: APP_GUARD,
       useClass: JwtAuthGuard, // ← This runs FIRST
     },
-      {
+    {
       provide: APP_GUARD,
       useClass: PermissionGuard,
-    }, 
+    },
     RbacService
-    
-    ],
-  exports:[
-     TransactionIdService
+
   ],
-  
+  exports: [
+    TransactionIdService
+  ],
+
 })
 export class AppModule { }
