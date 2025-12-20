@@ -1,12 +1,11 @@
 import { Controller, Post, Body, Param, Query, Get } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiBody, ApiQuery, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiBody, ApiParam } from '@nestjs/swagger';
 import { WalletService } from './wallet.service';
 import { AddMoneyDto, SavePaymentMethodDto, WithdrawDto } from './dto/wallet.dto';
 import { Auth } from 'src/decorators/auth.decorator';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
 import type { IUser } from 'src/types';
-import { CreatePaymentMethodDto } from './dto/create-payment-method.dto';
 import { AddMoneyTestDto } from './dto/add-money-test.dto';
 import { UserWalletQueryDto } from './dto/user-wallet.dto';
 import { UserWalletHistoryQueryDto } from './dto/user-wallet-history-query.dto';
@@ -28,16 +27,15 @@ export class WalletController {
         return ApiResponses.success(result, 'Money added to wallet successfully');
     }
 
-    @Post('save-payment-method/:userId')
+    @Post('save-payment-method')
     @Auth()
     @ApiOperation({ summary: 'Save a payment method for future use' })
     async savePaymentMethod(
-        @Param('userId') userId: string,
         @Body() dto: SavePaymentMethodDto,
         @CurrentUser() user: IUser
     ) {
         const result = await this.walletService.savePaymentMethod(
-            +userId,
+            +user.id,
             dto.paymentMethodId,
             dto.type,
             dto.last4,

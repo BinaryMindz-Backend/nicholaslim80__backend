@@ -6,17 +6,18 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { CoinManagementService } from './coin_management.service';
-import { CreateCoinManagementDto } from './dto/create-coin_management.dto';
 import { UpdateCoinManagementDto } from './dto/update-coin_management.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Auth } from 'src/decorators/auth.decorator';
-import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Permission, Module } from 'src/rbac/rbac.constants';
+import { CreateCoinDto } from './dto/create-coin_management.dto';
 
 @Controller('coin-management')
 export class CoinManagementController {
@@ -28,7 +29,7 @@ export class CoinManagementController {
   @RequirePermission(Module.COIN, Permission.CREATE)
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  async create(@Body() createCoinManagementDto: CreateCoinManagementDto) {
+  async create(@Body() createCoinManagementDto: CreateCoinDto) {
     try {
 
       const res = await this.coinManagementService.create(
@@ -53,6 +54,44 @@ export class CoinManagementController {
       return ApiResponses.error(error);
     }
   }
+  //  
+  @Get('base-price')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get avg base price'})
+  async basePrice() {
+    try {
+      // 
+      const res = await this.coinManagementService.basePrice();
+      return ApiResponses.success(res, 'Get Coin Avg base price Successfully ');
+    } catch (error) {
+        return ApiResponses.error(error);
+    }
+  }
+
+  // 
+  @Get('coin-accounts')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all user coin accounts with search' })
+  @ApiQuery({ name: 'userId', required: false, type: Number })
+  @ApiQuery({ name: 'username', required: false, type: String })
+  async findAllCoinAcc(
+    @Query('userId') userId?: string,
+    @Query('username') username?: string,
+  ) {
+    try {
+      // 
+      const res = await this.coinManagementService.findAllCoinAcc({
+      userId: userId ? Number(userId) : undefined,
+      username,
+    });
+      return ApiResponses.success(res, 'Coin Data Get Successfully ');
+    } catch (error) {
+        return ApiResponses.error(error);
+    }
+  }
+
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update coin data (Only SUPER_ADMIN role)' })
@@ -93,16 +132,16 @@ export class CoinManagementController {
     }
   }
   // 
-  @Post('reedom-coin/:id')
+  @Post('redeem-coin')
   @ApiOperation({ summary: 'User reedom coin (Only USER role)' })
   @Auth()
   // @Roles(UserRole.USER)
   @RequirePermission(Module.COIN, Permission.REEDOM_COIN)
   @ApiBearerAuth()
   @RequirePermission(Module.COIN, Permission.READ)
-  async reedomCoin(@Param('id') id: string, @CurrentUser() user: IUser,) {
+  async reedomCoin(@Query('coin') coin: string, @CurrentUser() user: IUser,) {
     try {
-      const data = await this.coinManagementService.reedomCoin(user, +id);
+      const data = await this.coinManagementService.redeemCoin(user, +coin);
       return ApiResponses.success(
         data,
         `User coin reedomed successfully `,
@@ -113,27 +152,7 @@ export class CoinManagementController {
   }
 
 
-  @Get('reedom-coin-history-all-users')
-  @ApiOperation({ summary: 'User reedom coin  History (Only SUPER_ADMIN role)' })
-  @Auth()
-  // @Roles(UserRole.SUPER_ADMIN)
-  @ApiBearerAuth()
-  @RequirePermission(Module.COIN, Permission.READ)
-  async reedomCoinHistory() {
-    try {
-      const data = await this.coinManagementService.reedomCoinHistory();
-      return ApiResponses.success(
-        data,
-        `User coin history fetched successfully `,
-      );
-    } catch (error) {
-      return ApiResponses.error(error);
-    }
-  }
-
-
-
-  @Get('user-wallet-history/:userId')
+  @Get('coin-acc-history/:userId')
   @ApiOperation({ summary: 'User wallet history (Only SUPER_ADMIN role)' })
   // @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
@@ -141,14 +160,15 @@ export class CoinManagementController {
   @RequirePermission(Module.COIN, Permission.READ)
   async userWalletHistory(@Param('userId') userId: string) {
     try {
-      const data = await this.coinManagementService.userWalletHistory(+userId);
+      const data = await this.coinManagementService.coinAccHistory(+userId);
       return ApiResponses.success(
         data,
-        `User wallet history fetched successfully `,
+        `User coin acc history fetched successfully `,
       );
     } catch (error) {
       return ApiResponses.error(error);
     }
   }
+  // 
 
 }

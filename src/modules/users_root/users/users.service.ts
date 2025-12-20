@@ -1,4 +1,3 @@
-
 /* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
 import { Injectable, ConflictException, NotFoundException, BadRequestException, NotAcceptableException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -6,8 +5,8 @@ import * as bcrypt from 'bcrypt';
 import { OtpService } from 'src/modules/auth/otp.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ReferralUtils } from 'src/utils/referral.util';
-import { IUser } from 'src/types';
-import { CoinEvent, CoinHistoryType, LoginType, UserRole } from '@prisma/client';
+import { CoinEvent, IUser } from 'src/types';
+import { CoinHistoryType, LoginType, UserRole } from '@prisma/client';
 import { UserFilterDto, UserStatusFilter } from './dto/user-filter.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { startOfDay, endOfDay, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
@@ -75,10 +74,11 @@ export class UsersService {
     //
     const coin = await this.prisma.coin.findFirst({
       where: {
-        event_triggered: CoinEvent.FIRST_SIGNUP
+        key: CoinEvent.FIRST_SIGNUP
       }
     })
     // 
+    
     // 
     const user = await this.prisma.user.create({
       data: {
@@ -90,18 +90,17 @@ export class UsersService {
         referral_link: link,
         is_acc_refered: dto.referral_code ? true : false,
         roleId: role.id,
-        reward_points: Number(coin?.coin_amount) || 0,
+        total_coin_acc: Number(coin?.coin_amount) || 0,
+        current_coin_balance: Number(coin?.coin_amount) || 0,
       },
     });
     // 
     await this.prisma.coinHistory.create({
       data: {
-        userId: user.id,
-        type: CoinHistoryType.ACCUMULATION,
-        total_coin_apply: Number(coin?.coin_amount) || 0,
-        total_coin_acc: Number(coin?.coin_amount) || 0,
-        current_coin_balance: Number(coin?.coin_amount) || 0,
-
+          userId: user.id,
+          type: CoinHistoryType.ACCUMULATION,
+          role_triggered:CoinEvent.FIRST_SIGNUP,
+          coin_acc_amount: Number(coin?.coin_amount) || 0,
       }
     })
 
@@ -506,7 +505,7 @@ export class UsersService {
       //
       const coin = await this.prisma.coin.findFirst({
         where: {
-          event_triggered: CoinEvent.FIRST_SIGNUP
+          key: CoinEvent.FIRST_SIGNUP
         }
       })
       // 
@@ -521,7 +520,8 @@ export class UsersService {
           regi_status: LoginType.ADMIN_SIGNIN,
           password: hasedPass,
           image: dto.image,
-          reward_points: Number(coin?.coin_amount) ?? 0,
+          total_coin_acc: Number(coin?.coin_amount) || 0,
+          current_coin_balance: Number(coin?.coin_amount) || 0,
         },
         include: {
           role: true
@@ -534,10 +534,8 @@ export class UsersService {
         data: {
           userId: user.id,
           type: CoinHistoryType.ACCUMULATION,
-          total_coin_apply: Number(coin?.coin_amount) || 0,
-          total_coin_acc: Number(coin?.coin_amount) || 0,
-          current_coin_balance: Number(coin?.coin_amount) || 0,
-
+          role_triggered:CoinEvent.FIRST_SIGNUP,
+          coin_acc_amount: Number(coin?.coin_amount) || 0,
         }
       })
 

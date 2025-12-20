@@ -33,5 +33,16 @@ export interface WeeklyPerformanceStat {
   click: number;
   ctr: number;           // percentage value
 }
+// 
+export enum CoinEvent {
+  FIRST_SIGNUP = "FIRST_SIGNUP",
+  DAILY_LOGIN = "DAILY_LOGIN",
+  SHARE_ON_SOCIAL = "SHARE_ON_SOCIAL",
+  REFERRAL = "REFERRAL",
+  COMPLETED_ORDER = "COMPLETED_ORDER"
+}
+
+
+
 export type performanceCountType = WeeklyPerformanceStat[];
 

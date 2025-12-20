@@ -1,0 +1,11 @@
+model CoinAccHistory {
+  id       Int     @id @default(autoincrement())
+  userId   Int     @unique 
+  role_triggered   String 
+  coin_amount        Int
+  edited_by           String?
+  created_at           DateTime        @default(now())
+  updated_at           DateTime        @updatedAt
+
+  @@map("coin_acc_history")
+}

@@ -71,7 +71,10 @@ export class RidersProfileService {
     if (query.raider_verificationFromAdmin) {
       filter.raider_verificationFromAdmin = query.raider_verificationFromAdmin;
     }
-
+    // 
+    if (query.loginType) {
+      filter.LoginType = query.loginType;
+    }
     // sorting
     let orderBy: any = {};
     if (query.type) {
