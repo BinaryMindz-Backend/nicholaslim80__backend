@@ -1,41 +1,71 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { CoinEvent } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
+  IsOptional,
+  IsInt,
+  IsBoolean,
+  Min,
   IsEnum,
-} from 'class-validator'; 
+  IsObject,
+} from 'class-validator';
+import { CoinEvent } from 'src/types';
 
-export class CreateCoinManagementDto {
+export class CreateCoinDto {
   @ApiProperty({
-    example: 'SIGNUP_BONUS',
     enum: CoinEvent,
-    description: 'Event that triggered coin reward',
+    example: CoinEvent.DAILY_LOGIN,
+    description: 'Unique reward key (e.g., DAILY_LOGIN, REFERRAL)',
   })
   @IsEnum(CoinEvent)
-  event_triggered: CoinEvent;
-
-  @ApiProperty({
-    example: '50.00',
-    description: 'Amount of coin earned (Decimal). Use string format.',
-  })
   @IsNotEmpty()
+  key: CoinEvent;
+
+  @ApiPropertyOptional({
+    example: 'Reward for daily login',
+  })
+  @IsOptional()
   @IsString()
-  coin_amount: string;  
+  description?: string;
 
   @ApiProperty({
-    example: '2025-12-31T23:59:59.000Z',
-    description: 'Expiration date of the coins (optional)',
- 
+    example: 10,
+    description: 'Number of coins rewarded',
   })
-  @IsNotEmpty()
-  @IsString()
-  expire_date: Date;
+  @IsInt()
+  @Min(1)
+  coin_amount: number;
 
-  @ApiProperty({
-    example: 5000,
-    description: 'Coin value in cents (integer, optional)',
+  @ApiPropertyOptional({
+    example: { maxPerDay: 1 },
+    description: 'Dynamic reward condition stored as JSON',
   })
-  @IsNotEmpty() 
+  @IsOptional()
+  @IsObject()
+  condition?: Record<string, any>;
+
+  @ApiPropertyOptional({
+    example: 30,
+    description: 'Coin expiration in days',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expire_days?: number;
+
+  @ApiPropertyOptional({
+    example: 100,
+    description: 'Coin monetary value in cents',
+  })
+  @IsOptional()
+  @IsInt()
   coin_value_in_cent?: number;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Is reward active',
+  })
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
 }

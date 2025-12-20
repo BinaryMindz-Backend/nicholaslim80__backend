@@ -2,7 +2,6 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
 import Stripe from 'stripe';
-import { CreatePaymentMethodDto } from './dto/create-payment-method.dto';
 import { UserWalletQueryDto } from './dto/user-wallet.dto';
 import { UserWalletHistoryQueryDto } from './dto/user-wallet-history-query.dto';
 
@@ -213,7 +212,6 @@ export class WalletService {
 
     // user wallet with search and pagination
     async userWallet(dto: UserWalletQueryDto) {
-
         const page = dto.page || 1;
         const limit = dto.limit || 10;
 
@@ -246,7 +244,7 @@ export class WalletService {
                 },
             }),
         ]);
-
+        // 
         return {
             total,
             page,

@@ -34,7 +34,9 @@ model User {
   //new fields(wallet)
   paymentMethods   PaymentMethod[]
   walletHistories  WalletHistory[]
-
+  // coin
+  total_coin_acc   Int      @default(0)
+  current_coin_balance  Int @default(0)
 
 
   // 

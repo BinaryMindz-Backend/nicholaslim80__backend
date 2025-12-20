@@ -1,12 +1,14 @@
-// prisma/models/coin.prisma
-
 model Coin {
   id               Int        @id @default(autoincrement())
-  event_triggered  CoinEvent
-  coin_amount      Decimal?   @db.Decimal(12,2)
-  expire_date      DateTime?
+  key            String   @unique  // DAILY_LOGIN, COMPLETED_ORDER, REFERRAL
+  description    String?
+  coin_amount    Int
+  condition      Json?    // dynamic rules
+  expire_days    Int?     // optional expiry
   coin_value_in_cent Int?
+  is_active      Boolean  @default(true)
   created_at           DateTime     @default(now())
   updated_at           DateTime     @updatedAt
   @@map("coins")
 }
+//

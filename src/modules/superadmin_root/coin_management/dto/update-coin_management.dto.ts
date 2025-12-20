@@ -1,4 +1,4 @@
 import { PartialType } from '@nestjs/swagger';
-import { CreateCoinManagementDto } from './create-coin_management.dto';
+import { CreateCoinDto } from './create-coin_management.dto';
 
-export class UpdateCoinManagementDto extends PartialType(CreateCoinManagementDto) {}
+export class UpdateCoinManagementDto extends PartialType(CreateCoinDto) {}
