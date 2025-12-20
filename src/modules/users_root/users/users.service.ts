@@ -7,7 +7,7 @@ import { OtpService } from 'src/modules/auth/otp.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ReferralUtils } from 'src/utils/referral.util';
 import { IUser } from 'src/types';
-import { LoginType, UserRole } from '@prisma/client';
+import { CoinEvent, CoinHistoryType, LoginType, UserRole } from '@prisma/client';
 import { UserFilterDto, UserStatusFilter } from './dto/user-filter.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { startOfDay, endOfDay, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
@@ -72,6 +72,13 @@ export class UsersService {
       const salt = Number(process.env.SALT_ROUNDS ?? 10);
       hashed = await bcrypt.hash(dto.password, salt);
     }
+    //
+    const coin = await this.prisma.coin.findFirst({
+      where: {
+        event_triggered: CoinEvent.FIRST_SIGNUP
+      }
+    })
+    // 
     // 
     const user = await this.prisma.user.create({
       data: {
@@ -82,10 +89,21 @@ export class UsersService {
         referral_code: code,
         referral_link: link,
         is_acc_refered: dto.referral_code ? true : false,
-        roleId: role.id
+        roleId: role.id,
+        reward_points: Number(coin?.coin_amount) || 0,
       },
     });
+    // 
+    await this.prisma.coinHistory.create({
+      data: {
+        userId: user.id,
+        type: CoinHistoryType.ACCUMULATION,
+        total_coin_apply: Number(coin?.coin_amount) || 0,
+        total_coin_acc: Number(coin?.coin_amount) || 0,
+        current_coin_balance: Number(coin?.coin_amount) || 0,
 
+      }
+    })
 
     if (dto.referral_code) {
 
@@ -351,7 +369,7 @@ export class UsersService {
       is_active = false
     }
 
-
+    // 
     return this.prisma.user.update({
       where: { id },
       data: { is_active }
@@ -484,6 +502,14 @@ export class UsersService {
       if (userExists) {
         throw new ConflictException("User already exist")
       }
+
+      //
+      const coin = await this.prisma.coin.findFirst({
+        where: {
+          event_triggered: CoinEvent.FIRST_SIGNUP
+        }
+      })
+      // 
       const user = await tx.user.create({
         data: {
           username: dto.username,
@@ -495,11 +521,25 @@ export class UsersService {
           regi_status: LoginType.ADMIN_SIGNIN,
           password: hasedPass,
           image: dto.image,
+          reward_points: Number(coin?.coin_amount) ?? 0,
         },
         include: {
           role: true
         }
       });
+
+      //
+      // 
+      await this.prisma.coinHistory.create({
+        data: {
+          userId: user.id,
+          type: CoinHistoryType.ACCUMULATION,
+          total_coin_apply: Number(coin?.coin_amount) || 0,
+          total_coin_acc: Number(coin?.coin_amount) || 0,
+          current_coin_balance: Number(coin?.coin_amount) || 0,
+
+        }
+      })
 
       const adminProfile = await tx.admin.create({
         data: {
