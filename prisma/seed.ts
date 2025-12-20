@@ -263,6 +263,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.NOTIFICATION, action: Permission.READ },
     // qize module
     { module: Module.QUIZ, action: Permission.GET_ONE },
+    // wallet module
+    { module: Module.WALLET, action: Permission.READ },
 
 
   ],
