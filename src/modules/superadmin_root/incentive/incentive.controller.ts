@@ -25,12 +25,14 @@ import {
 } from '@nestjs/swagger';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 @ApiTags('incentives (admin)') // Group endpoints under the "incentives" tag in Swagger UI
 @ApiBearerAuth() // Indicates that the endpoints require a Bearer token
 @Controller('incentive')
 export class IncentiveController {
-  constructor(private readonly incentiveService: IncentiveService) {}
+  constructor(private readonly incentiveService: IncentiveService) { }
 
   @Post()
   @UsePipes(new ValidationPipe())
@@ -59,7 +61,7 @@ export class IncentiveController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all incentives(admin only)' })
+  @ApiOperation({ summary: 'Get all incentives(admin and raider only)' })
   @ApiResponse({
     status: 200,
     description: 'Incentives fetched successfully',
@@ -76,6 +78,27 @@ export class IncentiveController {
       return ApiResponses.error(error, 'Failed to fetch incentives');
     }
   }
+
+  // stats
+  @Get("/stats")
+  @ApiOperation({ summary: 'Get all incentive stats(admin and raider only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Incentive stats fetched successfully',
+  })
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.WALLET, Permission.READ)
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async stats() {
+    try {
+      const res = await this.incentiveService.stats();
+      return ApiResponses.success(res, 'Incentive stats fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to fetch incentive stats');
+    }
+  }
+
 
   @Get(':id')
   @Auth()
@@ -129,7 +152,7 @@ export class IncentiveController {
       return ApiResponses.error(error, 'Failed to update incentive');
     }
   }
-// 
+  // 
 
   @Patch(':id/status')
   @Auth()
@@ -160,10 +183,6 @@ export class IncentiveController {
     }
   }
 
-
-
-
-
   // 
 
   @Delete(':id')
@@ -187,6 +206,30 @@ export class IncentiveController {
       return ApiResponses.success(res, 'Incentive deleted successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to delete incentive');
+    }
+  }
+  // 
+  @Post(':id/collect')
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.WALLET, Permission.READ)
+  @ApiOperation({ summary: 'Collect an incentive by ID (admin only)' })
+  @ApiParam({ name: 'id', type: 'string', description: 'Incentive ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Incentive collected successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Incentive not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async collect(@Param('id') id: string, @CurrentUser() user: IUser) {
+    try {
+      const res = await this.incentiveService.collect(+id, user.id);
+      if (!res) {
+        return ApiResponses.error(null, 'Incentive not found');
+      }
+      return ApiResponses.success(res, 'Incentive collected successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to collect incentive');
     }
   }
 }

@@ -58,6 +58,7 @@ model User {
   my_raiders     myRaider[]
   customer_ratings RateCustomer[]
   raider_ratings  RateRaider[]
+  collected_incentives CollectedIncentive[]
 
   sentMessages       Message[]      @relation("SentMessages")
   receivedMessages   Message[]      @relation("ReceivedMessages")

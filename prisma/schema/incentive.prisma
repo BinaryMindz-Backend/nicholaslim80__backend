@@ -10,6 +10,7 @@ model Incentive {
   end_date         DateTime?
   incentive_amount Int? @default(0)
   status           IncentiveStatus
+  collected_incentives CollectedIncentive[]
   created_at       DateTime       @default(now())
 
   @@map("incentives")
