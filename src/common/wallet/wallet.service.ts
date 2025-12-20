@@ -286,5 +286,26 @@ export class WalletService {
             data,
         };
     }
+   //
+   async delete(id:number){
+      const record = await this.prisma.walletHistory.findUnique({
+             where:{
+                   id
+             }
+       })
+       if(!record){
+           throw new NotFoundException("Record Not Found")
+       }
+       
+        
+        await this.prisma.walletHistory.delete({
+             where:{
+                   id
+             }
+       })
+      
+   }     
+
+
 
 }
