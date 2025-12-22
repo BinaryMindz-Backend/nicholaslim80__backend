@@ -1,3 +1,4 @@
+import { CreateDestinationDto } from './../destination/dto/create-destination.dto';
 import {
   Controller,
   Get,
@@ -7,6 +8,7 @@ import {
   Param,
   Delete,
   Query,
+  Res,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -26,6 +28,8 @@ import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import type { Response } from 'express';
+import { BulkOrderDto } from './dto/bulk-order-dto';
 
 @ApiTags('Order (User)')
 @Controller('order')
@@ -48,6 +52,68 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to create order');
     }
   }
+
+  // create bulk order
+  @Post('orders/bulk')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.ORDER_PLACEMENT, Permission.JUST_ADMIN)
+    @ApiOperation({ summary: 'Create multiple orders from CSV file URL' })
+    @ApiResponse({
+      status: 200,
+      description: 'Bulk orders created successfully',
+      schema: {
+        example: {
+          success: true,
+          message: 'Bulk Order Created Successfully',
+          data: {
+            total_uploaded: 10,
+            success: 10,
+          },
+        },
+      },
+    })
+    @ApiResponse({
+      status: 400,
+      description: 'Invalid CSV file URL or format',
+      schema: {
+        example: {
+          success: false,
+          message: 'Failed to create order',
+          error: 'Invalid file URL',
+        },
+      },
+    })
+    async bulkCreateFromCsv(
+      @Body() body: BulkOrderDto,
+      @Body() dto:CreateDestinationDto,
+      @CurrentUser() user: IUser,
+    ) {
+      try {
+        const res = await this.orderService.bulkCreateOrdersFromCsv(body.fileUrl, user, dto);
+        return ApiResponses.success(res, "Bulk Order Created Successfully");
+      } catch (error) {
+        return ApiResponses.error(error, 'Failed to create order');
+      }
+    }
+
+  // export as csv
+    @Get('orders/export/csv')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.ORDER_PLACEMENT, Permission.JUST_ADMIN)
+    async exportOrders(@Res() res: Response) {
+      const csv = await this.orderService.exportOrdersAsCsv();
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="orders.csv"',
+      );
+
+      res.status(200).send(csv);
+    }
+
   
     // 
     @Get('stats')

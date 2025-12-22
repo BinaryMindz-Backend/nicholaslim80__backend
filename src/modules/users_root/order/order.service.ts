@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/prefer-promise-reject-errors */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+import { Parser } from 'json2csv';
+// 
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
@@ -9,6 +13,10 @@ import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
 import { RedisService } from 'src/modules/auth/redis/redis.service';
 import { competitionQueue } from 'src/core/queues/competition.queue';
+import axios from 'axios';
+import csv from 'csv-parser';
+import { CreateDestinationDto } from '../destination/dto/create-destination.dto';
+
 
 
 @Injectable()
@@ -21,7 +29,6 @@ export class OrderService {
   ) {}
 
   async create(dto: CreateOrderDto, user:IUser) {
-
      //
      if(dto.pay_type === PayType.ONLINE_PAY && dto.payment_method_id === undefined){
         // 
@@ -103,7 +110,206 @@ export class OrderService {
   }
 
 
-    // 
+  // bulk order creation
+    async bulkCreateOrdersFromCsv(fileUrl: string, user:IUser, dto:CreateDestinationDto) {
+      if (!fileUrl.startsWith(process.env.BASE_URL as string)) {
+        throw new BadRequestException('Invalid file source');
+      }
+
+      const response = await axios.get(fileUrl, { responseType: 'stream' });
+
+      const orders: any[] = [];
+      const destinations: any[] = [];
+
+      return new Promise((resolve, reject) => {
+        response.data
+          .pipe(csv())
+          .on('data', (row) => {
+            // Basic required validation
+            if (!row.delivery_type || !row.sender_latitude) return;
+
+            orders.push({
+              userId: Number(user?.id),
+              route_type: row.route_type,
+              delivery_type: row.delivery_type,
+              pay_type: row.pay_type,
+              collect_time: row.collect_time,
+              vehicle_type_id: row.vehicle_type_id ?? null, // resolve later if needed
+              total_cost: Number(row.total_cost),
+              order_status: row.order_status ?? 'PROGRESS',
+              isFixed: row.is_fixed === 'true',
+              raider_confirmation: row.raider_confirmation === 'true'
+            });
+
+            destinations.push({
+              sender: {
+                user_id:user?.id,
+                address:  dto.address,
+                contact_name: dto.contact_name,
+                contact_number: dto.contact_number,
+                latitude: dto.latitude,
+                longitude: dto.longitude,
+                floor_unit: dto.floor_unit,
+                note_to_driver: dto.note_to_driver,
+
+              },
+              receiver: {
+                user_id:user?.id,
+                address: row.receiver_address,
+                contact_name: row.receiver_contact_name,
+                contact_number: row.receiver_contact_number,
+                latitude: row.receiver_latitude,
+                longitude: row.receiver_longitude,
+                floor_unit: row.sender_floor_unit,
+              },
+            });
+          })
+          .on('end', async () => {
+            try {
+              const createdOrders = await this.prisma.$transaction(
+                orders.map((order) =>
+                  this.prisma.order.create({ data: order }),
+                ),
+              );
+
+              // Create destinations per order
+              for (let i = 0; i < createdOrders.length; i++) {
+                const order = createdOrders[i];
+                const dest = destinations[i];
+
+                await this.prisma.destination.createMany({
+                  data: [
+                    {
+                      order_id: order.id,
+                      type: 'SENDER',
+                      ...dest.sender,
+                    },
+                    {
+                      order_id: order.id,
+                      type: 'RECEIVER',
+                      ...dest.receiver,
+                    },
+                  ],
+                });
+              }
+
+              resolve({
+                total_uploaded: orders.length,
+                success: createdOrders.length,
+                message: 'Bulk orders created successfully',
+              });
+            } catch (err) {
+              reject(err);
+            }
+          })
+          .on('error', reject);
+      });
+    } 
+  
+    // export as csv
+    async exportOrdersAsCsv() {
+      const orders = await this.prisma.order.findMany({
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              phone: true,
+            },
+          },
+          vehicle: {
+            select: {
+              vehicle_type: true,
+            },
+          },
+          destinations: true,
+        },
+        orderBy: { created_at: 'desc' },
+      });
+
+      const formatted_orders = orders.map((order) => {
+        const sender = order.destinations.find(d => d.type === 'SENDER');
+        const receiver = order.destinations.find(d => d.type === 'RECEIVER');
+
+        return {
+          order_id: order.id,
+          user_id: order.userId,
+          user_name: order.user?.username ?? '',
+          user_phone: order.user?.phone ?? '',
+
+          route_type: order.route_type,
+          delivery_type: order.delivery_type,
+          pay_type: order.pay_type,
+          collect_time: order.collect_time,
+
+          vehicle_type: order.vehicle?.vehicle_type ?? '',
+          total_cost: order.total_cost,
+
+          order_status: order.order_status,
+          is_fixed: order.isFixed,
+          raider_confirmation: order.raider_confirmation,
+
+          pick_up_items: JSON.stringify(order.pick_up_items),
+
+          sender_address: sender?.address ?? '',
+          sender_contact_name: sender?.contact_name ?? '',
+          sender_contact_number: sender?.contact_number ?? '',
+          sender_latitude: sender?.latitude ?? '',
+          sender_longitude: sender?.longitude ?? '',
+
+          receiver_address: receiver?.address ?? '',
+          receiver_contact_name: receiver?.contact_name ?? '',
+          receiver_contact_number: receiver?.contact_number ?? '',
+          receiver_latitude: receiver?.latitude ?? '',
+          receiver_longitude: receiver?.longitude ?? '',
+
+          created_at: order.created_at,
+          updated_at: order.updated_at,
+        };
+      });
+
+      const fields = [
+        { label: 'order_id', value: 'order_id' },
+        { label: 'user_id', value: 'user_id' },
+        { label: 'user_name', value: 'user_name' },
+        { label: 'user_phone', value: 'user_phone' },
+
+        { label: 'route_type', value: 'route_type' },
+        { label: 'delivery_type', value: 'delivery_type' },
+        { label: 'pay_type', value: 'pay_type' },
+        { label: 'collect_time', value: 'collect_time' },
+
+        { label: 'vehicle_type', value: 'vehicle_type' },
+        { label: 'total_cost', value: 'total_cost' },
+
+        { label: 'order_status', value: 'order_status' },
+        { label: 'is_fixed', value: 'is_fixed' },
+        { label: 'raider_confirmation', value: 'raider_confirmation' },
+
+        { label: 'pick_up_items', value: 'pick_up_items' },
+
+        { label: 'sender_address', value: 'sender_address' },
+        { label: 'sender_contact_name', value: 'sender_contact_name' },
+        { label: 'sender_contact_number', value: 'sender_contact_number' },
+        { label: 'sender_latitude', value: 'sender_latitude' },
+        { label: 'sender_longitude', value: 'sender_longitude' },
+
+        { label: 'receiver_address', value: 'receiver_address' },
+        { label: 'receiver_contact_name', value: 'receiver_contact_name' },
+        { label: 'receiver_contact_number', value: 'receiver_contact_number' },
+        { label: 'receiver_latitude', value: 'receiver_latitude' },
+        { label: 'receiver_longitude', value: 'receiver_longitude' },
+
+        { label: 'created_at', value: 'created_at' },
+        { label: 'updated_at', value: 'updated_at' },
+      ];
+
+      const parser = new Parser({ fields });
+      return parser.parse(formatted_orders);
+    }
+
+
+    // find mine
    async findMine(
       userId: number,
       page: number = 1,
