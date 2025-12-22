@@ -167,6 +167,9 @@ export class UsersService {
     return this.prisma.user.findMany({
       where: { is_deleted: false },
       orderBy: { created_at: 'desc' },
+      include:{
+          role:true
+      }
     });
   }
 
@@ -503,7 +506,7 @@ export class UsersService {
       }
 
       //
-      const coin = await this.prisma.coin.findFirst({
+      const coin = await tx.coin.findFirst({
         where: {
           key: CoinEvent.FIRST_SIGNUP
         }
@@ -530,7 +533,7 @@ export class UsersService {
 
       //
       // 
-      await this.prisma.coinHistory.create({
+      await tx.coinHistory.create({
         data: {
           userId: user.id,
           type: CoinHistoryType.ACCUMULATION,

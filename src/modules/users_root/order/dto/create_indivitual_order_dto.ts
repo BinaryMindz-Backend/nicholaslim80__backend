@@ -4,7 +4,9 @@ import {
   IsNumber,
   IsOptional,
   IsEnum,
-  IsDate
+  IsArray,
+  ValidateNested,
+  IsDate,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
@@ -13,10 +15,10 @@ import {
   PayType,
   CollectTime,
 } from '@prisma/client';
+import { CreateDestinationDto } from '../../destination/dto/create-destination.dto';
 import { Type } from 'class-transformer';
 
-
-export class CreateOrderDto {
+export class CreateIndiOrderDto {
 
   @ApiProperty({ enum: RouteType, default: RouteType.ONE_WAY })
   @IsEnum(RouteType)
@@ -45,6 +47,7 @@ export class CreateOrderDto {
   @IsDate()
   scheduled_time?: Date;
 
+
   @ApiProperty({ example: 250.50 })
   @IsNumber()
   total_cost: number;
@@ -71,10 +74,16 @@ export class CreateOrderDto {
    
   @ApiProperty({ enum: PayType, default: PayType.COD })
   @IsEnum(PayType)
-  pay_type: PayType;
+  pay_type: PayType ;
 
   @ApiProperty({ example: ["link1", "link2"] })
   @IsOptional()
   pick_up_items?: string[];
+
+  @ApiProperty({ type: [CreateDestinationDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateDestinationDto)
+  destinations: CreateDestinationDto[];
 
 }

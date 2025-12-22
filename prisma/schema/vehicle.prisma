@@ -11,7 +11,7 @@ model VehicleType {
   admin       Admin           @relation(fields: [admin_id], references: [id])
   created_at   DateTime        @default(now())
   updated_at   DateTime        @updatedAt
-  orders Order[]
+  orders       Order[]
 
   @@map("vehicle_types")
 }

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Param, Query, Get } from '@nestjs/common';
+import { Controller, Post, Body, Param, Query, Get, Delete, ParseIntPipe, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiBody, ApiParam } from '@nestjs/swagger';
 import { WalletService } from './wallet.service';
 import { AddMoneyDto, SavePaymentMethodDto, WithdrawDto } from './dto/wallet.dto';
@@ -82,7 +82,20 @@ export class WalletController {
     async userWalletHistory(@Param('userId') userId: string, @Query() query: UserWalletHistoryQueryDto) {
         return this.walletService.userWalletHistory(+userId, query);
     }
+    // 
+    @Delete('remove/:id')
+    @Auth()
+    @ApiOperation({summary:"Deleted Walllet history"})
+    @ApiParam({name:"id", required:true, type:String, example:1})
+    async remove(@Param("id", new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }))  id: string){
+        try {
+            await this.walletService.delete(+id) 
+             return ApiResponses.success(null, "wallet history deleted succssfully")
+        } catch (error) {
+            return ApiResponses.error(error, "Feaild to delete")
+        }
+    }
 
-
+    
 }
 

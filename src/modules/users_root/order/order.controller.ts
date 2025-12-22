@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  Res,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -26,8 +27,11 @@ import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import type { Response } from 'express';
+import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
+import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 
-@ApiTags('Order (User)')
+@ApiTags('Order (User and admin)')
 @Controller('order')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
@@ -48,6 +52,83 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to create order');
     }
   }
+  
+   //
+  @Post('indivitual')
+  @Auth()
+  // @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.ORDER, Permission.CREATE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create new order' })
+  async createIndivitual(@Body() dto: CreateIndiOrderDto, @CurrentUser() user:IUser) {
+    try {
+      const order = await this.orderService.createOrder(dto, user);
+      return ApiResponses.success(order, 'Order created successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to create order');
+    }
+  }
+
+  // create bulk order
+  @Post('orders/bulk')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.ORDER_PLACEMENT, Permission.JUST_ADMIN)
+    @ApiOperation({ summary: 'Create multiple orders from CSV file URL' })
+    @ApiResponse({
+      status: 200,
+      description: 'Bulk orders created successfully',
+      schema: {
+        example: {
+          success: true,
+          message: 'Bulk Order Created Successfully',
+          data: {
+            total_uploaded: 10,
+            success: 10,
+          },
+        },
+      },
+    })
+    @ApiResponse({
+      status: 400,
+      description: 'Invalid CSV file URL or format',
+      schema: {
+        example: {
+          success: false,
+          message: 'Failed to create order',
+          error: 'Invalid file URL',
+        },
+      },
+    })
+    async bulkCreateFromCsv(
+      @Body() dto: BulkOrderWithDestinationsDto,
+      @CurrentUser() user: IUser,
+    ) {
+      try {
+        const res = await this.orderService.bulkCreateOrdersFromCsv(dto, user);
+        return ApiResponses.success(res, "Bulk Order Created Successfully");
+      } catch (error) {
+        return ApiResponses.error(error, 'Failed to create order');
+      }
+    }
+
+  // export as csv
+    @Get('orders/export/csv')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.ORDER_PLACEMENT, Permission.JUST_ADMIN)
+    async exportOrders(@Res() res: Response) {
+      const csv = await this.orderService.exportOrdersAsCsv();
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="orders.csv"',
+      );
+
+      res.status(200).send(csv);
+    }
+
   
     // 
     @Get('stats')
@@ -123,14 +204,11 @@ export class OrderController {
       @ApiOperation({ summary: 'Get logged-in user orders (admin only)' })
       @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
       async findUserOrder(
-        @Param("userId") userId: string,
-        @Query() pagination: PaginationDto,
-      ) {
+        @Param("userId") userId: string, @Query() filterDto:OrderFilterDto) {
         try {
           const orders = await this.orderService.findUserOrder(
             +userId,
-            pagination.page,
-            pagination.limit,
+             filterDto
           );
           return ApiResponses.success(orders, 'Orders retrieved successfully');
         } catch (err) {

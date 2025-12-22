@@ -74,7 +74,7 @@ export class WalletService {
         // Step 7: Update wallet balance
         await this.prisma.user.update({
             where: { id: userId },
-            data: { totalWalletBalance: { increment: amount } },
+            data: { totalWalletBalance: { increment: amount }, currentWalletBalance: { increment: amount } },
         });
 
         return {
@@ -143,7 +143,7 @@ export class WalletService {
         // Update wallet balance
         await this.prisma.user.update({
             where: { id: userId },
-            data: { totalWalletBalance: { increment: amount } },
+            data: { totalWalletBalance: { increment: amount }, currentWalletBalance:{increment:amount} },
         });
 
         return { message: 'Wallet credited successfully', amount };
@@ -286,5 +286,26 @@ export class WalletService {
             data,
         };
     }
+   //
+   async delete(id:number){
+      const record = await this.prisma.walletHistory.findUnique({
+             where:{
+                   id
+             }
+       })
+       if(!record){
+           throw new NotFoundException("Record Not Found")
+       }
+       
+        
+        await this.prisma.walletHistory.delete({
+             where:{
+                   id
+             }
+       })
+      
+   }     
+
+
 
 }
