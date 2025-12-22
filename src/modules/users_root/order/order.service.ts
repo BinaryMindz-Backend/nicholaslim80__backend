@@ -139,14 +139,27 @@ export class OrderService {
   // admin only
   async findUserOrder(
         userId: number,
-        page: number = 1,
-        limit: number = 20,
+        // page: number = 1,
+        // limit: number = 20,
+        filterDto:OrderFilterDto
       ) {
+
+       const page = filterDto.page ?? 1;
+       const limit = filterDto.limit ?? 10;
+        
+
         const skip = (page - 1) * limit;
+
+        const where = {
+              order_status:filterDto.status,
+              userId
+        }
+         
+
 
         const [orders, total] = await this.prisma.$transaction([
           this.prisma.order.findMany({
-            where: { userId },
+            where,
             orderBy: { created_at: 'desc' },
             include: { user: true },
             skip,
@@ -154,7 +167,7 @@ export class OrderService {
           }),
           
           this.prisma.order.count({
-            where: { userId },
+            where
           }),
         ]);
 

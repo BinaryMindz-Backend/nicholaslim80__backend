@@ -18,6 +18,11 @@ export class CreateOrderDto {
   @IsEnum(RouteType)
   route_type: RouteType;
 
+  @ApiProperty({example:false})
+  @IsBoolean()
+  @IsOptional()
+  isFixed: boolean;
+
   @ApiProperty({ enum: DeliveryTypeName, default: DeliveryTypeName.EXPRESS })
   @IsEnum(DeliveryTypeName)
   delivery_type: DeliveryTypeName;

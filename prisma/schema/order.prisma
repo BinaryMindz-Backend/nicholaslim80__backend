@@ -35,6 +35,7 @@ model Order {
   is_pickup               Boolean     @default(false)
   order_status            OrderStatus @default(PROGRESS)
   is_out_for_delivery     Boolean     @default(false)
+  isFixed                 Boolean     @default(true)  
 
 
   destinations            Destination[]

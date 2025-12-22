@@ -74,7 +74,7 @@ export class WalletService {
         // Step 7: Update wallet balance
         await this.prisma.user.update({
             where: { id: userId },
-            data: { totalWalletBalance: { increment: amount } },
+            data: { totalWalletBalance: { increment: amount }, currentWalletBalance: { increment: amount } },
         });
 
         return {
@@ -143,7 +143,7 @@ export class WalletService {
         // Update wallet balance
         await this.prisma.user.update({
             where: { id: userId },
-            data: { totalWalletBalance: { increment: amount } },
+            data: { totalWalletBalance: { increment: amount }, currentWalletBalance:{increment:amount} },
         });
 
         return { message: 'Wallet credited successfully', amount };

@@ -123,14 +123,11 @@ export class OrderController {
       @ApiOperation({ summary: 'Get logged-in user orders (admin only)' })
       @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
       async findUserOrder(
-        @Param("userId") userId: string,
-        @Query() pagination: PaginationDto,
-      ) {
+        @Param("userId") userId: string, @Query() filterDto:OrderFilterDto) {
         try {
           const orders = await this.orderService.findUserOrder(
             +userId,
-            pagination.page,
-            pagination.limit,
+             filterDto
           );
           return ApiResponses.success(orders, 'Orders retrieved successfully');
         } catch (err) {
