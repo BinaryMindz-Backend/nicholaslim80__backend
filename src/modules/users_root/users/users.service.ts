@@ -167,6 +167,9 @@ export class UsersService {
     return this.prisma.user.findMany({
       where: { is_deleted: false },
       orderBy: { created_at: 'desc' },
+      include:{
+          role:true
+      }
     });
   }
 
