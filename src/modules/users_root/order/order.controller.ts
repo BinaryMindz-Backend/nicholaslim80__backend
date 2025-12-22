@@ -1,4 +1,3 @@
-import { CreateDestinationDto } from './../destination/dto/create-destination.dto';
 import {
   Controller,
   Get,
@@ -29,9 +28,10 @@ import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import type { Response } from 'express';
-import { BulkOrderDto } from './dto/bulk-order-dto';
+import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
+import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 
-@ApiTags('Order (User)')
+@ApiTags('Order (User and admin)')
 @Controller('order')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
@@ -47,6 +47,22 @@ export class OrderController {
   async create(@Body() dto: CreateOrderDto, @CurrentUser() user:IUser) {
     try {
       const order = await this.orderService.create(dto, user);
+      return ApiResponses.success(order, 'Order created successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to create order');
+    }
+  }
+  
+   //
+  @Post('indivitual')
+  @Auth()
+  // @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.ORDER, Permission.CREATE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create new order' })
+  async createIndivitual(@Body() dto: CreateIndiOrderDto, @CurrentUser() user:IUser) {
+    try {
+      const order = await this.orderService.createOrder(dto, user);
       return ApiResponses.success(order, 'Order created successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to create order');
@@ -85,12 +101,11 @@ export class OrderController {
       },
     })
     async bulkCreateFromCsv(
-      @Body() body: BulkOrderDto,
-      @Body() dto:CreateDestinationDto,
+      @Body() dto: BulkOrderWithDestinationsDto,
       @CurrentUser() user: IUser,
     ) {
       try {
-        const res = await this.orderService.bulkCreateOrdersFromCsv(body.fileUrl, user, dto);
+        const res = await this.orderService.bulkCreateOrdersFromCsv(dto, user);
         return ApiResponses.success(res, "Bulk Order Created Successfully");
       } catch (error) {
         return ApiResponses.error(error, 'Failed to create order');

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/prefer-promise-reject-errors */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Parser } from 'json2csv';
 // 
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
@@ -15,7 +14,8 @@ import { RedisService } from 'src/modules/auth/redis/redis.service';
 import { competitionQueue } from 'src/core/queues/competition.queue';
 import axios from 'axios';
 import csv from 'csv-parser';
-import { CreateDestinationDto } from '../destination/dto/create-destination.dto';
+import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
+import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 
 
 
@@ -70,6 +70,7 @@ export class OrderService {
                   data:{
                     ...dto,
                     userId:user.id
+
                   }
            })
           // 
@@ -108,87 +109,152 @@ export class OrderService {
     return res
 
   }
+   
+
+  // create indivitual users
+    async createOrder(payload: CreateIndiOrderDto, user: IUser) {
+
+        //  
+        const res =  await this.prisma.$transaction(async(tx)=>{
+             const order = await tx.order.create({
+                  data: {
+                    userId: user.id,
+                    route_type: payload.route_type,
+                    delivery_type: payload.delivery_type,
+                    pay_type: payload.pay_type,
+                    collect_time: payload.collect_time,
+                    vehicle_type_id: payload.vehicle_type_id,
+                    total_cost: payload.total_cost,
+                    isFixed: payload.isFixed,
+                    pick_up_items: payload.pick_up_items,
+                  }
+           })  
+            // Create destinations
+            const destinationsData = payload.destinations.map(d => ({
+              order_id: order.id,
+              user_id:user?.id,
+              ...d,
+            }));
+
+            await tx.destination.createMany({ data:destinationsData });
+             // 
+              const txId = this.txIdService.generate();
+
+                await tx.transaction.create({
+                      data:{
+                           transaction_code:txId,
+                           payment_status:PaymentStatus.UNPAID,
+                           payment_method_id:order.payment_method_id,
+                           type:TransactionType.BOOK_ORDER,
+                           delivery_fee:order.total_cost,
+                           total_fee:order.total_cost,
+                           userId:order.userId,
+                           pay_type:order.pay_type,
+                           orderId:order.id 
+                      },
+                      include:{
+                          user:{
+                              select:{
+                                  username:true,
+
+                              },
+                          },
+                          order:{
+                              select:{
+                                 id:true,
+                                 order_status:true
+                              }
+                          }
+                      }
+                }) 
+          })
+
+     return res;
+ 
+  }
 
 
-  // bulk order creation
-    async bulkCreateOrdersFromCsv(fileUrl: string, user:IUser, dto:CreateDestinationDto) {
-      if (!fileUrl.startsWith(process.env.BASE_URL as string)) {
+   // bulk order creation
+    async bulkCreateOrdersFromCsv(
+      dto: BulkOrderWithDestinationsDto,
+      user: IUser,
+    ) {
+      if (!dto?.fileUrl.startsWith(process.env.BASE_URL as string)) {
         throw new BadRequestException('Invalid file source');
       }
 
-      const response = await axios.get(fileUrl, { responseType: 'stream' });
+      const response = await axios.get(dto.fileUrl, { responseType: 'stream' });
 
       const orders: any[] = [];
-      const destinations: any[] = [];
-
+      const destinationsArr: any[] = [];
+      // 
       return new Promise((resolve, reject) => {
         response.data
           .pipe(csv())
           .on('data', (row) => {
-            // Basic required validation
             if (!row.delivery_type || !row.sender_latitude) return;
 
-            orders.push({
+            // Build order
+            const orderData = {
               userId: Number(user?.id),
               route_type: row.route_type,
               delivery_type: row.delivery_type,
               pay_type: row.pay_type,
               collect_time: row.collect_time,
-              vehicle_type_id: row.vehicle_type_id ?? null, // resolve later if needed
+              vehicle_type_id: row.vehicle_type_id ? Number(row.vehicle_type_id) : null,
               total_cost: Number(row.total_cost),
               order_status: row.order_status ?? 'PROGRESS',
               isFixed: row.is_fixed === 'true',
-              raider_confirmation: row.raider_confirmation === 'true'
-            });
+              raider_confirmation: row.raider_confirmation === 'true',
+            };
+            orders.push(orderData);
 
-            destinations.push({
-              sender: {
-                user_id:user?.id,
-                address:  dto.address,
-                contact_name: dto.contact_name,
-                contact_number: dto.contact_number,
-                latitude: dto.latitude,
-                longitude: dto.longitude,
-                floor_unit: dto.floor_unit,
-                note_to_driver: dto.note_to_driver,
+            // Determine destinations
+            // Use default DTO destinations if provided, otherwise map from CSV row
+            const senderDest = dto.destinations?.find(d => d.type === 'SENDER') ?? {
+              user_id: user?.id,
+              address: row.sender_address,
+              contact_name: row.sender_contact_name,
+              contact_number: row.sender_contact_number,
+              latitude: row.sender_latitude,
+              longitude: row.sender_longitude,
+              floor_unit: row.sender_floor_unit,
+              note_to_driver: row.sender_note_to_driver,
+              type: 'SENDER',
+            };
 
-              },
-              receiver: {
-                user_id:user?.id,
-                address: row.receiver_address,
-                contact_name: row.receiver_contact_name,
-                contact_number: row.receiver_contact_number,
-                latitude: row.receiver_latitude,
-                longitude: row.receiver_longitude,
-                floor_unit: row.sender_floor_unit,
-              },
-            });
+            const receiverDest = dto.destinations?.find(d => d.type === 'RECEIVER') ?? {
+              user_id: user?.id,
+              address: row.receiver_address,
+              contact_name: row.receiver_contact_name,
+              contact_number: row.receiver_contact_number,
+              latitude: row.receiver_latitude ,
+              longitude: row.receiver_longitude,
+              floor_unit: row.receiver_floor_unit,
+              note_to_driver: row.receiver_note_to_driver,
+              type: 'RECEIVER',
+            };
+            destinationsArr.push({ sender: senderDest, receiver: receiverDest });
           })
           .on('end', async () => {
             try {
+              
+              // Create orders in a transaction
               const createdOrders = await this.prisma.$transaction(
-                orders.map((order) =>
-                  this.prisma.order.create({ data: order }),
-                ),
+                orders.map(order => this.prisma.order.create({ data: order })),
               );
-
+               
               // Create destinations per order
               for (let i = 0; i < createdOrders.length; i++) {
                 const order = createdOrders[i];
-                const dest = destinations[i];
-
+                const dest = destinationsArr[i];
+                if(!dest.latitude || !dest.longitude){
+                     throw new NotFoundException(`Reciever Or Sender Destination not found on csv`)
+                }
                 await this.prisma.destination.createMany({
                   data: [
-                    {
-                      order_id: order.id,
-                      type: 'SENDER',
-                      ...dest.sender,
-                    },
-                    {
-                      order_id: order.id,
-                      type: 'RECEIVER',
-                      ...dest.receiver,
-                    },
+                    { order_id: order.id,user_id:user.id, ...dest.sender },
+                    { order_id: order.id, ...dest.receiver },
                   ],
                 });
               }
@@ -204,11 +270,12 @@ export class OrderService {
           })
           .on('error', reject);
       });
-    } 
-  
+    }
+
     // export as csv
     async exportOrdersAsCsv() {
       const orders = await this.prisma.order.findMany({
+        // 
         include: {
           user: {
             select: {
@@ -430,6 +497,8 @@ export class OrderService {
             pay_type: true,
             vehicle_type_id: true,
             total_cost: true,
+            collect_time:true,
+            scheduled_time:true,
             has_additional_services: true,
             is_promo_used: true,
             notify_favorite_raider: true,

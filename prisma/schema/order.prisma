@@ -9,6 +9,7 @@ model Order {
 
   pay_type                PayType @default(WALLET)
   collect_time            CollectTime @default(ASAP) 
+  scheduled_time          DateTime?
 
   vehicle_type_id         Int?
   vehicle                 VehicleType? @relation(fields: [vehicle_type_id], references: [id], onDelete: SetNull)
