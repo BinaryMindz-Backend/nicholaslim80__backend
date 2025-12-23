@@ -181,6 +181,12 @@ const ROLE_PERMISSIONS = {
     { module: Module.COIN, action: Permission.UPDATE },
     { module: Module.COIN, action: Permission.READ },
     { module: Module.COIN, action: Permission.GET_ONE },
+    { module: Module.COIN, action: Permission.REEDOM_COIN },
+    //Report and  analytiucs module
+    { module: Module.REPORT_ANALYTICS, action: Permission.CREATE },
+    { module: Module.REPORT_ANALYTICS, action: Permission.DELETE },
+    { module: Module.REPORT_ANALYTICS, action: Permission.UPDATE },
+    { module: Module.REPORT_ANALYTICS, action: Permission.READ },
 
     // driver competition module
     { module: Module.DRIVER_ORDER_COMPETITION, action: Permission.CREATE },

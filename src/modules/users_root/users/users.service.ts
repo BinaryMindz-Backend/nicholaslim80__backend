@@ -131,9 +131,6 @@ export class UsersService {
     };
   }
 
-
-
-
   // 
   async findByEmailOrPhone(email?: string, phone?: string) {
     // 

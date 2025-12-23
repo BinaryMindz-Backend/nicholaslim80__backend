@@ -49,6 +49,7 @@ import { DisputeModule } from './modules/superadmin_root/dispute/dispute.module'
 import { LiveMapFleetTrackModule } from './modules/superadmin_root/live_map_fleet_track/live_map_fleet_track.module';
 import { TransactionsModule } from './modules/superadmin_root/transactions/transactions.module';
 import { WalletModule } from './common/wallet/wallet.module';
+import { ReportAndAnalyticsModule } from './modules/superadmin_root/report_and_analytics/report_and_analytics.module';
 
 
 @Module({
@@ -104,7 +105,8 @@ import { WalletModule } from './common/wallet/wallet.module';
     DisputeModule,
     LiveMapFleetTrackModule,
     TransactionsModule,
-    WalletModule
+    WalletModule,
+    ReportAndAnalyticsModule
 
   ],
   controllers: [AppController, RbacController],

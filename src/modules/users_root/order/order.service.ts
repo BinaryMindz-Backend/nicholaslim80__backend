@@ -520,6 +520,11 @@ export class OrderService {
                 phone: true,
               },
             },
+            destinations:{
+                select:{
+                   address:true
+                }
+            }
           },
           orderBy: { created_at: 'desc' },
           skip,

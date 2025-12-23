@@ -37,6 +37,7 @@ model Order {
   order_status            OrderStatus @default(PROGRESS)
   is_out_for_delivery     Boolean     @default(false)
   isFixed                 Boolean     @default(true)  
+  isDispute               Boolean     @default(false) 
 
 
   destinations            Destination[]
