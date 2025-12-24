@@ -27,24 +27,7 @@ export class TransactionsController {
     }
   }
 
-  // 
-  // GET ONE
-  @Get(':id')
-  @Auth()
-  @ApiBearerAuth()
-  @RequirePermission(Module.PAYMENT_TRANSACTION, Permission.READ)
-  @ApiOperation({ summary: 'Get single transaction records' })
-  @ApiResponse({ status: 200, description: 'Transactions data fetched successfully' })
-  async findOne(@Param('id') id: string) {
-    try {
-      const res = await this.transactionsService.findOne(+id);
-      return ApiResponses.success(res, 'Transactions data fetched successfully');
-    } catch (error) {
-      return ApiResponses.error(error, 'Transactions data fleet tracking list');
-    }
-  }
-  // 
-
+  //
   @Get('stats')
   @Auth()
   @ApiBearerAuth()
@@ -66,7 +49,22 @@ export class TransactionsController {
     const res = await this.transactionsService.getRevenueGraph(year ? Number(year) : undefined);
     return ApiResponses.success(res, 'Revenue graph fetched successfully');
   }
-
+ 
+  // GET ONE
+  @Get(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.PAYMENT_TRANSACTION, Permission.READ)
+  @ApiOperation({ summary: 'Get single transaction records' })
+  @ApiResponse({ status: 200, description: 'Transactions data fetched successfully' })
+  async findOne(@Param('id') id: string) {
+    try {
+      const res = await this.transactionsService.findOne(+id);
+      return ApiResponses.success(res, 'Transactions data fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Transactions data fleet tracking list');
+    }
+  }
 
 
 }

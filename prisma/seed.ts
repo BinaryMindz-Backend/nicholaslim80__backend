@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 
 // DEFINE YOUR MODULES (Add new modules here)
 export enum Module {
+  DASHBOARD="dashboard",
   USER = 'user',
   RAIDER = "raider",
   ORDER = 'order',
@@ -93,6 +94,8 @@ enum Permission {
 // DEFAULT PERMISSIONS FOR EACH ROLE
 const ROLE_PERMISSIONS = {
   [UserRole.SUPER_ADMIN]: [
+    // DASBOARD
+    { module: Module.DASHBOARD, action: Permission.READ },
     // USER module - full access
     { module: Module.USER, action: Permission.CREATE },
     { module: Module.USER, action: Permission.READ },

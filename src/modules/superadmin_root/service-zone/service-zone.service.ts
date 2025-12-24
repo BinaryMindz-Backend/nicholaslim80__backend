@@ -3,6 +3,7 @@ import { CreateServiceZoneDto } from './dto/create-service-zone.dto';
 import { UpdateServiceZoneDto } from './dto/update-service-zone.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { PrismaService } from 'src/core/database/prisma.service';
+import { booleanPointInPolygon, point, polygon } from '@turf/turf';
 
 @Injectable()
 export class ServiceZoneService {
@@ -92,4 +93,29 @@ export class ServiceZoneService {
       return ApiResponses.error(error.message);
     }
   }
+
+    // find zone by point
+    async findZoneByPoint(lat: number, lng: number) {
+      const zones = await this.prisma.serviceZone.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          zoneName: true,
+          coordinates: true,
+        },
+      });
+
+      const pt = point([lng, lat]);
+
+      for (const zone of zones) {
+        const poly = polygon(zone.coordinates as any);
+        if (booleanPointInPolygon(pt, poly)) {
+          return zone;
+        }
+      }
+
+      return null;
+    }
+
+  // 
 }

@@ -16,6 +16,7 @@ import axios from 'axios';
 import csv from 'csv-parser';
 import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
+import { ServiceZoneService } from 'src/modules/superadmin_root/service-zone/service-zone.service';
 
 
 
@@ -24,7 +25,8 @@ export class OrderService {
   constructor(
      private prisma: PrismaService,
      private txIdService:TransactionIdService,
-      private redisService: RedisService,
+     private redisService: RedisService,
+     private readonly serviceZoneService: ServiceZoneService,
 
   ) {}
 
@@ -113,6 +115,9 @@ export class OrderService {
 
   // create indivitual users
     async createOrder(payload: CreateIndiOrderDto, user: IUser) {
+            // 
+
+      
 
         //  
         const res =  await this.prisma.$transaction(async(tx)=>{

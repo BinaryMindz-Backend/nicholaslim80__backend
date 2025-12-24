@@ -8,6 +8,11 @@ export class CreateDestinationDto {
   @IsOptional()
   @IsString()
   address?: string;
+   
+  @ApiProperty({ example: 'paste address link' })
+  @IsOptional()
+  @IsString()
+  addressLink?:string;
 
   @ApiProperty({ example: '5A' })
   @IsOptional()

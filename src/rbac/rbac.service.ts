@@ -131,7 +131,8 @@ export class RbacService implements OnModuleInit {
 
     return updatedRole;
   }
-
+ 
+  // 
   async deleteRole(roleId: number) {
     const role = await this.prisma.role.findUnique({
       where: { id: roleId },
