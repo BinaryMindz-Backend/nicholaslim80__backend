@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { UpdateReportAndAnalyticDto } from './dto/update-report_and_analytic.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { OrderStatus, Prisma } from '@prisma/client';
 
@@ -7,7 +6,9 @@ import { OrderStatus, Prisma } from '@prisma/client';
 export class ReportAndAnalyticsService {
        constructor(  private prisma: PrismaService){
        }
-  
+     
+
+      //  order stats
     async getOrderAllStats() {
       const [
         totalOrder,
@@ -71,7 +72,7 @@ export class ReportAndAnalyticsService {
       };
     }
        
-    // 
+    // analytics stats
     async getOrderAnalyticsStats(from?: Date, to?: Date) {
       /* ---------------- Date Filter ---------------- */
       const dateCondition =
@@ -132,7 +133,7 @@ export class ReportAndAnalyticsService {
     }
 
 
-    // 
+    // kpi stats
     async getAdminKpiStats(from?: Date, to?: Date) {
       // ---------------- Date Filter ----------------
       const dateFilter = from && to ? { created_at: { gte: from, lte: to } } : {};
@@ -226,13 +227,6 @@ export class ReportAndAnalyticsService {
         avgDeliveryTime: Number(avgDeliveryTime.toFixed(2)), // in minutes
       };
     }
+    // 
 
-
-  update(id: number, updateReportAndAnalyticDto: UpdateReportAndAnalyticDto) {
-    return `This action updates a #${id} reportAndAnalytic`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} reportAndAnalytic`;
-  }
 }

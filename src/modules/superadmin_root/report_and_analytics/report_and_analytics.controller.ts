@@ -1,5 +1,5 @@
 /* eslint-disable no-useless-catch */
-import { Controller, Get,Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ReportAndAnalyticsService } from './report_and_analytics.service';
 import { Auth } from 'src/decorators/auth.decorator';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -96,9 +96,17 @@ export class ReportAndAnalyticsController {
       throw error;
     }
   }
+  // 
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.reportAndAnalyticsService.remove(+id);
-  }
+
+
+
+
+
+
+
+
+
+
+// 
 }

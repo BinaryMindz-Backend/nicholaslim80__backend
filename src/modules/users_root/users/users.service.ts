@@ -10,6 +10,7 @@ import { CoinHistoryType, LoginType, UserRole } from '@prisma/client';
 import { UserFilterDto, UserStatusFilter } from './dto/user-filter.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { startOfDay, endOfDay, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { CoinUtils } from 'src/utils/coin.utils';
 
 // 
 @Injectable()
@@ -90,20 +91,17 @@ export class UsersService {
         referral_link: link,
         is_acc_refered: dto.referral_code ? true : false,
         roleId: role.id,
-        total_coin_acc: Number(coin?.coin_amount) || 0,
-        current_coin_balance: Number(coin?.coin_amount) || 0,
+        // total_coin_acc: Number(coin?.coin_amount) || 0,
+        // current_coin_balance: Number(coin?.coin_amount) || 0,
       },
     });
-    // 
-    await this.prisma.coinHistory.create({
-      data: {
-          userId: user.id,
-          type: CoinHistoryType.ACCUMULATION,
-          role_triggered:CoinEvent.FIRST_SIGNUP,
-          coin_acc_amount: Number(coin?.coin_amount) || 0,
-      }
-    })
 
+    // coin
+    const coinUtils = new CoinUtils(this.prisma);
+    // Add coins
+    await coinUtils.earnCoin(user.id, Number(coin?.coin_amount) || 0, CoinEvent.FIRST_SIGNUP);
+
+    // 
     if (dto.referral_code) {
 
       // if the user created by refer
