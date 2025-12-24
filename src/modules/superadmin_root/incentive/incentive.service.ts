@@ -134,7 +134,7 @@ export class IncentiveService {
 
 
 
-  // /
+  //
   async remove(id: number) {
     // 
     const rec = await this.prisma.incentive.findFirst({
@@ -184,7 +184,8 @@ export class IncentiveService {
         data: {
           userId,
           incentiveId: id,
-          is_collected: true
+          is_collected: true,
+          amount:rec.incentive_amount
         },
       })
       //  

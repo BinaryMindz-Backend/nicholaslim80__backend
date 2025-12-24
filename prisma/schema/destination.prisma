@@ -16,6 +16,9 @@ model Destination {
   // 
   order_id           Int?
   order              Order? @relation(fields: [order_id], references: [id], onDelete:SetNull)
+   
+  service_zoneId     Int?
+  serviceZone        serviceZone? @relation(fields: [service_zoneId], references: [id])
 
   @@map("destinations")
 }

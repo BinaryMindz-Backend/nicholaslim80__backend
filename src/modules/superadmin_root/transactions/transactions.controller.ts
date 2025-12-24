@@ -43,6 +43,29 @@ export class TransactionsController {
       return ApiResponses.error(error, 'Transactions data fleet tracking list');
     }
   }
+  // 
+
+  @Get('stats')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.PAYMENT_TRANSACTION, Permission.READ)
+  @ApiOperation({ summary: 'Get total revenue, commission, and refunds (all-time)' })
+  @ApiResponse({ status: 200, description: 'Revenue stats fetched successfully' })
+  async getRevenueStats() {
+    const res = await this.transactionsService.getRevenueStats();
+    return ApiResponses.success(res, 'Revenue stats fetched successfully');
+  }
+
+  @Get('graph')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.PAYMENT_TRANSACTION, Permission.READ)
+  @ApiOperation({ summary: 'Get revenue graph by month (filter by year)' })
+  @ApiResponse({ status: 200, description: 'Revenue graph fetched successfully' })
+  async getRevenueGraph(@Query('year') year?: string) {
+    const res = await this.transactionsService.getRevenueGraph(year ? Number(year) : undefined);
+    return ApiResponses.success(res, 'Revenue graph fetched successfully');
+  }
 
 
 

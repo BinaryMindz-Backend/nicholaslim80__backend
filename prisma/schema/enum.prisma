@@ -173,7 +173,7 @@ enum CoinEvent {
   DAILY_LOGIN
   SHARE_ON_SOCIAL
   REFERRAL
-  COMPLETED20_ORDER
+  COMPLETED_ORDER
 }
 
 enum CoinHistoryType {

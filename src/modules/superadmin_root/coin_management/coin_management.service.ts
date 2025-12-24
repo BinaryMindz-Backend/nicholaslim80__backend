@@ -4,7 +4,7 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { ApiResponses } from 'src/common/apiResponse';
 import { IUser } from 'src/types';
 import { CreateCoinDto } from './dto/create-coin_management.dto';
-import { UserRole } from '@prisma/client';
+import { CoinEvent, CoinHistoryType, UserRole } from '@prisma/client';
 
 @Injectable()
 export class CoinManagementService {
@@ -111,31 +111,51 @@ export class CoinManagementService {
       }
     })
   }
-
-  async redeemCoin(user: IUser, coin: number) {
+  //  
+  async redeemCoin(user: IUser, coinAmount: number) {
+    // ---------------- Fetch User ----------------
     const userRecord = await this.prisma.user.findUnique({
       where: { id: user.id },
     });
+    if (!userRecord) throw new NotFoundException('User not found');
 
-    if (!userRecord) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (userRecord.current_coin_balance < coin) {
+    // ---------------- Check Balance ----------------
+    if ((userRecord.current_coin_balance ?? 0) < coinAmount) {
       throw new BadRequestException('Insufficient coin balance');
     }
 
+    // ---------------- Get Base Coin Value ----------------
+    const baseCoin = await this.prisma.coin.aggregate({
+      _avg: { coin_value_in_cent: true },
+    });
+    const basePrice = Number(baseCoin._avg.coin_value_in_cent ?? 0);
+
+    // ---------------- Deduct Coins ----------------
     const updatedUser = await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        current_coin_balance: {
-          decrement: coin,
-        },
+        current_coin_balance: { decrement: coinAmount },
       },
     });
-    return updatedUser;
+
+    // ---------------- Record Coin History ----------------
+    await this.prisma.coinHistory.create({
+      data: {
+        userId: user.id,
+        role_triggered: CoinEvent.COMPLETED_ORDER, // example role, or your own context
+        coin_acc_amount: coinAmount,
+        type: CoinHistoryType.APPLICATION, // spending
+      },
+    });
+
+    return {
+      updatedUser,
+      redeemedAmountInCent: coinAmount * basePrice,
+    };
   }
-  
+
+   
+  // 
   async basePrice() {
     const result = await this.prisma.coin.aggregate({
       _avg: {

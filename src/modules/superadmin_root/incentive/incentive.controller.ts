@@ -213,7 +213,7 @@ export class IncentiveController {
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
   @RequirePermission(Module.WALLET, Permission.READ)
-  @ApiOperation({ summary: 'Collect an incentive by ID (admin only)' })
+  @ApiOperation({ summary: 'Collect an incentive by ID (Raider only)' })
   @ApiParam({ name: 'id', type: 'string', description: 'Incentive ID' })
   @ApiResponse({
     status: 200,
