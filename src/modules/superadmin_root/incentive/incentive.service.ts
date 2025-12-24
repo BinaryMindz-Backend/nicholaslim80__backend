@@ -134,7 +134,7 @@ export class IncentiveService {
 
 
 
-  // /
+  //
   async remove(id: number) {
     // 
     const rec = await this.prisma.incentive.findFirst({
