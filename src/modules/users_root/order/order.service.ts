@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/prefer-promise-reject-errors */
 import { Parser } from 'json2csv';
 // 
@@ -5,8 +7,8 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException, 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { IUser } from 'src/types';
-import { CollectTime, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
+import { DestinationInput, IUser } from 'src/types';
+import { CollectTime, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -17,6 +19,7 @@ import csv from 'csv-parser';
 import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { ServiceZoneService } from 'src/modules/superadmin_root/service-zone/service-zone.service';
+import { GeoService } from 'src/utils/geo-location.utils';
 
 
 
@@ -26,157 +29,208 @@ export class OrderService {
      private prisma: PrismaService,
      private txIdService:TransactionIdService,
      private redisService: RedisService,
-     private readonly serviceZoneService: ServiceZoneService,
+     private readonly serviceZone: ServiceZoneService,
+     private readonly geoServices:GeoService,
+     
 
   ) {}
 
-  async create(dto: CreateOrderDto, user:IUser) {
-     //
-     if(dto.pay_type === PayType.ONLINE_PAY && dto.payment_method_id === undefined){
-        // 
-       const paymethodRecord = await this.prisma.paymentMethod.findFirst({
-          where:{
-              OR:[
-              { id:dto.payment_method_id},
-              { userId:user?.id}
-              ]
+    async create(dto: CreateOrderDto, user:IUser) {
+      //
+      if(dto.pay_type === PayType.ONLINE_PAY && dto.payment_method_id === undefined){
+          // 
+        const paymethodRecord = await this.prisma.paymentMethod.findFirst({
+            where:{
+                OR:[
+                { id:dto.payment_method_id},
+                { userId:user?.id}
+                ]
+            }
+          })
+          if(!paymethodRecord){
+          throw new NotFoundException("pay method not found")
           }
-        })
-        if(!paymethodRecord){
-        throw new NotFoundException("pay method not found")
+
+        throw new  NotFoundException("For the External pay method must need an payment method id")
+
+      }
+
+      //  
+      if(!user){
+          throw new NotFoundException("Authenticed user not found")
+      }
+
+      const isUserExist = await this.prisma.user.findUnique({
+          where:{
+              id:user?.id
+          }
+      })
+      //  
+      if(!isUserExist){
+          throw new UnauthorizedException("Unauthorize exception")
+      }
+          
+
+
+    const res =  await this.prisma.$transaction(async(tx)=>{
+              const order = await tx.order.create({
+                    data:{
+                      ...dto,
+                      userId:user.id
+
+                    }
+            })
+            // 
+                const txId = this.txIdService.generate();
+
+                  await tx.transaction.create({
+                        data:{
+                            transaction_code:txId,
+                            payment_status:PaymentStatus.UNPAID,
+                            payment_method_id:order.payment_method_id,
+                            type:TransactionType.BOOK_ORDER,
+                            delivery_fee:order.total_cost,
+                            total_fee:order.total_cost,
+                            userId:order.userId,
+                            pay_type:order.pay_type,
+                            orderId:order.id 
+                        },
+                        include:{
+                            user:{
+                                select:{
+                                    username:true,
+
+                                },
+                            },
+                            order:{
+                                select:{
+                                  id:true,
+                                  order_status:true
+                                }
+                            }
+                        }
+                  }) 
+            })
+
+      // 
+      return res
+
+    }
+    
+    // 
+    async createOrder(payload: CreateIndiOrderDto, user: IUser) {
+      // 
+      const geocodedDestinations: DestinationInput[] = [];
+      let orderServiceZoneId: number | null = null;
+
+      for (const d of payload.destinations) {
+        let lat = d.latitude;
+        let lng = d.longitude;
+        let formattedAddress = d.addressFromApr;
+
+        if (!lat || !lng) {
+          const geo = await this.geoServices.getLatLngFromAddress(d.address ?? '');
+          lat = geo.lat;
+          lng = geo.lng;
+          formattedAddress = geo.formattedAddress;
         }
 
-       throw new  NotFoundException("For the External pay method must need an payment method id")
+        const zone = await this.serviceZone.findZoneByPoint(lat, lng);
+        // Assign order service zone from SENDER destination
+        if (
+          d.type === DestinationType.SENDER &&
+          zone &&
+          orderServiceZoneId === null
+        ) {
+          orderServiceZoneId = zone.id;
+        }
+  
+        geocodedDestinations.push({
+          ...d,
+          address: d.address ?? '',
+          latitude: lat,
+          longitude: lng,
+          type: d.type ?? DestinationType.SENDER,
+          is_saved: d.is_saved ?? false,
+          // service_zoneId: zone?.id ?? null,
+          addressFromApr: formattedAddress,
+        });
+      }
 
-     }
+      if (!orderServiceZoneId) {
+        throw new Error('Pickup location is outside service zone');
+      }
 
-    //  
-     if(!user){
-         throw new NotFoundException("Authenticed user not found")
-     }
+      const res = await this.prisma.$transaction(async (tx) => {
+        // Create order WITH service zone
+        const order = await tx.order.create({
+          data: {
+            serviceZoneId: orderServiceZoneId,
+            userId: user.id,
+            route_type: payload.route_type,
+            delivery_type: payload.delivery_type,
+            pay_type: payload.pay_type,
+            collect_time: payload.collect_time,
+            vehicle_type_id: payload.vehicle_type_id,
+            payment_method_id: payload.payment_method_id,
+            total_cost: payload.total_cost,
+            isFixed: payload.isFixed,
+            pick_up_items: payload.pick_up_items,
+          },
+        });
 
-     const isUserExist = await this.prisma.user.findUnique({
-         where:{
-            id:user?.id
-         }
-     })
-    //  
-    if(!isUserExist){
-        throw new UnauthorizedException("Unauthorize exception")
-    }
-         
+        const createdDestinations: Destination[] = [];
 
-
-   const res =  await this.prisma.$transaction(async(tx)=>{
-             const order = await tx.order.create({
-                  data:{
-                    ...dto,
-                    userId:user.id
-
-                  }
-           })
-          // 
-              const txId = this.txIdService.generate();
-
-                await tx.transaction.create({
-                      data:{
-                           transaction_code:txId,
-                           payment_status:PaymentStatus.UNPAID,
-                           payment_method_id:order.payment_method_id,
-                           type:TransactionType.BOOK_ORDER,
-                           delivery_fee:order.total_cost,
-                           total_fee:order.total_cost,
-                           userId:order.userId,
-                           pay_type:order.pay_type,
-                           orderId:order.id 
-                      },
-                      include:{
-                          user:{
-                              select:{
-                                  username:true,
-
-                              },
-                          },
-                          order:{
-                              select:{
-                                 id:true,
-                                 order_status:true
-                              }
-                          }
-                      }
-                }) 
-          })
-
-    // 
-    return res
-
-  }
-   
-
-  // create indivitual users
-    async createOrder(payload: CreateIndiOrderDto, user: IUser) {
-            // 
-
-      
-
-        //  
-        const res =  await this.prisma.$transaction(async(tx)=>{
-             const order = await tx.order.create({
-                  data: {
-                    userId: user.id,
-                    route_type: payload.route_type,
-                    delivery_type: payload.delivery_type,
-                    pay_type: payload.pay_type,
-                    collect_time: payload.collect_time,
-                    vehicle_type_id: payload.vehicle_type_id,
-                    total_cost: payload.total_cost,
-                    isFixed: payload.isFixed,
-                    pick_up_items: payload.pick_up_items,
-                  }
-           })  
-            // Create destinations
-            const destinationsData = payload.destinations.map(d => ({
+        for (const d of geocodedDestinations) {
+          const dest = await tx.destination.create({
+            data: {
               order_id: order.id,
-              user_id:user?.id,
-              ...d,
-            }));
+              user_id: user.id,
+              address: d.address,
+              addressFromApr: d.addressFromApr ?? null,
+              floor_unit: d.floor_unit ?? null,
+              contact_name: d.contact_name ?? null,
+              contact_number: d.contact_number ?? null,
+              note_to_driver: d.note_to_driver ?? null,
+              is_saved: d.is_saved,
+              type: d.type,
+              latitude: d.latitude!,
+              longitude: d.longitude!,
+              accuracy: d.accuracy ?? null,
+              service_zoneId: d.service_zoneId,
+            },
+          });
 
-            await tx.destination.createMany({ data:destinationsData });
-             // 
-              const txId = this.txIdService.generate();
+          createdDestinations.push(dest);
+        }
 
-                await tx.transaction.create({
-                      data:{
-                           transaction_code:txId,
-                           payment_status:PaymentStatus.UNPAID,
-                           payment_method_id:order.payment_method_id,
-                           type:TransactionType.BOOK_ORDER,
-                           delivery_fee:order.total_cost,
-                           total_fee:order.total_cost,
-                           userId:order.userId,
-                           pay_type:order.pay_type,
-                           orderId:order.id 
-                      },
-                      include:{
-                          user:{
-                              select:{
-                                  username:true,
+        const txId = this.txIdService.generate();
+        const transaction = await tx.transaction.create({
+          data: {
+            transaction_code: txId,
+            payment_status: PaymentStatus.UNPAID,
+            payment_method_id: payload.payment_method_id,
+            type: TransactionType.BOOK_ORDER,
+            delivery_fee: order.total_cost,
+            total_fee: order.total_cost,
+            userId: user.id,
+            pay_type: order.pay_type,
+            orderId: order.id,
+          },
+          include: {
+            user: { select: { username: true } },
+            order: { select: { id: true, order_status: true } },
+          },
+        });
 
-                              },
-                          },
-                          order:{
-                              select:{
-                                 id:true,
-                                 order_status:true
-                              }
-                          }
-                      }
-                }) 
-          })
+        return { order, transaction, destinations: createdDestinations };
+      });
 
-     return res;
- 
-  }
+      return res;
+    }
+
+
+
 
 
    // bulk order creation
@@ -986,12 +1040,16 @@ export class OrderService {
                 is_placed:true
             },
             orderBy: { created_at: 'desc' },
-            include: { user: true , vehicle:true},
+            include: { user: true , vehicle:true, destinations:true},
             skip,
             take: limit,
           }),
           
           this.prisma.order.count({
+            where:{
+                order_status:OrderStatus.PENDING,
+                is_placed:true
+            }
           }),
         ]);
 

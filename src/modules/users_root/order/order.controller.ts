@@ -54,20 +54,34 @@ export class OrderController {
   }
   
    //
-  @Post('indivitual')
-  @Auth()
-  // @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.ORDER, Permission.CREATE)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create new order' })
-  async createIndivitual(@Body() dto: CreateIndiOrderDto, @CurrentUser() user:IUser) {
-    try {
-      const order = await this.orderService.createOrder(dto, user);
-      return ApiResponses.success(order, 'Order created successfully');
-    } catch (err) {
-      return ApiResponses.error(err, 'Failed to create order');
+    @Post('indivitual')
+    @Auth()
+    @RequirePermission(Module.ORDER, Permission.CREATE)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Create new order' })
+    async createIndivitual(
+      @Body() dto: CreateIndiOrderDto,
+      @CurrentUser() user: IUser,
+    ) {
+      try {
+        const order = await this.orderService.createOrder(dto, user);
+
+        return ApiResponses.success(order, 'Order created successfully');
+      } catch (err: any) {
+        const message =
+          err?.response?.message ||
+          err?.message ||
+          'Failed to create order';
+
+        const statusCode =
+          err?.status ||
+          err?.response?.statusCode ||
+          500;
+
+        return ApiResponses.error(message, statusCode);
+      }
     }
-  }
+
 
   // create bulk order
   @Post('orders/bulk')

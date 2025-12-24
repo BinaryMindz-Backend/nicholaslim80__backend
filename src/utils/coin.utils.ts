@@ -1,5 +1,5 @@
 import { PrismaService } from 'src/core/database/prisma.service';
-import {BadRequestException, NotAcceptableException } from '@nestjs/common';
+import {BadRequestException } from '@nestjs/common';
 import { CoinEvent, CoinHistoryType } from '@prisma/client';
 
 export class CoinUtils {
@@ -12,15 +12,16 @@ export class CoinUtils {
    * @param event - CoinEvent enum value
    */
   async earnCoin(userId:number, coinAmount: number, event: CoinEvent) {
-    if (coinAmount <= 0) throw new BadRequestException('Coin amount must be positive');
-    const coin = await this.prisma.coin.findFirst({
-           where:{
-              key:event
-           }
-    }) 
-    if(!coin){
-          throw new NotAcceptableException("Coin key not found")
-    }
+    if (coinAmount < 0) throw new BadRequestException('Coin amount must be positive');
+    // const coin = await this.prisma.coin.findFirst({
+    //        where:{
+    //           key:event
+    //        }
+    // }) 
+    // 
+    // if(!coin){
+    //       throw new NotAcceptableException("Coin key not found")
+    // }
     // 
     const baseCoin = await this.prisma.coin.aggregate({
       _avg: { coin_value_in_cent: true },

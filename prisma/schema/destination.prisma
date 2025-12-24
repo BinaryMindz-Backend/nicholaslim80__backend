@@ -1,15 +1,15 @@
 model Destination {
   id                 Int       @id @default(autoincrement())
   address            String?  
-  addressLink        String?
+  addressFromApr     String?
   floor_unit         String?   @db.VarChar(100)
   contact_name       String?   @db.VarChar(100)
   contact_number     String?   @db.VarChar(20)
   note_to_driver     String?
   is_saved           Boolean   @default(false)
   type               DestinationType?
-  latitude  Decimal?  @db.Decimal(10,7)
-  longitude Decimal?  @db.Decimal(10,7)
+  latitude           Float?
+  longitude          Float?
   accuracy  Float?
   
   user_id            Int
