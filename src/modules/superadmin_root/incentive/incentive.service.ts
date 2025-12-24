@@ -184,7 +184,8 @@ export class IncentiveService {
         data: {
           userId,
           incentiveId: id,
-          is_collected: true
+          is_collected: true,
+          amount:rec.incentive_amount
         },
       })
       //  

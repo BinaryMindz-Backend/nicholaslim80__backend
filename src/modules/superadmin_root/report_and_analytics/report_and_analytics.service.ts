@@ -1,13 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { CoinHistoryType, OrderStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class ReportAndAnalyticsService {
        constructor(  private prisma: PrismaService){
        }
-     
-
+    
       //  order stats
     async getOrderAllStats() {
       const [
@@ -227,6 +227,153 @@ export class ReportAndAnalyticsService {
         avgDeliveryTime: Number(avgDeliveryTime.toFixed(2)), // in minutes
       };
     }
-    // 
+
+    // coin stats
+    async getAdminCoinStats(from?: Date, to?: Date) {
+      // ---------------- Date Filter ----------------
+      const dateFilter: any = {};
+      if (from && to) {
+        dateFilter.created_at = { gte: from, lte: to };
+      }
+
+      // ---------------- Total Coins Given ----------------
+      const totalCoinGivenRaw = await this.prisma.coinHistory.aggregate({
+        _sum: { coin_acc_amount: true },
+        where: { ...dateFilter, type: CoinHistoryType.ACCUMULATION },
+      });
+      const totalCoinGiven = Number(totalCoinGivenRaw._sum.coin_acc_amount ?? 0);
+
+      // ---------------- Total Coins Redeemed ----------------
+      const totalCoinRedeemRaw = await this.prisma.coinHistory.aggregate({
+        _sum: { coin_acc_amount: true },
+        where: { ...dateFilter, type: CoinHistoryType.APPLICATION },
+      });
+      const totalCoinRedeem = Number(totalCoinRedeemRaw._sum.coin_acc_amount ?? 0);
+
+      // ---------------- Total Coins Expired ----------------
+          const now = new Date();
+
+          // Get all active coins
+          const coins = await this.prisma.coin.findMany({
+            where: { is_active: true, expire_days: { not: null } },
+            select: { key: true, expire_days: true },
+          });
+
+          // Get all accumulated coin histories in date range
+          const coinHistories = await this.prisma.coinHistory.findMany({
+            where: { type: CoinHistoryType.ACCUMULATION },
+            select: { userId: true, role_triggered: true, coin_acc_amount: true, created_at: true },
+          });
+
+          // Calculate expired coins
+          let totalCoinExpired = 0;
+          coinHistories.forEach(history => {
+            const matchingCoin = coins.find(c => c.key === history.role_triggered);
+            if (!matchingCoin || !matchingCoin.expire_days) return;
+
+            const expireDate = new Date(history.created_at);
+            expireDate.setDate(expireDate.getDate() + matchingCoin.expire_days);
+
+            if (expireDate < now) {
+              totalCoinExpired += history.coin_acc_amount;
+            }
+          });
+
+      // ---------------- Total Active Users with Coins ----------------
+      const activeUsersRaw = await this.prisma.coinHistory.groupBy({
+        by: ['userId'],
+        where: { ...dateFilter },
+      });
+      const totalActiveUsersWithCoin = activeUsersRaw.length;
+
+      // ---------------- Coin Summary Chart ----------------
+      const coinSummaryChart = [
+        { label: 'Gave', value: totalCoinGiven },
+        { label: 'Redeemed', value: totalCoinRedeem },
+        { label: 'Expired', value: totalCoinExpired },
+      ];
+
+      // ---------------- Coin Earned by Activity Type ----------------
+      const coinByActivityRaw = await this.prisma.coinHistory.groupBy({
+        by: ['role_triggered'],
+        _sum: { coin_acc_amount: true },
+        where: { ...dateFilter, type: CoinHistoryType.ACCUMULATION },
+      });
+
+      const coinByActivityChart = coinByActivityRaw.map(r => ({
+        event: r.role_triggered,
+        coins: Number(r._sum.coin_acc_amount ?? 0),
+      }));
+
+      // ---------------- Final Response ----------------
+      return {
+        totalCoinGiven,
+        totalCoinRedeem,
+        totalCoinExpired,
+        totalActiveUsersWithCoin,
+        coinSummaryChart,
+        coinByActivityChart,
+      };
+    }
+
+    // incentive analytics
+    async getIncentiveAnalytics(from?: Date, to?: Date) {
+      // ---------------- Date Filter ----------------
+      const dateFilter: any = {};
+      if (from && to) {
+        dateFilter.created_at = { gte: from, lte: to };
+      }
+      // ---------------- Total Incentives Given ----------------
+      const totalGivenRaw = await this.prisma.incentive.aggregate({
+        _sum: { incentive_amount: true },
+        where: { ...dateFilter },
+      });
+      const totalGiven = Number(totalGivenRaw._sum.incentive_amount ?? 0);
+
+      // ---------------- Total Incentives Collected ----------------
+      const totalCollectedRaw = await this.prisma.collectedIncentive.aggregate({
+        _sum: { amount: true },
+        where: { ...dateFilter },
+      });
+      const totalCollected = Number(totalCollectedRaw._sum.amount ?? 0);
+
+      // ---------------- Weekly Graph ----------------
+         const weeklyData = await this.prisma.incentive.findMany({
+              where: from && to ? { created_at: { gte: from, lte: to } } : {},
+              select: {
+                created_at: true,
+                incentive_amount: true,
+                collected_incentives: {
+                  select: { amount: true, created_at: true },
+                },
+              },
+            });
+            // 
+            const weeklyGraph: { week: string; given: number; collected: number }[] = [];
+
+            weeklyData.forEach(i => {
+              const weekNumber = Math.ceil(i.created_at.getDate() / 7); // Week 1-4
+              const given = i.incentive_amount ?? 0;
+              const collected = i.collected_incentives.reduce((sum, c) => sum + (c.amount ?? 0), 0);
+
+              let weekEntry = weeklyGraph.find(w => w.week === `Week ${weekNumber}`);
+              if (!weekEntry) {
+                weekEntry = { week: `Week ${weekNumber}`, given: 0, collected: 0 };
+                weeklyGraph.push(weekEntry);
+              }
+              weekEntry.given += given;
+              weekEntry.collected += collected;
+            });
+            
+      // ---------------- Final Response ----------------
+      return {
+        totalGiven,
+        totalCollected,
+        weeklyGraph,
+      };
+    }
+
+
+   
 
 }

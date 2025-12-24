@@ -97,9 +97,45 @@ export class ReportAndAnalyticsController {
     }
   }
   // 
+  
+  @Get('coin/stats')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.REPORT_ANALYTICS, Permission.READ)
+  @ApiOperation({ summary: 'Get coin management stats for admin dashboard' })
+  @ApiResponse({ status: 200, description: 'Coin stats fetched successfully' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async getCoinStats(@Query() query: OrderAnalyticsQueryDto) {
+    try {
+      const res = await this.reportAndAnalyticsService.getAdminCoinStats(
+        query.from ? new Date(query.from) : undefined,
+        query.to ? new Date(query.to) : undefined,
+      );
+      return ApiResponses.success(res, 'Coin stats fetched successfully');
+    } catch (error) {
+      throw error;
+    }
+  }
 
-
-
+  // 
+  @Get('incentive/analytics')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.REPORT_ANALYTICS, Permission.READ)
+  @ApiOperation({ summary: 'Get incentive analytics (total given, collected, weekly chart)' })
+  @ApiResponse({ status: 200, description: 'Incentive analytics fetched successfully' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async getIncentiveAnalytics(@Query() query: OrderAnalyticsQueryDto) {
+    try {
+      const res = await this.reportAndAnalyticsService.getIncentiveAnalytics(
+        query.from ? new Date(query.from) : undefined,
+        query.to ? new Date(query.to) : undefined,
+      );
+      return ApiResponses.success(res, 'Incentive analytics fetched successfully');
+    } catch (error) {
+      throw error;
+    }
+  }
 
 
 
