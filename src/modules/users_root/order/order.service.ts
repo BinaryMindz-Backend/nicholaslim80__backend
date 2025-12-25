@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/prefer-promise-reject-errors */
 import { Parser } from 'json2csv';
@@ -171,6 +170,7 @@ export class OrderService {
             delivery_type: payload.delivery_type,
             pay_type: payload.pay_type,
             collect_time: payload.collect_time,
+            scheduled_time:payload.scheduled_time,
             vehicle_type_id: payload.vehicle_type_id,
             payment_method_id: payload.payment_method_id,
             total_cost: payload.total_cost,
@@ -230,106 +230,110 @@ export class OrderService {
     }
 
 
+  // bulk order creation
+  //   async bulkCreateOrdersFromCsv(
+  //     dto: BulkOrderWithDestinationsDto,
+  //     user: IUser,
+  //   ) {
+  //     if (!dto?.fileUrl.startsWith(process.env.BASE_URL as string)) {
+  //       throw new BadRequestException('Invalid file source');
+  //     }
 
+  //     const response = await axios.get(dto.fileUrl, { responseType: 'stream' });
 
+  //     const orders: any[] = [];
+  //     const destinationsArr: any[] = [];
+  //     // 
+  //     return new Promise((resolve, reject) => {
+  //       response.data
+  //         .pipe(csv())
+  //         .on('data', (row) => {
+  //           if (!row.delivery_type || !row.sender_latitude) return;
 
-   // bulk order creation
-    async bulkCreateOrdersFromCsv(
-      dto: BulkOrderWithDestinationsDto,
-      user: IUser,
-    ) {
-      if (!dto?.fileUrl.startsWith(process.env.BASE_URL as string)) {
-        throw new BadRequestException('Invalid file source');
-      }
+  //           // Build order
+  //           const orderData = {
+  //             userId: Number(user?.id),
+  //             route_type: row.route_type,
+  //             delivery_type: row.delivery_type,
+  //             pay_type: row.pay_type,
+  //             collect_time: row.collect_time,
+  //             vehicle_type_id: row.vehicle_type_id ? Number(row.vehicle_type_id) : null,
+  //             total_cost: Number(row.total_cost),
+  //             order_status: row.order_status ?? 'PROGRESS',
+  //             isFixed: row.is_fixed === 'true',
+  //             raider_confirmation: row.raider_confirmation === 'true',
+  //           };
+  //           orders.push(orderData);
 
-      const response = await axios.get(dto.fileUrl, { responseType: 'stream' });
+  //           // Determine destinations
+  //           // Use default DTO destinations if provided, otherwise map from CSV row
+  //           const senderDest = dto.destinations?.find(d => d.type === 'SENDER') ?? {
+  //             user_id: user?.id,
+  //             address: row.sender_address,
+  //             contact_name: row.sender_contact_name,
+  //             contact_number: row.sender_contact_number,
+  //             latitude: row.sender_latitude,
+  //             longitude: row.sender_longitude,
+  //             floor_unit: row.sender_floor_unit,
+  //             note_to_driver: row.sender_note_to_driver,
+  //             type: 'SENDER',
+  //           };
 
-      const orders: any[] = [];
-      const destinationsArr: any[] = [];
-      // 
-      return new Promise((resolve, reject) => {
-        response.data
-          .pipe(csv())
-          .on('data', (row) => {
-            if (!row.delivery_type || !row.sender_latitude) return;
-
-            // Build order
-            const orderData = {
-              userId: Number(user?.id),
-              route_type: row.route_type,
-              delivery_type: row.delivery_type,
-              pay_type: row.pay_type,
-              collect_time: row.collect_time,
-              vehicle_type_id: row.vehicle_type_id ? Number(row.vehicle_type_id) : null,
-              total_cost: Number(row.total_cost),
-              order_status: row.order_status ?? 'PROGRESS',
-              isFixed: row.is_fixed === 'true',
-              raider_confirmation: row.raider_confirmation === 'true',
-            };
-            orders.push(orderData);
-
-            // Determine destinations
-            // Use default DTO destinations if provided, otherwise map from CSV row
-            const senderDest = dto.destinations?.find(d => d.type === 'SENDER') ?? {
-              user_id: user?.id,
-              address: row.sender_address,
-              contact_name: row.sender_contact_name,
-              contact_number: row.sender_contact_number,
-              latitude: row.sender_latitude,
-              longitude: row.sender_longitude,
-              floor_unit: row.sender_floor_unit,
-              note_to_driver: row.sender_note_to_driver,
-              type: 'SENDER',
-            };
-
-            const receiverDest = dto.destinations?.find(d => d.type === 'RECEIVER') ?? {
-              user_id: user?.id,
-              address: row.receiver_address,
-              contact_name: row.receiver_contact_name,
-              contact_number: row.receiver_contact_number,
-              latitude: row.receiver_latitude ,
-              longitude: row.receiver_longitude,
-              floor_unit: row.receiver_floor_unit,
-              note_to_driver: row.receiver_note_to_driver,
-              type: 'RECEIVER',
-            };
-            destinationsArr.push({ sender: senderDest, receiver: receiverDest });
-          })
-          .on('end', async () => {
-            try {
+  //           const receiverDest = dto.destinations?.find(d => d.type === 'RECEIVER') ?? {
+  //             user_id: user?.id,
+  //             address: row.receiver_address,
+  //             contact_name: row.receiver_contact_name,
+  //             contact_number: row.receiver_contact_number,
+  //             latitude: row.receiver_latitude ,
+  //             longitude: row.receiver_longitude,
+  //             floor_unit: row.receiver_floor_unit,
+  //             note_to_driver: row.receiver_note_to_driver,
+  //             type: 'RECEIVER',
+  //           };
+  //           destinationsArr.push({ sender: senderDest, receiver: receiverDest });
+  //         })
+  //         .on('end', async () => {
+  //           try {
               
-              // Create orders in a transaction
-              const createdOrders = await this.prisma.$transaction(
-                orders.map(order => this.prisma.order.create({ data: order })),
-              );
+  //             // Create orders in a transaction
+  //             const createdOrders = await this.prisma.$transaction(
+  //               orders.map(order => this.prisma.order.create({ data: order })),
+  //             );
                
-              // Create destinations per order
-              for (let i = 0; i < createdOrders.length; i++) {
-                const order = createdOrders[i];
-                const dest = destinationsArr[i];
-                if(!dest.latitude || !dest.longitude){
-                     throw new NotFoundException(`Reciever Or Sender Destination not found on csv`)
-                }
-                await this.prisma.destination.createMany({
-                  data: [
-                    { order_id: order.id,user_id:user.id, ...dest.sender },
-                    { order_id: order.id, ...dest.receiver },
-                  ],
-                });
-              }
+  //             // Create destinations per order
+  //             for (let i = 0; i < createdOrders.length; i++) {
+  //               const order = createdOrders[i];
+  //               const dest = destinationsArr[i];
+  //               // if(!dest.latitude || !dest.longitude){
+  //               //      throw new NotFoundException(`Reciever Or Sender Destination not found on csv`)
+  //               // }
+  //               await this.prisma.destination.createMany({
+  //                 data: [
+  //                   { order_id: order.id,user_id:user.id, ...dest.sender },
+  //                   { order_id: order.id, ...dest.receiver },
+  //                 ],
+  //               });
+  //             }
 
-              resolve({
-                total_uploaded: orders.length,
-                success: createdOrders.length,
-                message: 'Bulk orders created successfully',
-              });
-            } catch (err) {
-              reject(err);
-            }
-          })
-          .on('error', reject);
-      });
-    }
+  //             resolve({
+  //               total_uploaded: orders.length,
+  //               success: createdOrders.length,
+  //               message: 'Bulk orders created successfully',
+  //             });
+  //           } catch (err) {
+  //             reject(err);
+  //           }
+  //         })
+  //         .on('error', reject);
+  //     });
+  //   }
+ 
+
+  // 
+
+
+
+
 
     // export as csv
     async exportOrdersAsCsv() {
@@ -433,6 +437,143 @@ export class OrderService {
       const parser = new Parser({ fields });
       return parser.parse(formatted_orders);
     }
+
+      // 
+  async bulkCreateOrdersFromCsv(
+      dto: BulkOrderWithDestinationsDto,
+      user: IUser,
+    ) {
+      if (!dto?.fileUrl.startsWith(process.env.BASE_URL as string)) {
+        throw new BadRequestException('Invalid file source');
+      }
+
+      const response = await axios.get(dto.fileUrl, { responseType: 'stream' });
+
+      const ordersData: any[] = [];
+      const destinationsData: any[] = [];
+      const skippedRows: any[] = [];
+
+      return new Promise((resolve, reject) => {
+        response.data
+          .pipe(csv())
+          .on('data', async (row) => {
+            try {
+              if (!row.delivery_type || !row.sender_address) {
+                skippedRows.push({ row, reason: 'Missing required delivery_type or sender_address' });
+                return;
+              }
+
+              // Build order
+              const orderData = {
+                userId: user.id,
+                route_type: row.route_type,
+                delivery_type: row.delivery_type,
+                pay_type: row.pay_type,
+                isBulk :false,
+                collect_time: row.collect_time,
+                vehicle_type_id: row.vehicle_type_id ? Number(row.vehicle_type_id) : null,
+                payment_method_id: row.payment_method_id ? Number(row.payment_method_id) : null,
+                total_cost: Number(row.total_cost),
+                order_status: row.order_status ?? 'PROGRESS',
+                isFixed: row.is_fixed === 'true',
+                raider_confirmation: row.raider_confirmation === 'true',
+              };
+
+              // Sender destination
+              let senderLat = row.sender_latitude ? Number(row.sender_latitude) : null;
+              let senderLng = row.sender_longitude ? Number(row.sender_longitude) : null;
+              if (!senderLat || !senderLng) {
+                try {
+                  const geo = await this.geoServices.getLatLngFromAddress(row.sender_address);
+                  senderLat = geo.lat;
+                  senderLng = geo.lng;
+                } catch {
+                  skippedRows.push({ row, reason: 'Sender address not found' });
+                  return;
+                }
+              }
+
+              const senderDest = dto.destinations?.find(d => d.type === 'SENDER') ?? {
+                user_id: user.id,
+                address: row.sender_address,
+                contact_name: row.sender_contact_name,
+                contact_number: row.sender_contact_number,
+                floor_unit: row.sender_floor_unit,
+                note_to_driver: row.sender_note_to_driver,
+                type: DestinationType.SENDER,
+                latitude: senderLat,
+                longitude: senderLng,
+                is_saved: false,
+                accuracy: row.sender_accuracy ? Number(row.sender_accuracy) : null,
+              };
+
+              // Receiver destination
+              let receiverLat = row.receiver_latitude ? Number(row.receiver_latitude) : null;
+              let receiverLng = row.receiver_longitude ? Number(row.receiver_longitude) : null;
+              if (!receiverLat || !receiverLng) {
+                try {
+                  const geo = await this.geoServices.getLatLngFromAddress(row.receiver_address);
+                  receiverLat = geo.lat;
+                  receiverLng = geo.lng;
+                } catch {
+                  skippedRows.push({ row, reason: 'Receiver address not found' });
+                  return;
+                }
+              }
+
+              const receiverDest = dto.destinations?.find(d => d.type === 'RECEIVER') ?? {
+                user_id: user.id,
+                address: row.receiver_address,
+                contact_name: row.receiver_contact_name,
+                contact_number: row.receiver_contact_number,
+                floor_unit: row.receiver_floor_unit,
+                note_to_driver: row.receiver_note_to_driver,
+                type: DestinationType.RECEIVER,
+                latitude: receiverLat,
+                longitude: receiverLng,
+                is_saved: false,
+                accuracy: row.receiver_accuracy ? Number(row.receiver_accuracy) : null,
+              };
+
+              ordersData.push(orderData);
+              destinationsData.push({ sender: senderDest, receiver: receiverDest });
+            } catch (err) {
+              skippedRows.push({ row, reason: err.message });
+            }
+          })
+          .on('end', async () => {
+            try {
+              const createdOrders = await this.prisma.$transaction(
+                ordersData.map((order) => this.prisma.order.create({ data: order })),
+              );
+
+              // Insert destinations
+              for (let i = 0; i < createdOrders.length; i++) {
+                const order = createdOrders[i];
+                const dest = destinationsData[i];
+                if (!dest) continue;
+                await this.prisma.destination.createMany({
+                  data: [
+                    { order_id: order.id, ...dest.sender ,user_id:user.id },
+                    { order_id: order.id, ...dest.receiver, user_id:user.id },
+                  ],
+                });
+              }
+
+              resolve({
+                total_uploaded: ordersData.length + skippedRows.length,
+                success: createdOrders.length,
+                skipped: skippedRows,
+                message: 'Bulk orders processed successfully',
+              });
+            } catch (err) {
+              reject(err);
+            }
+          })
+          .on('error', reject);
+      });
+    }
+
 
 
     // find mine

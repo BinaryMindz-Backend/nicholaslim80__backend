@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CoinHistoryType, OrderStatus, Prisma } from '@prisma/client';
@@ -60,15 +59,18 @@ export class ReportAndAnalyticsService {
       const averageOrderRating = validOrders.length
         ? Number((totalRating / validOrders.length).toFixed(2))
         : 0;
-      //TODo: need to implementation  total revenoe
-      const totalRevenue = 0
+      const totalRevenueRaw = await this.prisma.order.aggregate({
+      _sum: { total_cost: true },
+      where: { order_status: 'COMPLETED' },
+    });
+    //  
       return {
         totalOrder,
         completedOrder,
         cancelledOrder,
         disputedOrder,
         averageOrderRating,
-        totalRevenue
+        totalRevenue:Number(totalRevenueRaw._sum.total_cost ?? 0)
       };
     }
        
