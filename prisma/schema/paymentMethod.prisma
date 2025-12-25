@@ -3,10 +3,10 @@ model PaymentMethod {
   userId         Int
   user           User     @relation(fields: [userId], references: [id])
   stripeMethodId String
-  type           String   // "card", "apple_pay", etc.
-  last4          String
-  expMonth       Int
-  expYear        Int
+  type           String?   // "card", "apple_pay", etc.
+  last4          String?
+  expMonth       Int?
+  expYear        Int?
   isDefault      Boolean  @default(false)
 
   order        Order[]

@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Param, Query, Get, Delete, ParseIntPipe, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiBody, ApiParam } from '@nestjs/swagger';
 import { WalletService } from './wallet.service';
-import { AddMoneyDto, SavePaymentMethodDto, WithdrawDto } from './dto/wallet.dto';
+import { AddMoneyDto, PayWithSavedCardDto, WithdrawDto } from './dto/wallet.dto';
 import { Auth } from 'src/decorators/auth.decorator';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
@@ -9,6 +9,8 @@ import type { IUser } from 'src/types';
 import { AddMoneyTestDto } from './dto/add-money-test.dto';
 import { UserWalletQueryDto } from './dto/user-wallet.dto';
 import { UserWalletHistoryQueryDto } from './dto/user-wallet-history-query.dto';
+import { SaveCardDto } from './dto/create-payment-method.dto';
+
 
 @ApiTags('Wallet')
 @ApiBearerAuth()
@@ -26,25 +28,48 @@ export class WalletController {
         const result = await this.walletService.addMoney(+user.id, dto.amount, dto.paymentMethodId);
         return ApiResponses.success(result, 'Money added to wallet successfully');
     }
-
-    @Post('save-payment-method')
-    @Auth()
-    @ApiOperation({ summary: 'Save a payment method for future use' })
-    async savePaymentMethod(
-        @Body() dto: SavePaymentMethodDto,
-        @CurrentUser() user: IUser
-    ) {
-        const result = await this.walletService.savePaymentMethod(
-            +user.id,
-            dto.paymentMethodId,
-            dto.type,
-            dto.last4,
-            dto.expMonth,
-            dto.expYear,
-            dto.isDefault
-        );
-        return ApiResponses.success(result, 'Payment method saved successfully');
+    
+    // 
+    @Post('create-setup-intent')
+    @ApiOperation({ summary: 'Create Stripe SetupIntent to save card' })
+    async createSetupIntent(@CurrentUser() user: IUser) {
+        return this.walletService.createSetupIntent(user.id);
     }
+
+    @Post('save-card')
+    @ApiOperation({ summary: 'Save a payment method to user Stripe account' })
+    async saveCard(@CurrentUser() user: IUser, @Body() dto: SaveCardDto) {
+        const { paymentMethodId } = dto;
+        return this.walletService.saveCard(user.id, paymentMethodId);
+    }
+
+    @Post('wallet/pay')
+    @Auth()
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Pay using a saved card' })
+    async payWithSavedCard(
+    @Body() dto: PayWithSavedCardDto,
+    @CurrentUser() user: IUser
+    ) {
+    try {
+        const res = await this.walletService.payWithSavedCard(user.id, dto.amount, dto.paymentMethodId);
+        return ApiResponses.success(res, 'Payment successful');
+    } catch (err) {
+        console.log(err);
+        return ApiResponses.error(err.message || err, 'Payment failed');
+    }
+    }
+
+
+
+
+    // 
+    @Get('wallet/cards')
+    @Auth()
+    async getCards(@CurrentUser() user: IUser) {
+    return this.walletService.getSavedCards(user.id);
+    }
+
 
     @Post('withdraw')
     @Auth()
@@ -72,6 +97,12 @@ export class WalletController {
     async userWallet(@Query() query: UserWalletQueryDto) {
         return this.walletService.userWallet(query);
     }
+    // remove card
+    @Delete('wallet/cards/:id')
+    @Auth()
+    async deleteCard(@Param('id') id: string, @CurrentUser() user: IUser) {
+    return this.walletService.deleteCard(user.id, Number(id));
+    }
 
 
     // 
@@ -95,7 +126,7 @@ export class WalletController {
             return ApiResponses.error(error, "Feaild to delete")
         }
     }
-
+   
     
 }
 

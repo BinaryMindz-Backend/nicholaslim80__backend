@@ -42,6 +42,21 @@ export class SavePaymentMethodDto {
     isDefault?: boolean;
 }
 
+ //
+    export class PayWithSavedCardDto {
+    @ApiProperty({ example: 12, description: 'payment methood id' })
+    @IsString()
+    paymentMethodId: string; // id of the saved Stripe card
+
+    @ApiProperty({ example: 12, description: 'amount' })
+    @IsNumber()
+    amount: number;          // amount to pay
+    }
+
+
+
+
+
 // ---------------- Withdraw Money ----------------
 export class WithdrawDto {
     @ApiProperty({ example: 50, description: 'Amount to withdraw from wallet' })

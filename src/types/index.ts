@@ -18,7 +18,12 @@ export interface IUser {
   role: IUserRole;
 }
 
-
+   export type WeeklyStat = {
+  week: string;
+  totalOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+};
 
 
 export interface countType {
