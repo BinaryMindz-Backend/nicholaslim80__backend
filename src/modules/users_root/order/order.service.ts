@@ -7,7 +7,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DestinationInput, IUser } from 'src/types';
-import { CollectTime, Destination, DestinationType, Order, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, Destination, DestinationType, Order, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -574,8 +574,6 @@ export class OrderService {
           .on('error', reject);
       });
     }
-
-
 
     // find mine
    async findMine(
@@ -1232,6 +1230,18 @@ export class OrderService {
   
   // order assign by admin
     async assignDriver(id: number, riderId: number) {
+      //  
+      const raider = await this.prisma.raider.findFirst({
+           where:{
+               id:riderId,
+               raider_verificationFromAdmin:RaiderVerification.APPROVED
+           }
+      }) 
+      // 
+       if(!raider){
+          throw new NotFoundException("Verified order not found")
+       }
+
       // 1. Check order exists
       const order = await this.prisma.order.findUnique({
         where: { id },
@@ -1264,7 +1274,9 @@ export class OrderService {
       return this.prisma.order.update({
         where: { id },
         data: {
-          assign_rider_id: riderId
+          assign_rider_id: riderId,
+          order_status:OrderStatus.ONGOING,
+          competition_closed:true,
         },
       });
     }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CoinHistoryType, OrderStatus, Prisma } from '@prisma/client';
@@ -14,6 +15,7 @@ export class ReportAndAnalyticsService {
         completedOrder,
         cancelledOrder,
         disputedOrder,
+        activeOrder,
         ordersWithRatings,
       ] = await Promise.all([
         this.prisma.order.count(),
@@ -29,7 +31,10 @@ export class ReportAndAnalyticsService {
         this.prisma.order.count({
           where: { isDispute: true },
         }),
-
+        // 
+        this.prisma.order.count({
+          where: { order_status: OrderStatus.ONGOING },
+        }),
         this.prisma.order.findMany({
           where: {
             order_status: OrderStatus.COMPLETED,
@@ -70,6 +75,7 @@ export class ReportAndAnalyticsService {
         cancelledOrder,
         disputedOrder,
         averageOrderRating,
+        activeOrder,
         totalRevenue:Number(totalRevenueRaw._sum.total_cost ?? 0)
       };
     }
