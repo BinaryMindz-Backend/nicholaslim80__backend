@@ -1,4 +1,5 @@
 export enum Module {
+  DASHBOARD="dashboard",
   USER = 'user',
   RAIDER = "raider",
   ORDER = 'order',

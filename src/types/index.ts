@@ -1,5 +1,7 @@
 // import {UserRole } from '@prisma/client';
 
+import { CollectTime, DeliveryTypeName, Destination, DestinationType, Order, PayType, RouteType, Transaction } from "@prisma/client";
+
 
 export interface IUserRole {
   id: number;
@@ -43,6 +45,46 @@ export enum CoinEvent {
 }
 
 
+// payload
+export class CreateIndiOrderDto {
+  route_type: RouteType;
+  delivery_type: DeliveryTypeName;
+  pay_type: PayType;
+  collect_time: CollectTime;
+  vehicle_type_id?: number;
+  payment_method_id?: number;
+  total_cost: number;
+  isFixed: boolean;
+  pick_up_items: string[];
+  destinations: DestinationInput[];
+}
+
+// return type
+export interface CreateOrderResult {
+  order: Order;
+  transaction: Transaction;
+  destinations: Destination[];
+}
+
+export interface DestinationInput {
+  service_zoneId?:number;
+  address: string;
+  addressFromApr?: string;
+  floor_unit?: string;
+  contact_name?: string;
+  contact_number?: string;
+  note_to_driver?: string;
+  is_saved?: boolean;
+  type?: DestinationType;
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+}
+
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
 
 export type performanceCountType = WeeklyPerformanceStat[];
 

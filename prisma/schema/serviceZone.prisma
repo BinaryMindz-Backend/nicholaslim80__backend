@@ -12,5 +12,8 @@ model serviceZone {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // 
+  orders      Order[]
+
   destinations    Destination[]
 }

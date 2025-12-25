@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsEnum, IsInt } from 'class-validator';
 import { OrderStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
 
 export class UpdateOrderStatusDto {
   @ApiProperty({
@@ -9,4 +10,18 @@ export class UpdateOrderStatusDto {
   })
   @IsEnum(OrderStatus, { message: 'Invalid order status value' })
   status: OrderStatus;
+}
+
+
+export class UpdatePendingOrdersDto {
+  @ApiProperty({
+    description: 'List of order IDs to mark as PENDING',
+    example: [101, 102, 103],
+    type: [Number],
+  })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsInt({ each: true })
+  @Type(() => Number)
+  orderIds: number[];
 }

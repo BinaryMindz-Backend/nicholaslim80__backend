@@ -34,8 +34,8 @@ export class NotificationService {
    
     // FIXED ROLE FILTER
     const whereRole: any = {};
-    if (dto.target_role === NotificationSentRole.USER) whereRole.role = UserRole.USER;
-    if (dto.target_role === NotificationSentRole.RAIDER) whereRole.role = UserRole.RAIDER;
+    if (dto.target_role === NotificationSentRole.USER) whereRole.role = { name: UserRole.USER };
+    if (dto.target_role === NotificationSentRole.RAIDER) whereRole.role = { name: UserRole.RAIDER };
     //  console.log(whereRole);
     const users = await this.prisma.user.findMany({
       where: whereRole,

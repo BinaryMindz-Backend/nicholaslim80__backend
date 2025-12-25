@@ -91,15 +91,12 @@ export class UsersService {
         referral_link: link,
         is_acc_refered: dto.referral_code ? true : false,
         roleId: role.id,
-        // total_coin_acc: Number(coin?.coin_amount) || 0,
-        // current_coin_balance: Number(coin?.coin_amount) || 0,
       },
     });
-
     // coin
     const coinUtils = new CoinUtils(this.prisma);
     // Add coins
-    await coinUtils.earnCoin(user.id, Number(coin?.coin_amount) || 0, CoinEvent.FIRST_SIGNUP);
+    await coinUtils.earnCoin(user.id, coin ? Number(coin.coin_amount) : 0, CoinEvent.FIRST_SIGNUP);
 
     // 
     if (dto.referral_code) {
@@ -128,6 +125,11 @@ export class UsersService {
       otp
     };
   }
+
+
+
+
+  
 
   // 
   async findByEmailOrPhone(email?: string, phone?: string) {
