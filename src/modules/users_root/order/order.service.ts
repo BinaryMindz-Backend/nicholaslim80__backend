@@ -7,9 +7,9 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DestinationInput, IUser } from 'src/types';
-import { CollectTime, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, Destination, DestinationType, Order, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
-import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
+import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
 import { RedisService } from 'src/modules/auth/redis/redis.service';
 import { competitionQueue } from 'src/core/queues/competition.queue';
@@ -19,6 +19,7 @@ import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { ServiceZoneService } from 'src/modules/superadmin_root/service-zone/service-zone.service';
 import { GeoService } from 'src/utils/geo-location.utils';
+import { PaginationDto } from 'src/utils/dto/pagination.dto';
 
 
 
@@ -469,7 +470,7 @@ export class OrderService {
                 route_type: row.route_type,
                 delivery_type: row.delivery_type,
                 pay_type: row.pay_type,
-                isBulk :false,
+                isBulk :true,
                 collect_time: row.collect_time,
                 vehicle_type_id: row.vehicle_type_id ? Number(row.vehicle_type_id) : null,
                 payment_method_id: row.payment_method_id ? Number(row.payment_method_id) : null,
@@ -708,6 +709,7 @@ export class OrderService {
             is_reviewed: true,
             is_placed: true,
             is_pickup: true,
+            isBulk:true,
             order_status: true,
             is_out_for_delivery: true,
             created_at: true,
@@ -732,6 +734,77 @@ export class OrderService {
         }),
 
         this.prisma.order.count({ where }),
+      ]);
+
+      return {
+        data: orders,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    }
+    // 
+    // ** bulk order system
+   async findAllBulk(dto:PaginationDto , user:IUser) {
+      const {
+        page = 1,
+        limit = 20,
+      } = dto;
+
+      const skip = (page - 1) * limit;
+
+      const [orders, total] = await this.prisma.$transaction([
+        this.prisma.order.findMany({
+          where:{
+            userId:user.id,
+            isBulk:true,
+            order_status:OrderStatus.PROGRESS
+          },
+          select: {
+            id: true,
+            userId: true,
+            route_type: true,
+            delivery_type: true,
+            pay_type: true,
+            vehicle_type_id: true,
+            total_cost: true,
+            collect_time:true,
+            scheduled_time:true,
+            has_additional_services: true,
+            is_promo_used: true,
+            notify_favorite_raider: true,
+            payment_method_id: true,
+            assign_rider_id: true,
+            raider_confirmation: true,
+            is_reviewed: true,
+            is_placed: true,
+            is_pickup: true,
+            isBulk:true,
+            order_status: true,
+            is_out_for_delivery: true,
+            created_at: true,
+
+            // If you want some relations, add them:
+            user: {
+              select: {
+                id: true,
+                username: true,
+                phone: true,
+              },
+            },
+            destinations:true
+          },
+          orderBy: { created_at: 'desc' },
+          skip,
+          take: limit,
+        }),
+
+        this.prisma.order.count({ where:{
+            userId:user.id,
+            isBulk:true,
+            order_status:OrderStatus.PROGRESS
+        }  }),
       ]);
 
       return {
@@ -790,6 +863,7 @@ export class OrderService {
 
   //TODO:(nodeNINJAr) confirm order need to handle promoCode uses and reedom code
    async updateOrderStatus(id: number, userId: number, dto: UpdateOrderStatusDto) {
+       // 
       const { status } = dto;
       // 1. Check order exists
       const record = await this.prisma.order.findUnique({ where: { id } });
@@ -874,6 +948,71 @@ export class OrderService {
     });
   }
    
+  // mark as pending
+  async markOrdersAsPending(
+      userId: number,
+      dto: UpdatePendingOrdersDto,
+    ) {
+      const { orderIds } = dto;
+
+      if (!orderIds?.length) {
+        throw new BadRequestException('Order IDs are required');
+      }
+
+      return this.prisma.$transaction(async (tx) => {
+        const updatedOrders: Order[] = [];
+
+        for (const id of orderIds) {
+          // 1. Check order exists
+          const order = await tx.order.findUnique({
+            where: { id },
+          });
+
+          if (!order) {
+            throw new NotFoundException(`Order ${id} not found`);
+          }
+
+          // 2. Already pending
+          if (order.order_status === OrderStatus.PENDING) {
+            throw new ConflictException(`Order ${id} is already PENDING`);
+          }
+
+          // 3. Update order → PENDING
+          const updatedOrder = await tx.order.update({
+            where: {
+              id,
+              userId,
+              isBulk:true,
+            },
+            data: {
+              order_status: OrderStatus.PENDING,
+              is_placed: true,
+            },
+          });
+
+          // 4. Update transaction → PENDING
+          const transaction = await tx.transaction.findFirst({
+            where: { orderId: id },
+          });
+
+          if (transaction) {
+            await tx.transaction.update({
+              where: { id: transaction.id },
+              data: {
+                tx_status: TransactionStatus.PENDING,
+              },
+            });
+          }
+
+          updatedOrders.push(updatedOrder);
+        }
+
+        return {
+          totalUpdated: updatedOrders.length,
+          orders: updatedOrders,
+        };
+      });
+    }
 
 
   // its permanently deleted by admin

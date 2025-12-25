@@ -24,7 +24,7 @@ import { ApiResponses } from 'src/common/apiResponse';
 import type { IUser } from 'src/types';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
 import { OrderFilterDto } from './dto/order-filter.dto';
-import { UpdateOrderStatusDto } from './dto/updateOrderStatusDto';
+import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import type { Response } from 'express';
@@ -185,6 +185,21 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to fetch orders');
     }
   }
+    //find all bulk
+    @Get('bulk')
+    @Auth()
+    // @Roles(UserRole.SUPER_ADMIN)
+    @RequirePermission(Module.ORDER, Permission.READ)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get all bulk orders with filters' })
+    async findAllBulk(@Query() dto: PaginationDto , @CurrentUser() user:IUser) {
+      try {
+        const orders = await this.orderService.findAllBulk(dto, user);
+        return ApiResponses.success(orders, 'All bulk Orders retrieved successfully');
+      } catch (err) {
+        return ApiResponses.error(err, 'Failed to fetch orders');
+      }
+    }
 
 
     // GET FOR FEED
@@ -247,7 +262,6 @@ export class OrderController {
       }
     }
 
-   
 
   // GET ONE
   @Get(':id')
@@ -316,26 +330,46 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to update order');
     }
   } 
+      //  
+      @Patch('bulk/status/pending')
+      @Auth()
+      @RequirePermission(Module.ORDER, Permission.UPDATE)
+      @ApiBearerAuth()
+      @ApiOperation({ summary: 'Mark multiple orders as PENDING' })
+      async markPending(
+        @Body() dto: UpdatePendingOrdersDto,
+        @CurrentUser() user: IUser,
+      ) {
+        try {
+          const res = await this.orderService.markOrdersAsPending(
+            user.id,
+            dto,
+          );
+          return ApiResponses.success(res, 'Orders marked as PENDING');
+        } catch (err) {
+          return ApiResponses.error(err.message);
+        }
+      }
 
 
-@Patch('status/:id/orderId/:userId')
-@Auth()
-@ApiBearerAuth()
-// @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
-@RequirePermission(Module.ORDER, Permission.UPDATE_ORDER_STATUS)
-@ApiOperation({ summary: 'Update order status' })
-async updateOrderStatus(
-  @Param('id') id: string,
-  @Body() dto: UpdateOrderStatusDto,
-  @Param('userId') userId:string
-) {
-  try {
-    const updated = await this.orderService.updateOrderStatus(+id, +userId, dto);
-    return ApiResponses.success(updated, 'Order status updated successfully');
-  } catch (err) {
-    return ApiResponses.error(err, 'Failed to update order status');
-  }
-}
+    @Patch('status/:id/orderId/:userId')
+    @Auth()
+    @ApiBearerAuth()
+    // @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
+    @RequirePermission(Module.ORDER, Permission.UPDATE_ORDER_STATUS)
+    @ApiOperation({ summary: 'Update order status' })
+    async updateOrderStatus(
+      @Param('id') id: string,
+      @Body() dto: UpdateOrderStatusDto,
+      @Param('userId') userId:string
+    ) {
+      try {
+        const updated = await this.orderService.updateOrderStatus(+id, +userId, dto);
+        return ApiResponses.success(updated, 'Order status updated successfully');
+      } catch (err) {
+        return ApiResponses.error(err, 'Failed to update order status');
+      }
+    }
 
   // DELETE
   @Delete(':id')
