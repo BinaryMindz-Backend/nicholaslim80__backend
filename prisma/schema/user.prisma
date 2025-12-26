@@ -69,6 +69,8 @@ model User {
   // 
   roleId    Int          @map("role_id")
   role      Role         @relation(fields: [roleId], references: [id])
+  // 
+  logins                 UserLogin[]
 
   // 
   created_at         DateTime       @default(now())

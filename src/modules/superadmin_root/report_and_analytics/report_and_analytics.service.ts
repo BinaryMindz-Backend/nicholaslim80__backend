@@ -1,12 +1,15 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CoinHistoryType, OrderStatus, Prisma } from '@prisma/client';
+import {  endOfWeek, isWithinInterval,  startOfWeek,  subWeeks } from 'date-fns';
+import { WeeklyStat } from 'src/types';
 
 @Injectable()
 export class ReportAndAnalyticsService {
        constructor(  private prisma: PrismaService){
        }
-    
+      
       //  order stats
     async getOrderAllStats() {
       const [
@@ -14,6 +17,7 @@ export class ReportAndAnalyticsService {
         completedOrder,
         cancelledOrder,
         disputedOrder,
+        activeOrder,
         ordersWithRatings,
       ] = await Promise.all([
         this.prisma.order.count(),
@@ -29,7 +33,10 @@ export class ReportAndAnalyticsService {
         this.prisma.order.count({
           where: { isDispute: true },
         }),
-
+        // 
+        this.prisma.order.count({
+          where: { order_status: OrderStatus.ONGOING },
+        }),
         this.prisma.order.findMany({
           where: {
             order_status: OrderStatus.COMPLETED,
@@ -70,6 +77,7 @@ export class ReportAndAnalyticsService {
         cancelledOrder,
         disputedOrder,
         averageOrderRating,
+        activeOrder,
         totalRevenue:Number(totalRevenueRaw._sum.total_cost ?? 0)
       };
     }
@@ -373,7 +381,105 @@ export class ReportAndAnalyticsService {
         totalCollected,
         weeklyGraph,
       };
+            }
+    // 
+       /** Service 1: Top Drivers */
+  async getTopDrivers(limit = 10) {
+    const drivers = await this.prisma.raider.findMany({
+      take: limit,
+      select: {
+        id: true,
+        user: { select: { username: true } },
+        assignedOrders: {
+          select: {
+            id: true,
+            total_cost: true,
+            order_status: true,
+            dispute: { select: { id: true } },
+            rate_raiders: { select: { rating_star: true } }, // single object
+          },
+        },
+      },
+    });
+
+    const topDrivers = drivers.map(driver => {
+      const orders = driver.assignedOrders;
+      const totalOrders = orders.length;
+      const completedOrders = orders.filter(o => o.order_status === OrderStatus.COMPLETED).length;
+      const cancelledOrders = orders.filter(o => o.order_status === OrderStatus.CANCELLED).length;
+      const revenue = orders.reduce((sum, o) => sum + Number(o.total_cost), 0);
+      const disputes = orders.filter(o => o.dispute !== null).length;
+
+      const ratings = orders
+        .map(o => o.rate_raiders)
+        .filter(r => r !== null && r !== undefined)
+        .map(r => r!.rating_star);
+
+      const avgRating =
+        ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+
+      return {
+        driverId: driver.id,
+        driverName: driver.user.username,
+        totalOrders,
+        completedOrders,
+        cancelledOrders,
+        revenue,
+        disputes,
+        avgRating: Number(avgRating.toFixed(1)),
+      };
+    });
+
+    // Sort by completed orders descending
+    return topDrivers.sort((a, b) => b.completedOrders - a.completedOrders);
+  }
+
+  /** Service 2: Weekly Driver Performance */
+  async getDriverWeeklyPerformance( monthFilter: 'THIS_MONTH' | 'LAST_MONTH' = 'THIS_MONTH') {
+    const today = new Date();
+    let startDate: Date;
+    let endDate: Date;
+
+    if (monthFilter === 'THIS_MONTH') {
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    } else {
+      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      endDate = new Date(today.getFullYear(), today.getMonth(), 0);
     }
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        // assign_rider_id: driverId,
+        created_at: { gte: startDate, lte: endDate },
+      },
+      select: {
+        id: true,
+        order_status: true,
+        created_at: true,
+      },
+    });
+
+    // Group orders by week
+    const weeklyStats :WeeklyStat [] = [];
+    for (let week = 0; week < 4; week++) {
+      const weekStart = startOfWeek(subWeeks(startDate, -week));
+      const weekEnd = endOfWeek(subWeeks(startDate, -week));
+
+      const weekOrders = orders.filter(o =>
+        isWithinInterval(o.created_at, { start: weekStart, end: weekEnd }),
+      );
+
+      weeklyStats.push({
+        week: `Week ${week + 1}`,
+        totalOrders: weekOrders.length,
+        completedOrders: weekOrders.filter(o => o.order_status === OrderStatus.COMPLETED).length,
+        cancelledOrders: weekOrders.filter(o => o.order_status === OrderStatus.CANCELLED).length,
+      });
+    }
+
+    return weeklyStats;
+  }
 
 
    

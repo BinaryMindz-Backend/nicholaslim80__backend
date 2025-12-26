@@ -7,7 +7,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DestinationInput, IUser } from 'src/types';
-import { CollectTime, Destination, DestinationType, Order, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, Destination, DestinationType, Order, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -479,34 +479,57 @@ export class OrderService {
                 isFixed: row.is_fixed === 'true',
                 raider_confirmation: row.raider_confirmation === 'true',
               };
+              //  
+               let senderLat: number | null = row.sender_latitude
+                    ? Number(row.sender_latitude)
+                    : null;
 
-              // Sender destination
-              let senderLat = row.sender_latitude ? Number(row.sender_latitude) : null;
-              let senderLng = row.sender_longitude ? Number(row.sender_longitude) : null;
-              if (!senderLat || !senderLng) {
+                    let senderLng: number | null = row.sender_longitude
+                    ? Number(row.sender_longitude)
+                    : null;
+
+            // If CSV lat/lng missing → try DTO → then geo
+            if (!senderLat || !senderLng) {
+              const dtoSender = dto.destinations?.find(d => d.type === DestinationType.SENDER);
+
+              if (dtoSender?.latitude && dtoSender?.longitude) {
+                senderLat = dtoSender.latitude;
+                senderLng = dtoSender.longitude;
+              } else {
                 try {
-                  const geo = await this.geoServices.getLatLngFromAddress(row.sender_address);
+                  const geo = await this.geoServices.getLatLngFromAddress(
+                    row.sender_address || dtoSender?.address
+                  );
+
                   senderLat = geo.lat;
                   senderLng = geo.lng;
                 } catch {
-                  skippedRows.push({ row, reason: 'Sender address not found' });
+                  skippedRows.push({ row, reason: 'Sender location not found' });
                   return;
                 }
               }
+            }
 
-              const senderDest = dto.destinations?.find(d => d.type === 'SENDER') ?? {
+
+              // 
+              const dtoSender = dto.destinations?.find(d => d.type === DestinationType.SENDER);
+
+              const senderDest = {
                 user_id: user.id,
-                address: row.sender_address,
-                contact_name: row.sender_contact_name,
-                contact_number: row.sender_contact_number,
-                floor_unit: row.sender_floor_unit,
-                note_to_driver: row.sender_note_to_driver,
+                address: row.sender_address ?? dtoSender?.address,
+                contact_name: row.sender_contact_name ?? dtoSender?.contact_name,
+                contact_number: row.sender_contact_number ?? dtoSender?.contact_number,
+                floor_unit: row.sender_floor_unit ?? dtoSender?.floor_unit,
+                note_to_driver: row.sender_note_to_driver ?? dtoSender?.note_to_driver,
                 type: DestinationType.SENDER,
                 latitude: senderLat,
                 longitude: senderLng,
                 is_saved: false,
-                accuracy: row.sender_accuracy ? Number(row.sender_accuracy) : null,
+                accuracy: row.sender_accuracy
+                  ? Number(row.sender_accuracy)
+                  : dtoSender?.accuracy ?? null,
               };
+
 
               // Receiver destination
               let receiverLat = row.receiver_latitude ? Number(row.receiver_latitude) : null;
@@ -574,8 +597,6 @@ export class OrderService {
           .on('error', reject);
       });
     }
-
-
 
     // find mine
    async findMine(
@@ -752,64 +773,95 @@ export class OrderService {
         limit = 20,
       } = dto;
 
+    
       const skip = (page - 1) * limit;
 
-      const [orders, total] = await this.prisma.$transaction([
-        this.prisma.order.findMany({
-          where:{
-            userId:user.id,
-            isBulk:true,
-            order_status:OrderStatus.PROGRESS
-          },
-          select: {
-            id: true,
-            userId: true,
-            route_type: true,
-            delivery_type: true,
-            pay_type: true,
-            vehicle_type_id: true,
-            total_cost: true,
-            collect_time:true,
-            scheduled_time:true,
-            has_additional_services: true,
-            is_promo_used: true,
-            notify_favorite_raider: true,
-            payment_method_id: true,
-            assign_rider_id: true,
-            raider_confirmation: true,
-            is_reviewed: true,
-            is_placed: true,
-            is_pickup: true,
-            isBulk:true,
-            order_status: true,
-            is_out_for_delivery: true,
-            created_at: true,
-
-            // If you want some relations, add them:
-            user: {
+      const [orders,  totalOrderIds,total, totalOrderCost] = await this.prisma.$transaction([
+            this.prisma.order.findMany({
+              where:{
+                userId:user.id,
+                isBulk:true,
+                order_status:OrderStatus.PROGRESS
+              },
               select: {
                 id: true,
-                username: true,
-                phone: true,
-              },
-            },
-            destinations:true
-          },
-          orderBy: { created_at: 'desc' },
-          skip,
-          take: limit,
-        }),
+                userId: true,
+                route_type: true,
+                delivery_type: true,
+                pay_type: true,
+                vehicle_type_id: true,
+                total_cost: true,
+                collect_time:true,
+                scheduled_time:true,
+                has_additional_services: true,
+                is_promo_used: true,
+                notify_favorite_raider: true,
+                payment_method_id: true,
+                assign_rider_id: true,
+                raider_confirmation: true,
+                is_reviewed: true,
+                is_placed: true,
+                is_pickup: true,
+                isBulk:true,
+                order_status: true,
+                is_out_for_delivery: true,
+                created_at: true,
 
-        this.prisma.order.count({ where:{
-            userId:user.id,
-            isBulk:true,
-            order_status:OrderStatus.PROGRESS
-        }  }),
+                // If you want some relations, add them:
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    phone: true,
+                  },
+                },
+                destinations:true
+              },
+              orderBy: { created_at: 'desc' },
+              skip,
+              take: limit,
+            }),
+             //  
+              this.prisma.order.findMany({
+              where:{
+                userId:user.id,
+                isBulk:true,
+                order_status:OrderStatus.PROGRESS
+              },
+              select: {
+                id: true,
+                userId: true
+              },
+              orderBy: { created_at: 'desc' },
+            }),
+ 
+            // 
+            this.prisma.order.count({ where:{
+              userId:user.id,
+              isBulk:true,
+              order_status:OrderStatus.PROGRESS
+            }  }),
+
+            // total cost
+            this.prisma.order.aggregate({
+            where: {
+              userId: user.id,
+              isBulk: true,
+              order_status: OrderStatus.PROGRESS,
+            },
+            _sum: {
+              total_cost: true, 
+            },
+          })
+
       ]);
+      // 
 
       return {
         data: orders,
         total,
+        totalCost:totalOrderCost,
+        totalOrderIds,
         page,
         limit,
         totalPages: Math.ceil(total / limit),
@@ -1232,6 +1284,18 @@ export class OrderService {
   
   // order assign by admin
     async assignDriver(id: number, riderId: number) {
+      //  
+      const raider = await this.prisma.raider.findFirst({
+           where:{
+               id:riderId,
+               raider_verificationFromAdmin:RaiderVerification.APPROVED
+           }
+      }) 
+      // 
+       if(!raider){
+          throw new NotFoundException("Verified order not found")
+       }
+
       // 1. Check order exists
       const order = await this.prisma.order.findUnique({
         where: { id },
@@ -1264,7 +1328,9 @@ export class OrderService {
       return this.prisma.order.update({
         where: { id },
         data: {
-          assign_rider_id: riderId
+          assign_rider_id: riderId,
+          order_status:OrderStatus.ONGOING,
+          competition_closed:true,
         },
       });
     }

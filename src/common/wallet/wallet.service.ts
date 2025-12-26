@@ -5,6 +5,7 @@ import Stripe from 'stripe';
 import { UserWalletQueryDto } from './dto/user-wallet.dto';
 import { UserWalletHistoryQueryDto } from './dto/user-wallet-history-query.dto';
 
+
 @Injectable()
 export class WalletService {
     private stripe: Stripe;
@@ -87,90 +88,205 @@ export class WalletService {
 
     // ---------- Add Money ----------
     async addMoney(userId: number, amount: number, paymentMethodId?: string) {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
+        // console.log("strip-->",paymentMethodId,amount);
+    // Fetch user
+    const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.email) throw new BadRequestException('User email is not found');
+
+    // Create Stripe Customer if not exist
+    let customerId = user.stripeCustomerId;
+    if (!customerId) {
+        const customer = await this.stripe.customers.create({
+            email: user.email,
+            name: user.username ?? undefined,
         });
-        if (!user) throw new NotFoundException('User not found');
+        customerId = customer.id;
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { stripeCustomerId: customerId },
+        });
+    }
 
-        if (!user.email) throw new BadRequestException('User email is not found');
+    // Determine payment method
+    if (!paymentMethodId) {
+        const defaultMethod = await this.prisma.paymentMethod.findFirst({
+            where: { userId, isDefault: true },
+        });
+        if (!defaultMethod)
+            throw new BadRequestException('No saved payment method found');
+        paymentMethodId = defaultMethod.stripeMethodId;
+    }
 
-        // Create Stripe Customer if not exist
-        let customerId = user.stripeCustomerId;
-        if (!customerId) {
+    // Create and confirm PaymentIntent
+    const paymentIntent = await this.stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Stripe expects cents
+        currency: 'usd', // adjust to your currency
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
+    });
+
+    //  Record in wallet history
+    await this.prisma.walletHistory.create({
+        data: {
+            userId,
+            type: 'credit',
+            amount,
+            status: 'SUCCESS',
+            transactionType: WalletTransactionType.PAYMENT,
+            transactionId: paymentIntent.id,
+        },
+    });
+
+    // Update wallet balance
+    await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+            totalWalletBalance: { increment: amount },
+            currentWalletBalance: { increment: amount },
+        },
+    });
+
+    return { message: 'Wallet credited successfully', amount };
+}
+
+    //  save card info 
+    async createSetupIntent(userId: number) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if(!user) throw new NotFoundException("User not found")
+
+        if (!user.stripeCustomerId) {
             const customer = await this.stripe.customers.create({
-                email: user.email ?? undefined,
-                name: user.username ?? undefined,
+            email: user.email ?? undefined,
+            name: user.username ?? undefined,
             });
-            customerId = customer.id;
             await this.prisma.user.update({
-                where: { id: userId },
-                data: { stripeCustomerId: customerId },
+            where: { id: userId },
+            data: { stripeCustomerId: customer.id },
             });
+            user.stripeCustomerId = customer.id;
         }
 
-        // If paymentMethodId is not provided, use default
-        if (!paymentMethodId) {
-            const defaultMethod = await this.prisma.paymentMethod.findFirst({
-                where: { userId, isDefault: true },
-            });
-            if (!defaultMethod)
-                throw new BadRequestException('No saved payment method found');
-            paymentMethodId = defaultMethod.stripeMethodId;
-        }
+        const intent = await this.stripe.setupIntents.create({
+            customer: user.stripeCustomerId,
+        });
 
-        // Create Payment Intent
+    return { clientSecret: intent.client_secret };
+    }
+    //    
+    async saveCard(userId: number, paymentMethodId: string) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user?.stripeCustomerId) throw new Error('Stripe customer not found');
+
+        // Attach payment method to customer
+        await this.stripe.paymentMethods.attach(paymentMethodId, {
+            customer: user.stripeCustomerId,
+        });
+
+        // Optionally, set as default
+        await this.stripe.customers.update(user.stripeCustomerId, {
+            invoice_settings: { default_payment_method: paymentMethodId },
+        });
+
+        // Save in your DB
+        return this.prisma.paymentMethod.create({
+            data: {
+            userId,
+            stripeMethodId: paymentMethodId,
+            isDefault: true, // or false
+            type: 'CARD',
+            },
+        });
+     }
+
+    // pay with saved card 
+    async payWithSavedCard(userId: number, amount: number, paymentMethodId: string) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user?.stripeCustomerId) throw new BadRequestException('Stripe customer not found');
+
         const paymentIntent = await this.stripe.paymentIntents.create({
-            amount: Math.round(amount * 100), // cents
+            amount: Math.round(amount * 100),
             currency: 'usd',
-            customer: customerId,
+            customer: user.stripeCustomerId,
             payment_method: paymentMethodId,
             off_session: true,
             confirm: true,
         });
 
-        // Add wallet history
         await this.prisma.walletHistory.create({
             data: {
-                userId,
-                type: 'credit',
-                amount,
-                status: "SUCCESS",
-                transactionType: WalletTransactionType.PAYMENT,
-                transactionId: paymentIntent.id,
+            userId,
+            type: 'credit',
+            amount,
+            status: 'SUCCESS',
+            transactionType: WalletTransactionType.PAYMENT,
+            transactionId: paymentIntent.id,
             },
         });
 
-        // Update wallet balance
         await this.prisma.user.update({
             where: { id: userId },
-            data: { totalWalletBalance: { increment: amount }, currentWalletBalance:{increment:amount} },
+            data: { totalWalletBalance: { increment: amount }, currentWalletBalance: { increment: amount } },
         });
 
-        return { message: 'Wallet credited successfully', amount };
-    }
-
-    // ---------- Save Payment Method ----------
-    async savePaymentMethod(userId: number, paymentMethodId: string, type: string, last4: string, expMonth: number, expYear: number, isDefault = false) {
-        // Optionally set all others to isDefault=false if this is default
-        if (isDefault) {
-            await this.prisma.paymentMethod.updateMany({
-                where: { userId },
-                data: { isDefault: false },
-            });
+        return { amount, message: 'Wallet credited successfully' };
         }
 
-        return await this.prisma.paymentMethod.create({
-            data: {
-                userId,
-                stripeMethodId: paymentMethodId,
-                type,
-                last4,
-                expMonth,
-                expYear,
-                isDefault
-            },
+      // get saved cards  
+    async getSavedCards(userId: number) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user?.stripeCustomerId) throw new NotFoundException('User not found');
+
+        // Fetch saved cards from your DB
+        const cards = await this.prisma.paymentMethod.findMany({
+            where: { userId },
+            select: { id: true, stripeMethodId: true, isDefault: true, type: true },
         });
-    }
+
+        // Optional: fetch card details from Stripe for display
+        const cardDetails = await Promise.all(
+            cards.map(async (c) => {
+            const paymentMethod = await this.stripe.paymentMethods.retrieve(c.stripeMethodId);
+            return {
+                id: c.id,
+                stripeMethodId:c.stripeMethodId,
+                brand: paymentMethod.card?.brand,
+                last4: paymentMethod.card?.last4,
+                exp_month: paymentMethod.card?.exp_month,
+                exp_year: paymentMethod.card?.exp_year,
+                isDefault: c.isDefault,
+            };
+            })
+        );
+
+        return cardDetails;
+        }
+      //    
+    async deleteCard(userId: number, cardId: number) {
+        // Fetch DB record
+        const card = await this.prisma.paymentMethod.findUnique({
+            where: { id: cardId },
+        });
+
+        if (!card || card.userId !== userId) {
+            throw new NotFoundException('Card not found');
+        }
+
+        // Detach card from Stripe customer
+        await this.stripe.paymentMethods.detach(card.stripeMethodId);
+
+        // Delete from DB
+        await this.prisma.paymentMethod.delete({
+            where: { id: cardId },
+        });
+
+        return { message: 'Card deleted successfully' };
+        }
+
 
     // ---------- Withdraw ----------
     async withdraw(userId: number, amount: number) {

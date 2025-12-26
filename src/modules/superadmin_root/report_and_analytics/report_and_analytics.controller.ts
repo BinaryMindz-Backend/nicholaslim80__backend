@@ -2,7 +2,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ReportAndAnalyticsService } from './report_and_analytics.service';
 import { Auth } from 'src/decorators/auth.decorator';
-import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { ApiResponses } from 'src/common/apiResponse';
@@ -136,12 +136,41 @@ export class ReportAndAnalyticsController {
       throw error;
     }
   }
+  
 
+  // Get weekly performance for a single driver
+  @Get('performance')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.REPORT_ANALYTICS, Permission.READ)
+  @ApiOperation({ summary: 'Get weekly performance of a driver' })
+  @ApiQuery({ name: 'month', enum: ['THIS_MONTH', 'LAST_MONTH'], required: false })
+  async getDriverWeeklyPerformance(
+    @Query('month') month?: 'THIS_MONTH' | 'LAST_MONTH',
+  ) {
+    try {
+      const stats = await this.reportAndAnalyticsService.getDriverWeeklyPerformance(month);
+      return { data: stats, message: 'Driver weekly performance fetched successfully' };
+    } catch (err) {
+      return { error: err.message, message: 'Failed to fetch driver performance' };
+    }
+  }
 
-
-
-
-
+  // Get top drivers
+  @Get('top')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.REPORT_ANALYTICS, Permission.READ)
+  @ApiOperation({ summary: 'Get top drivers based on completed orders and ratings' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Number of top drivers to fetch' })
+  async getTopDrivers(@Query('limit') limit?: number) {
+    try {
+      const topDrivers = await this.reportAndAnalyticsService.getTopDrivers(limit);
+      return { data: topDrivers, message: 'Top drivers fetched successfully' };
+    } catch (err) {
+      return { error: err.message, message: 'Failed to fetch top drivers' };
+    }
+  }
 
 
 // 

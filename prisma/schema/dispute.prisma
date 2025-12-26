@@ -2,7 +2,8 @@
 
 model Dispute {
   id                      Int       @id @default(autoincrement())
-  case_id                 Int       // reference to Orders.id; use relation field if you want cascade
+  case_id                 Int    @unique
+  order                   Order  @relation("OrderDispute", fields: [case_id], references: [id], onDelete: Cascade)
   username                String?
   issueType               String?   // DAMAGE_GOODS, MISSING_ITEMS
   issue_date              DateTime?
@@ -17,6 +18,7 @@ model Dispute {
   isClosed                Boolean   @default(false)
   created_at              DateTime  @default(now())
   updated_at              DateTime  @updatedAt
-
+   
+  @@index([case_id])
   @@map("disputes")
 }
