@@ -42,7 +42,7 @@ export class RaiderRankService {
   }
 
   private determineRank(raider: any): Rank {
-    if (raider.isPremium) return Rank.PREMIUM;
+    // if (raider.isPremium) return Rank.PREMIUM;
     if (raider.hasAdDecal) return Rank.PLATINUM;
     if (raider.hasBranding && raider.raider_verificationFromAdmin === 'APPROVED') return Rank.GOLD;
     if (raider.completed_orders >= 100 && this.getAverageRating(raider) >= 4.2) return Rank.SILVER;

@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Worker } from 'bullmq';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { connection } from '../queues/competition.queue';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, Rank } from '@prisma/client';
 
 @Injectable()
 export class CompetitionWorker implements OnModuleInit {
@@ -26,33 +26,50 @@ export class CompetitionWorker implements OnModuleInit {
 
         const config = await this.prisma.driver_order_competition.findFirst();
         if (!config) return;
-
-        const scores = await Promise.all(
+         // 
+          const driverDetails = await Promise.all(
           drivers.map(async driverId => {
             const driver = await this.prisma.raider.findUnique({
               where: { id: driverId },
-               include:{
-                  followers: { where: { is_fav: true } }
-               }
+              include: {
+                followers: { where: { is_fav: true } },
+              },
             });
 
-            const rank = driver?.rankScore || 0;
-            const rating = driver?.reviews_count || 0;
-            const follower = driver?.followers.length || 0;
-
-            return {
-              driverId,
-              score:
-                rank * config.rank_weight +
-                rating * config.rating_weight +
-                follower * config.followers_weight
-            };
+            return driver
+              ? {
+                  driverId,
+                  rank: driver.rank,
+                  rankScore: driver.rankScore || 0,
+                  rating: driver.reviews_count || 0,
+                  followers: driver.followers.length || 0,
+                }
+              : null;
           }),
         );
 
+        const validDrivers = driverDetails.filter(d => d !== null);
+
+        if (validDrivers.length === 0) return;
+
+        //  Prioritize PLATINUM drivers
+        const platinumDrivers = validDrivers.filter(d => d.rank === Rank.PLATINUM);
+
+        // If no PLATINUM, fallback to all drivers
+        const candidates = platinumDrivers.length > 0 ? platinumDrivers : validDrivers;
+
+        // Calculate weighted scores
+        const scores = candidates.map(d => ({
+          driverId: d.driverId,
+          score:
+            d.rankScore * config.rank_weight +
+            d.rating * config.rating_weight +
+            d.followers * config.followers_weight,
+        }));
+
         const winner = scores.sort((a, b) => b.score - a.score)[0];
         if (!winner) return;
-
+        // 
         await this.prisma.order.update({
           where: { id: orderId },
           data: {
