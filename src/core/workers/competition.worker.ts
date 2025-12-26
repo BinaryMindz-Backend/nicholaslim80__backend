@@ -31,16 +31,21 @@ export class CompetitionWorker implements OnModuleInit {
           drivers.map(async driverId => {
             const driver = await this.prisma.raider.findUnique({
               where: { id: driverId },
+               include:{
+                  followers: { where: { is_fav: true } }
+               }
             });
 
             const rank = driver?.rankScore || 0;
             const rating = driver?.reviews_count || 0;
+            const follower = driver?.followers.length || 0;
 
             return {
               driverId,
               score:
                 rank * config.rank_weight +
-                rating * config.rating_weight,
+                rating * config.rating_weight +
+                follower * config.followers_weight
             };
           }),
         );
@@ -56,7 +61,7 @@ export class CompetitionWorker implements OnModuleInit {
             order_status:OrderStatus.ONGOING
           },
         });
-
+        // TODO:need to send notification and email
         console.log(`✅ Order ${orderId} assigned to driver ${winner.driverId}`);
       },
       { connection },

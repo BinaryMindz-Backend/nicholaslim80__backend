@@ -1090,20 +1090,12 @@ export class OrderService {
         // Get average rating from drivers for this customer
         const avgRating = await this.prisma.rateCustomer.aggregate({
           where: {
-            user_id: user.id
+            user_id: order.userId
           },
           _avg: {
             rating_star: true
           }
         });
-
-        // Check if driver follows this customer (from past orders)
-        // const isFollower = await this.prisma.driverFollowsCustomer.findFirst({
-        //   where: {
-        //     driver_id: driver.id, // Current driver who accepted the order
-        //     customer_id: user.id
-        //   }
-        // });
 
         // Default rating for new customers (no ratings yet)
         const customerRating = avgRating._avg.rating_star ?? 3.0;

@@ -12,7 +12,7 @@ export class RaiderRankService {
        private readonly prisma:PrismaService
   ){}
 
-  @Cron(CronExpression.EVERY_SECOND)
+  @Cron(CronExpression.EVERY_3_HOURS)
   async recalculateAllRiders() {
     this.logger.log('Starting raider rank recalculation...');
 
