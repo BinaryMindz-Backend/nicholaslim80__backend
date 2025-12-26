@@ -50,6 +50,7 @@ import { LiveMapFleetTrackModule } from './modules/superadmin_root/live_map_flee
 import { TransactionsModule } from './modules/superadmin_root/transactions/transactions.module';
 import { WalletModule } from './common/wallet/wallet.module';
 import { ReportAndAnalyticsModule } from './modules/superadmin_root/report_and_analytics/report_and_analytics.module';
+import { RaiderRankModule } from './modules/raider_root/raider-rank.module';
 
 
 @Module({
@@ -106,7 +107,9 @@ import { ReportAndAnalyticsModule } from './modules/superadmin_root/report_and_a
     LiveMapFleetTrackModule,
     TransactionsModule,
     WalletModule,
-    ReportAndAnalyticsModule
+    ReportAndAnalyticsModule,
+    RaiderRankModule
+
 
   ],
   controllers: [AppController, RbacController],

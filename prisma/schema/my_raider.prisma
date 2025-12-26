@@ -2,10 +2,12 @@ model myRaider {
      id   Int        @id @default(autoincrement())
      user_id         Int
      user            User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
-     is_fav          Boolean @default(false) 
-     find_by         String
-     created_at        DateTime  @default(now())
-     updated_at        DateTime  @updatedAt
+     raiderId        Int
+     raider          Raider  @relation(fields: [raiderId], references: [id], onDelete: Cascade)
+     is_fav          Boolean @default(false)  // true if user favorites this raider
+     find_by         String                    // raider email or phone
+     created_at      DateTime  @default(now())
+     updated_at      DateTime  @updatedAt
 
      @@map("my_raiders")
 }

@@ -361,10 +361,11 @@ export class OrderController {
     async updateOrderStatus(
       @Param('id') id: string,
       @Body() dto: UpdateOrderStatusDto,
-      @Param('userId') userId:string
+      @Param('userId') userId:string ,
+      @CurrentUser() user:IUser
     ) {
       try {
-        const updated = await this.orderService.updateOrderStatus(+id, +userId, dto);
+        const updated = await this.orderService.updateOrderStatus(+id, +userId, dto, user);
         return ApiResponses.success(updated, 'Order status updated successfully');
       } catch (err) {
         return ApiResponses.error(err, 'Failed to update order status');

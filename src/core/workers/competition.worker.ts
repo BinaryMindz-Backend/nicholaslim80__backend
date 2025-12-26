@@ -33,7 +33,7 @@ export class CompetitionWorker implements OnModuleInit {
               where: { id: driverId },
             });
 
-            const rank = driver?.rank || 0;
+            const rank = driver?.rankScore || 0;
             const rating = driver?.reviews_count || 0;
 
             return {

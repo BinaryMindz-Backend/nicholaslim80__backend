@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/core/database/prisma.service";
 import { CreateRatingDto, RatingType } from "./dto/create-rating.dto";
 import { UpdateRatingDto } from "./dto/update-rating.dto";
@@ -10,7 +11,16 @@ export class RatingService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateRatingDto) {
-     
+     const review = await this.prisma.rateRaider.findFirst({
+         where:{
+            orderId: dto.orderId,
+            raiderId: dto.raiderId,
+            user_id: dto.user_id,
+         }
+     })
+     if(review){
+         throw new ConflictException("Review already exist in this order")
+     }
       // 
      const order = await this.prisma.order.findUnique({
             where:{
@@ -23,21 +33,33 @@ export class RatingService {
     }
           
     if (dto.type === RatingType.RAIDER) {
-      return this.prisma.rateRaider.create({
-        data: {
-          orderId: dto.orderId,
-          raiderId: dto.raiderId,
-          user_id: dto.user_id,
-          rating_star: dto.rating_star,
-          notes: dto.notes,
-          delivery_quality:dto.delivery_quality!,
-          delivery_status:dto.delivery_status!,
-        },
-      });
+     const res = await this.prisma.rateRaider.create({
+          data: {
+            orderId: dto.orderId,
+            raiderId: dto.raiderId,
+            user_id: dto.user_id,
+            rating_star: dto.rating_star,
+            notes: dto.notes,
+            delivery_quality:dto.delivery_quality!,
+            delivery_status:dto.delivery_status!,
+          },
+        });
+      if(res){
+          await this.prisma.raider.update({
+             where:{
+                id:dto.raiderId
+             },
+             data:{
+                reviews_count:{increment:1}
+             }
+          })
+      }
+
+      return 
     }
 
     if (dto.type === RatingType.CUSTOMER) {
-      return this.prisma.rateCustomer.create({
+      const res = await this.prisma.rateCustomer.create({
         data: {
           orderId: dto.orderId,
           raiderId: dto.raiderId,
@@ -46,6 +68,7 @@ export class RatingService {
           notes:dto.notes
         },
       });
+      return res
     }
 
     throw new BadRequestException('Invalid rating type');

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -41,7 +42,8 @@ export class MyRaiderService {
     const added = await this.prisma.myRaider.create({
       data: {
         ...dto,
-        user_id: user.id
+        user_id: user.id,
+        raiderId:isRaiderExist.raiderId
       },
     });
 
@@ -182,7 +184,7 @@ async findAll(userId: number, dto: PaginationDto) {
       select: { is_fav: true },
     });
 
-    if (!current) throw new Error("Not found");
+    if (!current) throw new NotFoundException("Not found");
 
     // toggle the value
     return await this.prisma.myRaider.update({

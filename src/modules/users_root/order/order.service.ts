@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/prefer-promise-reject-errors */
 import { Parser } from 'json2csv';
@@ -229,114 +231,8 @@ export class OrderService {
 
       return res;
     }
-
-
-  // bulk order creation
-  //   async bulkCreateOrdersFromCsv(
-  //     dto: BulkOrderWithDestinationsDto,
-  //     user: IUser,
-  //   ) {
-  //     if (!dto?.fileUrl.startsWith(process.env.BASE_URL as string)) {
-  //       throw new BadRequestException('Invalid file source');
-  //     }
-
-  //     const response = await axios.get(dto.fileUrl, { responseType: 'stream' });
-
-  //     const orders: any[] = [];
-  //     const destinationsArr: any[] = [];
-  //     // 
-  //     return new Promise((resolve, reject) => {
-  //       response.data
-  //         .pipe(csv())
-  //         .on('data', (row) => {
-  //           if (!row.delivery_type || !row.sender_latitude) return;
-
-  //           // Build order
-  //           const orderData = {
-  //             userId: Number(user?.id),
-  //             route_type: row.route_type,
-  //             delivery_type: row.delivery_type,
-  //             pay_type: row.pay_type,
-  //             collect_time: row.collect_time,
-  //             vehicle_type_id: row.vehicle_type_id ? Number(row.vehicle_type_id) : null,
-  //             total_cost: Number(row.total_cost),
-  //             order_status: row.order_status ?? 'PROGRESS',
-  //             isFixed: row.is_fixed === 'true',
-  //             raider_confirmation: row.raider_confirmation === 'true',
-  //           };
-  //           orders.push(orderData);
-
-  //           // Determine destinations
-  //           // Use default DTO destinations if provided, otherwise map from CSV row
-  //           const senderDest = dto.destinations?.find(d => d.type === 'SENDER') ?? {
-  //             user_id: user?.id,
-  //             address: row.sender_address,
-  //             contact_name: row.sender_contact_name,
-  //             contact_number: row.sender_contact_number,
-  //             latitude: row.sender_latitude,
-  //             longitude: row.sender_longitude,
-  //             floor_unit: row.sender_floor_unit,
-  //             note_to_driver: row.sender_note_to_driver,
-  //             type: 'SENDER',
-  //           };
-
-  //           const receiverDest = dto.destinations?.find(d => d.type === 'RECEIVER') ?? {
-  //             user_id: user?.id,
-  //             address: row.receiver_address,
-  //             contact_name: row.receiver_contact_name,
-  //             contact_number: row.receiver_contact_number,
-  //             latitude: row.receiver_latitude ,
-  //             longitude: row.receiver_longitude,
-  //             floor_unit: row.receiver_floor_unit,
-  //             note_to_driver: row.receiver_note_to_driver,
-  //             type: 'RECEIVER',
-  //           };
-  //           destinationsArr.push({ sender: senderDest, receiver: receiverDest });
-  //         })
-  //         .on('end', async () => {
-  //           try {
-              
-  //             // Create orders in a transaction
-  //             const createdOrders = await this.prisma.$transaction(
-  //               orders.map(order => this.prisma.order.create({ data: order })),
-  //             );
-               
-  //             // Create destinations per order
-  //             for (let i = 0; i < createdOrders.length; i++) {
-  //               const order = createdOrders[i];
-  //               const dest = destinationsArr[i];
-  //               // if(!dest.latitude || !dest.longitude){
-  //               //      throw new NotFoundException(`Reciever Or Sender Destination not found on csv`)
-  //               // }
-  //               await this.prisma.destination.createMany({
-  //                 data: [
-  //                   { order_id: order.id,user_id:user.id, ...dest.sender },
-  //                   { order_id: order.id, ...dest.receiver },
-  //                 ],
-  //               });
-  //             }
-
-  //             resolve({
-  //               total_uploaded: orders.length,
-  //               success: createdOrders.length,
-  //               message: 'Bulk orders created successfully',
-  //             });
-  //           } catch (err) {
-  //             reject(err);
-  //           }
-  //         })
-  //         .on('error', reject);
-  //     });
-  //   }
- 
-
-  // 
-
-
-
-
-
-    // export as csv
+   
+    // 
     async exportOrdersAsCsv() {
       const orders = await this.prisma.order.findMany({
         // 
@@ -914,7 +810,7 @@ export class OrderService {
 
 
   //TODO:(nodeNINJAr) confirm order need to handle promoCode uses and reedom code
-   async updateOrderStatus(id: number, userId: number, dto: UpdateOrderStatusDto) {
+   async updateOrderStatus(id: number, userId: number, dto: UpdateOrderStatusDto, raider:IUser) {
        // 
       const { status } = dto;
       // 1. Check order exists
@@ -951,8 +847,10 @@ export class OrderService {
               data: {
                 order_status: status,
                 ...extraData,
+                
               },
             });
+
             // 
             const transaction = await tx.transaction.findFirst({
               where: {
@@ -981,9 +879,34 @@ export class OrderService {
                    }
               })
             }
+
+          if (transaction && updatedStatus.order_status === OrderStatus.COMPLETED ) {
+              await tx.transaction.update({
+                   where:{
+                      id: transaction.id,
+                   },
+                   data:{
+                       tx_status:TransactionStatus.COMPLETED
+                   }
+              })
+              await tx.raider.update({
+                  where:{
+                      userId:raider.id
+                  },
+                  data:{
+                     completed_orders:{increment:1}
+                  }
+              })
+            }
         //  
         return updatedStatus;
       })
+      //TODO:need to send notification and mail
+      
+      
+
+
+
       // 
       return res;
 
