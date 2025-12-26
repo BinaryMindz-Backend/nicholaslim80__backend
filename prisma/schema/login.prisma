@@ -1,0 +1,10 @@
+model UserLogin {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginAt   DateTime @default(now())
+  ip        String?
+  device    String?
+
+  @@index([userId, loginAt])
+}
