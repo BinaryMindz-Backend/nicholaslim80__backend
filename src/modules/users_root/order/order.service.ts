@@ -1106,7 +1106,6 @@ export class OrderService {
         // Calculate score components (normalized to 0-5 scale for consistency)
         const newCustomerScore = isNewCustomer ? 0 : 5; // New customer = 0, Existing = 5
         const completedOrdersScore = Math.min(orderCount / 10, 1) * 5; // Scale: 0-5 based on orders
-        // const followerScore = isFollower ? 5 : 0; // Is follower = 5, Not follower = 0
 
         // Apply weights (convert percentage to decimal)
         const score = 

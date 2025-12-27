@@ -17,7 +17,7 @@ export class NotificationSchedulerService {
   @Cron(CronExpression.EVERY_SECOND)
   async handleScheduledNotifications() {
     const now = new Date();
-    // this.logger.log(`Cron running at ${now.toISOString()}`);
+    this.logger.log(`Cron running at ${now.toISOString()}`);
      
     
     // find the role

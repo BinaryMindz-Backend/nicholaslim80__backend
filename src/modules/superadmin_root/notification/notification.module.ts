@@ -18,5 +18,6 @@ import { FirebaseService } from './firebase.service';
     PrismaService,
     NotificationSchedulerService
   ],
+   exports: [FirebaseService],
 })
 export class NotificationModule {}

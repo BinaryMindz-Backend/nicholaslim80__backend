@@ -1,12 +1,18 @@
+import { NotificationService } from './../../modules/superadmin_root/notification/notification.service';
+import { MailService } from 'src/common/services/mail.service';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Worker } from 'bullmq';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { connection } from '../queues/competition.queue';
-import { OrderStatus, Rank } from '@prisma/client';
+import { NotificationType, OrderStatus, Rank } from '@prisma/client';
 
 @Injectable()
 export class CompetitionWorker implements OnModuleInit {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService:MailService,
+    private readonly notify:NotificationService  
+  ) {}
 
   onModuleInit() {
     new Worker(
@@ -78,7 +84,65 @@ export class CompetitionWorker implements OnModuleInit {
             order_status:OrderStatus.ONGOING
           },
         });
-        // TODO:need to send notification and email
+           //send notification and email
+              const winnerRaider = await this.prisma.raider.findUnique({
+                  where: { id: winner.driverId },
+                  include: {
+                    user: true, // email, fcmToken
+                    registrations:true
+                  },
+                });
+
+                if (!winnerRaider || !winnerRaider.user) return;
+
+                const notificationTitle = '🎉 Order Assigned!';
+                const notificationMessage = `You won the order #${orderId}. Please start delivery.`;
+
+                // PUSH NOTIFICATION
+                await this.notify.sendNotificationByType(
+                  NotificationType.PUSH_NOTIFICATION,
+                  [
+                    {
+                      fcmToken: winnerRaider.user.fcmToken ?? undefined,
+                    },
+                  ],
+                  notificationTitle,
+                  notificationMessage,
+                );
+                // send mail
+                await this.mailService.sendMail({
+                      to: winnerRaider.user.email!,
+                      subject: '🎉 Order Assigned!',
+                      templateName: 'order-competition',
+                      context: {
+                        name: winnerRaider.registrations[0].raider_name ?? 'Rider',
+                        orderId,
+                        rank: winnerRaider.rank,
+                      },
+                    });
+
+                // Sent to lossers
+                const losers = drivers.filter(id => id !== winner.driverId);
+
+                    await Promise.all(
+                      losers.map(async raiderId => {
+                        const raider = await this.prisma.raider.findUnique({
+                          where: { id: raiderId },
+                          include: { user: true },
+                        });
+
+                        if (!raider?.user?.fcmToken) return;
+
+                        await this.notify.sendNotificationByType(
+                          NotificationType.PUSH_NOTIFICATION,
+                          [{ fcmToken: raider.user.fcmToken }],
+                          'Order Taken',
+                          'Another rider won this order. Keep trying!',
+                        );
+                      }),
+                    );
+                    
+
         console.log(`✅ Order ${orderId} assigned to driver ${winner.driverId}`);
       },
       { connection },

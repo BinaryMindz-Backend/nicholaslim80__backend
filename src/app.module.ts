@@ -52,7 +52,6 @@ import { WalletModule } from './common/wallet/wallet.module';
 import { ReportAndAnalyticsModule } from './modules/superadmin_root/report_and_analytics/report_and_analytics.module';
 import { RaiderRankModule } from './modules/raider_root/raider-rank.module';
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({

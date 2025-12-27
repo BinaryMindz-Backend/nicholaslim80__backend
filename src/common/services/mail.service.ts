@@ -1,10 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class MailService {
-  private transporter;
+  private transporter: nodemailer.Transporter;
 
   constructor() {
     this.transporter = nodemailer.createTransport({
@@ -18,10 +19,48 @@ export class MailService {
     });
   }
 
-  async sendMail({ to, subject, text }: { to: string; subject: string; text: string }) {
+  async sendMail({
+    to,
+    subject,
+    text,
+    templateName = 'default',
+    context = {},
+  }: {
+    to: string;
+    subject: string;
+    text?: string;
+    templateName?: string;
+    context?: Record<string, any>;
+  }): Promise<any> {
+    let html: string | null = null;
 
-    const res = await this.transporter.sendMail({ to, subject, text });
-        // console.log("from--->mail--->", to, subject, text, res);
-    return res
+    // Production-safe template path
+    const templatePath = path.join(
+      process.cwd(),
+      'src/common/services/templates',
+      `${templateName}.html`,
+    );
+
+    if (fs.existsSync(templatePath)) {
+      html = fs.readFileSync(templatePath, 'utf-8');
+
+      Object.entries(context).forEach(([key, value]) => {
+        const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
+        html = html!.replace(regex, String(value));
+      });
+
+      // fallback plain text if not provided
+      if (!text) {
+        text = html.replace(/<[^>]+>/g, '');
+      }
+    }
+
+    // Await fixes TS warning
+    return await this.transporter.sendMail({
+      to,
+      subject,
+      text,
+      ...(html ? { html } : {}),
+    });
   }
 }
