@@ -14,7 +14,7 @@ export class NotificationSchedulerService {
     private notificationService: NotificationService,
   ) { }
 
-  @Cron(CronExpression.EVERY_SECOND)
+  @Cron(CronExpression.EVERY_10_HOURS)
   async handleScheduledNotifications() {
     const now = new Date();
     this.logger.log(`Cron running at ${now.toISOString()}`);
@@ -35,7 +35,7 @@ export class NotificationSchedulerService {
     });
     //  
     // TODO:need to active logger
-    // this.logger.log(`${notifications.length} notifications to process`);
+    this.logger.log(`${notifications.length} notifications to process`);
     
 
     // check current role

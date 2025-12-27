@@ -51,6 +51,8 @@ import { TransactionsModule } from './modules/superadmin_root/transactions/trans
 import { WalletModule } from './common/wallet/wallet.module';
 import { ReportAndAnalyticsModule } from './modules/superadmin_root/report_and_analytics/report_and_analytics.module';
 import { RaiderRankModule } from './modules/raider_root/raider-rank.module';
+import { QueueModule } from './modules/queue/queue.module';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
@@ -62,6 +64,13 @@ import { RaiderRankModule } from './modules/raider_root/raider-rank.module';
         PORT: Joi.number().default(3000),
         DATABASE_URL: Joi.string().required(),
       }),
+    }),
+     BullModule.forRoot({
+      connection: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT as string) || 6379,
+        password: process.env.REDIS_PASSWORD,
+      },
     }),
     JwtModule.register({
       global: true,
@@ -107,7 +116,8 @@ import { RaiderRankModule } from './modules/raider_root/raider-rank.module';
     TransactionsModule,
     WalletModule,
     ReportAndAnalyticsModule,
-    RaiderRankModule
+    RaiderRankModule,
+    QueueModule
 
 
   ],

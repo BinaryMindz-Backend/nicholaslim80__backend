@@ -37,6 +37,7 @@ model Raider {
   customer_ratings RateCustomer[]
   raider_ratings  RateRaider[]
   assignedOrders  Order[]                 @relation("AssignedRaider")
+  declines                OrderDecline[]
 
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt

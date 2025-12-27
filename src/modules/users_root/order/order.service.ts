@@ -1,15 +1,15 @@
+import { NotificationService } from './../../superadmin_root/notification/notification.service';
 /* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/prefer-promise-reject-errors */
 import { Parser } from 'json2csv';
-// 
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DestinationInput, IUser } from 'src/types';
-import { CollectTime, Destination, DestinationType, Order, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, Destination, DestinationType, NotificationType, Order, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -22,6 +22,7 @@ import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { ServiceZoneService } from 'src/modules/superadmin_root/service-zone/service-zone.service';
 import { GeoService } from 'src/utils/geo-location.utils';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
+import { MailService } from 'src/common/services/mail.service';
 
 
 
@@ -33,6 +34,8 @@ export class OrderService {
      private redisService: RedisService,
      private readonly serviceZone: ServiceZoneService,
      private readonly geoServices:GeoService,
+     private readonly notify:NotificationService,
+     private readonly mail:MailService,
      
 
   ) {}
@@ -807,110 +810,87 @@ export class OrderService {
     
  }
 
-
-
-  //TODO:(nodeNINJAr) confirm order need to handle promoCode uses and reedom code
-   async updateOrderStatus(id: number, userId: number, dto: UpdateOrderStatusDto, raider:IUser) {
-       // 
+   
+    // order status update
+    async updateOrderStatus(
+      id: number,
+      userId: number,
+      dto: UpdateOrderStatusDto,
+      raider: IUser
+    ) {
       const { status } = dto;
+
       // 1. Check order exists
-      const record = await this.prisma.order.findUnique({ where: { id } });
-      if (!record) {
-        throw new NotFoundException('Record not found');
-      }
-      
+      const order = await this.prisma.order.findUnique({ where: { id } });
+      if (!order) throw new NotFoundException('Order not found');
+
       // 2. Check if already same status
-      const already = await this.prisma.order.findFirst({
-        where: { id, order_status: status },
-      });
-      //  
-      if (already) {
-        throw new ConflictException(`This order is already ${status}`);
-      }
+      const already = await this.prisma.order.findFirst({ where: { id, order_status: status } });
+      if (already) throw new ConflictException(`This order is already ${status}`);
+
       // 3. Extra rules
-      let extraData = {};
-      // 
-      if (status === OrderStatus.PENDING) {
-        extraData = { is_placed: true };
-      }
+      let extraData: any = {};
+      if (status === OrderStatus.PENDING) extraData = { is_placed: true };
+      if (status === OrderStatus.CANCELLED) extraData = { is_placed: false };
 
-      if (status === OrderStatus.CANCELLED) {
-        extraData = { is_placed: false };
-      }
-      // 4. Update status
-      const res = await this.prisma.$transaction(async (tx)=>{
+      // 4. Update status inside transaction
+      const updatedOrder = await this.prisma.$transaction(async (tx) => {
         const updatedStatus = await tx.order.update({
-              where: {
-                id,
-                userId
-              },
-              data: {
-                order_status: status,
-                ...extraData,
-                
-              },
-            });
+          where: { id, userId },
+          data: { order_status: status, ...extraData },
+        });
 
-            // 
-            const transaction = await tx.transaction.findFirst({
-              where: {
-                orderId: Number(id),
-              },
-            });
+        const transaction = await tx.transaction.findFirst({ where: { orderId: id } });
 
-            if (transaction && updatedStatus.order_status === OrderStatus.PENDING ) {
-              await tx.transaction.update({
-                   where:{
-                      id: transaction.id,
-                   },
-                   data:{
-                       tx_status:TransactionStatus.PENDING
-                   }
-              })
-            }
-            // 
-          if (transaction && updatedStatus.order_status === OrderStatus.CANCELLED ) {
-              await tx.transaction.update({
-                   where:{
-                      id: transaction.id,
-                   },
-                   data:{
-                       tx_status:TransactionStatus.FAILED
-                   }
-              })
-            }
+        if (transaction) {
+          if (status === OrderStatus.PENDING) {
+            await tx.transaction.update({ where: { id: transaction.id }, data: { tx_status: TransactionStatus.PENDING } });
+          }
+          if (status === OrderStatus.CANCELLED) {
+            await tx.transaction.update({ where: { id: transaction.id }, data: { tx_status: TransactionStatus.FAILED } });
+          }
+          if (status === OrderStatus.COMPLETED) {
+            await tx.transaction.update({ where: { id: transaction.id }, data: { tx_status: TransactionStatus.COMPLETED } });
+            await tx.raider.update({ where: { userId: raider.id }, data: { completed_orders: { increment: 1 } } });
+          }
+        }
 
-          if (transaction && updatedStatus.order_status === OrderStatus.COMPLETED ) {
-              await tx.transaction.update({
-                   where:{
-                      id: transaction.id,
-                   },
-                   data:{
-                       tx_status:TransactionStatus.COMPLETED
-                   }
-              })
-              await tx.raider.update({
-                  where:{
-                      userId:raider.id
-                  },
-                  data:{
-                     completed_orders:{increment:1}
-                  }
-              })
-            }
-        //  
         return updatedStatus;
-      })
-      //TODO:need to send notification and mail
-      
-      
+      });
 
+      // 5. Send email & push notifications based on order status
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (user?.email || user?.fcmToken) {
+        const templateData = {
+          userName: user?.username,
+          orderId: updatedOrder.id,
+          status: updatedOrder.order_status,
+          amount: updatedOrder.total_cost,
+        };
 
+        // Send Email
+        if (user.email) {
+          await this.mail.sendTemplateMail(
+            "order-"+status.toLowerCase(), // template name matches status: pending.hbs, cancelled.hbs, completed.hbs
+            user.email,
+            `Your order #${updatedOrder.id} is ${updatedOrder.order_status}`,
+            templateData
+          );
+        }
 
-      // 
-      return res;
+        // Send Push Notification
+        if (user.fcmToken) {
+          await this.notify.sendNotificationByType(
+            NotificationType.PUSH_NOTIFICATION,
+            [{ fcmToken: user.fcmToken }],
+            `Order #${updatedOrder.id} is ${updatedOrder.order_status}`,
+          );
+        }
+      }
 
+      return updatedOrder;
     }
+
 
 
   // order update for admin
@@ -1252,76 +1232,111 @@ export class OrderService {
 
     
   //  stats dashboard
-  async getOrderStats() {
-  const [totalOrders, ongoing, scheduled, pending] = await this.prisma.$transaction([
-    // Total Orders
-    this.prisma.order.count(),
+    async getOrderStats() {
+    const [totalOrders, ongoing, scheduled, pending] = await this.prisma.$transaction([
+      // Total Orders
+      this.prisma.order.count(),
 
-    // Ongoing Orders (progressing states)
-    this.prisma.order.count({
-      where: {
-        order_status: {
-          in: [OrderStatus.ONGOING],
+      // Ongoing Orders (progressing states)
+      this.prisma.order.count({
+        where: {
+          order_status: {
+            in: [OrderStatus.ONGOING],
+          },
         },
-      },
-    }),
+      }),
 
-    // Scheduled Orders
-    this.prisma.order.count({
-      where: { collect_time:CollectTime.SCHEDULED  },
-    }),
+      // Scheduled Orders
+      this.prisma.order.count({
+        where: { collect_time:CollectTime.SCHEDULED  },
+      }),
 
-    // Pending Orders
-    this.prisma.order.count({
-      where: { order_status: OrderStatus.PENDING },
-    }),
-  ]);
+      // Pending Orders
+      this.prisma.order.count({
+        where: { order_status: OrderStatus.PENDING },
+      }),
+    ]);
 
-  return {
-    totalOrders,
-    ongoing,
-    scheduled,
-    pending,
-  };
-}
+    return {
+      totalOrders,
+      ongoing,
+      scheduled,
+      pending,
+    };
+  }
 
-// 
   // feed only order
-  async orderForFeed(
-        page: number = 1,
-        limit: number = 100,
-      ) {
-        const skip = (page - 1) * limit;
+    async orderForFeed(
+      userId: number,
+      page = 1,
+      limit = 100,
+    ) {
+      const skip = (page - 1) * limit;
+      const raider = await this.prisma.raider.findFirst({
+          where:{
+             userId
+          }
+      })
 
-        const [orders, total] = await this.prisma.$transaction([
-          this.prisma.order.findMany({
-            where:{
-                order_status:OrderStatus.PENDING,
-                is_placed:true
+      const [orders, total] = await this.prisma.$transaction([
+        this.prisma.order.findMany({
+          where: {
+            order_status: OrderStatus.PENDING,
+            is_placed: true,
+
+            // EXCLUDE declined orders for THIS raider only
+            NOT: {
+              declines: {
+                some: {
+                  raiderId:raider?.id,
+                },
+              },
             },
-            orderBy: { created_at: 'desc' },
-            include: { user: true , vehicle:true, destinations:true},
-            skip,
-            take: limit,
-          }),
-          
-          this.prisma.order.count({
-            where:{
-                order_status:OrderStatus.PENDING,
-                is_placed:true
-            }
-          }),
-        ]);
+          },
+          orderBy: { created_at: 'desc' },
+          include: {
+            user: true,
+            vehicle: true,
+            destinations: true,
+          },
+          skip,
+          take: limit,
+        }),
 
-        return {
-          data: orders,
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        };
-      }
+        this.prisma.order.count({
+          where: {
+            order_status: OrderStatus.PENDING,
+            is_placed: true,
+            NOT: {
+              declines: {
+                some: {
+                  raiderId:raider?.id,
+                },
+              },
+            },
+          },
+        }),
+      ]);
+
+      return {
+        data: orders,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    }
+
   
+  //order decline
+   async declineOrder(orderId: number, raiderId: number) {
+      return await this.prisma.orderDecline.create({
+        data: {
+          orderId,
+          raiderId,
+        },
+      });
+    }
 
 
   }

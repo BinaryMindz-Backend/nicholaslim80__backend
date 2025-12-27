@@ -210,9 +210,11 @@ export class OrderController {
     @ApiResponse({ status: 200, description: 'Orders feed retrieved successfully' })
     async orderForFeed(
       @Query() pagination: PaginationDto,
+      @CurrentUser() user:IUser
   ) {
       try {
         const orders = await this.orderService.orderForFeed(
+          user.id,
           pagination.page,
           pagination.limit,
         );
@@ -314,22 +316,22 @@ export class OrderController {
     }
   }
 
-  //
-  @Patch(':order_id/destination/update')
-  @Auth()
-  @ApiBearerAuth()
-  // @Roles(UserRole.USER)
-  @RequirePermission(Module.ORDER, Permission.ADD_DESTINATION_TO_ORDER)
-  @ApiOperation({ summary: 'Update order by ID (user only)' })
-  async destinationUpdateByUser(@Param('order_id') order_id: string, @Query("desti_id") desti_id:string, @CurrentUser() user:IUser ) {
-    // 
-    try {
-      const order = await this.orderService.destinationUpdateByUser(+order_id, +desti_id, user);
-      return ApiResponses.success(order, 'Order updated successfully');
-    } catch (err) {
-      return ApiResponses.error(err, 'Failed to update order');
-    }
-  } 
+    //
+    @Patch(':order_id/destination/update')
+    @Auth()
+    @ApiBearerAuth()
+    // @Roles(UserRole.USER)
+    @RequirePermission(Module.ORDER, Permission.ADD_DESTINATION_TO_ORDER)
+    @ApiOperation({ summary: 'Update order by ID (user only)' })
+    async destinationUpdateByUser(@Param('order_id') order_id: string, @Query("desti_id") desti_id:string, @CurrentUser() user:IUser ) {
+      // 
+      try {
+        const order = await this.orderService.destinationUpdateByUser(+order_id, +desti_id, user);
+        return ApiResponses.success(order, 'Order updated successfully');
+      } catch (err) {
+        return ApiResponses.error(err, 'Failed to update order');
+      }
+    } 
       //  
       @Patch('bulk/status/pending')
       @Auth()
@@ -406,7 +408,25 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to assign a driver');
     }
   }
-  
+    // order decline from feed
+    @Patch('decline/:orderId')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.ORDER, Permission.DECLINE_ORDER)
+    @ApiOperation({ summary: 'Decline order (raider only)' })
+    async declineOrder(
+      @Param('orderId') orderId: string,
+      @CurrentUser() user: IUser,
+    ) {
+      const raiderId = user.id;
 
+      const result = await this.orderService.declineOrder(
+        Number(orderId),
+        raiderId,
+      );
+
+      return ApiResponses.success(result, 'Order declined successfully');
+    }
+// 
 
 }

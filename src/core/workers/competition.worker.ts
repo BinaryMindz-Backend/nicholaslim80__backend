@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import { NotificationService } from './../../modules/superadmin_root/notification/notification.service';
 import { MailService } from 'src/common/services/mail.service';
 import { Injectable, OnModuleInit } from '@nestjs/common';
@@ -84,64 +85,93 @@ export class CompetitionWorker implements OnModuleInit {
             order_status:OrderStatus.ONGOING
           },
         });
-           //send notification and email
-              const winnerRaider = await this.prisma.raider.findUnique({
-                  where: { id: winner.driverId },
-                  include: {
-                    user: true, // email, fcmToken
-                    registrations:true
-                  },
-                });
+         //send notification and email
+            // Get full info of winner
+            const winnerRaider = await this.prisma.raider.findUnique({
+              where: { id: winner.driverId },
+              include: { user: true, registrations: true },
+            });
 
-                if (!winnerRaider || !winnerRaider.user) return;
+            if (winnerRaider?.user) {
+              const notificationTitle = '🎉 Order Assigned!';
+              const notificationMessage = `You won the order #${orderId}. Please start delivery.`;
 
-                const notificationTitle = '🎉 Order Assigned!';
-                const notificationMessage = `You won the order #${orderId}. Please start delivery.`;
-
-                // PUSH NOTIFICATION
+              // Send PUSH notification to winner
+              if (winnerRaider.user.fcmToken) {
                 await this.notify.sendNotificationByType(
                   NotificationType.PUSH_NOTIFICATION,
-                  [
-                    {
-                      fcmToken: winnerRaider.user.fcmToken ?? undefined,
-                    },
-                  ],
+                  [{ fcmToken: winnerRaider.user.fcmToken }],
                   notificationTitle,
-                  notificationMessage,
+                  notificationMessage
                 );
-                // send mail
-                await this.mailService.sendMail({
-                      to: winnerRaider.user.email!,
-                      subject: '🎉 Order Assigned!',
-                      templateName: 'order-competition',
-                      context: {
-                        name: winnerRaider.registrations[0].raider_name ?? 'Rider',
-                        orderId,
-                        rank: winnerRaider.rank,
-                      },
-                    });
+              }
 
-                // Sent to lossers
-                const losers = drivers.filter(id => id !== winner.driverId);
+              // Send EMAIL to winner using template
+              await this.mailService.sendTemplateMail(
+                'order-competition', // template filename without .hbs
+                winnerRaider.user.email!,
+                '🎉 You Won an Order!',
+                {
+                  name: winnerRaider.registrations[0]?.raider_name ?? 'Rider',
+                  orderId,
+                  rank: winnerRaider.rank,
+                }
+              );
+            }
+            
+          // Notify the user who created the order
+          const orderCreator = await this.prisma.user.findUnique({
+            where: { id: order.userId as number },
+          });
 
-                    await Promise.all(
-                      losers.map(async raiderId => {
-                        const raider = await this.prisma.raider.findUnique({
-                          where: { id: raiderId },
-                          include: { user: true },
-                        });
+          if (orderCreator) {
+            // Push notification if user has fcmToken
+            if (orderCreator.fcmToken) {
+              await this.notify.sendNotificationByType(
+                NotificationType.PUSH_NOTIFICATION,
+                [{ fcmToken: orderCreator.fcmToken }],
+                '📝 Your Order Has a Rider!',
+                `Your order #${orderId} has been assigned to ${winnerRaider?.registrations[0]?.raider_name ?? 'a rider'}.`
+              );
+            }
 
-                        if (!raider?.user?.fcmToken) return;
+            // Send email to order creator
+            if (orderCreator.email) {
+              await this.mailService.sendTemplateMail(
+                'order-assigned-user', // create a template for notifying users
+                orderCreator.email,
+                '📝 Your Order Has a Rider!',
+                {
+                  name: orderCreator.username ?? 'User',
+                  orderId,
+                  raiderName: winnerRaider?.registrations[0]?.raider_name ?? 'Rider',
+                  raiderRank: winnerRaider?.rank,
+                }
+              );
+            }
+          }
 
-                        await this.notify.sendNotificationByType(
-                          NotificationType.PUSH_NOTIFICATION,
-                          [{ fcmToken: raider.user.fcmToken }],
-                          'Order Taken',
-                          'Another rider won this order. Keep trying!',
-                        );
-                      }),
-                    );
-                    
+
+            // Send PUSH notifications to losers
+            const losers = drivers.filter(id => id !== winner.driverId);
+            await Promise.all(
+              losers.map(async raiderId => {
+                const raider = await this.prisma.raider.findUnique({
+                  where: { id: raiderId },
+                  include: { user: true },
+                });
+                if (!raider?.user?.fcmToken) return;
+
+                await this.notify.sendNotificationByType(
+                  NotificationType.PUSH_NOTIFICATION,
+                  [{ fcmToken: raider.user.fcmToken }],
+                  'Order Taken',
+                  'Another rider won this order. Keep trying!'
+                );
+
+              })
+            );
+
 
         console.log(`✅ Order ${orderId} assigned to driver ${winner.driverId}`);
       },
