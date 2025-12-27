@@ -1,7 +1,7 @@
 // EMAIL JOB TYPES
 export enum EmailJobType {
   WELCOME_EMAIL = 'welcome-email',
-  OTP_EMAIL = 'otp-email',
+  OTP_EMAIL = 'otp',
   PASSWORD_RESET = 'password-reset',
   REFERRAL_BONUS = 'referral-bonus',
   PAYMENT_CONFIRMATION = 'payment-confirmation',

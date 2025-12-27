@@ -154,130 +154,127 @@ export class UsersService {
   // }
   //  
  async createUser(dto: { 
-  email?: string; 
-  password?: string; 
-  username?: string; 
-  phone: string, 
-  referral_code?: string, 
-  role_name: string 
-}) {
-  // Pre-transaction validations (same as before)
-  if (dto.role_name === UserRole.SUPER_ADMIN) {
-    throw new NotAcceptableException("You can't create superadmin or admin by general login");
-  }
+      email?: string; 
+      password?: string; 
+      username?: string; 
+      phone: string, 
+      referral_code?: string, 
+      role_name: string 
+    }) {
+      // Pre-transaction validations (same as before)
+      if (dto.role_name === UserRole.SUPER_ADMIN) {
+        throw new NotAcceptableException("You can't create superadmin or admin by general login");
+      }
 
-  const role = await this.prisma.role.findFirst({
-    where: { name: dto.role_name }
-  });
+      const role = await this.prisma.role.findFirst({
+        where: { name: dto.role_name }
+      });
 
-  if (!role) {
-    throw new NotFoundException("Role not found");
-  }
+      if (!role) {
+        throw new NotFoundException("Role not found");
+      }
 
-  let referredByUser;
-  if (dto.referral_code) {
-    referredByUser = await this.prisma.user.findUnique({
-      where: { referral_code: dto.referral_code }
-    });
+      let referredByUser;
+      if (dto.referral_code) {
+        referredByUser = await this.prisma.user.findUnique({
+          where: { referral_code: dto.referral_code }
+        });
 
-    if (!referredByUser) {
-      throw new BadRequestException('Invalid referral code');
-    }
-  }
+        if (!referredByUser) {
+          throw new BadRequestException('Invalid referral code');
+        }
+      }
 
-  const existing = await this.prisma.user.findFirst({
-    where: {
-      OR: [
-        { email: dto.email },
-        { phone: dto.phone }
-      ]
-    }
-  });
-
-  if (existing) {
-    throw new ConflictException('User already exists');
-  }
-
-  let hashed: string | undefined = undefined;
-  if (dto.password) {
-    const salt = Number(process.env.SALT_ROUNDS ?? 10);
-    hashed = await bcrypt.hash(dto.password, salt);
-  }
-
-  const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
-
-  const coin = await this.prisma.coin.findFirst({
-    where: { key: CoinEvent.FIRST_SIGNUP }
-  });
-
-  // Transaction
-  const result = await this.prisma.$transaction(async (tx) => {
-    const user = await tx.user.create({
-      data: {
-        email: dto.email,
-        username: dto.username,
-        phone: dto.phone,
-        password: hashed,
-        referral_code: code,
-        referral_link: link,
-        is_acc_refered: dto.referral_code ? true : false,
-        roleId: role.id,
-      },
-    });
-
-    const coinUtils = new CoinUtils(tx as any);
-    await coinUtils.earnCoin(
-      user.id, 
-      coin ? Number(coin.coin_amount) : 0, 
-      CoinEvent.FIRST_SIGNUP
-    );
-
-    if (dto.referral_code) {
-      await tx.refer.create({
-        data: {
-          refer_code: dto.referral_code,
-          user_id: user.id
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: dto.email },
+            { phone: dto.phone }
+          ]
         }
       });
-    }
 
-    if (role.name === UserRole.RAIDER) {
-      await tx.raider.create({
-        data: { userId: user.id }
+      if (existing) {
+        throw new ConflictException('User already exists');
+      }
+
+      let hashed: string | undefined = undefined;
+      if (dto.password) {
+        const salt = Number(process.env.SALT_ROUNDS ?? 10);
+        hashed = await bcrypt.hash(dto.password, salt);
+      }
+
+      const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
+
+      const coin = await this.prisma.coin.findFirst({
+        where: { key: CoinEvent.FIRST_SIGNUP }
       });
-    }
 
-    return user;
-  });
+      // Transaction
+      const result = await this.prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: dto.email,
+            username: dto.username,
+            phone: dto.phone,
+            password: hashed,
+            referral_code: code,
+            referral_link: link,
+            is_acc_refered: dto.referral_code ? true : false,
+            roleId: role.id,
+          },
+        });
 
-  // Generate OTP
-  const otp = await this.otpService.generateOtp(result.email, result.phone);
-        // Queue welcome email
-    if (result.email) {
-      await this.emailQueueService.queueWelcomeEmail({
-        userId: result.id,
-        email: result.email,
-        username: result.username ?? undefined,
-        referralCode: result.referral_code ?? undefined,
+        const coinUtils = new CoinUtils(tx as any);
+        await coinUtils.earnCoin(
+          user.id, 
+          coin ? Number(coin.coin_amount) : 0, 
+          CoinEvent.FIRST_SIGNUP
+        );
+
+        if (dto.referral_code) {
+          await tx.refer.create({
+            data: {
+              refer_code: dto.referral_code,
+              user_id: user.id
+            }
+          });
+        }
+
+        if (role.name === UserRole.RAIDER) {
+          await tx.raider.create({
+            data: { userId: user.id }
+          });
+        }
+
+        return user;
       });
-    }
 
-    // Queue push notification
-    if (result.fcmToken) {
-      await this.emailQueueService.queuePushNotification({
-        userId: result.id,
-        fcmToken: result.fcmToken,
-        title: 'Welcome to NodeNINJAr!',
-        body: `Hello ${result.username ?? 'User'}, welcome!`,
-      });
-    }
+      // Generate OTP
+      const otp = await this.otpService.generateOtp(result.email, result.phone);
+            // Queue welcome email
+        if (result.email) {
+          await this.emailQueueService.queueWelcomeEmail({
+            userId: result.id,
+            email: result.email,
+            username: result.username ?? undefined,
+            referralCode: result.referral_code ?? undefined,
+          });
+        }
 
-    return { otp };
+        // Queue push notification
+        if (result.fcmToken) {
+          await this.emailQueueService.queuePushNotification({
+            userId: result.id,
+            fcmToken: result.fcmToken,
+            title: 'Welcome to NodeNINJAr!',
+            body: `Hello ${result.username ?? 'User'}, welcome!`,
+          });
+        }
+
+        return { otp };
 
   }
-
-
-
 
   // 
   async findByEmailOrPhone(email?: string, phone?: string) {

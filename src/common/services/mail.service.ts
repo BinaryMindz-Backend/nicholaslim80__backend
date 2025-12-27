@@ -28,7 +28,7 @@ export class MailService {
     // Dynamic template folder detection
     const devPath = path.join(process.cwd(), 'src/common/services/templates/emails');
     const prodPath = path.join(process.cwd(), 'dist/src/common/services/templates/emails');
-    console.log("from mail services -->", devPath, prodPath);
+    // console.log("from mail services -->", devPath, prodPath);
     if (fs.existsSync(devPath)) this.templatesDir = devPath;
     else if (fs.existsSync(prodPath)) this.templatesDir = prodPath;
     else throw new Error('Templates folder not found');

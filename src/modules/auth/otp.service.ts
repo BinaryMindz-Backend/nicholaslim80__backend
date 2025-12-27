@@ -53,8 +53,8 @@ export class OtpService {
 
     return { otp, ttl }; // remove in production
   }
-
-     // Send OTP using template
+     
+     // Send OTP using template TODO:need to replace with queue
       async sendOtpNotification(email: string | null, otp: string, phone?: string | null) {
         if (email) {
           await this.mail.sendTemplateMail('otp', email, 'Your OTP Code', { otp });

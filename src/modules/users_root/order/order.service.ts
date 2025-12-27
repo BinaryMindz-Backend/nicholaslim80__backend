@@ -1,15 +1,12 @@
-import { NotificationService } from './../../superadmin_root/notification/notification.service';
-/* eslint-disable @typescript-eslint/require-await */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/prefer-promise-reject-errors */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import { Parser } from 'json2csv';
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DestinationInput, IUser } from 'src/types';
-import { CollectTime, Destination, DestinationType, NotificationType, Order, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -22,7 +19,8 @@ import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { ServiceZoneService } from 'src/modules/superadmin_root/service-zone/service-zone.service';
 import { GeoService } from 'src/utils/geo-location.utils';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
-import { MailService } from 'src/common/services/mail.service';
+import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
+
 
 
 
@@ -34,9 +32,7 @@ export class OrderService {
      private redisService: RedisService,
      private readonly serviceZone: ServiceZoneService,
      private readonly geoServices:GeoService,
-     private readonly notify:NotificationService,
-     private readonly mail:MailService,
-     
+     private readonly emailQueueService:EmailQueueService
 
   ) {}
 
@@ -85,7 +81,7 @@ export class OrderService {
 
                     }
             })
-            // 
+              // 
                 const txId = this.txIdService.generate();
 
                   await tx.transaction.create({
@@ -786,110 +782,290 @@ export class OrderService {
   }
 
 
-  //** update // used place
- async destinationUpdateByUser(orderId:number,id:number, user:IUser){
-        // 
-       if(!id) throw new NotFoundException("Destination id not found")
-       if(!orderId) throw new NotFoundException("Order id Not found")
-       const record = await this.prisma.order.findFirst({
-            where:{
-               id:orderId,
-               userId:user.id
-            }
-      }) 
-      if(!record) throw new NotFoundException("Order record not found")
-        //
-      await this.prisma.destination.update({
-           where:{
-              id,
-           },
-           data:{
-               order_id:orderId
-           }
-      }) 
-    
- }
-
-   
-    // order status update
+      //** update // used place
+    async destinationUpdateByUser(orderId:number,id:number, user:IUser){
+            // 
+          if(!id) throw new NotFoundException("Destination id not found")
+          if(!orderId) throw new NotFoundException("Order id Not found")
+          const record = await this.prisma.order.findFirst({
+                where:{
+                  id:orderId,
+                  userId:user.id
+                }
+          }) 
+          if(!record) throw new NotFoundException("Order record not found")
+            //
+          await this.prisma.destination.update({
+              where:{
+                  id,
+              },
+              data:{
+                  order_id:orderId
+              }
+          }) 
+        
+    }
+    // 
     async updateOrderStatus(
-      id: number,
-      userId: number,
-      dto: UpdateOrderStatusDto,
-      raider: IUser
-    ) {
-      const { status } = dto;
+        id: number,
+        userId: number,
+        dto: UpdateOrderStatusDto,
+        raider: IUser
+      ) {
 
-      // 1. Check order exists
-      const order = await this.prisma.order.findUnique({ where: { id } });
-      if (!order) throw new NotFoundException('Order not found');
+        const { status } = dto;
 
-      // 2. Check if already same status
-      const already = await this.prisma.order.findFirst({ where: { id, order_status: status } });
-      if (already) throw new ConflictException(`This order is already ${status}`);
-
-      // 3. Extra rules
-      let extraData: any = {};
-      if (status === OrderStatus.PENDING) extraData = { is_placed: true };
-      if (status === OrderStatus.CANCELLED) extraData = { is_placed: false };
-
-      // 4. Update status inside transaction
-      const updatedOrder = await this.prisma.$transaction(async (tx) => {
-        const updatedStatus = await tx.order.update({
-          where: { id, userId },
-          data: { order_status: status, ...extraData },
+        // 1. VALIDATIONS
+        
+        // Check order exists
+        const order = await this.prisma.order.findUnique({ 
+          where: { id },
+          select: {
+            id: true,
+            userId: true,
+            order_status: true,
+            total_cost: true,
+          }
         });
 
-        const transaction = await tx.transaction.findFirst({ where: { orderId: id } });
+        if (!order) {
+          throw new NotFoundException('Order not found');
+        }
 
-        if (transaction) {
-          if (status === OrderStatus.PENDING) {
-            await tx.transaction.update({ where: { id: transaction.id }, data: { tx_status: TransactionStatus.PENDING } });
+        // Check if already same status
+        if (order.order_status === status) {
+          throw new ConflictException(`This order is already ${status}`);
+        }
+
+        // 2. PREPARE UPDATE DATA        
+        let extraData: any = {};
+        
+        if (status === OrderStatus.PENDING) {
+          extraData = { is_placed: true };
+        }
+        
+        if (status === OrderStatus.CANCELLED) {
+          extraData = { is_placed: false };
+        }
+
+        // 3. UPDATE ORDER IN TRANSACTION        
+        const updatedOrder = await this.prisma.$transaction(async (tx) => {
+          // Update order status
+          const updatedStatus = await tx.order.update({
+            where: { id, userId },
+            data: { 
+              order_status: status, 
+              ...extraData 
+            },
+          });
+
+          // Update related transaction
+          const transaction = await tx.transaction.findFirst({ 
+            where: { orderId: id } 
+          });
+
+          if (transaction) {
+            // Update transaction status based on order status
+            if (status === OrderStatus.PENDING) {
+              await tx.transaction.update({ 
+                where: { id: transaction.id }, 
+                data: { tx_status: TransactionStatus.PENDING } 
+              });
+            }
+
+            if (status === OrderStatus.CANCELLED) {
+              await tx.transaction.update({ 
+                where: { id: transaction.id }, 
+                data: { tx_status: TransactionStatus.FAILED } 
+              });
+            }
+
+            if (status === OrderStatus.COMPLETED) {
+              await tx.transaction.update({ 
+                where: { id: transaction.id }, 
+                data: { tx_status: TransactionStatus.COMPLETED } 
+              });
+
+              // Increment raider's completed orders
+              await tx.raider.update({ 
+                where: { userId: raider.id }, 
+                data: { completed_orders: { increment: 1 } } 
+              });
+            }
           }
-          if (status === OrderStatus.CANCELLED) {
-            await tx.transaction.update({ where: { id: transaction.id }, data: { tx_status: TransactionStatus.FAILED } });
+
+          return updatedStatus;
+        });
+
+        // 4. QUEUE NOTIFICATIONS (AFTER TRANSACTION)
+
+        // Get user info for notifications
+        const user = await this.prisma.user.findUnique({ 
+          where: { id: userId },
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            fcmToken: true,
           }
-          if (status === OrderStatus.COMPLETED) {
-            await tx.transaction.update({ where: { id: transaction.id }, data: { tx_status: TransactionStatus.COMPLETED } });
-            await tx.raider.update({ where: { userId: raider.id }, data: { completed_orders: { increment: 1 } } });
+        });
+
+        if (user) {
+          // Prepare status message
+          const statusMessages = {
+            [OrderStatus.PENDING]: 'Your order is being processed and will be assigned to a rider soon.',
+            [OrderStatus.ONGOING]: 'Your order is on the way! The rider is heading to your location.',
+            [OrderStatus.COMPLETED]: 'Your order has been successfully completed. Thank you for your business!',
+            [OrderStatus.CANCELLED]: 'Your order has been cancelled. If you have any questions, please contact support.',
+          };
+
+          const statusMessage = statusMessages[status] || `Your order status has been updated to ${status}.`;
+
+          // Queue email notification
+          if (user.email) {
+            await this.emailQueueService.queueOrderPendingEmail({
+              userId: user.id,
+              email: user.email,
+              username: user.username ?? undefined,
+              orderId: updatedOrder.id,
+              status: updatedOrder.order_status,
+              amount: Number(updatedOrder.total_cost),
+              statusMessage,
+            });
+          }
+
+          // Queue push notification
+          if (user.fcmToken) {
+            await this.emailQueueService.queueOrderStatusNotification({
+              userId: user.id,
+              fcmToken: user.fcmToken,
+              orderId: updatedOrder.id,
+              status: updatedOrder.order_status,
+              message: statusMessage,
+            });
           }
         }
 
-        return updatedStatus;
-      });
-
-      // 5. Send email & push notifications based on order status
-      const user = await this.prisma.user.findUnique({ where: { id: userId } });
-      if (user?.email || user?.fcmToken) {
-        const templateData = {
-          userName: user?.username,
-          orderId: updatedOrder.id,
-          status: updatedOrder.order_status,
-          amount: updatedOrder.total_cost,
-        };
-
-        // Send Email
-        if (user.email) {
-          await this.mail.sendTemplateMail(
-            "order-"+status.toLowerCase(), // template name matches status: pending.hbs, cancelled.hbs, completed.hbs
-            user.email,
-            `Your order #${updatedOrder.id} is ${updatedOrder.order_status}`,
-            templateData
-          );
-        }
-
-        // Send Push Notification
-        if (user.fcmToken) {
-          await this.notify.sendNotificationByType(
-            NotificationType.PUSH_NOTIFICATION,
-            [{ fcmToken: user.fcmToken }],
-            `Order #${updatedOrder.id} is ${updatedOrder.order_status}`,
-          );
-        }
+        return updatedOrder;
       }
 
-      return updatedOrder;
+  
+  // mark bulk order as pending
+   async markOrdersAsPending(
+      userId: number,
+      dto: UpdatePendingOrdersDto,
+    ) {
+      const { orderIds } = dto;
+
+      if (!orderIds?.length) {
+        throw new BadRequestException('Order IDs are required');
+      }
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, email: true, username: true, fcmToken: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Validate orders
+      const orders = await this.prisma.order.findMany({
+        where: {
+          id: { in: orderIds },
+          userId,
+        },
+        select: {
+          id: true,
+          order_status: true,
+          isBulk: true,
+          total_cost: true
+        },
+      });
+
+      if (orders.length !== orderIds.length) {
+        const found = orders.map(o => o.id);
+        const missing = orderIds.filter(id => !found.includes(id));
+        throw new NotFoundException(`Orders not found: ${missing.join(', ')}`);
+      }
+
+      const alreadyPending = orders.filter(
+        o => o.order_status === OrderStatus.PENDING,
+      );
+      if (alreadyPending.length) {
+        throw new ConflictException(
+          `Orders already pending: ${alreadyPending.map(o => o.id).join(', ')}`,
+        );
+      }
+
+      const nonBulk = orders.filter(o => !o.isBulk);
+      if (nonBulk.length) {
+        throw new BadRequestException(
+          `Non-bulk orders detected: ${nonBulk.map(o => o.id).join(', ')}`,
+        );
+      }
+
+      const result = await this.prisma.$transaction(async (tx) => {
+        const updateResult = await tx.order.updateMany({
+          where: {
+            id: { in: orderIds },
+            userId,
+            isBulk: true,
+          },
+          data: {
+            order_status: OrderStatus.PENDING,
+            is_placed: true,
+          },
+        });
+
+        if (updateResult.count !== orderIds.length) {
+          throw new ConflictException('Some orders could not be updated');
+        }
+
+        await tx.transaction.updateMany({
+          where: { orderId: { in: orderIds } },
+          data: { tx_status: TransactionStatus.PENDING },
+        });
+
+          const updatedOrders = await tx.order.findMany({
+            where: { id: { in: orderIds } },
+            select: {
+              id: true,
+              total_cost: true,
+            },
+          });
+
+
+        const totalAmount = updatedOrders.reduce(
+          (sum, o) => sum + Number(o.total_cost),
+          0,
+        );
+
+        return {
+          totalUpdated: updatedOrders.length,
+          orders: updatedOrders,
+          totalAmount,
+        };
+      });
+
+      // Bulk email
+      if (result.totalUpdated > 1 && user.email) {
+        await this.emailQueueService.queueBulkOrderPendingEmail({
+          userId: user.id,
+          email: user.email,
+          username: user.username ?? undefined,
+          orderIds,
+          totalOrders: result.totalUpdated,
+          totalAmount: result.totalAmount,
+        });
+      }
+
+      return result;
     }
+
+
+
 
 
 
@@ -903,72 +1079,6 @@ export class OrderService {
     });
   }
    
-  // mark as pending
-  async markOrdersAsPending(
-      userId: number,
-      dto: UpdatePendingOrdersDto,
-    ) {
-      const { orderIds } = dto;
-
-      if (!orderIds?.length) {
-        throw new BadRequestException('Order IDs are required');
-      }
-
-      return this.prisma.$transaction(async (tx) => {
-        const updatedOrders: Order[] = [];
-
-        for (const id of orderIds) {
-          // 1. Check order exists
-          const order = await tx.order.findUnique({
-            where: { id },
-          });
-
-          if (!order) {
-            throw new NotFoundException(`Order ${id} not found`);
-          }
-
-          // 2. Already pending
-          if (order.order_status === OrderStatus.PENDING) {
-            throw new ConflictException(`Order ${id} is already PENDING`);
-          }
-
-          // 3. Update order → PENDING
-          const updatedOrder = await tx.order.update({
-            where: {
-              id,
-              userId,
-              isBulk:true,
-            },
-            data: {
-              order_status: OrderStatus.PENDING,
-              is_placed: true,
-            },
-          });
-
-          // 4. Update transaction → PENDING
-          const transaction = await tx.transaction.findFirst({
-            where: { orderId: id },
-          });
-
-          if (transaction) {
-            await tx.transaction.update({
-              where: { id: transaction.id },
-              data: {
-                tx_status: TransactionStatus.PENDING,
-              },
-            });
-          }
-
-          updatedOrders.push(updatedOrder);
-        }
-
-        return {
-          totalUpdated: updatedOrders.length,
-          orders: updatedOrders,
-        };
-      });
-    }
-
 
   // its permanently deleted by admin
   async remove(id: number) {
