@@ -106,11 +106,12 @@ export class NotificationService {
 
           await Promise.all(
             emailUsers.map(u =>
-              this.mailService.sendMail({
-                to: u.email!,
-                subject: title!,
-                text: message!,
-              }),
+               this.mailService.sendTemplateMail(
+                 'plain-text', // the HBS template we just created
+                 u.email!,
+                 title!,
+                 { text: message! } // pass your plain text as `text`
+              )
             ),
           );
           break;

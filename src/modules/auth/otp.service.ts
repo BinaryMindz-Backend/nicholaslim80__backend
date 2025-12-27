@@ -1,21 +1,24 @@
-/* eslint-disable @typescript-eslint/require-await */
-
-
 import {
   Injectable,
   BadRequestException,
   NotFoundException,
   NotAcceptableException,
+  Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { RedisService } from './redis/redis.service';
+import { MailService } from 'src/common/services/mail.service';
 
 @Injectable()
 export class OtpService {
+   
+    private readonly logger = new Logger(OtpService.name);
+    // 
   constructor(
     private prisma: PrismaService,
     private redisService: RedisService,
+    private mail: MailService,
   ) { }
 
   private async hashOtp(otp: string) {
@@ -50,12 +53,21 @@ export class OtpService {
 
     return { otp, ttl }; // remove in production
   }
+     
+     // Send OTP using template TODO:need to replace with queue
+      async sendOtpNotification(email: string | null, otp: string, phone?: string | null) {
+        if (email) {
+          await this.mail.sendTemplateMail('otp', email, 'Your OTP Code', { otp });
+          this.logger.log(`OTP email sent to ${email} with OTP ${otp}`);
+        }
 
-  // 
-  async sendOtpNotification(email: string | null, otp: string, phone?: string | null) {
-    console.log(`📩 OTP sent >>> email=${email} phone=${phone} otp=  ${otp}`);
-    return otp;
-  }
+        if (phone) {
+          // Optionally integrate SMS here
+          this.logger.log(`OTP SMS sent to ${phone} with OTP ${otp}`);
+        }
+
+        return otp;
+      }
 
 
 

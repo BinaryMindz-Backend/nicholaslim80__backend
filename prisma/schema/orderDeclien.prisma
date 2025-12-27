@@ -1,0 +1,12 @@
+model OrderDecline {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  raiderId  Int
+  createdAt DateTime @default(now())
+
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  raider Raider @relation(fields: [raiderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, raiderId])
+  @@map("order_declines")
+}

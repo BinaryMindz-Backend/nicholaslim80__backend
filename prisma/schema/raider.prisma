@@ -10,22 +10,34 @@ model Raider {
   raider_status                RaiderStatus       @default(IN_ACTIVE)
   LoginType                    LoginType          @default(DIRECT_SIGNIN)
   raider_verificationFromAdmin RaiderVerification @default(PENDING)
+   
 
-  isSuspended       Boolean   @default(false)
-  suspendedDuration DateTime?
-  suspensionReason  String?
-
-  rank            Int?   @default(0)
-  reviews_count   Int?   @default(0)
+  isSuspended                  Boolean   @default(false)
+  suspendedDuration            DateTime?
+  suspensionReason             String?
+  hasBranding                 Boolean     @default(false)
+  hasAdDecal                  Boolean     @default(false)
+  isPremium                   Boolean     @default(false)
+  
+  // 
+  rank                        Rank        @default(BRONZE)       // use enum
+  rankScore                   Int?
+  reviews_count               Int?        @default(0)
+  completed_orders            Int?        @default(0)
+  active_days                 Int?        @default(0)
+  cancellation_rate           Float?      @default(0)
+  // 
 
   registrations   RaiderRegistration[]
   locations       RaiderLocation?
   locationHistory RaiderLocationHistory[]
   raiderQuizzes   RaiderQuiz[]
   tips            Tip[]
+  followers                   myRaider[]
   customer_ratings RateCustomer[]
   raider_ratings  RateRaider[]
   assignedOrders  Order[]                 @relation("AssignedRaider")
+  declines                OrderDecline[]
 
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt

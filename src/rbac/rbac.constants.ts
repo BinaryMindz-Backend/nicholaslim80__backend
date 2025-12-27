@@ -50,6 +50,7 @@ export enum Permission {
   GET_ORDER_DETAILS = 'get_order_details',
   ADD_DESTINATION_TO_ORDER = 'add_destination_to_order',
   CANCEL_ORDER = 'cancel_order',
+  DECLINE_ORDER="DECLINE_ORDER",
   // admin
   ORDER_READ_MINE = 'order_read_mine',
   // my raider

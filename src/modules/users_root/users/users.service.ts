@@ -1,3 +1,4 @@
+import { NotificationService } from 'src/modules/superadmin_root/notification/notification.service';
 /* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
 import { Injectable, ConflictException, NotFoundException, BadRequestException, NotAcceptableException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -6,135 +7,279 @@ import { OtpService } from 'src/modules/auth/otp.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ReferralUtils } from 'src/utils/referral.util';
 import { CoinEvent, IUser } from 'src/types';
-import { CoinHistoryType, LoginType, UserRole } from '@prisma/client';
+import { CoinHistoryType, LoginType,  UserRole } from '@prisma/client';
 import { UserFilterDto, UserStatusFilter } from './dto/user-filter.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { startOfDay, endOfDay, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { CoinUtils } from 'src/utils/coin.utils';
+import { MailService } from 'src/common/services/mail.service';
+import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 
 // 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService,
     private readonly otpService: OtpService,
+    private readonly mailService:MailService,
+    private readonly notify:NotificationService,
+    private readonly emailQueueService: EmailQueueService,
 
   ) { }
 
 
   // ** Create new user // signup with otp verify
-  async createUser(dto: { email?: string; password?: string; username?: string; phone: string, referral_code?: string, role_name: string }) {
+  // async createUser(dto: { email?: string; password?: string; username?: string; phone: string, referral_code?: string, role_name: string }) {
 
-    if (dto.role_name === UserRole.SUPER_ADMIN) {
-      throw new NotAcceptableException("You can't create superadmin or admin by general login")
-    }
+  //   if (dto.role_name === UserRole.SUPER_ADMIN) {
+  //     throw new NotAcceptableException("You can't create superadmin or admin by general login")
+  //   }
 
-    // role check
-    const role = await this.prisma.role.findFirst({
-      where: {
-        name: dto.role_name
-      }
-    })
-    if (!role) {
-      throw new NotFoundException("Role not found")
-    }
+  //   // role check
+  //   const role = await this.prisma.role.findFirst({
+  //     where: {
+  //       name: dto.role_name
+  //     }
+  //   })
+  //   if (!role) {
+  //     throw new NotFoundException("Role not found")
+  //   }
 
-    // 
-    let referredByUser;
+  //   // 
+  //   let referredByUser;
 
-    if (dto.referral_code) {
-      referredByUser = await this.prisma.user.findUnique({
-        where: {
-          referral_code: dto.referral_code
-        }
-      })
-      // 
-      if (!referredByUser) {
-        throw new BadRequestException('Invalid referral code');
-      }
-      // 
+  //   if (dto.referral_code) {
+  //     referredByUser = await this.prisma.user.findUnique({
+  //       where: {
+  //         referral_code: dto.referral_code
+  //       }
+  //     })
+  //     // 
+  //     if (!referredByUser) {
+  //       throw new BadRequestException('Invalid referral code');
+  //     }
+  //     // 
 
-    }
-    // generate referral code and link
-    const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
-    //  
-    const existing = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: dto.email },
-          { phone: dto.phone }
-        ]
-      }
-    });
-    if (existing) throw new ConflictException('User already exists');
-    // 
-    let hashed: string | undefined = undefined;
-    if (dto.password) {
-      const salt = Number(process.env.SALT_ROUNDS ?? 10);
-      hashed = await bcrypt.hash(dto.password, salt);
-    }
-    //
-    const coin = await this.prisma.coin.findFirst({
-      where: {
-        key: CoinEvent.FIRST_SIGNUP
-      }
-    })
-    // 
+  //   }
+  //   // generate referral code and link
+  //   const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
+  //   //  
+  //   const existing = await this.prisma.user.findFirst({
+  //     where: {
+  //       OR: [
+  //         { email: dto.email },
+  //         { phone: dto.phone }
+  //       ]
+  //     }
+  //   });
+  //   if (existing) throw new ConflictException('User already exists');
+  //   // 
+  //   let hashed: string | undefined = undefined;
+  //   if (dto.password) {
+  //     const salt = Number(process.env.SALT_ROUNDS ?? 10);
+  //     hashed = await bcrypt.hash(dto.password, salt);
+  //   }
+  //   //
+  //   const coin = await this.prisma.coin.findFirst({
+  //     where: {
+  //       key: CoinEvent.FIRST_SIGNUP
+  //     }
+  //   })
+  //   // 
     
-    // 
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        username: dto.username,
-        phone: dto.phone,
-        password: hashed,
-        referral_code: code,
-        referral_link: link,
-        is_acc_refered: dto.referral_code ? true : false,
-        roleId: role.id,
-      },
-    });
-    // coin
-    const coinUtils = new CoinUtils(this.prisma);
-    // Add coins
-    await coinUtils.earnCoin(user.id, coin ? Number(coin.coin_amount) : 0, CoinEvent.FIRST_SIGNUP);
+  //   // 
+  //   const user = await this.prisma.user.create({
+  //     data: {
+  //       email: dto.email,
+  //       username: dto.username,
+  //       phone: dto.phone,
+  //       password: hashed,
+  //       referral_code: code,
+  //       referral_link: link,
+  //       is_acc_refered: dto.referral_code ? true : false,
+  //       roleId: role.id,
+  //     },
+  //   });
+  //   // coin
+  //   const coinUtils = new CoinUtils(this.prisma);
+  //   // Add coins
+  //   await coinUtils.earnCoin(user.id, coin ? Number(coin.coin_amount) : 0, CoinEvent.FIRST_SIGNUP);
 
-    // 
-    if (dto.referral_code) {
+  //   // 
+  //   if (dto.referral_code) {
 
-      // if the user created by refer
-      await this.prisma.refer.create({
-        data: {
-          refer_code: dto.referral_code,
-          user_id: user.id
+  //     // if the user created by refer
+  //     await this.prisma.refer.create({
+  //       data: {
+  //         refer_code: dto.referral_code,
+  //         user_id: user.id
+  //       }
+  //     })
+  //   }
+  //   // if the user role is raider 
+  //   if (role.name === UserRole.RAIDER) {
+  //     await this.prisma.raider.create({
+  //       data: {
+  //         userId: user.id,
+  //       }
+  //     });
+  //   }
+  //       // After generating the OTP
+  //       const otp = await this.otpService.generateOtp(user.email, user.phone);
+  //             // Send Welcome Email
+  //             if (user.email) {
+  //               await this.mailService.sendTemplateMail(
+  //                 'after-first-signup',
+  //                 user.email,
+  //                 'Welcome to NodeNINJAr!',
+  //                 {
+  //                   name: user.username ?? 'User',
+  //                   referralCode: user.referral_code,
+  //                 }
+  //               );
+  //             }
+
+  //             // Send Push Notification
+  //             if (user.fcmToken) {
+  //               await this.notify.sendNotificationByType(
+  //                 NotificationType.PUSH_NOTIFICATION,
+  //                 [{ fcmToken: user.fcmToken }],
+  //                 'Welcome to NodeNINJAr!',
+  //                 `Hello ${user.username ?? 'User'}, welcome to NodeNINJAr! Start exploring and earn coins with your first actions.`
+  //               );
+  //             }
+
+  //       // Return OTP for dev/testing (optional)
+  //      return { otp };
+
+  // }
+  //  
+ async createUser(dto: { 
+      email?: string; 
+      password?: string; 
+      username?: string; 
+      phone: string, 
+      referral_code?: string, 
+      role_name: string 
+    }) {
+      // Pre-transaction validations (same as before)
+      if (dto.role_name === UserRole.SUPER_ADMIN) {
+        throw new NotAcceptableException("You can't create superadmin or admin by general login");
+      }
+
+      const role = await this.prisma.role.findFirst({
+        where: { name: dto.role_name }
+      });
+
+      if (!role) {
+        throw new NotFoundException("Role not found");
+      }
+
+      let referredByUser;
+      if (dto.referral_code) {
+        referredByUser = await this.prisma.user.findUnique({
+          where: { referral_code: dto.referral_code }
+        });
+
+        if (!referredByUser) {
+          throw new BadRequestException('Invalid referral code');
         }
-      })
-    }
-    // if the user role is raider 
-    if (role.name === UserRole.RAIDER) {
-      await this.prisma.raider.create({
-        data: {
-          userId: user.id,
+      }
+
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: dto.email },
+            { phone: dto.phone }
+          ]
         }
       });
-    }
 
-    // pass to otp verify method
-    const otp = await this.otpService.generateOtp(user.email, user.phone);
-    // TODO:For Dev
-    return {
-      otp
-    };
+      if (existing) {
+        throw new ConflictException('User already exists');
+      }
+
+      let hashed: string | undefined = undefined;
+      if (dto.password) {
+        const salt = Number(process.env.SALT_ROUNDS ?? 10);
+        hashed = await bcrypt.hash(dto.password, salt);
+      }
+
+      const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
+
+      const coin = await this.prisma.coin.findFirst({
+        where: { key: CoinEvent.FIRST_SIGNUP }
+      });
+
+      // Transaction
+      const result = await this.prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: dto.email,
+            username: dto.username,
+            phone: dto.phone,
+            password: hashed,
+            referral_code: code,
+            referral_link: link,
+            is_acc_refered: dto.referral_code ? true : false,
+            roleId: role.id,
+          },
+        });
+
+        const coinUtils = new CoinUtils(tx as any);
+        await coinUtils.earnCoin(
+          user.id, 
+          coin ? Number(coin.coin_amount) : 0, 
+          CoinEvent.FIRST_SIGNUP
+        );
+
+        if (dto.referral_code) {
+          await tx.refer.create({
+            data: {
+              refer_code: dto.referral_code,
+              user_id: user.id
+            }
+          });
+        }
+
+        if (role.name === UserRole.RAIDER) {
+          await tx.raider.create({
+            data: { userId: user.id }
+          });
+        }
+
+        return user;
+      });
+
+      // Generate OTP
+      const otp = await this.otpService.generateOtp(result.email, result.phone);
+            // Queue welcome email
+        if (result.email) {
+          await this.emailQueueService.queueWelcomeEmail({
+            userId: result.id,
+            email: result.email,
+            username: result.username ?? undefined,
+            referralCode: result.referral_code ?? undefined,
+          });
+        }
+
+        // Queue push notification
+        if (result.fcmToken) {
+          await this.emailQueueService.queuePushNotification({
+            userId: result.id,
+            fcmToken: result.fcmToken,
+            title: 'Welcome to NodeNINJAr!',
+            body: `Hello ${result.username ?? 'User'}, welcome!`,
+          });
+        }
+
+        return { otp };
+
   }
-
-
-
-
-  
 
   // 
   async findByEmailOrPhone(email?: string, phone?: string) {
     // 
-    return await this.prisma.user.findFirst({
+   const res = await this.prisma.user.findFirst({
       where: {
         OR: [
           { email },
@@ -145,12 +290,13 @@ export class UsersService {
         role: true,
       }
     });
+    return res
   }
 
   // 
 
   async updateUserRefreshToken(userId: number, token: string | null) {
-    return this.prisma.user.update({
+    return await this.prisma.user.update({
       where: { id: userId },
       data: { refresh_token: token },
     });
@@ -161,7 +307,7 @@ export class UsersService {
 
   // ** Get all users
   async findAllActiveUsers() {
-    return this.prisma.user.findMany({
+    return await this.prisma.user.findMany({
       where: { is_deleted: false },
       orderBy: { created_at: 'desc' },
       include:{
@@ -424,7 +570,7 @@ export class UsersService {
   }
 
 
-  // ** add wallet
+  // ** add wallet //DEPRECATED
   async addMoneyToWallet(id: number, amount: number) {
 
     if (!id) {

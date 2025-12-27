@@ -1,13 +1,12 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/prefer-promise-reject-errors */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import { Parser } from 'json2csv';
-// 
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DestinationInput, IUser } from 'src/types';
-import { CollectTime, Destination, DestinationType, Order, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -20,6 +19,8 @@ import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { ServiceZoneService } from 'src/modules/superadmin_root/service-zone/service-zone.service';
 import { GeoService } from 'src/utils/geo-location.utils';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
+import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
+
 
 
 
@@ -31,7 +32,7 @@ export class OrderService {
      private redisService: RedisService,
      private readonly serviceZone: ServiceZoneService,
      private readonly geoServices:GeoService,
-     
+     private readonly emailQueueService:EmailQueueService
 
   ) {}
 
@@ -80,7 +81,7 @@ export class OrderService {
 
                     }
             })
-            // 
+              // 
                 const txId = this.txIdService.generate();
 
                   await tx.transaction.create({
@@ -229,114 +230,8 @@ export class OrderService {
 
       return res;
     }
-
-
-  // bulk order creation
-  //   async bulkCreateOrdersFromCsv(
-  //     dto: BulkOrderWithDestinationsDto,
-  //     user: IUser,
-  //   ) {
-  //     if (!dto?.fileUrl.startsWith(process.env.BASE_URL as string)) {
-  //       throw new BadRequestException('Invalid file source');
-  //     }
-
-  //     const response = await axios.get(dto.fileUrl, { responseType: 'stream' });
-
-  //     const orders: any[] = [];
-  //     const destinationsArr: any[] = [];
-  //     // 
-  //     return new Promise((resolve, reject) => {
-  //       response.data
-  //         .pipe(csv())
-  //         .on('data', (row) => {
-  //           if (!row.delivery_type || !row.sender_latitude) return;
-
-  //           // Build order
-  //           const orderData = {
-  //             userId: Number(user?.id),
-  //             route_type: row.route_type,
-  //             delivery_type: row.delivery_type,
-  //             pay_type: row.pay_type,
-  //             collect_time: row.collect_time,
-  //             vehicle_type_id: row.vehicle_type_id ? Number(row.vehicle_type_id) : null,
-  //             total_cost: Number(row.total_cost),
-  //             order_status: row.order_status ?? 'PROGRESS',
-  //             isFixed: row.is_fixed === 'true',
-  //             raider_confirmation: row.raider_confirmation === 'true',
-  //           };
-  //           orders.push(orderData);
-
-  //           // Determine destinations
-  //           // Use default DTO destinations if provided, otherwise map from CSV row
-  //           const senderDest = dto.destinations?.find(d => d.type === 'SENDER') ?? {
-  //             user_id: user?.id,
-  //             address: row.sender_address,
-  //             contact_name: row.sender_contact_name,
-  //             contact_number: row.sender_contact_number,
-  //             latitude: row.sender_latitude,
-  //             longitude: row.sender_longitude,
-  //             floor_unit: row.sender_floor_unit,
-  //             note_to_driver: row.sender_note_to_driver,
-  //             type: 'SENDER',
-  //           };
-
-  //           const receiverDest = dto.destinations?.find(d => d.type === 'RECEIVER') ?? {
-  //             user_id: user?.id,
-  //             address: row.receiver_address,
-  //             contact_name: row.receiver_contact_name,
-  //             contact_number: row.receiver_contact_number,
-  //             latitude: row.receiver_latitude ,
-  //             longitude: row.receiver_longitude,
-  //             floor_unit: row.receiver_floor_unit,
-  //             note_to_driver: row.receiver_note_to_driver,
-  //             type: 'RECEIVER',
-  //           };
-  //           destinationsArr.push({ sender: senderDest, receiver: receiverDest });
-  //         })
-  //         .on('end', async () => {
-  //           try {
-              
-  //             // Create orders in a transaction
-  //             const createdOrders = await this.prisma.$transaction(
-  //               orders.map(order => this.prisma.order.create({ data: order })),
-  //             );
-               
-  //             // Create destinations per order
-  //             for (let i = 0; i < createdOrders.length; i++) {
-  //               const order = createdOrders[i];
-  //               const dest = destinationsArr[i];
-  //               // if(!dest.latitude || !dest.longitude){
-  //               //      throw new NotFoundException(`Reciever Or Sender Destination not found on csv`)
-  //               // }
-  //               await this.prisma.destination.createMany({
-  //                 data: [
-  //                   { order_id: order.id,user_id:user.id, ...dest.sender },
-  //                   { order_id: order.id, ...dest.receiver },
-  //                 ],
-  //               });
-  //             }
-
-  //             resolve({
-  //               total_uploaded: orders.length,
-  //               success: createdOrders.length,
-  //               message: 'Bulk orders created successfully',
-  //             });
-  //           } catch (err) {
-  //             reject(err);
-  //           }
-  //         })
-  //         .on('error', reject);
-  //     });
-  //   }
- 
-
-  // 
-
-
-
-
-
-    // export as csv
+   
+    // 
     async exportOrdersAsCsv() {
       const orders = await this.prisma.order.findMany({
         // 
@@ -887,107 +782,291 @@ export class OrderService {
   }
 
 
-  //** update // used place
- async destinationUpdateByUser(orderId:number,id:number, user:IUser){
-        // 
-       if(!id) throw new NotFoundException("Destination id not found")
-       if(!orderId) throw new NotFoundException("Order id Not found")
-       const record = await this.prisma.order.findFirst({
-            where:{
-               id:orderId,
-               userId:user.id
-            }
-      }) 
-      if(!record) throw new NotFoundException("Order record not found")
-        //
-      await this.prisma.destination.update({
-           where:{
-              id,
-           },
-           data:{
-               order_id:orderId
-           }
-      }) 
-    
- }
-
-
-
-  //TODO:(nodeNINJAr) confirm order need to handle promoCode uses and reedom code
-   async updateOrderStatus(id: number, userId: number, dto: UpdateOrderStatusDto) {
-       // 
-      const { status } = dto;
-      // 1. Check order exists
-      const record = await this.prisma.order.findUnique({ where: { id } });
-      if (!record) {
-        throw new NotFoundException('Record not found');
-      }
-      
-      // 2. Check if already same status
-      const already = await this.prisma.order.findFirst({
-        where: { id, order_status: status },
-      });
-      //  
-      if (already) {
-        throw new ConflictException(`This order is already ${status}`);
-      }
-      // 3. Extra rules
-      let extraData = {};
-      // 
-      if (status === OrderStatus.PENDING) {
-        extraData = { is_placed: true };
-      }
-
-      if (status === OrderStatus.CANCELLED) {
-        extraData = { is_placed: false };
-      }
-      // 4. Update status
-      const res = await this.prisma.$transaction(async (tx)=>{
-        const updatedStatus = await tx.order.update({
-              where: {
-                id,
-                userId
-              },
-              data: {
-                order_status: status,
-                ...extraData,
-              },
-            });
+      //** update // used place
+    async destinationUpdateByUser(orderId:number,id:number, user:IUser){
             // 
-            const transaction = await tx.transaction.findFirst({
-              where: {
-                orderId: Number(id),
+          if(!id) throw new NotFoundException("Destination id not found")
+          if(!orderId) throw new NotFoundException("Order id Not found")
+          const record = await this.prisma.order.findFirst({
+                where:{
+                  id:orderId,
+                  userId:user.id
+                }
+          }) 
+          if(!record) throw new NotFoundException("Order record not found")
+            //
+          await this.prisma.destination.update({
+              where:{
+                  id,
               },
-            });
-
-            if (transaction && updatedStatus.order_status === OrderStatus.PENDING ) {
-              await tx.transaction.update({
-                   where:{
-                      id: transaction.id,
-                   },
-                   data:{
-                       tx_status:TransactionStatus.PENDING
-                   }
-              })
-            }
-            // 
-          if (transaction && updatedStatus.order_status === OrderStatus.CANCELLED ) {
-              await tx.transaction.update({
-                   where:{
-                      id: transaction.id,
-                   },
-                   data:{
-                       tx_status:TransactionStatus.FAILED
-                   }
-              })
-            }
-        //  
-        return updatedStatus;
-      })
-      // 
-      return res;
-
+              data:{
+                  order_id:orderId
+              }
+          }) 
+        
     }
+    // 
+    async updateOrderStatus(
+        id: number,
+        userId: number,
+        dto: UpdateOrderStatusDto,
+        raider: IUser
+      ) {
+
+        const { status } = dto;
+
+        // 1. VALIDATIONS
+        
+        // Check order exists
+        const order = await this.prisma.order.findUnique({ 
+          where: { id },
+          select: {
+            id: true,
+            userId: true,
+            order_status: true,
+            total_cost: true,
+          }
+        });
+
+        if (!order) {
+          throw new NotFoundException('Order not found');
+        }
+
+        // Check if already same status
+        if (order.order_status === status) {
+          throw new ConflictException(`This order is already ${status}`);
+        }
+
+        // 2. PREPARE UPDATE DATA        
+        let extraData: any = {};
+        
+        if (status === OrderStatus.PENDING) {
+          extraData = { is_placed: true };
+        }
+        
+        if (status === OrderStatus.CANCELLED) {
+          extraData = { is_placed: false };
+        }
+
+        // 3. UPDATE ORDER IN TRANSACTION        
+        const updatedOrder = await this.prisma.$transaction(async (tx) => {
+          // Update order status
+          const updatedStatus = await tx.order.update({
+            where: { id, userId },
+            data: { 
+              order_status: status, 
+              ...extraData 
+            },
+          });
+
+          // Update related transaction
+          const transaction = await tx.transaction.findFirst({ 
+            where: { orderId: id } 
+          });
+
+          if (transaction) {
+            // Update transaction status based on order status
+            if (status === OrderStatus.PENDING) {
+              await tx.transaction.update({ 
+                where: { id: transaction.id }, 
+                data: { tx_status: TransactionStatus.PENDING } 
+              });
+            }
+
+            if (status === OrderStatus.CANCELLED) {
+              await tx.transaction.update({ 
+                where: { id: transaction.id }, 
+                data: { tx_status: TransactionStatus.FAILED } 
+              });
+            }
+
+            if (status === OrderStatus.COMPLETED) {
+              await tx.transaction.update({ 
+                where: { id: transaction.id }, 
+                data: { tx_status: TransactionStatus.COMPLETED } 
+              });
+
+              // Increment raider's completed orders
+              await tx.raider.update({ 
+                where: { userId: raider.id }, 
+                data: { completed_orders: { increment: 1 } } 
+              });
+            }
+          }
+
+          return updatedStatus;
+        });
+
+        // 4. QUEUE NOTIFICATIONS (AFTER TRANSACTION)
+
+        // Get user info for notifications
+        const user = await this.prisma.user.findUnique({ 
+          where: { id: userId },
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            fcmToken: true,
+          }
+        });
+
+        if (user) {
+          // Prepare status message
+          const statusMessages = {
+            [OrderStatus.PENDING]: 'Your order is being processed and will be assigned to a rider soon.',
+            [OrderStatus.ONGOING]: 'Your order is on the way! The rider is heading to your location.',
+            [OrderStatus.COMPLETED]: 'Your order has been successfully completed. Thank you for your business!',
+            [OrderStatus.CANCELLED]: 'Your order has been cancelled. If you have any questions, please contact support.',
+          };
+
+          const statusMessage = statusMessages[status] || `Your order status has been updated to ${status}.`;
+
+          // Queue email notification
+          if (user.email) {
+            await this.emailQueueService.queueOrderPendingEmail({
+              userId: user.id,
+              email: user.email,
+              username: user.username ?? undefined,
+              orderId: updatedOrder.id,
+              status: updatedOrder.order_status,
+              amount: Number(updatedOrder.total_cost),
+              statusMessage,
+            });
+          }
+
+          // Queue push notification
+          if (user.fcmToken) {
+            await this.emailQueueService.queueOrderStatusNotification({
+              userId: user.id,
+              fcmToken: user.fcmToken,
+              orderId: updatedOrder.id,
+              status: updatedOrder.order_status,
+              message: statusMessage,
+            });
+          }
+        }
+
+        return updatedOrder;
+      }
+
+  
+  // mark bulk order as pending
+   async markOrdersAsPending(
+      userId: number,
+      dto: UpdatePendingOrdersDto,
+    ) {
+      const { orderIds } = dto;
+
+      if (!orderIds?.length) {
+        throw new BadRequestException('Order IDs are required');
+      }
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, email: true, username: true, fcmToken: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Validate orders
+      const orders = await this.prisma.order.findMany({
+        where: {
+          id: { in: orderIds },
+          userId,
+        },
+        select: {
+          id: true,
+          order_status: true,
+          isBulk: true,
+          total_cost: true
+        },
+      });
+
+      if (orders.length !== orderIds.length) {
+        const found = orders.map(o => o.id);
+        const missing = orderIds.filter(id => !found.includes(id));
+        throw new NotFoundException(`Orders not found: ${missing.join(', ')}`);
+      }
+
+      const alreadyPending = orders.filter(
+        o => o.order_status === OrderStatus.PENDING,
+      );
+      if (alreadyPending.length) {
+        throw new ConflictException(
+          `Orders already pending: ${alreadyPending.map(o => o.id).join(', ')}`,
+        );
+      }
+
+      const nonBulk = orders.filter(o => !o.isBulk);
+      if (nonBulk.length) {
+        throw new BadRequestException(
+          `Non-bulk orders detected: ${nonBulk.map(o => o.id).join(', ')}`,
+        );
+      }
+
+      const result = await this.prisma.$transaction(async (tx) => {
+        const updateResult = await tx.order.updateMany({
+          where: {
+            id: { in: orderIds },
+            userId,
+            isBulk: true,
+          },
+          data: {
+            order_status: OrderStatus.PENDING,
+            is_placed: true,
+          },
+        });
+
+        if (updateResult.count !== orderIds.length) {
+          throw new ConflictException('Some orders could not be updated');
+        }
+
+        await tx.transaction.updateMany({
+          where: { orderId: { in: orderIds } },
+          data: { tx_status: TransactionStatus.PENDING },
+        });
+
+          const updatedOrders = await tx.order.findMany({
+            where: { id: { in: orderIds } },
+            select: {
+              id: true,
+              total_cost: true,
+            },
+          });
+
+
+        const totalAmount = updatedOrders.reduce(
+          (sum, o) => sum + Number(o.total_cost),
+          0,
+        );
+
+        return {
+          totalUpdated: updatedOrders.length,
+          orders: updatedOrders,
+          totalAmount,
+        };
+      });
+
+      // Bulk email
+      if (result.totalUpdated > 1 && user.email) {
+        await this.emailQueueService.queueBulkOrderPendingEmail({
+          userId: user.id,
+          email: user.email,
+          username: user.username ?? undefined,
+          orderIds,
+          totalOrders: result.totalUpdated,
+          totalAmount: result.totalAmount,
+        });
+      }
+
+      return result;
+    }
+
+
+
+
 
 
   // order update for admin
@@ -1000,72 +1079,6 @@ export class OrderService {
     });
   }
    
-  // mark as pending
-  async markOrdersAsPending(
-      userId: number,
-      dto: UpdatePendingOrdersDto,
-    ) {
-      const { orderIds } = dto;
-
-      if (!orderIds?.length) {
-        throw new BadRequestException('Order IDs are required');
-      }
-
-      return this.prisma.$transaction(async (tx) => {
-        const updatedOrders: Order[] = [];
-
-        for (const id of orderIds) {
-          // 1. Check order exists
-          const order = await tx.order.findUnique({
-            where: { id },
-          });
-
-          if (!order) {
-            throw new NotFoundException(`Order ${id} not found`);
-          }
-
-          // 2. Already pending
-          if (order.order_status === OrderStatus.PENDING) {
-            throw new ConflictException(`Order ${id} is already PENDING`);
-          }
-
-          // 3. Update order → PENDING
-          const updatedOrder = await tx.order.update({
-            where: {
-              id,
-              userId,
-              isBulk:true,
-            },
-            data: {
-              order_status: OrderStatus.PENDING,
-              is_placed: true,
-            },
-          });
-
-          // 4. Update transaction → PENDING
-          const transaction = await tx.transaction.findFirst({
-            where: { orderId: id },
-          });
-
-          if (transaction) {
-            await tx.transaction.update({
-              where: { id: transaction.id },
-              data: {
-                tx_status: TransactionStatus.PENDING,
-              },
-            });
-          }
-
-          updatedOrders.push(updatedOrder);
-        }
-
-        return {
-          totalUpdated: updatedOrders.length,
-          orders: updatedOrders,
-        };
-      });
-    }
-
 
   // its permanently deleted by admin
   async remove(id: number) {
@@ -1167,20 +1180,12 @@ export class OrderService {
         // Get average rating from drivers for this customer
         const avgRating = await this.prisma.rateCustomer.aggregate({
           where: {
-            user_id: user.id
+            user_id: order.userId
           },
           _avg: {
             rating_star: true
           }
         });
-
-        // Check if driver follows this customer (from past orders)
-        // const isFollower = await this.prisma.driverFollowsCustomer.findFirst({
-        //   where: {
-        //     driver_id: driver.id, // Current driver who accepted the order
-        //     customer_id: user.id
-        //   }
-        // });
 
         // Default rating for new customers (no ratings yet)
         const customerRating = avgRating._avg.rating_star ?? 3.0;
@@ -1191,7 +1196,6 @@ export class OrderService {
         // Calculate score components (normalized to 0-5 scale for consistency)
         const newCustomerScore = isNewCustomer ? 0 : 5; // New customer = 0, Existing = 5
         const completedOrdersScore = Math.min(orderCount / 10, 1) * 5; // Scale: 0-5 based on orders
-        // const followerScore = isFollower ? 5 : 0; // Is follower = 5, Not follower = 0
 
         // Apply weights (convert percentage to decimal)
         const score = 
@@ -1338,76 +1342,111 @@ export class OrderService {
 
     
   //  stats dashboard
-  async getOrderStats() {
-  const [totalOrders, ongoing, scheduled, pending] = await this.prisma.$transaction([
-    // Total Orders
-    this.prisma.order.count(),
+    async getOrderStats() {
+    const [totalOrders, ongoing, scheduled, pending] = await this.prisma.$transaction([
+      // Total Orders
+      this.prisma.order.count(),
 
-    // Ongoing Orders (progressing states)
-    this.prisma.order.count({
-      where: {
-        order_status: {
-          in: [OrderStatus.ONGOING],
+      // Ongoing Orders (progressing states)
+      this.prisma.order.count({
+        where: {
+          order_status: {
+            in: [OrderStatus.ONGOING],
+          },
         },
-      },
-    }),
+      }),
 
-    // Scheduled Orders
-    this.prisma.order.count({
-      where: { collect_time:CollectTime.SCHEDULED  },
-    }),
+      // Scheduled Orders
+      this.prisma.order.count({
+        where: { collect_time:CollectTime.SCHEDULED  },
+      }),
 
-    // Pending Orders
-    this.prisma.order.count({
-      where: { order_status: OrderStatus.PENDING },
-    }),
-  ]);
+      // Pending Orders
+      this.prisma.order.count({
+        where: { order_status: OrderStatus.PENDING },
+      }),
+    ]);
 
-  return {
-    totalOrders,
-    ongoing,
-    scheduled,
-    pending,
-  };
-}
+    return {
+      totalOrders,
+      ongoing,
+      scheduled,
+      pending,
+    };
+  }
 
-// 
   // feed only order
-  async orderForFeed(
-        page: number = 1,
-        limit: number = 100,
-      ) {
-        const skip = (page - 1) * limit;
+    async orderForFeed(
+      userId: number,
+      page = 1,
+      limit = 100,
+    ) {
+      const skip = (page - 1) * limit;
+      const raider = await this.prisma.raider.findFirst({
+          where:{
+             userId
+          }
+      })
 
-        const [orders, total] = await this.prisma.$transaction([
-          this.prisma.order.findMany({
-            where:{
-                order_status:OrderStatus.PENDING,
-                is_placed:true
+      const [orders, total] = await this.prisma.$transaction([
+        this.prisma.order.findMany({
+          where: {
+            order_status: OrderStatus.PENDING,
+            is_placed: true,
+
+            // EXCLUDE declined orders for THIS raider only
+            NOT: {
+              declines: {
+                some: {
+                  raiderId:raider?.id,
+                },
+              },
             },
-            orderBy: { created_at: 'desc' },
-            include: { user: true , vehicle:true, destinations:true},
-            skip,
-            take: limit,
-          }),
-          
-          this.prisma.order.count({
-            where:{
-                order_status:OrderStatus.PENDING,
-                is_placed:true
-            }
-          }),
-        ]);
+          },
+          orderBy: { created_at: 'desc' },
+          include: {
+            user: true,
+            vehicle: true,
+            destinations: true,
+          },
+          skip,
+          take: limit,
+        }),
 
-        return {
-          data: orders,
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        };
-      }
+        this.prisma.order.count({
+          where: {
+            order_status: OrderStatus.PENDING,
+            is_placed: true,
+            NOT: {
+              declines: {
+                some: {
+                  raiderId:raider?.id,
+                },
+              },
+            },
+          },
+        }),
+      ]);
+
+      return {
+        data: orders,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    }
+
   
+  //order decline
+   async declineOrder(orderId: number, raiderId: number) {
+      return await this.prisma.orderDecline.create({
+        data: {
+          orderId,
+          raiderId,
+        },
+      });
+    }
 
 
   }

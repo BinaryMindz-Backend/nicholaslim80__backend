@@ -48,6 +48,7 @@ model Order {
 
   destinations            Destination[]
   transactions            Transaction[]
+  declines                OrderDecline[]
 
   rewards                 Reward[]
   // 

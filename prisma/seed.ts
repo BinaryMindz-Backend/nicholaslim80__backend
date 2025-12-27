@@ -56,6 +56,7 @@ enum Permission {
   GET_ORDER_DETAILS = 'get_order_details',
   ADD_DESTINATION_TO_ORDER = 'add_destination_to_order',
   CANCEL_ORDER = 'cancel_order',
+  DECLINE_ORDER="DECLINE_ORDER",
 
   // admin
   ORDER_READ_MINE = 'order_read_mine',
@@ -119,6 +120,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.ORDER, action: Permission.ORDER_READ_MINE },
     { module: Module.ORDER, action: Permission.ORDER_READ_FEED },
     { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS },
+    { module: Module.ORDER, action: Permission.DECLINE_ORDER },
     { module: Module.ORDER, action: Permission.CANCEL_ORDER },
     { module: Module.ORDER, action: Permission.DELETE },
     // RAIDER MODULE - FULL ACCESS
@@ -257,6 +259,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS },
     { module: Module.ORDER, action: Permission.ORDER_COMPITITION },
     { module: Module.ORDER, action: Permission.ORDER_READ_FEED },
+    { module: Module.ORDER, action: Permission.DECLINE_ORDER },
     // MY REFERAL MODULE  -- - limited access
     { module: Module.REFERRAL, action: Permission.CREATE },
     { module: Module.REFERRAL, action: Permission.READ },
