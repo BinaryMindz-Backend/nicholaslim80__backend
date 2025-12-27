@@ -526,6 +526,47 @@ export class OrderService {
       };
   }
 
+
+    // find raider order
+    async findRaiderMine(
+      userId: number,
+      page: number = 1,
+      limit: number = 20,
+      status?: OrderStatus,
+    ) {
+      const skip = (page - 1) * limit;
+      const raider = await this.prisma.raider.findFirst({
+           where:{userId:userId}
+      })
+      console.log(raider);
+      const [orders, total] = await this.prisma.$transaction([
+        this.prisma.order.findMany({
+          where: {
+            assign_rider_id:raider?.id,
+            ...(status && { order_status:status }), // filter if status provided
+          },
+          orderBy: { created_at: 'desc' },
+          include: { user: true, transactions: true },
+          skip,
+          take: limit,
+        }),
+        this.prisma.order.count({
+          where: {
+            assign_rider_id:raider?.id,
+            ...(status && { order_status:status }),
+          },
+        }),
+      ]);
+
+      return {
+        data: orders,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    }
+
   // admin only
   async findUserOrder(
         userId: number,
@@ -871,6 +912,8 @@ export class OrderService {
                 where: { id: transaction.id }, 
                 data: { tx_status: TransactionStatus.PENDING } 
               });
+              // 
+              // TODO:Need to cut money from wallet or pay methood and calculate platform fee
             }
 
             if (status === OrderStatus.CANCELLED) {
@@ -891,6 +934,9 @@ export class OrderService {
                 where: { userId: raider.id }, 
                 data: { completed_orders: { increment: 1 } } 
               });
+              // TODO: NEED TO PAYMENT ADD need TO ADD:CALCULATE PLATFORM FEE
+
+
             }
           }
 

@@ -260,6 +260,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.ORDER, action: Permission.ORDER_COMPITITION },
     { module: Module.ORDER, action: Permission.ORDER_READ_FEED },
     { module: Module.ORDER, action: Permission.DECLINE_ORDER },
+    { module: Module.ORDER, action: Permission.ORDER_READ_MINE },
     // MY REFERAL MODULE  -- - limited access
     { module: Module.REFERRAL, action: Permission.CREATE },
     { module: Module.REFERRAL, action: Permission.READ },
