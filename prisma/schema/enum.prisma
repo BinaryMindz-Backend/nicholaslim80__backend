@@ -54,6 +54,7 @@ enum OrderStatus {
   PROGRESS
   ONGOING
   FAILED
+  DISPUTE
 }
 
 enum DestinationType {

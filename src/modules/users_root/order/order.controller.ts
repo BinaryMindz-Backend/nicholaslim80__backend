@@ -30,6 +30,7 @@ import { Module, Permission } from 'src/rbac/rbac.constants';
 import type { Response } from 'express';
 import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
+import { RaiderOrdersFilterDto } from './dto/raider-filter.dto';
 
 @ApiTags('Order (User and admin)')
 @Controller('order')
@@ -185,6 +186,33 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to fetch orders');
     }
   }
+
+    // GET MY ORDERS
+    @Get('raider/mine')
+    @Auth()
+    @RequirePermission(Module.ORDER, Permission.ORDER_READ_MINE)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get logged-in user orders with optional filter' })
+    @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
+    async findRaiderMine(
+      @CurrentUser() user: IUser,
+      @Query() filter: RaiderOrdersFilterDto,
+    ) {
+      try {
+        const orders = await this.orderService.findRaiderMine(
+          +user.id,
+          filter.page,
+          filter.limit,
+          filter.status,
+        );
+        return ApiResponses.success(orders, 'Orders retrieved successfully');
+      } catch (err) {
+        return ApiResponses.error(err, 'Failed to fetch orders');
+      }
+    }
+
+
+
     //find all bulk
     @Get('bulk')
     @Auth()
