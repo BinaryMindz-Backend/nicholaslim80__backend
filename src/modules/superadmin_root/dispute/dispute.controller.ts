@@ -1,34 +1,37 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DisputeService } from './dispute.service';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
-import { UpdateDisputeDto } from './dto/update-dispute.dto';
+import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
+import { DisputeQueryDto } from './dto/dispute-query.dto';
+import { Auth } from 'src/decorators/auth.decorator';
 
-@Controller('dispute')
+@ApiTags('Disputes')
+@Controller('disputes')
 export class DisputeController {
-  constructor(private readonly disputeService: DisputeService) { }
+  constructor(private readonly service: DisputeService) {}
 
-  @Post('create')
-  async create(@Body() createDisputeDto: CreateDisputeDto) {
-    return await this.disputeService.create(createDisputeDto);
+  @Post()
+  @ApiOperation({ summary: 'Create dispute (User / Rider)' })
+  @Auth()
+  @ApiBearerAuth()
+  create(@Body() dto: CreateDisputeDto) {
+    return this.service.create(dto);
   }
 
   @Get()
-  async findAll() {
-    return await this.disputeService.findAll();
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get disputes (User / Rider / Admin)' })
+  findAll(@Query() query: DisputeQueryDto) {
+    return this.service.findAll(query);
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return await this.disputeService.findOne(+id);
-  }
-
-  @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateDisputeDto: UpdateDisputeDto) {
-    return await this.disputeService.update(+id, updateDisputeDto);
-  }
-
-  @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return await this.disputeService.remove(+id);
+  @Post('resolve')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Resolve dispute (Admin)' })
+  resolve(@Body() dto: ResolveDisputeDto) {
+    return this.service.resolve(dto);
   }
 }

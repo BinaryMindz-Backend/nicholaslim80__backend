@@ -19,7 +19,6 @@ import { RidersProfileModule } from './modules/raider_root/riders_profile/riders
 import { QuizModule } from './modules/superadmin_root/quiz/quiz.module';
 import { QuestionsModule } from './modules/superadmin_root/questions/questions.module';
 import { PlatformFeeModule } from './modules/superadmin_root/platform_fee/platform_fee.module';
-
 import { MessageModule } from './modules/message/message.module';
 import { JwtModule } from '@nestjs/jwt';
 import { StripeModule } from './modules/stripe_root/stripe/stripe.module';
@@ -117,7 +116,7 @@ import { BullModule } from '@nestjs/bullmq';
     WalletModule,
     ReportAndAnalyticsModule,
     RaiderRankModule,
-    QueueModule
+    QueueModule,
 
 
   ],
