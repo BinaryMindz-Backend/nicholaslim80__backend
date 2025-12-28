@@ -177,7 +177,7 @@ export class AuthService {
 
 
   // reset password
-  async resetPassword(email: string, phone: string, newPassword: string) {
+  async forgotResetPassword(email: string, phone: string, newPassword: string) {
     // 
     // console.log(phone, newPassword);
     // 
@@ -208,5 +208,34 @@ export class AuthService {
     });
     return { message: 'Password reset successful' };
   }
+  // 
+    async resetPassword(user:IUser,oldPassword:string, newPassword: string) {
+    // 
+    // console.log(phone, newPassword);
+    // 
+    const userExist = await this.prisma.user.findFirst({
+      where: {
+          id:user.id
+      },
+    });
+    if (!userExist) throw new BadRequestException('Invalid User');
 
+    // if (user.reset_pass === false) {
+    //   throw new NotAcceptableException("Please verify your account through Otp")
+    // }
+    //  
+    const hashed = await bcrypt.hash(newPassword, 10);
+    const record = await bcrypt.compare(oldPassword, userExist.password as string);
+    if (!record) throw new NotAcceptableException('Old Password is Wrong');
+    // 
+    await this.prisma.user.update({
+      where: {
+          id:user.id
+      },
+      data: {
+        password: hashed,
+      },
+    });
+    return { message: 'Password reset successful' };
+  }
 }
