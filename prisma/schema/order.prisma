@@ -57,7 +57,7 @@ model Order {
   rate_raiders            RateRaider?
   rate_customers          RateCustomer?
   tips                    Tip[]
-  dispute                 Dispute? @relation("OrderDispute")
+  dispute                 Dispute?
 
   created_at              DateTime @default(now())
   updated_at              DateTime @updatedAt
