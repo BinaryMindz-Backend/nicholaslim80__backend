@@ -111,7 +111,8 @@ export class ServiceZoneService {
         coordinates: true, // JSON
       },
     });
-
+  //  
+  console.log("from service zone--->", zones);
     const pt = point([lng, lat]);
 
     for (const zone of zones) {

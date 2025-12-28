@@ -13,7 +13,7 @@ model serviceZone {
   updatedAt       DateTime @updatedAt
 
   // 
-  orders      Order[]
+  orders          Order[]
 
   destinations    Destination[]
 }

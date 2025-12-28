@@ -87,7 +87,7 @@ export class WalletService {
 
 
     // ---------- Add Money ----------
-    async addMoney(userId: number, amount: number, paymentMethodId?: string) {
+    async addMoney(userId: number, amount: number, paymentMethodId?: string, payType?:string) {
         // console.log("strip-->",paymentMethodId,amount);
     // Fetch user
     const user = await this.prisma.user.findUnique({
@@ -130,26 +130,28 @@ export class WalletService {
         confirm: true,
     });
 
-    //  Record in wallet history
-    await this.prisma.walletHistory.create({
-        data: {
-            userId,
-            type: 'credit',
-            amount,
-            status: 'SUCCESS',
-            transactionType: WalletTransactionType.PAYMENT,
-            transactionId: paymentIntent.id,
-        },
-    });
+    if(payType === "ADD_MONEY"){
+        //  Record in wallet history
+        await this.prisma.walletHistory.create({
+            data: {
+                userId,
+                type: 'credit',
+                amount,
+                status: 'SUCCESS',
+                transactionType: WalletTransactionType.PAYMENT,
+                transactionId: paymentIntent.id,
+            },
+        });
 
-    // Update wallet balance
-    await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-            totalWalletBalance: { increment: amount },
-            currentWalletBalance: { increment: amount },
-        },
-    });
+        // Update wallet balance
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                totalWalletBalance: { increment: amount },
+                currentWalletBalance: { increment: amount },
+            },
+        });
+    }
 
     return { message: 'Wallet credited successfully', amount };
 }
@@ -204,7 +206,7 @@ export class WalletService {
      }
 
     // pay with saved card 
-    async payWithSavedCard(userId: number, amount: number, paymentMethodId: string) {
+    async payWithSavedCard(userId: number, amount: number, paymentMethodId: string, payType?:string) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user?.stripeCustomerId) throw new BadRequestException('Stripe customer not found');
 
@@ -216,22 +218,30 @@ export class WalletService {
             off_session: true,
             confirm: true,
         });
+           //    
+            if(payType === "ADD_MONEY"){
+                //  Record in wallet history
+                await this.prisma.walletHistory.create({
+                    data: {
+                        userId,
+                        type: 'credit',
+                        amount,
+                        status: 'SUCCESS',
+                        transactionType: WalletTransactionType.PAYMENT,
+                        transactionId: paymentIntent.id,
+                    },
+                });
 
-        await this.prisma.walletHistory.create({
-            data: {
-            userId,
-            type: 'credit',
-            amount,
-            status: 'SUCCESS',
-            transactionType: WalletTransactionType.PAYMENT,
-            transactionId: paymentIntent.id,
-            },
-        });
+                // Update wallet balance
+                await this.prisma.user.update({
+                    where: { id: userId },
+                    data: {
+                        totalWalletBalance: { increment: amount },
+                        currentWalletBalance: { increment: amount },
+                    },
+                });
+            }
 
-        await this.prisma.user.update({
-            where: { id: userId },
-            data: { totalWalletBalance: { increment: amount }, currentWalletBalance: { increment: amount } },
-        });
 
         return { amount, message: 'Wallet credited successfully' };
         }

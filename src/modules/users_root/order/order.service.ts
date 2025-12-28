@@ -20,6 +20,7 @@ import { ServiceZoneService } from 'src/modules/superadmin_root/service-zone/ser
 import { GeoService } from 'src/utils/geo-location.utils';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
+import { getReceiversWithPrice, Receiver } from 'src/utils/distance.util';
 
 
 
@@ -37,6 +38,17 @@ export class OrderService {
   ) {}
 
     async create(dto: CreateOrderDto, user:IUser) {
+        // TODO:need to check service zone
+        // TODO:need to calculate distance
+        // TODO: need to check delivery type
+        // TODO: need to check vechicle type and calculate
+
+
+
+
+
+
+
       //
       if(dto.pay_type === PayType.ONLINE_PAY && dto.payment_method_id === undefined){
           // 
@@ -77,8 +89,8 @@ export class OrderService {
               const order = await tx.order.create({
                     data:{
                       ...dto,
-                      userId:user.id
-
+                      userId:user.id,
+                      serviceZoneId:1 //TODO:need to check
                     }
             })
               // 
@@ -118,23 +130,25 @@ export class OrderService {
 
     }
     
-    // 
+    // **COMPLETED 
     async createOrder(payload: CreateIndiOrderDto, user: IUser) {
       // 
       const geocodedDestinations: DestinationInput[] = [];
       let orderServiceZoneId: number | null = null;
 
       for (const d of payload.destinations) {
-        let lat = d.latitude;
-        let lng = d.longitude;
-        let formattedAddress = d.addressFromApr;
+          let lat = d.latitude;
+          let lng = d.longitude;
+          let formattedAddress = d.addressFromApr;
 
-        if (!lat || !lng) {
-          const geo = await this.geoServices.getLatLngFromAddress(d.address ?? '');
-          lat = geo.lat;
-          lng = geo.lng;
-          formattedAddress = geo.formattedAddress;
-        }
+          if (!lat || !lng) {
+            const geo = await this.geoServices.getLatLngFromAddress(d.address ?? '');
+            lat = geo.lat;
+            lng = geo.lng;
+            formattedAddress = geo.formattedAddress;
+
+            console.log("geocoded ->", lat, lng, formattedAddress); // <-- log after assignment
+          }
 
         const zone = await this.serviceZone.findZoneByPoint(lat, lng);
         // Assign order service zone from SENDER destination
@@ -162,11 +176,27 @@ export class OrderService {
         throw new Error('Pickup location is outside service zone');
       }
 
+      // Collect all receivers (exclude SENDER if you want sender → receiver)
+      const receiverDestinations: Receiver[] = geocodedDestinations
+        .filter(d => d.type !== DestinationType.SENDER)
+        .map(d => ({ lat: d.latitude!, lng: d.longitude! }));
+      // 
+      const receiversWithPrice = await getReceiversWithPrice(
+        geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.latitude!,
+        geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.longitude!,
+        receiverDestinations,
+        payload.delivery_type,  
+        payload.vehicle_type_id
+      );
+
+      // Calculate total cost for the order
+      const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.price, 0);
+       
       const res = await this.prisma.$transaction(async (tx) => {
         // Create order WITH service zone
         const order = await tx.order.create({
-          data: {
-            serviceZoneId: orderServiceZoneId,
+          data: {                                                               
+            serviceZoneId:Number(orderServiceZoneId),
             userId: user.id,
             route_type: payload.route_type,
             delivery_type: payload.delivery_type,
@@ -175,9 +205,9 @@ export class OrderService {
             scheduled_time:payload.scheduled_time,
             vehicle_type_id: payload.vehicle_type_id,
             payment_method_id: payload.payment_method_id,
-            total_cost: payload.total_cost,
-            isFixed: payload.isFixed,
-            pick_up_items: payload.pick_up_items,
+            total_cost: isNaN(Number(totalCost)) ? 0 : parseFloat(Number(totalCost).toFixed(3)),
+            isFixed: payload.isFixed,                                       
+            order_status:OrderStatus.PROGRESS,
           },
         });
 
@@ -199,7 +229,7 @@ export class OrderService {
               latitude: d.latitude!,
               longitude: d.longitude!,
               accuracy: d.accuracy ?? null,
-              service_zoneId: d.service_zoneId,
+              // service_zoneId: d.service_zoneId,
             },
           });
 
