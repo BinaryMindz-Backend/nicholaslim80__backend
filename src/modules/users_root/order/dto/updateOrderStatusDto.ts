@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { ArrayNotEmpty, IsArray, IsEnum, IsInt } from 'class-validator';
-import { OrderStatus } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ArrayNotEmpty, IsArray, IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { OrderStatus, PaymentType, PayType } from '@prisma/client';
 import { Type } from 'class-transformer';
 
 export class UpdateOrderStatusDto {
@@ -10,6 +10,20 @@ export class UpdateOrderStatusDto {
   })
   @IsEnum(OrderStatus, { message: 'Invalid order status value' })
   status: OrderStatus;
+
+  @ApiProperty({ enum:PaymentType, default:PaymentType.PAYMENT })
+  @IsEnum(PaymentType)
+  payType?:PaymentType;
+  
+  @ApiProperty({ enum:PayType, default:PayType.ONLINE_PAY })
+  @IsEnum(PayType)
+  paymentMethod?:PayType;
+  
+  @ApiPropertyOptional({ example: 'pm_1Nxxxxxx', description: 'Optional saved Stripe payment method ID' })
+  @IsOptional()
+  @IsString()
+  paymentMethodId?: string;
+
 }
 
 

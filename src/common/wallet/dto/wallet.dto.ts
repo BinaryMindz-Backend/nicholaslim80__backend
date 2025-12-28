@@ -1,11 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PaymentType } from '@prisma/client';
 import { IsNumber, IsOptional, IsString, IsBoolean, Min, IsEnum } from 'class-validator';
 
 
-export enum payType {
-    PAYMENT="PAYMENT",
-    ADD_MONEY="ADD_MONEY"
-}
 
 
 // ---------------- Add Money ----------------
@@ -20,9 +17,9 @@ export class AddMoneyDto {
     @IsString()
     paymentMethodId?: string;
 
-    @ApiProperty({ enum:payType, default:payType.PAYMENT })
-    @IsEnum(payType)
-    payType?:payType
+    @ApiProperty({ enum:PaymentType, default:PaymentType.PAYMENT })
+    @IsEnum(PaymentType)
+    payType?:PaymentType
 }
 
 // ---------------- Save Payment Method ----------------
@@ -63,9 +60,9 @@ export class SavePaymentMethodDto {
     @IsNumber()
     amount: number;          // amount to pay
      
-    @ApiProperty({ enum:payType, default:payType.PAYMENT })
-    @IsEnum(payType)
-    payType?:payType
+    @ApiProperty({ enum:PaymentType, default:PaymentType.PAYMENT })
+    @IsEnum(PaymentType)
+    payType?:PaymentType
     }
 
 

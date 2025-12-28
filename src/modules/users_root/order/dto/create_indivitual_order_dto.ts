@@ -48,8 +48,9 @@ export class CreateIndiOrderDto {
   scheduled_time?: Date;
 
 
-  @ApiProperty({ example: 250.50 })
+  @ApiPropertyOptional({ example: 250.50 })
   @IsNumber()
+  @IsOptional()
   total_cost: number;
 
   @ApiProperty({ example: false })
@@ -72,8 +73,9 @@ export class CreateIndiOrderDto {
   @IsOptional()
   payment_method_id?: number;
    
-  @ApiProperty({ enum: PayType, default: PayType.COD })
+  @ApiPropertyOptional({ enum: PayType, default: PayType.COD })
   @IsEnum(PayType)
+  @IsOptional()
   pay_type: PayType ;
 
   @ApiProperty({ example: ["link1", "link2"] })

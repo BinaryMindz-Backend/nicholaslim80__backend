@@ -473,7 +473,16 @@ export class UsersService {
   // ** Get user by user id
   async findMe(user: IUser) {
     if (!user.id) throw new NotFoundException("User id not found")
-    return await this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include: { raiderProfile: true, role: true, adminProfiles: true } });
+    return await this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include: { raiderProfile: {
+        select:{
+             id:true,
+             raider_status:true,
+             isSuspended:true,
+             rank:true,
+             raider_verificationFromAdmin:true,
+             registrations:true
+        }
+  }, role: true, adminProfiles: true, } });
   }
 
 

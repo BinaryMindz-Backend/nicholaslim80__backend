@@ -6,7 +6,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DestinationInput, IUser } from 'src/types';
-import { CollectTime, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -21,6 +21,7 @@ import { GeoService } from 'src/utils/geo-location.utils';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { getReceiversWithPrice, Receiver } from 'src/utils/distance.util';
+import { WalletService } from 'src/common/wallet/wallet.service';
 
 
 
@@ -33,7 +34,8 @@ export class OrderService {
      private redisService: RedisService,
      private readonly serviceZone: ServiceZoneService,
      private readonly geoServices:GeoService,
-     private readonly emailQueueService:EmailQueueService
+     private readonly emailQueueService:EmailQueueService,
+     private readonly walletService:WalletService
 
   ) {}
 
@@ -200,7 +202,7 @@ export class OrderService {
             userId: user.id,
             route_type: payload.route_type,
             delivery_type: payload.delivery_type,
-            pay_type: payload.pay_type,
+            // pay_type: payload.pay_type,
             collect_time: payload.collect_time,
             scheduled_time:payload.scheduled_time,
             vehicle_type_id: payload.vehicle_type_id,
@@ -568,7 +570,7 @@ export class OrderService {
       const raider = await this.prisma.raider.findFirst({
            where:{userId:userId}
       })
-      console.log(raider);
+      // console.log(raider);
       const [orders, total] = await this.prisma.$transaction([
         this.prisma.order.findMany({
           where: {
@@ -878,102 +880,128 @@ export class OrderService {
     }
     // 
     async updateOrderStatus(
-        id: number,
-        userId: number,
-        dto: UpdateOrderStatusDto,
-        raider: IUser
+              orderId: number,
+              userId: number,
+              dto: UpdateOrderStatusDto,
+              raider: IUser,
+              payType?: PaymentType,
+              paymentMethod?: PayType,
+              stripePaymentMethodId?: string,
       ) {
-
         const { status } = dto;
 
-        // 1. VALIDATIONS
-        
-        // Check order exists
-        const order = await this.prisma.order.findUnique({ 
-          where: { id },
+        // 1. Fetch order
+        const order = await this.prisma.order.findFirst({
+          where: {
+            id:orderId,
+            userId,
+            order_status: OrderStatus.PROGRESS,
+          },
           select: {
             id: true,
             userId: true,
             order_status: true,
             total_cost: true,
-          }
+          },
         });
 
         if (!order) {
-          throw new NotFoundException('Order not found');
+          throw new NotFoundException('Order not found or not in progress');
         }
 
-        // Check if already same status
         if (order.order_status === status) {
-          throw new ConflictException(`This order is already ${status}`);
+          throw new ConflictException(`Order already ${status}`);
         }
 
-        // 2. PREPARE UPDATE DATA        
-        let extraData: any = {};
-        
-        if (status === OrderStatus.PENDING) {
-          extraData = { is_placed: true };
-        }
-        
-        if (status === OrderStatus.CANCELLED) {
-          extraData = { is_placed: false };
-        }
-
-        // 3. UPDATE ORDER IN TRANSACTION        
+        // 2. Transaction
         const updatedOrder = await this.prisma.$transaction(async (tx) => {
-          // Update order status
-          const updatedStatus = await tx.order.update({
-            where: { id, userId },
-            data: { 
-              order_status: status, 
-              ...extraData 
-            },
-          });
+          /** ---------------- PAYMENT ---------------- */
+          if (status === OrderStatus.PENDING && payType === PaymentType.PAYMENT) {
+            // ONLINE PAYMENT
+            if (paymentMethod === PayType.ONLINE_PAY) {
+              if (!stripePaymentMethodId) {
+                throw new BadRequestException('Stripe payment method required');
+              }
 
-          // Update related transaction
-          const transaction = await tx.transaction.findFirst({ 
-            where: { orderId: id } 
-          });
+              const paid = await this.walletService.addMoney(
+                userId,
+                Number(order.total_cost),
+                stripePaymentMethodId,
+                payType,
+              );
 
-          if (transaction) {
-            // Update transaction status based on order status
-            if (status === OrderStatus.PENDING) {
-              await tx.transaction.update({ 
-                where: { id: transaction.id }, 
-                data: { tx_status: TransactionStatus.PENDING } 
-              });
-              // 
-              // TODO:Need to cut money from wallet or pay methood and calculate platform fee
+              if (!paid) {
+                throw new BadRequestException('Online payment failed');
+              }
             }
 
-            if (status === OrderStatus.CANCELLED) {
-              await tx.transaction.update({ 
-                where: { id: transaction.id }, 
-                data: { tx_status: TransactionStatus.FAILED } 
-              });
-            }
-
-            if (status === OrderStatus.COMPLETED) {
-              await tx.transaction.update({ 
-                where: { id: transaction.id }, 
-                data: { tx_status: TransactionStatus.COMPLETED } 
+            // WALLET PAYMENT
+            if (paymentMethod === PayType.WALLET) {
+              const user = await tx.user.findUnique({
+                where: { id: userId },
+                select: { currentWalletBalance: true },
               });
 
-              // Increment raider's completed orders
-              await tx.raider.update({ 
-                where: { userId: raider.id }, 
-                data: { completed_orders: { increment: 1 } } 
+              if (!user || Number(user.currentWalletBalance) < Number(order.total_cost)) {
+                throw new BadRequestException('Insufficient wallet balance');
+              }
+
+              await tx.user.update({
+                where: { id: userId },
+                data: {
+                  currentWalletBalance: {
+                    decrement: Number(order.total_cost),
+                  },
+                },
               });
-              // TODO: NEED TO PAYMENT ADD need TO ADD:CALCULATE PLATFORM FEE
-
-
             }
           }
 
-          return updatedStatus;
+          /** ---------------- ORDER UPDATE ---------------- */
+          const updatedOrder = await tx.order.update({
+            where: { id:orderId },
+            data: {
+              order_status: status,
+              is_placed: status === OrderStatus.PENDING,
+              pay_type: paymentMethod,
+            },
+          });
+
+          /** ---------------- TRANSACTION UPDATE ---------------- */
+          const transaction = await tx.transaction.findFirst({
+            where: { orderId },
+          });
+
+          if (transaction) {
+            await tx.transaction.update({
+              where: { id: transaction.id },
+              data: {
+                tx_status:
+                  status === OrderStatus.PENDING
+                    ? TransactionStatus.PENDING
+                    : status === OrderStatus.CANCELLED
+                    ? TransactionStatus.FAILED
+                    : status === OrderStatus.COMPLETED
+                    ? TransactionStatus.COMPLETED
+                    : transaction.tx_status,
+              },
+            });
+          }
+
+          /** ---------------- RAIDER UPDATE ---------------- */
+          if (status === OrderStatus.COMPLETED) {
+            await tx.raider.update({
+              where: { userId: raider.id },
+              data: {
+                completed_orders: { increment: 1 },
+              },
+            });
+          }
+
+          return updatedOrder;
         });
 
-        // 4. QUEUE NOTIFICATIONS (AFTER TRANSACTION)
+     // 4. QUEUE NOTIFICATIONS (AFTER TRANSACTION)
 
         // Get user info for notifications
         const user = await this.prisma.user.findUnique({ 
@@ -1022,8 +1050,8 @@ export class OrderService {
           }
         }
 
-        return updatedOrder;
-      }
+  return updatedOrder;
+}
 
   
   // mark bulk order as pending
