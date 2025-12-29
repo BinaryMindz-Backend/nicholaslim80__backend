@@ -159,6 +159,7 @@ enum DeliveryTypeName {
   STANDARD
   EXPRESS
   STACKED
+  SCHEDULED
 }
 
 enum PermissionAction {
@@ -225,6 +226,7 @@ enum FeeAppliesType {
   EXPRESS_ORDERS
   SCHEDULED_ORDERS
   STACKED_ORDERS
+  STANDARD_ORDERS
 }
 
 enum Condition {

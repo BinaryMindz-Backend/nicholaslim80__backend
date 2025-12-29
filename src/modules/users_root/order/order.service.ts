@@ -184,6 +184,7 @@ export class OrderService {
         .map(d => ({ lat: d.latitude!, lng: d.longitude! }));
       // 
       const receiversWithPrice = await getReceiversWithPrice(
+        this.prisma,
         geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.latitude!,
         geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.longitude!,
         receiverDestinations,
@@ -433,6 +434,7 @@ export class OrderService {
 
           // Calculate price
           const receiversWithPrice = await getReceiversWithPrice(
+            this.prisma,
             senderLat!,
             senderLng!,
             [{ lat: receiverLat!, lng: receiverLng! }],
