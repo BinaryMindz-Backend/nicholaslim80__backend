@@ -40,6 +40,15 @@ export class IncentiveService {
     const res = await this.prisma.incentive.findMany({})
     return res;
   }
+  // 
+  async findAllIncentive() {
+
+
+
+    // 
+    const res = await this.prisma.incentive.findMany({})
+    return res;
+  }
 
 
   // 

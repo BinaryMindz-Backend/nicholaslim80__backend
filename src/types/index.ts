@@ -1,6 +1,6 @@
 // import {UserRole } from '@prisma/client';
 
-import { CollectTime, DeliveryTypeName, Destination, DestinationType, Order, PayType, RouteType, Transaction } from "@prisma/client";
+import { CollectTime, DeliveryTypeName, Destination, DestinationType, FeeAppliesType, Order, PayType, RouteType, Transaction } from "@prisma/client";
 
 
 export interface IUserRole {
@@ -115,3 +115,58 @@ export interface DeliveryZone {
   updatedAt: string; // ISO date string
 }
 
+/* =======================
+   TYPES & INTERFACES
+======================= */
+
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
+
+export interface Vehicle {
+  base_price: number;
+  per_km_price: number;
+  peak_pricing?: boolean;
+}
+
+export interface DeliveryType {
+  percentage: number;
+}
+
+export interface DeliveryZone {
+  zoneName: string;
+  priority: number;
+  minOrderAmmount: number;
+  deliveryFee: number;
+}
+
+export interface AppliedFee {
+  id: number;
+  fee_name: string;
+  applies_to: FeeAppliesType;
+  amount: number;
+}
+
+
+/* ---------------------------------- types --------------------------------- */
+
+export interface Receiver {
+  lat: number;
+  lng: number;
+}
+
+export interface PricingBreakdown {
+  basePrice: number;
+  deliveryTypeCharge: number;
+  userFeeTotal: number;
+  zoneFee: number;
+  totalFee: number;
+  totalPrice: number;
+}
+
+export interface ReceiverWithPricing extends Receiver {
+  distanceKm: number;
+  durationMin: number;
+  pricing: PricingBreakdown;
+}

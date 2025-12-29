@@ -4,7 +4,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException, 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { DeliveryZone, DestinationInput, IUser } from 'src/types';
+import { DeliveryZone, DestinationInput, IUser, Receiver } from 'src/types';
 import { CollectTime, DeliveryTypeName, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
@@ -19,7 +19,7 @@ import { GeoService } from 'src/utils/geo-location.utils';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { WalletService } from 'src/common/wallet/wallet.service';
-import { getReceiversWithPrice, Receiver } from 'src/utils/distance-pricing.util';
+import { getReceiversWithPrice } from 'src/utils/distance-pricing.util';
 import csvParser from 'csv-parser';
 
 
@@ -193,8 +193,16 @@ export class OrderService {
         orderServiceZone,
       );
 
-      // Calculate total cost for the order
-      const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.price, 0);
+       // Calculate total cost for the order
+       const totalCost = receiversWithPrice.reduce(
+                (sum, r) => sum + r.pricing.totalPrice,
+                0
+              );
+
+       const totalFee = receiversWithPrice.reduce(
+                (sum, r) => sum + r.pricing.totalFee,
+                0
+              );
        
       const res = await this.prisma.$transaction(async (tx) => {
         // Create order WITH service zone
@@ -210,6 +218,7 @@ export class OrderService {
             vehicle_type_id: payload.vehicle_type_id,
             payment_method_id: payload.payment_method_id,
             total_cost: isNaN(Number(totalCost)) ? 0 : parseFloat(Number(totalCost).toFixed(3)),
+            total_fee:totalFee,
             isFixed: payload.isFixed,                                       
             order_status:OrderStatus.PROGRESS,
           },
@@ -442,7 +451,16 @@ export class OrderService {
             row.vehicle_type_id ? Number(row.vehicle_type_id) : 1,
             zone
           );
-          const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.price, 0);
+          const totalCost = receiversWithPrice.reduce(
+                (sum, r) => sum + r.pricing.totalPrice,
+                0
+              );
+
+          const totalFee = receiversWithPrice.reduce(
+                (sum, r) => sum + r.pricing.totalFee,
+                0
+              );
+
 
           // Build sender & receiver destination
           const senderDest = {
@@ -483,6 +501,7 @@ export class OrderService {
             vehicle_type_id: row.vehicle_type_id ? Number(row.vehicle_type_id) : null,
             payment_method_id: row.payment_method_id ? Number(row.payment_method_id) : null,
             total_cost: totalCost,
+            total_fee: totalFee,
             order_status: row.order_status ?? OrderStatus.PROGRESS,
             isFixed: row.is_fixed === 'true',
             raider_confirmation: row.raider_confirmation === 'true',
