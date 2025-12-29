@@ -17,7 +17,7 @@ CREATE TYPE "NotificationType" AS ENUM ('ORDER_UPDATE', 'PROMOTION', 'GENERAL', 
 CREATE TYPE "RewardType" AS ENUM ('SHARE', 'COMPLETED', 'REFER', 'DAILY_LOGIN', 'FIRST_SIGNUP');
 
 -- CreateEnum
-CREATE TYPE "OrderStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'PENDING', 'PROGRESS', 'ONGOING', 'FAILED');
+CREATE TYPE "OrderStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'PENDING', 'PROGRESS', 'ONGOING', 'FAILED', 'DISPUTE');
 
 -- CreateEnum
 CREATE TYPE "DestinationType" AS ENUM ('SENDER', 'RECEIVER');
@@ -38,7 +38,7 @@ CREATE TYPE "DeliveryStatus" AS ENUM ('ON_TIME', 'LATE', 'DAMAGED', 'CANCELLED')
 CREATE TYPE "PaymentStatus" AS ENUM ('UNPAID', 'PAID', 'PENDING', 'FAILED');
 
 -- CreateEnum
-CREATE TYPE "TransactionType" AS ENUM ('BOOK_ORDER', 'REFUND', 'ADD_FUND', 'WITHDRAW', 'PROMO');
+CREATE TYPE "TransactionType" AS ENUM ('BOOK_ORDER', 'REFUND', 'ADD_FUND', 'WITHDRAW', 'PROMO', 'DISPUTE_REFUND', 'DISPUTE_COMPENSATION');
 
 -- CreateEnum
 CREATE TYPE "TransactionStatus" AS ENUM ('PENDING', 'COMPLETED', 'FAILED');
@@ -111,6 +111,18 @@ CREATE TYPE "WalletTransactionType" AS ENUM ('PAYOUT', 'PAYMENT', 'REFUND', 'DED
 
 -- CreateEnum
 CREATE TYPE "WalletTransactionStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED');
+
+-- CreateEnum
+CREATE TYPE "DisputeStatus" AS ENUM ('PENDING', 'UNDER_REVIEW', 'AWAITING_INFO', 'RESOLVED', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "DisputeCreatedBy" AS ENUM ('USER', 'RIDER');
+
+-- CreateEnum
+CREATE TYPE "DisputeIssueType" AS ENUM ('CUSTOMER_UNREACHABLE', 'WAITING_CHARGE', 'PICKUP_LOCATION_INCORRECT', 'DROPOFF_LOCATION_INCORRECT', 'SAFETY_ACCESS_ISSUE', 'ORDER_NOT_RECEIVED', 'WRONG_ITEM', 'DAMAGED_ITEM', 'PARTIAL_DELIVERY', 'MISDELIVERED', 'PAYMENT_DISPUTE', 'CUSTOMER_BEHAVIOR', 'CHARGED_AFTER_CANCEL');
+
+-- CreateEnum
+CREATE TYPE "DisputePriority" AS ENUM ('LOW', 'MEDIUM', 'HIGH');
 
 -- CreateEnum
 CREATE TYPE "MessageType" AS ENUM ('TEXT', 'IMAGE', 'PDF');
@@ -312,21 +324,22 @@ CREATE TABLE "destinations" (
 -- CreateTable
 CREATE TABLE "disputes" (
     "id" SERIAL NOT NULL,
-    "case_id" INTEGER NOT NULL,
-    "username" TEXT,
-    "issueType" TEXT,
-    "issue_date" TIMESTAMP(3),
-    "service_area_latitude" DECIMAL(10,7),
-    "service_area_longitude" DECIMAL(10,7),
-    "category" TEXT,
-    "priority" TEXT,
-    "notes" TEXT,
-    "isRefund" BOOLEAN NOT NULL DEFAULT false,
-    "total" DECIMAL(12,2),
-    "evidence_attach" JSONB,
-    "isClosed" BOOLEAN NOT NULL DEFAULT false,
+    "orderId" INTEGER,
+    "createdByType" "DisputeCreatedBy" NOT NULL,
+    "createdById" INTEGER NOT NULL,
+    "issueType" "DisputeIssueType" NOT NULL,
+    "description" TEXT,
+    "priority" "DisputePriority" NOT NULL,
+    "status" "DisputeStatus" NOT NULL DEFAULT 'PENDING',
+    "refundType" TEXT,
+    "refundAmount" DECIMAL(12,2),
+    "userPercent" INTEGER,
+    "riderPercent" INTEGER,
+    "resolvedByAdminId" INTEGER,
+    "resolvedAt" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "disputes_pkey" PRIMARY KEY ("id")
 );
@@ -988,10 +1001,13 @@ CREATE UNIQUE INDEX "coins_key_key" ON "coins"("key");
 CREATE UNIQUE INDEX "coin_acc_history_userId_key" ON "coin_acc_history"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "disputes_case_id_key" ON "disputes"("case_id");
+CREATE UNIQUE INDEX "disputes_orderId_key" ON "disputes"("orderId");
 
 -- CreateIndex
-CREATE INDEX "disputes_case_id_idx" ON "disputes"("case_id");
+CREATE INDEX "disputes_orderId_idx" ON "disputes"("orderId");
+
+-- CreateIndex
+CREATE INDEX "disputes_createdById_idx" ON "disputes"("createdById");
 
 -- CreateIndex
 CREATE INDEX "UserLogin_userId_loginAt_idx" ON "UserLogin"("userId", "loginAt");
@@ -1099,7 +1115,7 @@ ALTER TABLE "destinations" ADD CONSTRAINT "destinations_order_id_fkey" FOREIGN K
 ALTER TABLE "destinations" ADD CONSTRAINT "destinations_service_zoneId_fkey" FOREIGN KEY ("service_zoneId") REFERENCES "serviceZone"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "disputes" ADD CONSTRAINT "disputes_case_id_fkey" FOREIGN KEY ("case_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "disputes" ADD CONSTRAINT "disputes_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Driver_order_competition_change_logs" ADD CONSTRAINT "Driver_order_competition_change_logs_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "admins"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -25,7 +25,7 @@ export class WalletController {
         @Body() dto: AddMoneyDto,
         @CurrentUser() user: IUser
     ) {
-        const result = await this.walletService.addMoney(+user.id, dto.amount, dto.paymentMethodId);
+        const result = await this.walletService.addMoney(+user.id, dto.amount, dto.paymentMethodId, dto.payType);
         return ApiResponses.success(result, 'Money added to wallet successfully');
     }
     
@@ -52,7 +52,7 @@ export class WalletController {
     @CurrentUser() user: IUser
     ) {
     try {
-        const res = await this.walletService.payWithSavedCard(user.id, dto.amount, dto.paymentMethodId);
+        const res = await this.walletService.payWithSavedCard(user.id, dto.amount, dto.paymentMethodId, dto.payType);
         return ApiResponses.success(res, 'Payment successful');
     } catch (err) {
         console.log(err);

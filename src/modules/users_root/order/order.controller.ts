@@ -120,7 +120,7 @@ export class OrderController {
       @CurrentUser() user: IUser,
     ) {
       try {
-        const res = await this.orderService.bulkCreateOrdersFromCsv(dto, user);
+        const res = await this.orderService.bulkCreateOrdersFromCsv(dto, +user.id);
         return ApiResponses.success(res, "Bulk Order Created Successfully");
       } catch (error) {
         return ApiResponses.error(error, 'Failed to create order');
@@ -382,20 +382,20 @@ export class OrderController {
       }
 
 
-    @Patch('status/:id/orderId/:userId')
+    @Patch('status/:orderId/:userId')
     @Auth()
     @ApiBearerAuth()
     // @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
     @RequirePermission(Module.ORDER, Permission.UPDATE_ORDER_STATUS)
     @ApiOperation({ summary: 'Update order status' })
     async updateOrderStatus(
-      @Param('id') id: string,
+      @Param('orderId') orderId: string,
       @Body() dto: UpdateOrderStatusDto,
       @Param('userId') userId:string ,
       @CurrentUser() user:IUser
     ) {
       try {
-        const updated = await this.orderService.updateOrderStatus(+id, +userId, dto, user);
+        const updated = await this.orderService.updateOrderStatus(+orderId, +userId, dto, user, dto.payType, dto.paymentMethod, dto.paymentMethodId);
         return ApiResponses.success(updated, 'Order status updated successfully');
       } catch (err) {
         return ApiResponses.error(err, 'Failed to update order status');

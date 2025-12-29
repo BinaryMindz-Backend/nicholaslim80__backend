@@ -19,9 +19,6 @@ export class RidersProfileService {
 
   async create(userId: number, createRidersProfileDto: CreateRidersProfileDto) {
 
-
-
-
     // 
     const riderExists = await this.prisma.raider.findFirst({
       where: {
@@ -30,7 +27,17 @@ export class RidersProfileService {
     });
     //  
     if (!riderExists) {
-      throw new Error('Rider not found for the given user ID');
+      throw new NotFoundException('Rider not found for the given user ID');
+    }
+    // 
+    const r = await this.prisma.raiderRegistration.findFirst({
+         where:{
+             email_address:createRidersProfileDto.email_address
+         }
+    })
+    // 
+    if(r){
+        throw new ConflictException("Raider profile already exist")
     }
     const res = await this.prisma.raiderRegistration.create({
       data: {
@@ -202,16 +209,16 @@ export class RidersProfileService {
     });
 
     if (!raiderExists) {
-      throw new Error('Rider profile not found');
+      throw new NotFoundException('Rider profile not found');
     }
-
+    console.log(raiderExists);
     // find the registration for this raider
     const registration = await this.prisma.raiderRegistration.findFirst({
       where: { raiderId: Number(raiderExists.id) },
     });
     console.log({ registration });
     if (!registration) {
-      throw new Error('Rider registration not found for this rider');
+      throw new NotFoundException('Rider registration not found for this rider');
     }
 
     const res = await this.prisma.raiderRegistration.update({
@@ -253,7 +260,7 @@ export class RidersProfileService {
       include: { registrations: true },
     });
     if (!res) {
-      throw new Error('Rider profile not found');
+      throw new NotFoundException('Rider profile not found');
     }
 
 
@@ -275,9 +282,9 @@ export class RidersProfileService {
       where: { id: Number(id) },
       include: { registrations: true },
     });
-    console.log({ res });
+    // console.log({ res });
     if (!res) {
-      throw new Error('Rider profile not found');
+      throw new NotFoundException('Rider profile not found');
     }
 
 

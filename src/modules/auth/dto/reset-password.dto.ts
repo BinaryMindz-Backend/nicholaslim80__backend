@@ -18,6 +18,16 @@ export class ResetPasswordDto {
   @IsOptional()
   phone: string;
 
+
+  @ApiProperty({
+    example: 'oldSecurePassword123',
+    minLength: 5,
+    description: 'The old password (must be at least 5 characters)',
+  })
+  @IsString()
+  @MinLength(5)
+  oldPassword: string;
+
   @ApiProperty({
     example: 'newSecurePassword123',
     minLength: 6,

@@ -214,12 +214,26 @@ export class AuthController {
 
 
   // reset pass
-  @Post('reset-password')
+  @Post('forgot/reset-password')
   @Public()
-  async resetPassword(@Body() dto: ResetPasswordDto) {
+  async forgotResetPassword(@Body() dto: ResetPasswordDto) {
     //  
     try{
-       const res = await this.authService.resetPassword(dto.email,dto.phone, dto.newPassword);
+       const res = await this.authService.forgotResetPassword(dto.email,dto.phone, dto.newPassword);
+       return ApiResponses.success(res, 'Reset password successfully');
+    }catch(err){
+      console.log(err);
+       return ApiResponses.success(err, 'Failed to forget password');
+    }
+  }
+    // reset pass
+  @Post('reset-password')
+  @Auth()
+  @ApiBearerAuth()
+  async resetPassword(@Body() dto: ResetPasswordDto, @CurrentUser() user:IUser) {
+    //  
+    try{
+       const res = await this.authService.resetPassword(user,dto.oldPassword, dto.newPassword);
        return ApiResponses.success(res, 'Reset password successfully');
     }catch(err){
       console.log(err);

@@ -281,6 +281,13 @@ enum WalletTransactionStatus {
   SUCCESS
   FAILED
 }
+
+ enum PaymentType {
+    PAYMENT
+    ADD_MONEY
+}
+// 
+
 // 
 enum DisputeStatus {
   PENDING
