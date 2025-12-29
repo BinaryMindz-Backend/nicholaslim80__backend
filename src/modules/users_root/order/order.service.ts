@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/prefer-promise-reject-errors */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import { Parser } from 'json2csv';
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
@@ -6,24 +5,22 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DestinationInput, IUser } from 'src/types';
-import { CollectTime, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, DeliveryTypeName, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
 import { RedisService } from 'src/modules/auth/redis/redis.service';
 import { competitionQueue } from 'src/core/queues/competition.queue';
 import axios from 'axios';
-import csv from 'csv-parser';
 import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { ServiceZoneService } from 'src/modules/superadmin_root/service-zone/service-zone.service';
 import { GeoService } from 'src/utils/geo-location.utils';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
-import { getReceiversWithPrice, Receiver } from 'src/utils/distance.util';
 import { WalletService } from 'src/common/wallet/wallet.service';
-
-
+import { getReceiversWithPrice, Receiver } from 'src/utils/distance-pricing.util';
+import csvParser from 'csv-parser';
 
 
 @Injectable()
@@ -366,165 +363,161 @@ export class OrderService {
       return parser.parse(formatted_orders);
     }
 
-      // 
-  async bulkCreateOrdersFromCsv(
-      dto: BulkOrderWithDestinationsDto,
-      user: IUser,
-    ) {
-      if (!dto?.fileUrl.startsWith(process.env.BASE_URL as string)) {
+    // 
+    async bulkCreateOrdersFromCsv(dto: BulkOrderWithDestinationsDto, userId: number) {
+      if (!dto?.fileUrl.startsWith(process.env.BASE_URL!)) {
         throw new BadRequestException('Invalid file source');
       }
 
       const response = await axios.get(dto.fileUrl, { responseType: 'stream' });
-
-      const ordersData: any[] = [];
-      const destinationsData: any[] = [];
       const skippedRows: any[] = [];
+      const ordersToInsert: any[] = [];
+      const destinationsToInsert: any[] = [];
 
-      return new Promise((resolve, reject) => {
-        response.data
-          .pipe(csv())
-          .on('data', async (row) => {
-            try {
-              if (!row.delivery_type || !row.sender_address) {
-                skippedRows.push({ row, reason: 'Missing required delivery_type or sender_address' });
-                return;
-              }
+      const processRow = async (row: any) => {
+        try {
+          if (!row.delivery_type || !row.sender_address) {
+            skippedRows.push({ row, reason: 'Missing delivery_type or sender_address' });
+            return;
+          }
 
-              // Build order
-              const orderData = {
-                userId: user.id,
-                route_type: row.route_type,
-                delivery_type: row.delivery_type,
-                pay_type: row.pay_type,
-                isBulk :true,
-                collect_time: row.collect_time,
-                vehicle_type_id: row.vehicle_type_id ? Number(row.vehicle_type_id) : null,
-                payment_method_id: row.payment_method_id ? Number(row.payment_method_id) : null,
-                total_cost: Number(row.total_cost),
-                order_status: row.order_status ?? 'PROGRESS',
-                isFixed: row.is_fixed === 'true',
-                raider_confirmation: row.raider_confirmation === 'true',
-              };
-              //  
-               let senderLat: number | null = row.sender_latitude
-                    ? Number(row.sender_latitude)
-                    : null;
+          // Validate delivery_type
+          const deliveryTypeEnum = row.delivery_type as DeliveryTypeName;
+          const deliveryTypeExists = await this.prisma.deliveryType.findFirst({
+            where: { name: deliveryTypeEnum, is_active: true },
+          });
+          if (!deliveryTypeExists) {
+            skippedRows.push({ row, reason: `Invalid delivery_type: ${row.delivery_type}` });
+            return;
+          }
+          
+          // Sender coordinates
+          let senderLat = row.sender_address ? Number(row.sender_latitude) : null;
+          let senderLng = row.sender_longitude ? Number(row.sender_longitude) : null;
 
-                    let senderLng: number | null = row.sender_longitude
-                    ? Number(row.sender_longitude)
-                    : null;
-
-            // If CSV lat/lng missing → try DTO → then geo
-            if (!senderLat || !senderLng) {
-              const dtoSender = dto.destinations?.find(d => d.type === DestinationType.SENDER);
-
-              if (dtoSender?.latitude && dtoSender?.longitude) {
-                senderLat = dtoSender.latitude;
-                senderLng = dtoSender.longitude;
-              } else {
-                try {
-                  const geo = await this.geoServices.getLatLngFromAddress(
-                    row.sender_address || dtoSender?.address
-                  );
-
-                  senderLat = geo.lat;
-                  senderLng = geo.lng;
-                } catch {
-                  skippedRows.push({ row, reason: 'Sender location not found' });
-                  return;
-                }
-              }
+          if (!senderLat || !senderLng) {
+            const dtoSender = dto.destinations?.find(d => d.type === DestinationType.SENDER);
+            const geo = await this.geoServices.getLatLngFromAddress(row.sender_address ? row.sender_address:dtoSender?.address);
+            if (!geo) {
+              skippedRows.push({ row, reason: 'Cannot geocode sender address' });
+              return;
             }
+            senderLat = geo.lat;
+            senderLng = geo.lng;
+          }
 
+          // --- Service Zone ---
+          const zone = await this.serviceZone.findZoneByPoint(senderLat , senderLng!);
+          if (!zone) {
+            skippedRows.push({ row, reason: 'Sender is outside service zone' });
+            return;
+          }
 
-              // 
-              const dtoSender = dto.destinations?.find(d => d.type === DestinationType.SENDER);
+          // Receiver coordinates
+          let receiverLat = row.receiver_latitude ? Number(row.receiver_latitude) : null;
+          let receiverLng = row.receiver_longitude ? Number(row.receiver_longitude) : null;
 
-              const senderDest = {
-                user_id: user.id,
-                address: row.sender_address ?? dtoSender?.address,
-                contact_name: row.sender_contact_name ?? dtoSender?.contact_name,
-                contact_number: row.sender_contact_number ?? dtoSender?.contact_number,
-                floor_unit: row.sender_floor_unit ?? dtoSender?.floor_unit,
-                note_to_driver: row.sender_note_to_driver ?? dtoSender?.note_to_driver,
-                type: DestinationType.SENDER,
-                latitude: senderLat,
-                longitude: senderLng,
-                is_saved: false,
-                accuracy: row.sender_accuracy
-                  ? Number(row.sender_accuracy)
-                  : dtoSender?.accuracy ?? null,
-              };
-
-
-              // Receiver destination
-              let receiverLat = row.receiver_latitude ? Number(row.receiver_latitude) : null;
-              let receiverLng = row.receiver_longitude ? Number(row.receiver_longitude) : null;
-              if (!receiverLat || !receiverLng) {
-                try {
-                  const geo = await this.geoServices.getLatLngFromAddress(row.receiver_address);
-                  receiverLat = geo.lat;
-                  receiverLng = geo.lng;
-                } catch {
-                  skippedRows.push({ row, reason: 'Receiver address not found' });
-                  return;
-                }
-              }
-
-              const receiverDest = dto.destinations?.find(d => d.type === 'RECEIVER') ?? {
-                user_id: user.id,
-                address: row.receiver_address,
-                contact_name: row.receiver_contact_name,
-                contact_number: row.receiver_contact_number,
-                floor_unit: row.receiver_floor_unit,
-                note_to_driver: row.receiver_note_to_driver,
-                type: DestinationType.RECEIVER,
-                latitude: receiverLat,
-                longitude: receiverLng,
-                is_saved: false,
-                accuracy: row.receiver_accuracy ? Number(row.receiver_accuracy) : null,
-              };
-
-              ordersData.push(orderData);
-              destinationsData.push({ sender: senderDest, receiver: receiverDest });
-            } catch (err) {
-              skippedRows.push({ row, reason: err.message });
+          if (!receiverLat || !receiverLng) {
+            const geo = await this.geoServices.getLatLngFromAddress(row.receiver_address);
+            if (!geo) {
+              skippedRows.push({ row, reason: 'Cannot geocode receiver address' });
+              return;
             }
-          })
-          .on('end', async () => {
-            try {
-              const createdOrders = await this.prisma.$transaction(
-                ordersData.map((order) => this.prisma.order.create({ data: order })),
-              );
+            receiverLat = geo.lat;
+            receiverLng = geo.lng;
+          }
 
-              // Insert destinations
-              for (let i = 0; i < createdOrders.length; i++) {
-                const order = createdOrders[i];
-                const dest = destinationsData[i];
-                if (!dest) continue;
-                await this.prisma.destination.createMany({
-                  data: [
-                    { order_id: order.id, ...dest.sender ,user_id:user.id },
-                    { order_id: order.id, ...dest.receiver, user_id:user.id },
-                  ],
-                });
-              }
+          // Calculate price
+          const receiversWithPrice = await getReceiversWithPrice(
+            senderLat!,
+            senderLng!,
+            [{ lat: receiverLat!, lng: receiverLng! }],
+            deliveryTypeEnum,
+            row.vehicle_type_id ? Number(row.vehicle_type_id) : 1,
+          );
+          const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.price, 0);
 
-              resolve({
-                total_uploaded: ordersData.length + skippedRows.length,
-                success: createdOrders.length,
-                skipped: skippedRows,
-                message: 'Bulk orders processed successfully',
-              });
-            } catch (err) {
-              reject(err);
-            }
-          })
-          .on('error', reject);
-      });
+          // Build sender & receiver destination
+          const senderDest = {
+            user_id: userId,
+            type: DestinationType.SENDER,
+            latitude: senderLat,
+            longitude: senderLng,
+            address: row.sender_address,
+            contact_name: row.sender_contact_name || null,
+            contact_number: row.sender_contact_number || null,
+            floor_unit: row.sender_floor_unit || null,
+            note_to_driver: row.sender_note_to_driver || null,
+            is_saved: false,
+            accuracy: row.sender_accuracy ? Number(row.sender_accuracy) : null,
+          };
+          const receiverDest = {
+            user_id: userId,
+            type: DestinationType.RECEIVER,
+            latitude: receiverLat,
+            longitude: receiverLng,
+            address: row.receiver_address,
+            contact_name: row.receiver_contact_name || null,
+            contact_number: row.receiver_contact_number || null,
+            floor_unit: row.receiver_floor_unit || null,
+            note_to_driver: row.receiver_note_to_driver || null,
+            is_saved: false,
+            accuracy: row.receiver_accuracy ? Number(row.receiver_accuracy) : null,
+          };
+
+          // Build order
+          ordersToInsert.push({
+            userId,
+            route_type: row.route_type,
+            delivery_type: deliveryTypeEnum,
+            serviceZoneId: zone.id,
+            isBulk: true,
+            collect_time: row.collect_time,
+            vehicle_type_id: row.vehicle_type_id ? Number(row.vehicle_type_id) : null,
+            payment_method_id: row.payment_method_id ? Number(row.payment_method_id) : null,
+            total_cost: totalCost,
+            order_status: row.order_status ?? OrderStatus.PROGRESS,
+            isFixed: row.is_fixed === 'true',
+            raider_confirmation: row.raider_confirmation === 'true',
+          });
+
+          destinationsToInsert.push({ sender: senderDest, receiver: receiverDest, pricing: receiversWithPrice });
+
+        } catch (err: any) {
+          skippedRows.push({ row, reason: err.message });
+        }
+      };
+
+      // Stream CSV safely
+      const stream = response.data.pipe(csvParser());
+      for await (const row of stream) {
+        await processRow(row);
+      }
+
+      // Insert orders and destinations
+      const createdOrders = await this.prisma.$transaction(
+        ordersToInsert.map(order => this.prisma.order.create({ data: order })),
+      );
+        // 
+      for (let i = 0; i < createdOrders.length; i++) {
+        const order = createdOrders[i];
+        const dest = destinationsToInsert[i];
+        await this.prisma.destination.createMany({
+          data: [
+            { order_id: order.id, ...dest.sender },
+            { order_id: order.id, ...dest.receiver },
+          ],
+        });
+      }
+
+      return {
+        total_uploaded: ordersToInsert.length + skippedRows.length,
+        success: createdOrders.length,
+        skipped: skippedRows,
+        message: 'Bulk orders processed successfully',
+      };
     }
-
+  
     // find mine
    async findMine(
       userId: number,
@@ -1167,9 +1160,6 @@ export class OrderService {
 
       return result;
     }
-
-
-
 
 
 

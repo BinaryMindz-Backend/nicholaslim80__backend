@@ -120,7 +120,7 @@ export class OrderController {
       @CurrentUser() user: IUser,
     ) {
       try {
-        const res = await this.orderService.bulkCreateOrdersFromCsv(dto, user);
+        const res = await this.orderService.bulkCreateOrdersFromCsv(dto, +user.id);
         return ApiResponses.success(res, "Bulk Order Created Successfully");
       } catch (error) {
         return ApiResponses.error(error, 'Failed to create order');
