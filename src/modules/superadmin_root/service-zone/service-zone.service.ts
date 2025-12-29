@@ -5,6 +5,7 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { CreateServiceZoneDto } from './dto/create-service-zone.dto';
 import { UpdateServiceZoneDto } from './dto/update-service-zone.dto';
 import { booleanPointInPolygon, point, polygon } from '@turf/turf';
+import { DeliveryZone, LatLng } from 'src/types';
 
 type ZoneCoordinate = {
   lat: number;
@@ -103,14 +104,44 @@ export class ServiceZoneService {
 
   /* Geo Logic */
   async findZoneByPoint(lat: number, lng: number) {
-    const zones = await this.prisma.serviceZone.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        zoneName: true,
-        coordinates: true, // JSON
-      },
-    });
+      const rawZones = await this.prisma.serviceZone.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          zoneName: true,
+          coordinates: true, // JSON
+          deliveryFee: true,
+          priority: true,
+          color: true,
+          minOrderAmmount: true,
+          isActive: true,
+          notes: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      const zones: DeliveryZone[] = rawZones.map(zone => ({
+        id: zone.id,
+        name: zone.name ?? `Zone ${zone.id}`,  // default if null
+        zoneName: zone.zoneName,
+        coordinates: Array.isArray(zone.coordinates)
+          ? (zone.coordinates.map(c => {
+              const obj = c as unknown as { lat?: number; lng?: number };
+              return { lat: obj.lat ?? 0, lng: obj.lng ?? 0 };
+            }) as LatLng[])
+          : [],
+        deliveryFee: zone.deliveryFee,
+        priority: zone.priority ?? 1,
+        color: zone.color ?? '#000000',
+        minOrderAmmount: zone.minOrderAmmount ?? 0,
+        isActive: zone.isActive,
+        notes: zone.notes ?? '',
+        createdAt: zone.createdAt.toISOString(),
+        updatedAt: zone.updatedAt.toISOString(),
+      }));
+
   //  
   console.log("from service zone--->", zones);
     const pt = point([lng, lat]);

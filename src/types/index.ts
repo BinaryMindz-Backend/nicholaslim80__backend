@@ -93,3 +93,25 @@ export interface LatLng {
 
 export type performanceCountType = WeeklyPerformanceStat[];
 
+export interface DeliveryZone {
+  id: number;
+  name: string;
+  zoneName: string;
+
+  coordinates: LatLng[];
+
+  deliveryFee: number;
+  priority: number;
+
+  color: string; // Hex color code (e.g. #FF0000)
+
+  minOrderAmmount: number;
+
+  isActive: boolean;
+
+  notes?: string;
+
+  createdAt: string; // ISO date string
+  updatedAt: string; // ISO date string
+}
+

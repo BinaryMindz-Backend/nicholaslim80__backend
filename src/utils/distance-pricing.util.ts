@@ -1,6 +1,10 @@
 import { NotFoundException } from "@nestjs/common";
-import { DeliveryTypeName, PrismaClient } from "@prisma/client";
+import { DeliveryTypeName, FeeAppliesType, PrismaClient } from "@prisma/client";
 import axios from "axios";
+import { DeliveryZone } from "src/types";
+import { BadRequestException } from '@nestjs/common';
+import { isWithinInterval, parse } from "date-fns";
+
 
 const prisma = new PrismaClient();
 
@@ -8,7 +12,7 @@ export interface Receiver {
   lat: number;
   lng: number;
 }
-
+const orderDate = new Date()
 export interface DistancePriceResult extends Receiver {
   distanceKm: number;
   durationMin: number;
@@ -72,20 +76,155 @@ export async function getRoadDistancesGoogle(
 }
 
 // --- Price calculation ---
-export function calculateDeliveryPrice(
+
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
+
+
+export type OrderType = 'STANDARD' | 'EXPRESS' | 'SCHEDULED' | 'STACKED';
+
+export interface Vehicle {
+  base_price: number;
+  per_km_price: number;
+  peak_pricing?: boolean;
+}
+
+export interface DeliveryType {
+  percentage: number;
+}
+
+export interface DynamicSurge {
+  condition: 'TIME_RANGE' | 'DAY_TYPE' | 'ORDER_AMOUNT_LESS_THAN' | 'ORDER_TYPE';
+  time_range: string; // HH:mm-HH:mm for TIME_RANGE, 'WEEKEND'/'HOLIDAY' for DAY_TYPE, amount for ORDER_AMOUNT, type for ORDER_TYPE
+  price_multiplier: number; // percent, e.g., 20 = +20%
+}
+
+// --- Main price calculation ---
+export async function calculateDeliveryPrice(
   distanceKm: number,
-  vehicle: any,
-  deliveryType: any
-): number {
+  vehicle: Vehicle,
+  deliveryType: DeliveryType,
+  zone: DeliveryZone,
+): Promise<number> {
+  // --- 1. Base price calculation ---
   let price = Number(vehicle.base_price) + Number(vehicle.per_km_price) * distanceKm;
   price += (price * Number(deliveryType.percentage)) / 100;
 
-  if (vehicle.peak_pricing) {
-    price *= 1.2; // example multiplier
+  // if (vehicle.peak_pricing) {
+  //   price *= 1.2; // peak hour multiplier
+  // }
+
+  // --- 2. Apply dynamic user/raider fees ---
+  function mapDeliveryTypeToFeeApplies(
+  deliveryType: DeliveryTypeName
+): FeeAppliesType {
+  switch (deliveryType) {
+    case 'STANDARD':
+      return FeeAppliesType.STANDARD_ORDERS;
+    case 'EXPRESS':
+      return FeeAppliesType.EXPRESS_ORDERS;
+    case 'SCHEDULED':
+      return FeeAppliesType.SCHEDULED_ORDERS;
+    case 'STACKED':
+      return FeeAppliesType.STACKED_ORDERS;
+    default:
+      throw new Error(`Unsupported delivery type: ${deliveryType}`);
+  }
+}
+
+const appliesToEnum = mapDeliveryTypeToFeeApplies(deliveryTypeEnum);
+
+  const userFees = await prisma.userFeeStructure.findMany({
+    where: {
+      service_area: zone.zoneName,
+      OR: [
+        { applies_to: FeeAppliesType.ALL_ORDERS },
+        {
+          applies_to: FeeAppliesType.ORDER_LESS,
+          condition_value: { gte: price },
+        },
+        { applies_to: appliesToEnum },
+      ],
+    },
+  });
+
+
+  userFees.forEach(fee => {
+    price += fee.amount;
+  });
+
+  // --- 3. Apply zone delivery fee based on priority ---
+  switch (zone.priority) {
+    case 1:
+      if (price < zone.minOrderAmmount) {
+        throw new BadRequestException(
+          `Minimum order amount for zone "${zone.zoneName}" is ${zone.minOrderAmmount}`
+        );
+      }
+      price += zone.deliveryFee;
+      break;
+
+    case 2:
+      if (price < zone.minOrderAmmount) {
+        price += zone.deliveryFee;
+      }
+      break;
+
+    case 3:
+    default:
+      break;
   }
 
-  return price;
+  // --4 Apply dynamic surges (peak hour, holiday, late night, etc.) ---
+  const dynamicSurges = await prisma.userDynamicSurge.findMany({
+    where: {
+      applicable_user: 'USER', // or USER
+    },
+  });
+
+  dynamicSurges.forEach(surge => {
+    switch (surge.condition) {
+      case 'HIGH_DEMAND': {
+        const [startTime, endTime] = surge.time_range.split('-');
+        const start = parse(startTime, 'HH:mm', orderDate);
+        const end = parse(endTime, 'HH:mm', orderDate);
+        if (isWithinInterval(orderDate, { start, end })) {
+          price *= 1 + surge.price_multiplier / 100;
+        }
+        break;
+      }
+      case 'WEEKEND': {
+        const day = orderDate.getDay(); // 0=Sunday, 6=Saturday
+        if ((surge.time_range === 'WEEKEND' && (day === 0 || day === 6))
+          || (surge.time_range === 'HOLIDAY' && isHoliday(orderDate))) {
+          price *= 1 + surge.price_multiplier / 100;
+        }
+        break;
+      }
+      case 'VERY_HIGH_DEMAND': {
+        if (price < Number(surge.time_range)) {
+          price *= 1 + surge.price_multiplier / 100;
+        }
+        break;
+      }
+
+    }
+  });
+
+  return parseFloat(price.toFixed(2));
 }
+
+// --- Example holiday checker ---
+function isHoliday(date: Date): boolean {
+  const holidays = [
+    '2025-12-25',
+    '2025-01-01',
+  ];
+  return holidays.includes(date.toISOString().slice(0, 10));
+}
+
 
 // --- Main util: get receivers with pricing ---
 export async function getReceiversWithPrice(
@@ -93,27 +232,64 @@ export async function getReceiversWithPrice(
   senderLng: number,
   receivers: Receiver[],
   deliveryTypeName: string,
-  vehicleTypeId: number
+  vehicleTypeId: number,
+  zone:DeliveryZone
 ): Promise<DistancePriceResult[]> {
 
   // Validate delivery type
+ 
   const deliveryTypeEnum = deliveryTypeName as DeliveryTypeName;
-  const deliveryType = await prisma.deliveryType.findFirst({
+
+  const deliveryTypeFromDb = await prisma.deliveryType.findFirst({
     where: { name: deliveryTypeEnum, is_active: true },
   });
-  if (!deliveryType) throw new Error(`Delivery type ${deliveryTypeName} not found`);
 
-  const vehicle = await prisma.vehicleType.findUnique({ 
-    where: { id: vehicleTypeId }
+  if (!deliveryTypeFromDb) {
+    throw new NotFoundException(`Delivery type ${deliveryTypeEnum} not found`);
+  }
+
+  const deliveryType = {
+    percentage: Number(deliveryTypeFromDb.percentage ?? 0),
+  };
+
+  const vehicleFromDb = await prisma.vehicleType.findUnique({
+    where: { id: vehicleTypeId },
   });
-  if (!vehicle) throw new NotFoundException(`Vehicle type ID ${vehicleTypeId} not found`);
 
-  const roadDistances = await getRoadDistancesGoogle(senderLat, senderLng, receivers);
+  if (!vehicleFromDb) {
+    throw new NotFoundException(`Vehicle type ID ${vehicleTypeId} not found`);
+  }
 
-  return receivers.map((r, idx) => ({
-    ...r,
-    distanceKm: roadDistances[idx].distanceKm,
-    durationMin: roadDistances[idx].durationMin,
-    price: calculateDeliveryPrice(roadDistances[idx].distanceKm, vehicle, deliveryType),
-  }));
+  const vehicle = {
+    base_price: Number(vehicleFromDb.base_price ?? 0),
+    per_km_price: Number(vehicleFromDb.per_km_price ?? 0),
+    peak_pricing: vehicleFromDb.peak_pricing ?? false,
+  };
+
+  const roadDistances = await getRoadDistancesGoogle(
+    senderLat,
+    senderLng,
+    receivers
+  );
+
+  // ✅ FIX HERE
+  const results: DistancePriceResult[] = await Promise.all(
+    receivers.map(async (r, idx) => {
+      const price = await calculateDeliveryPrice(
+        roadDistances[idx].distanceKm,
+        vehicle,
+        deliveryType,
+        zone
+      );
+
+      return {
+        ...r,
+        distanceKm: roadDistances[idx].distanceKm,
+        durationMin: roadDistances[idx].durationMin,
+        price,
+      };
+    })
+  );
+
+  return results;
 }

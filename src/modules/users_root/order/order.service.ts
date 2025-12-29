@@ -4,7 +4,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException, 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { DestinationInput, IUser } from 'src/types';
+import { DeliveryZone, DestinationInput, IUser } from 'src/types';
 import { CollectTime, DeliveryTypeName, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
@@ -134,6 +134,8 @@ export class OrderService {
       // 
       const geocodedDestinations: DestinationInput[] = [];
       let orderServiceZoneId: number | null = null;
+      let orderServiceZone: DeliveryZone | null = null;
+
 
       for (const d of payload.destinations) {
           let lat = d.latitude;
@@ -154,9 +156,10 @@ export class OrderService {
         if (
           d.type === DestinationType.SENDER &&
           zone &&
-          orderServiceZoneId === null
+          !orderServiceZone
         ) {
           orderServiceZoneId = zone.id;
+          orderServiceZone = zone;
         }
   
         geocodedDestinations.push({
@@ -171,7 +174,7 @@ export class OrderService {
         });
       }
 
-      if (!orderServiceZoneId) {
+      if (!orderServiceZone) {
         throw new Error('Pickup location is outside service zone');
       }
 
@@ -185,7 +188,8 @@ export class OrderService {
         geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.longitude!,
         receiverDestinations,
         payload.delivery_type,  
-        payload.vehicle_type_id
+        payload.vehicle_type_id,
+        orderServiceZone,
       );
 
       // Calculate total cost for the order
@@ -434,6 +438,7 @@ export class OrderService {
             [{ lat: receiverLat!, lng: receiverLng! }],
             deliveryTypeEnum,
             row.vehicle_type_id ? Number(row.vehicle_type_id) : 1,
+            zone
           );
           const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.price, 0);
 
@@ -611,8 +616,6 @@ export class OrderService {
               userId
         }
          
-
-
         const [orders, total] = await this.prisma.$transaction([
           this.prisma.order.findMany({
             where,

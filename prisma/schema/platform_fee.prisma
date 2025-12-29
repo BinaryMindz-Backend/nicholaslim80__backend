@@ -31,16 +31,28 @@ model RaiderDeductionFee {
   updated_at      DateTime  @updatedAt
 }
 
-model UserFeeStructure {
-  id              Int       @id @default(autoincrement())
-  applicable_user ApplicableTyp
-  fee_name        String    @db.VarChar(100)
-  amount          Int       @default(0)
-  service_area    String    @db.VarChar(100)
-  applies_to      FeeAppliesType
 
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+
+model UserFeeStructure {
+  id               Int            @id @default(autoincrement())
+
+  applicable_user  ApplicableTyp   // USER | RAIDER | ADMIN
+  fee_name         String          @db.VarChar(100)
+
+  amount           Int             @default(0) // flat amount for now
+  service_area     String          @db.VarChar(100)
+
+  applies_to       FeeAppliesType
+
+  /// 🔹 Dynamic condition support
+  condition_value  Float?          // e.g. 15, 20, 50
+  condition_unit   String?         @db.VarChar(20)
+  // examples: 'USD', 'BDT', 'KM', 'ORDER_AMOUNT'
+
+  is_active        Boolean          @default(true)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
 }
 
 model UserDynamicSurge {
@@ -54,3 +66,4 @@ model UserDynamicSurge {
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
 }
+

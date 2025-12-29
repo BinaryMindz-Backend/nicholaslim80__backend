@@ -220,9 +220,11 @@ enum ApplicableTyp {
 
 // 
 enum FeeAppliesType {
-     ALL_ORDERS
-     ORDERLESS15
-     EXPRESS_ORDERS
+  ALL_ORDERS
+  ORDER_LESS
+  EXPRESS_ORDERS
+  SCHEDULED_ORDERS
+  STACKED_ORDERS
 }
 
 enum Condition {
