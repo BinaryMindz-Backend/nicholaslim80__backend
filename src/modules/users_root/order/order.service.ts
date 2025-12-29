@@ -854,22 +854,22 @@ export class OrderService {
     }
 
 
-  // 
-  async findOne(id: number) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-      include: {
-        user: true,
-        vehicle: true,
-        payment_method: true,
-        destinations: true,
-      },
-    });
+      // 
+    async findOne(id: number) {
+        const order = await this.prisma.order.findUnique({
+          where: { id },
+          include: {
+            user: true,
+            vehicle: true,
+            payment_method: true,
+            destinations: true,
+          },
+        });
 
-    if (!order) throw new NotFoundException('Order not found');
+        if (!order) throw new NotFoundException('Order not found');
 
-    return order;
-  }
+        return order;
+      }
 
 
       //** update // used place
@@ -906,7 +906,6 @@ export class OrderService {
               stripePaymentMethodId?: string,
       ) {
         const { status } = dto;
-
         // 1. Fetch order
         const order = await this.prisma.order.findFirst({
           where: {
@@ -1068,122 +1067,160 @@ export class OrderService {
         }
 
   return updatedOrder;
-}
+   }
 
   
   // mark bulk order as pending
    async markOrdersAsPending(
-      userId: number,
-      dto: UpdatePendingOrdersDto,
-    ) {
-      const { orderIds } = dto;
+        userId: number,
+        dto: UpdatePendingOrdersDto,
+      ) {
+        const { orderIds } = dto;
 
-      if (!orderIds?.length) {
-        throw new BadRequestException('Order IDs are required');
-      }
+        if (!orderIds?.length) {
+          throw new BadRequestException('Order IDs are required');
+        }
 
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true, email: true, username: true, fcmToken: true },
-      });
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            fcmToken: true,
+            currentWalletBalance: true,
+          },
+        });
 
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
 
-      // Validate orders
-      const orders = await this.prisma.order.findMany({
-        where: {
-          id: { in: orderIds },
-          userId,
-        },
-        select: {
-          id: true,
-          order_status: true,
-          isBulk: true,
-          total_cost: true
-        },
-      });
-
-      if (orders.length !== orderIds.length) {
-        const found = orders.map(o => o.id);
-        const missing = orderIds.filter(id => !found.includes(id));
-        throw new NotFoundException(`Orders not found: ${missing.join(', ')}`);
-      }
-
-      const alreadyPending = orders.filter(
-        o => o.order_status === OrderStatus.PENDING,
-      );
-      if (alreadyPending.length) {
-        throw new ConflictException(
-          `Orders already pending: ${alreadyPending.map(o => o.id).join(', ')}`,
-        );
-      }
-
-      const nonBulk = orders.filter(o => !o.isBulk);
-      if (nonBulk.length) {
-        throw new BadRequestException(
-          `Non-bulk orders detected: ${nonBulk.map(o => o.id).join(', ')}`,
-        );
-      }
-
-      const result = await this.prisma.$transaction(async (tx) => {
-        const updateResult = await tx.order.updateMany({
+        /* ---------------- VALIDATE ORDERS ---------------- */
+        const orders = await this.prisma.order.findMany({
           where: {
             id: { in: orderIds },
             userId,
             isBulk: true,
+            order_status: OrderStatus.PROGRESS,
           },
-          data: {
-            order_status: OrderStatus.PENDING,
-            is_placed: true,
+          select: {
+            id: true,
+            order_status: true,
+            total_cost: true,
           },
         });
 
-        if (updateResult.count !== orderIds.length) {
-          throw new ConflictException('Some orders could not be updated');
+        if (orders.length !== orderIds.length) {
+          const foundIds = orders.map(o => o.id);
+          const missing = orderIds.filter(id => !foundIds.includes(id));
+          throw new NotFoundException(`Orders not found or invalid: ${missing.join(', ')}`);
         }
 
-        await tx.transaction.updateMany({
-          where: { orderId: { in: orderIds } },
-          data: { tx_status: TransactionStatus.PENDING },
-        });
-
-          const updatedOrders = await tx.order.findMany({
-            where: { id: { in: orderIds } },
-            select: {
-              id: true,
-              total_cost: true,
-            },
-          });
-
-
-        const totalAmount = updatedOrders.reduce(
+        const totalAmount = orders.reduce(
           (sum, o) => sum + Number(o.total_cost),
           0,
         );
 
-        return {
-          totalUpdated: updatedOrders.length,
-          orders: updatedOrders,
-          totalAmount,
-        };
-      });
+        /* ---------------- TRANSACTION ---------------- */
+        const result = await this.prisma.$transaction(async (tx) => {
+          /* ---------------- PAYMENT ---------------- */
+          if (dto.payType === PaymentType.PAYMENT) {
+            // ONLINE PAYMENT
+            if (dto.paymentMethod === PayType.ONLINE_PAY) {
+              if (!dto.stripePaymentMethodId) {
+                throw new BadRequestException('Stripe payment method required');
+              }
 
-      // Bulk email
-      if (result.totalUpdated > 1 && user.email) {
-        await this.emailQueueService.queueBulkOrderPendingEmail({
-          userId: user.id,
-          email: user.email,
-          username: user.username ?? undefined,
-          orderIds,
+              const paid = await this.walletService.addMoney(
+                userId,
+                totalAmount,
+                dto.stripePaymentMethodId,
+                dto.payType,
+              );
+
+              if (!paid) {
+                throw new BadRequestException('Online payment failed');
+              }
+            }
+
+            // WALLET PAYMENT
+            if (dto.paymentMethod === PayType.WALLET) {
+              if (Number(user.currentWalletBalance) < totalAmount) {
+                throw new BadRequestException('Insufficient wallet balance');
+              }
+
+              await tx.user.update({
+                where: { id: userId },
+                data: {
+                  currentWalletBalance: {
+                    decrement: totalAmount,
+                  },
+                },
+              });
+            }
+          }
+
+          /* ---------------- ORDER UPDATE ---------------- */
+          const updateResult = await tx.order.updateMany({
+            where: {
+              id: { in: orderIds },
+              userId,
+              isBulk: true,
+            },
+            data: {
+              order_status: OrderStatus.PENDING,
+              is_placed: true,
+              pay_type: dto.paymentMethod,
+            },
+          });
+
+          if (updateResult.count !== orderIds.length) {
+            throw new ConflictException('Some orders could not be updated');
+          }
+
+          /* ---------------- TRANSACTION UPDATE ---------------- */
+          await tx.transaction.updateMany({
+            where: { orderId: { in: orderIds } },
+            data: {
+              tx_status: TransactionStatus.COMPLETED,
+            },
+          });
+
+          return {
+            totalUpdated: updateResult.count,
+            totalAmount,
+          };
+        });
+
+        /* ---------------- NOTIFICATIONS (AFTER TX) ---------------- */
+        if (user.email && result.totalUpdated > 0) {
+          await this.emailQueueService.queueBulkOrderPendingEmail({
+            userId: user.id,
+            email: user.email,
+            username: user.username ?? undefined,
+            orderIds,
+            totalOrders: result.totalUpdated,
+            totalAmount: result.totalAmount,
+          });
+        }
+
+        if (user.fcmToken) {
+          await this.emailQueueService.queueOrderStatusNotification({
+            userId: user.id,
+            fcmToken: user.fcmToken,
+            orderId:"N/A",
+            status: OrderStatus.PENDING,
+            message: `Your ${result.totalUpdated} bulk orders are now Placed.`,
+          });
+        }
+
+        return {
+          success: true,
           totalOrders: result.totalUpdated,
           totalAmount: result.totalAmount,
-        });
+        };
       }
-
-      return result;
-    }
 
 
 

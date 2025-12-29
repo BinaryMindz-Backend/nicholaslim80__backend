@@ -27,9 +27,10 @@ export class UpdateOrderStatusDto {
 }
 
 
+
 export class UpdatePendingOrdersDto {
   @ApiProperty({
-    description: 'List of order IDs to mark as PENDING',
+    description: 'List of bulk order IDs to mark as PENDING',
     example: [101, 102, 103],
     type: [Number],
   })
@@ -38,4 +39,30 @@ export class UpdatePendingOrdersDto {
   @IsInt({ each: true })
   @Type(() => Number)
   orderIds: number[];
+
+  @ApiPropertyOptional({
+    description: 'Payment trigger type',
+    enum: PaymentType,
+    example: PaymentType.PAYMENT,
+  })
+  @IsOptional()
+  @IsEnum(PaymentType)
+  payType?: PaymentType;
+
+  @ApiPropertyOptional({
+    description: 'Payment method used for bulk payment',
+    enum: PayType,
+    example: PayType.WALLET,
+  })
+  @IsOptional()
+  @IsEnum(PayType)
+  paymentMethod?: PayType;
+
+  @ApiPropertyOptional({
+    description: 'Stripe payment method ID (required if ONLINE_PAY)',
+    example: 'pm_1NxxXY2eZvKYlo2Cabc123',
+  })
+  @IsOptional()
+  @IsString()
+  stripePaymentMethodId?: string;
 }

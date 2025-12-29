@@ -130,7 +130,7 @@ export class EmailQueueService {
   async queueOrderStatusNotification(data: {
     userId: number;
     fcmToken: string;
-    orderId: number;
+    orderId?: number | string;
     orderNumber?: string;
     status: string;
     message: string;
