@@ -354,7 +354,7 @@ export class OrderController {
     async destinationUpdateByUser(@Param('order_id') order_id: string, @Query("desti_id") desti_id:string, @CurrentUser() user:IUser ) {
       // 
       try {
-        const order = await this.orderService.destinationUpdateByUser(+order_id, +desti_id, user);
+        const order = await this.orderService.upsertDestinationAndRecalculate(+order_id, +desti_id, user);
         return ApiResponses.success(order, 'Order updated successfully');
       } catch (err) {
         return ApiResponses.error(err, 'Failed to update order');

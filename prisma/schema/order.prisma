@@ -1,8 +1,8 @@
 model Order {
   id                      Int @id @default(autoincrement())
 
-  serviceZoneId           Int
-  serviceZone             serviceZone @relation(fields: [serviceZoneId], references: [id], onDelete: SetNull)
+  serviceZoneId           Int?
+  serviceZone             serviceZone? @relation(fields: [serviceZoneId], references: [id], onDelete: SetNull)
    
   user                    User? @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId                  Int?

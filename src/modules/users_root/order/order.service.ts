@@ -19,7 +19,6 @@ import { GeoService } from 'src/utils/geo-location.utils';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { WalletService } from 'src/common/wallet/wallet.service';
-// import { getReceiversWithPrice } from 'src/utils/distance-pricing.util';
 import csvParser from 'csv-parser';
 import { getReceiversWithPrice } from 'src/modules/dynamic_pricing/getReceiversWithPrice';
 
@@ -36,101 +35,141 @@ export class OrderService {
      private readonly walletService:WalletService
 
   ) {}
-
-    async create(dto: CreateOrderDto, user:IUser) {
-        // TODO:need to check service zone
-        // TODO:need to calculate distance
-        // TODO: need to check delivery type
-        // TODO: need to check vechicle type and calculate
-
-
-
-
-
-
-
-      //
-      if(dto.pay_type === PayType.ONLINE_PAY && dto.payment_method_id === undefined){
-          // 
-        const paymethodRecord = await this.prisma.paymentMethod.findFirst({
-            where:{
-                OR:[
-                { id:dto.payment_method_id},
-                { userId:user?.id}
-                ]
-            }
-          })
-          if(!paymethodRecord){
-          throw new NotFoundException("pay method not found")
-          }
-
-        throw new  NotFoundException("For the External pay method must need an payment method id")
-
-      }
-
-      //  
-      if(!user){
-          throw new NotFoundException("Authenticed user not found")
-      }
-
-      const isUserExist = await this.prisma.user.findUnique({
-          where:{
-              id:user?.id
-          }
-      })
-      //  
-      if(!isUserExist){
-          throw new UnauthorizedException("Unauthorize exception")
-      }
-          
-
-
-    const res =  await this.prisma.$transaction(async(tx)=>{
-              const order = await tx.order.create({
-                    data:{
-                      ...dto,
-                      userId:user.id,
-                      serviceZoneId:1 //TODO:need to check
-                    }
-            })
-              // 
-                const txId = this.txIdService.generate();
-
-                  await tx.transaction.create({
-                        data:{
-                            transaction_code:txId,
-                            payment_status:PaymentStatus.UNPAID,
-                            payment_method_id:order.payment_method_id,
-                            type:TransactionType.BOOK_ORDER,
-                            delivery_fee:order.total_cost,
-                            total_fee:order.total_cost,
-                            userId:order.userId,
-                            pay_type:order.pay_type,
-                            orderId:order.id 
-                        },
-                        include:{
-                            user:{
-                                select:{
-                                    username:true,
-
-                                },
-                            },
-                            order:{
-                                select:{
-                                  id:true,
-                                  order_status:true
-                                }
-                            }
-                        }
-                  }) 
-            })
-
-      // 
-      return res
-
-    }
     
-    // **COMPLETED 
+    // create 
+    async create(dto: CreateOrderDto, user: IUser) {
+    if (!user) throw new NotFoundException('Authenticated user not found');
+
+    const isUserExist = await this.prisma.user.findUnique({ where: { id: user.id } });
+    if (!isUserExist) throw new UnauthorizedException('Unauthorized');
+
+    const res = await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.create({
+        data: {
+          ...dto,
+          userId: user.id,
+          total_cost: dto.total_cost ?? 0,
+        },
+      });
+
+      const txId = this.txIdService.generate();
+      await tx.transaction.create({
+        data: {
+          transaction_code: txId,
+          payment_status: PaymentStatus.UNPAID,
+          payment_method_id: order.payment_method_id,
+          type: TransactionType.BOOK_ORDER,
+          delivery_fee: order.total_cost,
+          total_fee: order.total_cost,
+          userId: order.userId,
+          pay_type: order.pay_type,
+          orderId: order.id,
+        },
+        include: {
+          user: { select: { username: true } },
+          order: { select: { id: true, order_status: true } },
+        },
+      });
+
+      return order;
+    });
+
+    return res;
+    }
+    // update destination
+    async upsertDestinationAndRecalculate(
+      orderId: number,
+      destinationId: number,
+      user: IUser,
+    ) {
+      if (!orderId) throw new NotFoundException('Order ID is required');
+      if (!destinationId) throw new NotFoundException('Destination ID is required');
+
+      // Fetch order with destinations
+      const order = await this.prisma.order.findUnique({
+          where: { id: orderId },
+          include: { destinations: true },
+      });
+      if (!order) throw new NotFoundException('Order not found');
+      if (order.userId !== user.id) throw new BadRequestException('Unauthorized');
+
+      // Fetch the destination
+      const destination = await this.prisma.destination.findUnique({
+        where: { id: destinationId },
+      });
+      if (!destination) throw new NotFoundException('Destination not found');
+
+      // Fetch sender
+      const senderDest = await this.prisma.destination.findFirst({
+           where: { OR:[
+          {order_id: orderId },
+          {type: DestinationType.SENDER},
+          {user_id:user.id}
+      ]},
+      });
+
+      const sender: Receiver | null = senderDest
+        ? { lat: senderDest.latitude!, lng: senderDest.longitude! }
+        : null;
+
+      if (!sender) {
+        // Sender not yet set, total remains 0
+        return { order, updatedDestination: destination, totalCost: 0, totalFee: 0 };
+      }
+
+      // Determine service zone based on sender
+      const zone = await this.serviceZone.findZoneByPoint(sender.lat, sender.lng);
+      if (!zone) throw new BadRequestException('Sender address is outside the service zone');
+
+      // Collect receivers (exclude sender)
+      const receiverDestinations = await this.prisma.destination.findMany({
+         where: { OR:[
+          {order_id: orderId },
+          {type: DestinationType.SENDER},
+          {user_id:user.id}
+        ]},
+      });
+
+      const receivers: Receiver[] = receiverDestinations.map(d => ({
+        lat: d.latitude!,
+        lng: d.longitude!,
+      }));
+
+      // Recalculate price only if at least one receiver exists
+      let totalCost = 0;
+      let totalFee = 0;
+      if (receivers.length > 0) {
+        const pricingResults = await getReceiversWithPrice(
+          this.prisma,
+          sender,
+          receivers,
+          order.delivery_type,
+          order.vehicle_type_id ?? 1,
+          zone,
+        );
+
+        totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
+        totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+      }
+
+      // Update order totals
+      const updatedOrder = await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          total_cost: totalCost,
+          total_fee: totalFee,
+          serviceZoneId: zone.id,
+        },
+      });
+
+      return {
+        order: updatedOrder,
+        updatedDestination: destination,
+        totalCost,
+        totalFee,
+      };
+    } 
+    // **create indivitual
     async createOrder(payload: CreateIndiOrderDto, user: IUser) {
       // 
       const geocodedDestinations: DestinationInput[] = [];
@@ -293,7 +332,7 @@ export class OrderService {
       return res;
     }
    
-    // 
+    // export order
     async exportOrdersAsCsv() {
       const orders = await this.prisma.order.findMany({
         // 
@@ -396,7 +435,7 @@ export class OrderService {
       return parser.parse(formatted_orders);
     }
 
-    // 
+    // create bulk order
     async bulkCreateOrdersFromCsv(dto: BulkOrderWithDestinationsDto, userId: number) {
       if (!dto?.fileUrl.startsWith(process.env.BASE_URL!)) {
         throw new BadRequestException('Invalid file source');
@@ -601,7 +640,7 @@ export class OrderService {
         limit,
         totalPages: Math.ceil(total / limit),
       };
-  }
+   }
 
 
     // find raider order
@@ -776,7 +815,6 @@ export class OrderService {
         totalPages: Math.ceil(total / limit),
       };
     }
-    // 
     // ** bulk order system
    async findAllBulk(dto:PaginationDto , user:IUser) {
       const {
@@ -879,7 +917,6 @@ export class OrderService {
       };
     }
 
-
       // 
     async findOne(id: number) {
         const order = await this.prisma.order.findUnique({
@@ -899,28 +936,29 @@ export class OrderService {
 
 
       //** update // used place
-    async destinationUpdateByUser(orderId:number,id:number, user:IUser){
-            // 
-          if(!id) throw new NotFoundException("Destination id not found")
-          if(!orderId) throw new NotFoundException("Order id Not found")
-          const record = await this.prisma.order.findFirst({
-                where:{
-                  id:orderId,
-                  userId:user.id
-                }
-          }) 
-          if(!record) throw new NotFoundException("Order record not found")
-            //
-          await this.prisma.destination.update({
-              where:{
-                  id,
-              },
-              data:{
-                  order_id:orderId
-              }
-          }) 
+    // async destinationUpdateByUser(orderId:number,id:number, user:IUser){
+    //         // 
+    //       if(!id) throw new NotFoundException("Destination id not found")
+    //       if(!orderId) throw new NotFoundException("Order id Not found")
+    //       const record = await this.prisma.order.findFirst({
+    //             where:{
+    //               id:orderId,
+    //               userId:user.id
+    //             }
+    //       }) 
+    //       if(!record) throw new NotFoundException("Order record not found")
+    //         //
+    //       await this.prisma.destination.update({
+    //           where:{
+    //               id,
+    //           },
+    //           data:{
+    //               order_id:orderId
+    //           }
+    //       }) 
         
-    }
+    // }
+
     // 
     async updateOrderStatus(
               orderId: number,
@@ -1245,8 +1283,6 @@ export class OrderService {
           totalAmount: result.totalAmount,
         };
       }
-
-
 
   // order update for admin
   async update(id: number, dto: UpdateOrderDto) {
