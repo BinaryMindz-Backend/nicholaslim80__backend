@@ -76,6 +76,25 @@ export class UserDynamicSurgeController {
       return ApiResponses.error(error, 'Failed to update record');
     }
   }
+  // 
+  @Patch('status/:id')
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update active status a dynamic surge rule' })
+  async updateStaus(
+    @Param('id', ParseIntPipe) id: number
+  ) {
+    try {
+      const res = await this.service.updateStaus(id);
+      return ApiResponses.success(res, 'Dynamic surge Active status updated successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to update record');
+    }
+  }
+
+
 
   @Delete(':id')
   @Auth()

@@ -39,7 +39,16 @@ export class UserDynamicSurgeService {
     await this.findOne(id);
     return this.prisma.userDynamicSurge.update({ where: { id }, data });
   }
-
+    //
+    async updateStaus(id: number): Promise<UserDynamicSurge> {
+     const r = await this.findOne(id);
+    return this.prisma.userDynamicSurge.update({ 
+      where: { id },
+      data:{
+         is_active:!r.is_active
+      }
+     });
+  }
   async remove(id: number): Promise<UserDynamicSurge> {
     await this.findOne(id);
     return this.prisma.userDynamicSurge.delete({ where: { id } });

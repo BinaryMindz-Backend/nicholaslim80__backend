@@ -1486,8 +1486,6 @@ export class OrderService {
     }
   }
 
-
-
   
   // order assign by admin
     async assignDriver(id: number, riderId: number) {
