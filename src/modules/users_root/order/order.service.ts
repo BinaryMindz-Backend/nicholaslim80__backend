@@ -5,7 +5,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DeliveryZone, DestinationInput, IUser, Receiver } from 'src/types';
-import { CollectTime, DeliveryTypeName, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, DeliveryTypeName, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, RouteType, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -19,8 +19,9 @@ import { GeoService } from 'src/utils/geo-location.utils';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { WalletService } from 'src/common/wallet/wallet.service';
-import { getReceiversWithPrice } from 'src/utils/distance-pricing.util';
+// import { getReceiversWithPrice } from 'src/utils/distance-pricing.util';
 import csvParser from 'csv-parser';
+import { getReceiversWithPrice } from 'src/modules/dynamic_pricing/getReceiversWithPrice';
 
 
 @Injectable()
@@ -177,6 +178,21 @@ export class OrderService {
       if (!orderServiceZone) {
         throw new Error('Pickup location is outside service zone');
       }
+        // geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.latitude!,
+        // geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.longitude!,
+      // sender destination
+      const senderDestination = geocodedDestinations.find(
+          d => d.type === DestinationType.SENDER,
+        );
+
+        if (!senderDestination?.latitude || !senderDestination?.longitude) {
+          throw new BadRequestException('Sender location not found');
+        }
+
+        const sender: Receiver = {
+          lat: senderDestination.latitude,
+          lng: senderDestination.longitude,
+        };
 
       // Collect all receivers (exclude SENDER if you want sender → receiver)
       const receiverDestinations: Receiver[] = geocodedDestinations
@@ -185,12 +201,15 @@ export class OrderService {
       // 
       const receiversWithPrice = await getReceiversWithPrice(
         this.prisma,
-        geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.latitude!,
-        geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.longitude!,
+        sender,
         receiverDestinations,
         payload.delivery_type,  
         payload.vehicle_type_id,
         orderServiceZone,
+        {
+          isRoundTrip: payload.route_type == RouteType.ROUND ? true : false,        // ✅ enable round trip
+          returnFactor: 0.5,        // optional (default 50%)
+        }
       );
 
        // Calculate total cost for the order
@@ -426,7 +445,11 @@ export class OrderService {
             skippedRows.push({ row, reason: 'Sender is outside service zone' });
             return;
           }
-
+             
+          const sender: Receiver = {
+            lat: senderLat,
+            lng: senderLng,
+          };
           // Receiver coordinates
           let receiverLat = row.receiver_latitude ? Number(row.receiver_latitude) : null;
           let receiverLng = row.receiver_longitude ? Number(row.receiver_longitude) : null;
@@ -444,12 +467,15 @@ export class OrderService {
           // Calculate price
           const receiversWithPrice = await getReceiversWithPrice(
             this.prisma,
-            senderLat!,
-            senderLng!,
+            sender,  
             [{ lat: receiverLat!, lng: receiverLng! }],
             deliveryTypeEnum,
             row.vehicle_type_id ? Number(row.vehicle_type_id) : 1,
-            zone
+            zone,
+            {
+              isRoundTrip: row.route_type == RouteType.ROUND ? true : false,        // ✅ enable round trip
+              returnFactor: 0.5,        // optional (default 50%)
+            }
           );
           const totalCost = receiversWithPrice.reduce(
                 (sum, r) => sum + r.pricing.totalPrice,

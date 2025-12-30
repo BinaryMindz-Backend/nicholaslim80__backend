@@ -124,7 +124,7 @@ export async function calculatePriceWithFee(params: {
         { applies_to: FeeAppliesType.ALL_ORDERS },
         {
           applies_to: FeeAppliesType.ORDER_LESS,
-          condition_value: { gte: price },
+          condition_value: { gt: price },
         },
         { applies_to: mapDeliveryType(deliveryTypeEnum) },
       ],
