@@ -9,6 +9,8 @@ import {
 } from './types';
 import { calculateRouteDistance } from './route-distance';
 import { calculatePriceWithFee } from './pricing.service';
+import { getRoadDistance } from './distance.service';
+
 
 export async function getReceiversWithPrice(
   prisma: PrismaService,
@@ -23,15 +25,16 @@ export async function getReceiversWithPrice(
     prisma.deliveryType.findFirst({
       where: { name: deliveryTypeEnum, is_active: true },
     }),
-    prisma.vehicleType.findUnique({
-      where: { id: vehicleTypeId },
-    }),
+    prisma.vehicleType.findUnique({ where: { id: vehicleTypeId } }),
   ]);
 
   if (!deliveryType || !vehicle) {
     throw new BadRequestException('Invalid vehicle or delivery type');
   }
 
+  if (!receivers.length) return [];
+
+  //  Calculate total distance for the whole route
   const totalDistanceKm = await calculateRouteDistance(
     sender,
     receivers,
@@ -39,7 +42,8 @@ export async function getReceiversWithPrice(
     options?.returnFactor ?? 0.5,
   );
 
-  const pricing = await calculatePriceWithFee({
+  // Calculate total price & total fee for the order once
+  const totalPricing = await calculatePriceWithFee({
     prisma,
     distanceKm: totalDistanceKm,
     vehicle,
@@ -49,9 +53,20 @@ export async function getReceiversWithPrice(
     orderDate: new Date(),
   });
 
-  return receivers.map(r => ({
+  // Calculate per-leg distances for display only
+  const perLegDistances: number[] = [];
+  let previousPoint = sender;
+  for (const r of receivers) {
+    const { km } = await getRoadDistance(previousPoint, r);
+    perLegDistances.push(km);
+    previousPoint = r;
+  }
+
+  // Return receivers with per-leg distance but same total price/fee
+  return receivers.map((r, idx) => ({
     ...r,
-    distanceKm: totalDistanceKm,
-    pricing,
+    distanceKm: perLegDistances[idx],
+    pricing: totalPricing, // same totalPrice / totalFee for the order
   }));
 }
+

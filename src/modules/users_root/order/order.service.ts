@@ -48,7 +48,7 @@ export class OrderService {
         data: {
           ...dto,
           userId: user.id,
-          total_cost: dto.total_cost ?? 0,
+          total_cost: 0,
         },
       });
 
@@ -85,10 +85,10 @@ export class OrderService {
       if (!orderId) throw new NotFoundException('Order ID is required');
       if (!destinationId) throw new NotFoundException('Destination ID is required');
 
-      // Fetch order with destinations
+      // Fetch order
       const order = await this.prisma.order.findUnique({
-          where: { id: orderId },
-          include: { destinations: true },
+        where: { id: orderId, order_status: OrderStatus.PROGRESS },
+        include: { destinations: true },
       });
       if (!order) throw new NotFoundException('Order not found');
       if (order.userId !== user.id) throw new BadRequestException('Unauthorized');
@@ -99,13 +99,22 @@ export class OrderService {
       });
       if (!destination) throw new NotFoundException('Destination not found');
 
+      // Connect the destination to the order if not already
+      if (!order.destinations.some(d => d.id === destinationId)) {
+        await this.prisma.destination.update({
+          where: { id: destinationId },
+          data: { order_id: orderId },
+        });
+      }
+
       // Fetch sender
       const senderDest = await this.prisma.destination.findFirst({
-           where: { OR:[
-          {order_id: orderId },
-          {type: DestinationType.SENDER},
-          {user_id:user.id}
-      ]},
+        where: {
+          OR: [
+            { order_id: orderId, type: DestinationType.SENDER },
+            { user_id: user.id, type: DestinationType.SENDER },
+          ],
+        },
       });
 
       const sender: Receiver | null = senderDest
@@ -113,32 +122,31 @@ export class OrderService {
         : null;
 
       if (!sender) {
-        // Sender not yet set, total remains 0
+        // No sender yet, price remains 0
         return { order, updatedDestination: destination, totalCost: 0, totalFee: 0 };
       }
 
-      // Determine service zone based on sender
+      // Determine service zone
       const zone = await this.serviceZone.findZoneByPoint(sender.lat, sender.lng);
-      if (!zone) throw new BadRequestException('Sender address is outside the service zone');
+      if (!zone) throw new BadRequestException('Sender address is outside service zone');
 
-      // Collect receivers (exclude sender)
+      // Collect all receiver destinations (exclude sender)
       const receiverDestinations = await this.prisma.destination.findMany({
-         where: { OR:[
-          {order_id: orderId },
-          {type: DestinationType.SENDER},
-          {user_id:user.id}
-        ]},
+        where: {
+          order_id: orderId,
+          type: DestinationType.RECEIVER,
+        },
       });
 
-      const receivers: Receiver[] = receiverDestinations.map(d => ({
-        lat: d.latitude!,
-        lng: d.longitude!,
-      }));
+      const receivers: Receiver[] = receiverDestinations
+        .filter(d => !(d.latitude === sender.lat && d.longitude === sender.lng)) // exclude sender
+        .map(d => ({ lat: d.latitude!, lng: d.longitude! }));
 
-      // Recalculate price only if at least one receiver exists
       let totalCost = 0;
       let totalFee = 0;
+
       if (receivers.length > 0) {
+        // Calculate pricing based on **all current receivers**
         const pricingResults = await getReceiversWithPrice(
           this.prisma,
           sender,
@@ -146,10 +154,14 @@ export class OrderService {
           order.delivery_type,
           order.vehicle_type_id ?? 1,
           zone,
+          {
+          isRoundTrip: order.route_type == RouteType.ROUND ? true : false, 
+          returnFactor: 0.5,        // optional (default 50%)
+          }
         );
-
-        totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
-        totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+       // Take totalPrice / totalFee from the first receiver (same for all)
+        totalCost = pricingResults[0]?.pricing.totalPrice ?? 0;
+        totalFee = pricingResults[0]?.pricing.totalFee ?? 0;
       }
 
       // Update order totals
@@ -168,7 +180,8 @@ export class OrderService {
         totalCost,
         totalFee,
       };
-    } 
+    }
+
     // **create indivitual
     async createOrder(payload: CreateIndiOrderDto, user: IUser) {
       // 
@@ -933,31 +946,6 @@ export class OrderService {
 
         return order;
       }
-
-
-      //** update // used place
-    // async destinationUpdateByUser(orderId:number,id:number, user:IUser){
-    //         // 
-    //       if(!id) throw new NotFoundException("Destination id not found")
-    //       if(!orderId) throw new NotFoundException("Order id Not found")
-    //       const record = await this.prisma.order.findFirst({
-    //             where:{
-    //               id:orderId,
-    //               userId:user.id
-    //             }
-    //       }) 
-    //       if(!record) throw new NotFoundException("Order record not found")
-    //         //
-    //       await this.prisma.destination.update({
-    //           where:{
-    //               id,
-    //           },
-    //           data:{
-    //               order_id:orderId
-    //           }
-    //       }) 
-        
-    // }
 
     // 
     async updateOrderStatus(

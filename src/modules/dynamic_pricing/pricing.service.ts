@@ -86,7 +86,7 @@ export async function calculatePriceWithFee(params: {
   const surges = await prisma.userDynamicSurge.findMany({
     where: { applicable_user: 'USER' },
   });
-
+   
   for (const s of surges) {
     if (s.condition === 'HIGH_DEMAND') {
       const [start, end] = s.time_range.split('-');
