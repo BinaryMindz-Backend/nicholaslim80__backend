@@ -246,7 +246,9 @@ const ROLE_PERMISSIONS = {
     { module: Module.RBAC, action: Permission.READ },
     { module: Module.RBAC, action: Permission.DELETE },
     { module: Module.RBAC, action: Permission.READ },
-    { module: Module.RBAC, action: Permission.UPDATE_RBAC_ROLE_PERMISSION }
+    { module: Module.RBAC, action: Permission.UPDATE_RBAC_ROLE_PERMISSION },
+    { module: Module.DESTINATION, action: Permission.ALL },
+
 
   ],
 

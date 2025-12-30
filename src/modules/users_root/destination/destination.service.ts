@@ -3,10 +3,14 @@ import { CreateDestinationDto } from './dto/create-destination.dto';
 import { UpdateDestinationDto } from './dto/update-destination.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import type { IUser } from 'src/types';
+import { GeoService } from 'src/utils/geo-location.utils';
 
 @Injectable()
 export class DestinationService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private readonly geoServices:GeoService,
+  ) { }
 
 
   // 
@@ -21,36 +25,39 @@ export class DestinationService {
         id: user?.id,
       }
     })
-    if (isUserExist === null) throw new UnauthorizedException("You Are Not Authorize")
-
+    if (isUserExist === null) throw new UnauthorizedException("You Are Not Authorize");
+    // 
+    const geo = await this.geoServices.getLatLngFromAddress(dto.address ?? '');
+    
     const isExist = await this.prisma.destination.findFirst({
       where: {
         OR: [
-          { latitude: dto.latitude },
-          { longitude: dto.longitude },
+          { latitude: geo.lat },
+          { longitude: geo.lng },
         ],
         user_id: user?.id
       }
     })
+
     if (isExist) {
       throw new ConflictException("Destination is already exists")
     }
 
-
-    return this.prisma.destination.create({
+    // 
+    return await this.prisma.destination.create({
       data: {
         address: dto.address,
+        addressFromApr:geo.formattedAddress,
         floor_unit: dto.floor_unit,
         contact_name: dto.contact_name,
         contact_number: dto.contact_number,
         note_to_driver: dto.note_to_driver,
         is_saved: dto.is_saved,
         type: dto.type,
-        latitude: dto.latitude,
-        longitude: dto.longitude,
+        latitude: geo.lat,
+        longitude: geo.lng,
         accuracy: dto.accuracy,
         user_id: user.id
-        // order_id:dto.order_id
       }
     });
   }
@@ -67,7 +74,7 @@ export class DestinationService {
   // 
   async findOne(id: number) {
 
-    return this.prisma.destination.findUnique({ where: { id } });
+    return await this.prisma.destination.findUnique({ where: { id } });
   }
 
   // 
@@ -83,7 +90,7 @@ export class DestinationService {
       }
     })
     if (isUserExist === null) throw new UnauthorizedException("You Are Not Authorize")
-
+    const geo = await this.geoServices.getLatLngFromAddress(dto.address ?? '');
     // 
     const isExist = await this.prisma.destination.findUnique({
       where: {
@@ -96,9 +103,14 @@ export class DestinationService {
     }
 
     // 
-    return this.prisma.destination.update({
+    return await this.prisma.destination.update({
       where: { id },
-      data: dto,
+      data: {
+        ...dto,
+        latitude:geo.lat,
+        longitude:geo.lng,
+        addressFromApr:geo.formattedAddress,
+      },
     });
   }
 
@@ -109,7 +121,7 @@ export class DestinationService {
       throw new NotFoundException("destination id not found")
     }
 
-    const isUserExist = this.prisma.user.findUnique({
+    const isUserExist = await this.prisma.user.findUnique({
       where: {
         id: user?.id,
       }
@@ -129,6 +141,6 @@ export class DestinationService {
     }
     // 
 
-    return this.prisma.destination.delete({ where: { id } });
+    return await this.prisma.destination.delete({ where: { id } });
   }
 }

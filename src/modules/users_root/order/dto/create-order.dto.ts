@@ -1,7 +1,6 @@
 import {
   IsBoolean,
   IsInt,
-  IsNumber,
   IsOptional,
   IsEnum,
   IsDate
@@ -10,7 +9,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   RouteType,
   DeliveryTypeName,
-  PayType,
   CollectTime,
 } from '@prisma/client';
 import { Type } from 'class-transformer';
@@ -45,9 +43,9 @@ export class CreateOrderDto {
   @IsDate()
   scheduled_time?: Date;
 
-  @ApiProperty({ example: 250.50 })
-  @IsNumber()
-  total_cost: number;
+  // @ApiProperty({ example: 250.50 })
+  // @IsNumber()
+  // total_cost: number;
 
   @ApiProperty({ example: false })
   @IsBoolean()
@@ -69,9 +67,9 @@ export class CreateOrderDto {
   @IsOptional()
   payment_method_id?: number;
    
-  @ApiProperty({ enum: PayType, default: PayType.COD })
-  @IsEnum(PayType)
-  pay_type: PayType;
+  // @ApiProperty({ enum: PayType, default: PayType.COD })
+  // @IsEnum(PayType)
+  // pay_type: PayType;
 
   @ApiProperty({ example: ["link1", "link2"] })
   @IsOptional()
