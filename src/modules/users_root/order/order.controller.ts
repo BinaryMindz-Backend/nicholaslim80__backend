@@ -395,7 +395,7 @@ export class OrderController {
       @CurrentUser() user:IUser
     ) {
       try {
-        const updated = await this.orderService.updateOrderStatus(+orderId, +userId, dto, user, dto.payType, dto.paymentMethod, dto.paymentMethodId);
+        const updated = await this.orderService.updateOrderStatus(+orderId, +userId, dto, user);
         return ApiResponses.success(updated, 'Order status updated successfully');
       } catch (err) {
         return ApiResponses.error(err, 'Failed to update order status');

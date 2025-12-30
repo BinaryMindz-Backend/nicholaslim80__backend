@@ -901,11 +901,9 @@ export class OrderService {
               userId: number,
               dto: UpdateOrderStatusDto,
               raider: IUser,
-              payType?: PaymentType,
-              paymentMethod?: PayType,
-              stripePaymentMethodId?: string,
       ) {
         const { status } = dto;
+
         // 1. Fetch order
         const order = await this.prisma.order.findFirst({
           where: {
@@ -932,18 +930,18 @@ export class OrderService {
         // 2. Transaction
         const updatedOrder = await this.prisma.$transaction(async (tx) => {
           /** ---------------- PAYMENT ---------------- */
-          if (status === OrderStatus.PENDING && payType === PaymentType.PAYMENT) {
+          if (status === OrderStatus.PENDING && dto.payType === PaymentType.PAYMENT) {
             // ONLINE PAYMENT
-            if (paymentMethod === PayType.ONLINE_PAY) {
-              if (!stripePaymentMethodId) {
+            if (dto.paymentMethod === PayType.ONLINE_PAY) {
+              if (!dto.paymentMethodId) {
                 throw new BadRequestException('Stripe payment method required');
               }
 
               const paid = await this.walletService.addMoney(
                 userId,
                 Number(order.total_cost),
-                stripePaymentMethodId,
-                payType,
+                dto.paymentMethodId,
+                dto.payType,
               );
 
               if (!paid) {
@@ -952,7 +950,7 @@ export class OrderService {
             }
 
             // WALLET PAYMENT
-            if (paymentMethod === PayType.WALLET) {
+            if (dto.paymentMethod === PayType.WALLET) {
               const user = await tx.user.findUnique({
                 where: { id: userId },
                 select: { currentWalletBalance: true },
@@ -979,7 +977,7 @@ export class OrderService {
             data: {
               order_status: status,
               is_placed: status === OrderStatus.PENDING,
-              pay_type: paymentMethod,
+              pay_type: dto.paymentMethod,
             },
           });
 
