@@ -59,7 +59,8 @@ export class IncentiveController {
       return ApiResponses.error(error, 'Failed to create incentive');
     }
   }
-
+   
+  // 
   @Get()
   @ApiOperation({ summary: 'Get all incentives(admin and raider only)' })
   @ApiResponse({
@@ -78,7 +79,25 @@ export class IncentiveController {
       return ApiResponses.error(error, 'Failed to fetch incentives');
     }
   }
-
+  // 
+  @Get()
+  @ApiOperation({ summary: 'Get all incentives(raider only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Incentives fetched successfully',
+  })
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.WALLET, Permission.READ)
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async findAllIncentive() {
+    try {
+      const res = await this.incentiveService.findAllIncentive();
+      return ApiResponses.success(res, 'Incentives fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to fetch incentives');
+    }
+  }
   // stats
   @Get("/stats")
   @ApiOperation({ summary: 'Get all incentive stats(admin and raider only)' })

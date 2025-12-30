@@ -4,7 +4,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException, 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { DestinationInput, IUser } from 'src/types';
+import { DeliveryZone, DestinationInput, IUser, Receiver } from 'src/types';
 import { CollectTime, DeliveryTypeName, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
@@ -19,7 +19,7 @@ import { GeoService } from 'src/utils/geo-location.utils';
 import { PaginationDto } from 'src/utils/dto/pagination.dto';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { WalletService } from 'src/common/wallet/wallet.service';
-import { getReceiversWithPrice, Receiver } from 'src/utils/distance-pricing.util';
+import { getReceiversWithPrice } from 'src/utils/distance-pricing.util';
 import csvParser from 'csv-parser';
 
 
@@ -134,6 +134,8 @@ export class OrderService {
       // 
       const geocodedDestinations: DestinationInput[] = [];
       let orderServiceZoneId: number | null = null;
+      let orderServiceZone: DeliveryZone | null = null;
+
 
       for (const d of payload.destinations) {
           let lat = d.latitude;
@@ -154,9 +156,10 @@ export class OrderService {
         if (
           d.type === DestinationType.SENDER &&
           zone &&
-          orderServiceZoneId === null
+          !orderServiceZone
         ) {
           orderServiceZoneId = zone.id;
+          orderServiceZone = zone;
         }
   
         geocodedDestinations.push({
@@ -171,7 +174,7 @@ export class OrderService {
         });
       }
 
-      if (!orderServiceZoneId) {
+      if (!orderServiceZone) {
         throw new Error('Pickup location is outside service zone');
       }
 
@@ -181,15 +184,25 @@ export class OrderService {
         .map(d => ({ lat: d.latitude!, lng: d.longitude! }));
       // 
       const receiversWithPrice = await getReceiversWithPrice(
+        this.prisma,
         geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.latitude!,
         geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.longitude!,
         receiverDestinations,
         payload.delivery_type,  
-        payload.vehicle_type_id
+        payload.vehicle_type_id,
+        orderServiceZone,
       );
 
-      // Calculate total cost for the order
-      const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.price, 0);
+       // Calculate total cost for the order
+       const totalCost = receiversWithPrice.reduce(
+                (sum, r) => sum + r.pricing.totalPrice,
+                0
+              );
+
+       const totalFee = receiversWithPrice.reduce(
+                (sum, r) => sum + r.pricing.totalFee,
+                0
+              );
        
       const res = await this.prisma.$transaction(async (tx) => {
         // Create order WITH service zone
@@ -205,6 +218,7 @@ export class OrderService {
             vehicle_type_id: payload.vehicle_type_id,
             payment_method_id: payload.payment_method_id,
             total_cost: isNaN(Number(totalCost)) ? 0 : parseFloat(Number(totalCost).toFixed(3)),
+            total_fee:totalFee,
             isFixed: payload.isFixed,                                       
             order_status:OrderStatus.PROGRESS,
           },
@@ -429,13 +443,24 @@ export class OrderService {
 
           // Calculate price
           const receiversWithPrice = await getReceiversWithPrice(
+            this.prisma,
             senderLat!,
             senderLng!,
             [{ lat: receiverLat!, lng: receiverLng! }],
             deliveryTypeEnum,
             row.vehicle_type_id ? Number(row.vehicle_type_id) : 1,
+            zone
           );
-          const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.price, 0);
+          const totalCost = receiversWithPrice.reduce(
+                (sum, r) => sum + r.pricing.totalPrice,
+                0
+              );
+
+          const totalFee = receiversWithPrice.reduce(
+                (sum, r) => sum + r.pricing.totalFee,
+                0
+              );
+
 
           // Build sender & receiver destination
           const senderDest = {
@@ -476,6 +501,7 @@ export class OrderService {
             vehicle_type_id: row.vehicle_type_id ? Number(row.vehicle_type_id) : null,
             payment_method_id: row.payment_method_id ? Number(row.payment_method_id) : null,
             total_cost: totalCost,
+            total_fee: totalFee,
             order_status: row.order_status ?? OrderStatus.PROGRESS,
             isFixed: row.is_fixed === 'true',
             raider_confirmation: row.raider_confirmation === 'true',
@@ -611,8 +637,6 @@ export class OrderService {
               userId
         }
          
-
-
         const [orders, total] = await this.prisma.$transaction([
           this.prisma.order.findMany({
             where,
@@ -830,22 +854,22 @@ export class OrderService {
     }
 
 
-  // 
-  async findOne(id: number) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-      include: {
-        user: true,
-        vehicle: true,
-        payment_method: true,
-        destinations: true,
-      },
-    });
+      // 
+    async findOne(id: number) {
+        const order = await this.prisma.order.findUnique({
+          where: { id },
+          include: {
+            user: true,
+            vehicle: true,
+            payment_method: true,
+            destinations: true,
+          },
+        });
 
-    if (!order) throw new NotFoundException('Order not found');
+        if (!order) throw new NotFoundException('Order not found');
 
-    return order;
-  }
+        return order;
+      }
 
 
       //** update // used place
@@ -877,9 +901,6 @@ export class OrderService {
               userId: number,
               dto: UpdateOrderStatusDto,
               raider: IUser,
-              payType?: PaymentType,
-              paymentMethod?: PayType,
-              stripePaymentMethodId?: string,
       ) {
         const { status } = dto;
 
@@ -909,18 +930,18 @@ export class OrderService {
         // 2. Transaction
         const updatedOrder = await this.prisma.$transaction(async (tx) => {
           /** ---------------- PAYMENT ---------------- */
-          if (status === OrderStatus.PENDING && payType === PaymentType.PAYMENT) {
+          if (status === OrderStatus.PENDING && dto.payType === PaymentType.PAYMENT) {
             // ONLINE PAYMENT
-            if (paymentMethod === PayType.ONLINE_PAY) {
-              if (!stripePaymentMethodId) {
+            if (dto.paymentMethod === PayType.ONLINE_PAY) {
+              if (!dto.paymentMethodId) {
                 throw new BadRequestException('Stripe payment method required');
               }
 
               const paid = await this.walletService.addMoney(
                 userId,
                 Number(order.total_cost),
-                stripePaymentMethodId,
-                payType,
+                dto.paymentMethodId,
+                dto.payType,
               );
 
               if (!paid) {
@@ -929,7 +950,7 @@ export class OrderService {
             }
 
             // WALLET PAYMENT
-            if (paymentMethod === PayType.WALLET) {
+            if (dto.paymentMethod === PayType.WALLET) {
               const user = await tx.user.findUnique({
                 where: { id: userId },
                 select: { currentWalletBalance: true },
@@ -956,7 +977,7 @@ export class OrderService {
             data: {
               order_status: status,
               is_placed: status === OrderStatus.PENDING,
-              pay_type: paymentMethod,
+              pay_type: dto.paymentMethod,
             },
           });
 
@@ -1044,122 +1065,160 @@ export class OrderService {
         }
 
   return updatedOrder;
-}
+   }
 
   
   // mark bulk order as pending
    async markOrdersAsPending(
-      userId: number,
-      dto: UpdatePendingOrdersDto,
-    ) {
-      const { orderIds } = dto;
+        userId: number,
+        dto: UpdatePendingOrdersDto,
+      ) {
+        const { orderIds } = dto;
 
-      if (!orderIds?.length) {
-        throw new BadRequestException('Order IDs are required');
-      }
+        if (!orderIds?.length) {
+          throw new BadRequestException('Order IDs are required');
+        }
 
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true, email: true, username: true, fcmToken: true },
-      });
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            fcmToken: true,
+            currentWalletBalance: true,
+          },
+        });
 
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
 
-      // Validate orders
-      const orders = await this.prisma.order.findMany({
-        where: {
-          id: { in: orderIds },
-          userId,
-        },
-        select: {
-          id: true,
-          order_status: true,
-          isBulk: true,
-          total_cost: true
-        },
-      });
-
-      if (orders.length !== orderIds.length) {
-        const found = orders.map(o => o.id);
-        const missing = orderIds.filter(id => !found.includes(id));
-        throw new NotFoundException(`Orders not found: ${missing.join(', ')}`);
-      }
-
-      const alreadyPending = orders.filter(
-        o => o.order_status === OrderStatus.PENDING,
-      );
-      if (alreadyPending.length) {
-        throw new ConflictException(
-          `Orders already pending: ${alreadyPending.map(o => o.id).join(', ')}`,
-        );
-      }
-
-      const nonBulk = orders.filter(o => !o.isBulk);
-      if (nonBulk.length) {
-        throw new BadRequestException(
-          `Non-bulk orders detected: ${nonBulk.map(o => o.id).join(', ')}`,
-        );
-      }
-
-      const result = await this.prisma.$transaction(async (tx) => {
-        const updateResult = await tx.order.updateMany({
+        /* ---------------- VALIDATE ORDERS ---------------- */
+        const orders = await this.prisma.order.findMany({
           where: {
             id: { in: orderIds },
             userId,
             isBulk: true,
+            order_status: OrderStatus.PROGRESS,
           },
-          data: {
-            order_status: OrderStatus.PENDING,
-            is_placed: true,
+          select: {
+            id: true,
+            order_status: true,
+            total_cost: true,
           },
         });
 
-        if (updateResult.count !== orderIds.length) {
-          throw new ConflictException('Some orders could not be updated');
+        if (orders.length !== orderIds.length) {
+          const foundIds = orders.map(o => o.id);
+          const missing = orderIds.filter(id => !foundIds.includes(id));
+          throw new NotFoundException(`Orders not found or invalid: ${missing.join(', ')}`);
         }
 
-        await tx.transaction.updateMany({
-          where: { orderId: { in: orderIds } },
-          data: { tx_status: TransactionStatus.PENDING },
-        });
-
-          const updatedOrders = await tx.order.findMany({
-            where: { id: { in: orderIds } },
-            select: {
-              id: true,
-              total_cost: true,
-            },
-          });
-
-
-        const totalAmount = updatedOrders.reduce(
+        const totalAmount = orders.reduce(
           (sum, o) => sum + Number(o.total_cost),
           0,
         );
 
-        return {
-          totalUpdated: updatedOrders.length,
-          orders: updatedOrders,
-          totalAmount,
-        };
-      });
+        /* ---------------- TRANSACTION ---------------- */
+        const result = await this.prisma.$transaction(async (tx) => {
+          /* ---------------- PAYMENT ---------------- */
+          if (dto.payType === PaymentType.PAYMENT) {
+            // ONLINE PAYMENT
+            if (dto.paymentMethod === PayType.ONLINE_PAY) {
+              if (!dto.stripePaymentMethodId) {
+                throw new BadRequestException('Stripe payment method required');
+              }
 
-      // Bulk email
-      if (result.totalUpdated > 1 && user.email) {
-        await this.emailQueueService.queueBulkOrderPendingEmail({
-          userId: user.id,
-          email: user.email,
-          username: user.username ?? undefined,
-          orderIds,
+              const paid = await this.walletService.addMoney(
+                userId,
+                totalAmount,
+                dto.stripePaymentMethodId,
+                dto.payType,
+              );
+
+              if (!paid) {
+                throw new BadRequestException('Online payment failed');
+              }
+            }
+
+            // WALLET PAYMENT
+            if (dto.paymentMethod === PayType.WALLET) {
+              if (Number(user.currentWalletBalance) < totalAmount) {
+                throw new BadRequestException('Insufficient wallet balance');
+              }
+
+              await tx.user.update({
+                where: { id: userId },
+                data: {
+                  currentWalletBalance: {
+                    decrement: totalAmount,
+                  },
+                },
+              });
+            }
+          }
+
+          /* ---------------- ORDER UPDATE ---------------- */
+          const updateResult = await tx.order.updateMany({
+            where: {
+              id: { in: orderIds },
+              userId,
+              isBulk: true,
+            },
+            data: {
+              order_status: OrderStatus.PENDING,
+              is_placed: true,
+              pay_type: dto.paymentMethod,
+            },
+          });
+
+          if (updateResult.count !== orderIds.length) {
+            throw new ConflictException('Some orders could not be updated');
+          }
+
+          /* ---------------- TRANSACTION UPDATE ---------------- */
+          await tx.transaction.updateMany({
+            where: { orderId: { in: orderIds } },
+            data: {
+              tx_status: TransactionStatus.COMPLETED,
+            },
+          });
+
+          return {
+            totalUpdated: updateResult.count,
+            totalAmount,
+          };
+        });
+
+        /* ---------------- NOTIFICATIONS (AFTER TX) ---------------- */
+        if (user.email && result.totalUpdated > 0) {
+          await this.emailQueueService.queueBulkOrderPendingEmail({
+            userId: user.id,
+            email: user.email,
+            username: user.username ?? undefined,
+            orderIds,
+            totalOrders: result.totalUpdated,
+            totalAmount: result.totalAmount,
+          });
+        }
+
+        if (user.fcmToken) {
+          await this.emailQueueService.queueOrderStatusNotification({
+            userId: user.id,
+            fcmToken: user.fcmToken,
+            orderId:"N/A",
+            status: OrderStatus.PENDING,
+            message: `Your ${result.totalUpdated} bulk orders are now Placed.`,
+          });
+        }
+
+        return {
+          success: true,
           totalOrders: result.totalUpdated,
           totalAmount: result.totalAmount,
-        });
+        };
       }
-
-      return result;
-    }
 
 
 

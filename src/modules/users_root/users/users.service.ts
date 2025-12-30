@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { NotificationService } from 'src/modules/superadmin_root/notification/notification.service';
 /* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
 import { Injectable, ConflictException, NotFoundException, BadRequestException, NotAcceptableException } from '@nestjs/common';
@@ -28,131 +29,6 @@ export class UsersService {
 
 
   // ** Create new user // signup with otp verify
-  // async createUser(dto: { email?: string; password?: string; username?: string; phone: string, referral_code?: string, role_name: string }) {
-
-  //   if (dto.role_name === UserRole.SUPER_ADMIN) {
-  //     throw new NotAcceptableException("You can't create superadmin or admin by general login")
-  //   }
-
-  //   // role check
-  //   const role = await this.prisma.role.findFirst({
-  //     where: {
-  //       name: dto.role_name
-  //     }
-  //   })
-  //   if (!role) {
-  //     throw new NotFoundException("Role not found")
-  //   }
-
-  //   // 
-  //   let referredByUser;
-
-  //   if (dto.referral_code) {
-  //     referredByUser = await this.prisma.user.findUnique({
-  //       where: {
-  //         referral_code: dto.referral_code
-  //       }
-  //     })
-  //     // 
-  //     if (!referredByUser) {
-  //       throw new BadRequestException('Invalid referral code');
-  //     }
-  //     // 
-
-  //   }
-  //   // generate referral code and link
-  //   const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
-  //   //  
-  //   const existing = await this.prisma.user.findFirst({
-  //     where: {
-  //       OR: [
-  //         { email: dto.email },
-  //         { phone: dto.phone }
-  //       ]
-  //     }
-  //   });
-  //   if (existing) throw new ConflictException('User already exists');
-  //   // 
-  //   let hashed: string | undefined = undefined;
-  //   if (dto.password) {
-  //     const salt = Number(process.env.SALT_ROUNDS ?? 10);
-  //     hashed = await bcrypt.hash(dto.password, salt);
-  //   }
-  //   //
-  //   const coin = await this.prisma.coin.findFirst({
-  //     where: {
-  //       key: CoinEvent.FIRST_SIGNUP
-  //     }
-  //   })
-  //   // 
-    
-  //   // 
-  //   const user = await this.prisma.user.create({
-  //     data: {
-  //       email: dto.email,
-  //       username: dto.username,
-  //       phone: dto.phone,
-  //       password: hashed,
-  //       referral_code: code,
-  //       referral_link: link,
-  //       is_acc_refered: dto.referral_code ? true : false,
-  //       roleId: role.id,
-  //     },
-  //   });
-  //   // coin
-  //   const coinUtils = new CoinUtils(this.prisma);
-  //   // Add coins
-  //   await coinUtils.earnCoin(user.id, coin ? Number(coin.coin_amount) : 0, CoinEvent.FIRST_SIGNUP);
-
-  //   // 
-  //   if (dto.referral_code) {
-
-  //     // if the user created by refer
-  //     await this.prisma.refer.create({
-  //       data: {
-  //         refer_code: dto.referral_code,
-  //         user_id: user.id
-  //       }
-  //     })
-  //   }
-  //   // if the user role is raider 
-  //   if (role.name === UserRole.RAIDER) {
-  //     await this.prisma.raider.create({
-  //       data: {
-  //         userId: user.id,
-  //       }
-  //     });
-  //   }
-  //       // After generating the OTP
-  //       const otp = await this.otpService.generateOtp(user.email, user.phone);
-  //             // Send Welcome Email
-  //             if (user.email) {
-  //               await this.mailService.sendTemplateMail(
-  //                 'after-first-signup',
-  //                 user.email,
-  //                 'Welcome to NodeNINJAr!',
-  //                 {
-  //                   name: user.username ?? 'User',
-  //                   referralCode: user.referral_code,
-  //                 }
-  //               );
-  //             }
-
-  //             // Send Push Notification
-  //             if (user.fcmToken) {
-  //               await this.notify.sendNotificationByType(
-  //                 NotificationType.PUSH_NOTIFICATION,
-  //                 [{ fcmToken: user.fcmToken }],
-  //                 'Welcome to NodeNINJAr!',
-  //                 `Hello ${user.username ?? 'User'}, welcome to NodeNINJAr! Start exploring and earn coins with your first actions.`
-  //               );
-  //             }
-
-  //       // Return OTP for dev/testing (optional)
-  //      return { otp };
-
-  // }
-  //  
  async createUser(dto: { 
       email?: string; 
       password?: string; 
@@ -464,25 +340,111 @@ export class UsersService {
 
 
   // ** Get user by ID
-  async findOneuser(id: number) {
-    if (!id) throw new NotFoundException("User id not found")
+    async findOneuser(id: number) {
+      if (!id) throw new NotFoundException("User id not found")
 
-    return await this.prisma.user.findUnique({ where: { id, is_deleted: false }, include: { raiderProfile: true, role: true, adminProfiles: true } });
-  }
+      return await this.prisma.user.findUnique({ where: { id, is_deleted: false }, include: { raiderProfile: true, role: true, adminProfiles: true } });
+    }
 
-  // ** Get user by user id
-  async findMe(user: IUser) {
-    if (!user.id) throw new NotFoundException("User id not found")
-    return await this.prisma.user.findFirst({ where: { id: Number(user.id), is_deleted: false }, include: { raiderProfile: {
-        select:{
-             id:true,
-             raider_status:true,
-             isSuspended:true,
-             rank:true,
-             raider_verificationFromAdmin:true,
-             registrations:true
+    // ** Get user by user id
+    async findMe(user: IUser) {
+    if (!user.id) throw new NotFoundException("User id not found");
+
+    // Fetch user data
+    const res = await this.prisma.user.findFirst({
+      where: { 
+        id: Number(user.id), 
+        is_deleted: false 
+      },
+      include: {
+        raiderProfile: {
+          select: {
+            id: true,
+            raider_status: true,
+            isSuspended: true,
+            rank: true,
+            raider_verificationFromAdmin: true,
+            registrations: true,
+            raider_ratings: true,
+          }
+        },
+        role: true,
+        adminProfiles: true,
+      }
+    });
+
+    if (!res) throw new NotFoundException("User not found");
+
+    // Initialize response object
+    let responseData: any = {
+      ...res,
+    };
+
+    // Check if user has RAIDER role
+    const isRaider = res.role?.name === 'RAIDER' || res.role?.name === 'raider';
+    
+    if (isRaider && res.raiderProfile?.id) {
+      // Get follower count for raider
+      const follower = await this.prisma.myRaider.count({
+        where: {
+          raiderId: res.raiderProfile.id
         }
-  }, role: true, adminProfiles: true, } });
+      });
+
+      // Get raider rating average
+      const avgRating = await this.prisma.rateRaider.aggregate({
+        where: {
+          raiderId: res.raiderProfile.id
+        },
+        _avg: {
+          rating_star: true
+        },
+        _count: {
+          id: true
+        }
+      });
+
+      const formattedAverage = avgRating._avg.rating_star 
+        ? Number(avgRating._avg.rating_star.toFixed(2)) 
+        : 0;
+
+      responseData = {
+        ...responseData,
+        follower: follower || 0,
+        avg_raiderRating: formattedAverage,
+        total_raiderRatings: avgRating._count.id || 0,
+      };
+    }
+
+    // Check if user has CUSTOMER/USER role (or get customer ratings for all users)
+    const isCustomer = res.role?.name === 'CUSTOMER' || res.role?.name === 'USER' || res.role?.name === 'customer' || res.role?.name === 'user';
+    
+    if (isCustomer || !isRaider) {
+      // Get customer rating average
+      const useravgRating = await this.prisma.rateCustomer.aggregate({
+        where: {
+          user_id: user.id
+        },
+        _avg: {
+          rating_star: true
+        },
+        _count: {
+          id: true
+        }
+      });
+
+      const formattedAverageUser = useravgRating._avg.rating_star 
+        ? Number(useravgRating._avg.rating_star.toFixed(2)) 
+        : 0;
+
+      responseData = {
+        ...responseData,
+        avg_customerRating: formattedAverageUser,
+        total_customerRatings: useravgRating._count.id || 0,
+      };
+    }
+
+    return responseData;
   }
 
 

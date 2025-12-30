@@ -113,6 +113,9 @@ CREATE TYPE "WalletTransactionType" AS ENUM ('PAYOUT', 'PAYMENT', 'REFUND', 'DED
 CREATE TYPE "WalletTransactionStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED');
 
 -- CreateEnum
+CREATE TYPE "PaymentType" AS ENUM ('PAYMENT', 'ADD_MONEY');
+
+-- CreateEnum
 CREATE TYPE "DisputeStatus" AS ENUM ('PENDING', 'UNDER_REVIEW', 'AWAITING_INFO', 'RESOLVED', 'REJECTED');
 
 -- CreateEnum
@@ -476,7 +479,7 @@ CREATE TABLE "notifications" (
 -- CreateTable
 CREATE TABLE "orders" (
     "id" SERIAL NOT NULL,
-    "serviceZoneId" INTEGER,
+    "serviceZoneId" INTEGER NOT NULL,
     "userId" INTEGER,
     "route_type" "RouteType" NOT NULL DEFAULT 'ONE_WAY',
     "delivery_type" "DeliveryTypeName" NOT NULL DEFAULT 'EXPRESS',
