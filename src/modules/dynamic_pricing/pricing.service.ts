@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { PrismaService } from 'src/core/database/prisma.service';
 import { BadRequestException } from '@nestjs/common';
 import { parse, isWithinInterval } from 'date-fns';
@@ -88,15 +89,22 @@ export async function calculatePriceWithFee(params: {
   });
    
   for (const s of surges) {
+    if (!s.time_range || typeof s.time_range !== 'string') continue; // skip if invalid
+
     if (s.condition === 'HIGH_DEMAND') {
       const [start, end] = s.time_range.split('-');
-      if (
-        isWithinInterval(orderDate, {
-          start: parse(start, 'HH:mm', orderDate),
-          end: parse(end, 'HH:mm', orderDate),
-        })
-      ) {
-        surgeAmount += price * (s.price_multiplier / 100);
+      if (!start || !end) continue; // skip if split failed
+
+      try {
+        const startTime = parse(start, 'HH:mm', orderDate);
+        const endTime = parse(end, 'HH:mm', orderDate);
+
+        if (isWithinInterval(orderDate, { start: startTime, end: endTime })) {
+          surgeAmount += price * (s.price_multiplier / 100);
+        }
+      } catch (err) {
+        console.warn('Invalid time_range format for surge:', s.time_range);
+        continue;
       }
     }
 

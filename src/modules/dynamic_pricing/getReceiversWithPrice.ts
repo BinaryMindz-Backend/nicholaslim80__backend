@@ -21,13 +21,13 @@ export async function getReceiversWithPrice(
   zone: DeliveryZone,
   options?: RouteOptions,
 ): Promise<ReceiverWithPricing[]> {
+    
   const [deliveryType, vehicle] = await Promise.all([
     prisma.deliveryType.findFirst({
       where: { name: deliveryTypeEnum, is_active: true },
     }),
     prisma.vehicleType.findUnique({ where: { id: vehicleTypeId } }),
   ]);
-
   if (!deliveryType || !vehicle) {
     throw new BadRequestException('Invalid vehicle or delivery type');
   }
@@ -61,7 +61,6 @@ export async function getReceiversWithPrice(
     perLegDistances.push(km);
     previousPoint = r;
   }
-
   // Return receivers with per-leg distance but same total price/fee
   return receivers.map((r, idx) => ({
     ...r,
