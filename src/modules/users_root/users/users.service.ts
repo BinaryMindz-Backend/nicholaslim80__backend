@@ -460,17 +460,47 @@ export class UsersService {
 
 
   // ** Update user
-  async updateUser(id: number, updateUserDto: UpdateUserDto) {
-    if (!id) throw new NotFoundException("User id not found")
-
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException('User not found');
-
-    return this.prisma.user.update({
-      where: { id },
-      data: updateUserDto,
-    });
+async updateUser(id: number, updateUserDto: UpdateUserDto) {
+  if (!id) {
+    throw new NotFoundException('User id not found');
   }
+
+  const user = await this.prisma.user.findUnique({
+    where: { id },
+    include: { raiderProfile: true },
+  });
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  const { raider, ...userData } = updateUserDto;
+
+  return await this.prisma.user.update({
+    where: { id },
+    data: {
+      ...userData,
+
+      ...(raider && {
+        raiderProfile: user.raiderProfile
+          ? {
+              update: {
+                rank: raider.rank,
+              },
+            }
+          : {
+              create: {
+                rank: raider.rank,
+              },
+            },
+      }),
+    },
+    include:{
+       raiderProfile:true
+    }
+  });
+}
+
 
 
   // ** Update user active status

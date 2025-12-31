@@ -38,6 +38,7 @@ export class DisputeService {
 
   // -------------------------
   async create(dto: CreateDisputeDto) {
+
     const order = await this.prisma.order.findUnique({
       where: { id: dto.orderId },
     });
@@ -73,16 +74,42 @@ export class DisputeService {
   }
 
   // -------------------------
-  async findAll(query: any) {
-    return await this.prisma.dispute.findMany({
-      where: {
-        orderId: query.orderId,
-        createdById: query.createdById,
-        status: query.status,
-        deletedAt: null,
-      },
-      orderBy: { created_at: 'desc' },
-    });
+  async findAll(dto: any) {
+          const page = dto.page ?? 1;
+        const limit = dto.limit ?? 10;
+        const skip = (page - 1) * limit;
+
+        const [data, total] = await this.prisma.$transaction([
+          this.prisma.dispute.findMany({
+            where: {
+              orderId: dto.orderId,
+              createdById: dto.createdById,
+              status: dto.status,
+              is_closed:false,
+            },
+            skip,
+            take: limit
+          }),
+          this.prisma.dispute.count({
+            where: {
+              orderId: dto.orderId,
+              createdById: dto.createdById,
+              status: dto.status,
+              is_closed:false,
+            },
+          }),
+        ]);
+
+        return {
+          data,
+          meta: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+          },
+        };
+
   }
 
   // -------------------------
@@ -179,4 +206,56 @@ export class DisputeService {
 
     return { success: true };
   }
+  //  
+  async findOne(id:number){
+       return this.prisma.dispute.findFirst({
+            where:{
+               id
+            }
+       })
+  }
+    //  
+  async delete(id:number){
+
+     const res = await this.prisma.dispute.findFirst({
+            where:{
+               id
+            }
+       }) 
+
+       if(!res){
+           throw new NotFoundException("Dispute not found")
+       }
+      // 
+      return this.prisma.dispute.delete({
+          where:{
+              id
+          }
+      }) 
+  }
+  // 
+    async closeCase(id:number){
+
+     const res = await this.prisma.dispute.findFirst({
+            where:{
+               id
+            }
+       }) 
+
+       if(!res){
+           throw new NotFoundException("Dispute not found")
+       }
+      // 
+      return await this.prisma.dispute.update({
+          where:{
+              id
+          },
+          data:{
+            is_closed:true  
+          }
+      }) 
+  }
+
+
+
 }
