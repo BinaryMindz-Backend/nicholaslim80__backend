@@ -1,3 +1,4 @@
+import { LoginRewardService } from './loginRewards.services';
 import {
   Injectable,
   UnauthorizedException,
@@ -19,6 +20,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly otpService: OtpService,
+    private readonly loginRewardServices:LoginRewardService,
   ) { }
 
 
@@ -59,20 +61,21 @@ export class AuthService {
 
 
   // Login using OTP
-  async loginWithOtp(user: any) {
+  async loginWithOtp(user: any , req?: any) {
 
     const tokens = await this.generateTokens(user);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
+    await this.handlePostLogin(user, req);
 
     return tokens;
   }
 
 
   // Login using Email + Password (optional)
-  async loginWithCredentials(user: any) {
+  async loginWithCredentials(user: any, req?: any) {
     const tokens = await this.generateTokens(user);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
-
+    await this.handlePostLogin(user, req);
     return tokens;
   }
 
@@ -130,7 +133,6 @@ export class AuthService {
 
   //user logout
   async logout(userId: number) {
-    console.log(userId);
     await this.prisma.user.update({
       where: {
         id: userId
@@ -145,8 +147,6 @@ export class AuthService {
   // forgot password
   async forgotPassword(email?: string, phone?: string) {
     const otp = await this.otpService.generateOtp(email, phone);
-    // TODO:currently by email it will be in phone
-
     return { email: email, phone, message: "OTP sent", otp };
   }
 
@@ -238,4 +238,20 @@ export class AuthService {
     });
     return { message: 'Password reset successful' };
   }
+  // 
+
+  private async handlePostLogin(user: IUser, req:any) {
+        await this.prisma.userLogin.create({
+             data:{
+                 userId:user.id,
+                 ip:req.ip,
+                 device:req.headers['user-agent'] || 'unknown'
+             }
+        })
+        // 
+        await this.loginRewardServices.rewardDailyLogin(user.id);
+  }
+
+
+
 }

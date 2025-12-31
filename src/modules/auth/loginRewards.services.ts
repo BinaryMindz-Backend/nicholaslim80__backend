@@ -34,29 +34,30 @@ export class LoginRewardService {
               key:CoinEvent.DAILY_LOGIN
          }
     });
-
-    await this.prisma.$transaction([
+    
+     await this.prisma.$transaction([
       // Insert coin history
       this.prisma.coinHistory.create({
         data: {
           userId,
-          coin_acc_amount: DAILY_LOGIN_COINS?.coin_amount ?? 0,
+          coin_acc_amount:Number(DAILY_LOGIN_COINS?.coin_amount) || 0,
           type: 'DAILY_LOGIN',
           role_triggered: 'SYSTEM',
           edited_by: 'SYSTEM',
+          created_at: new Date(),
         },
       }),
 
       // Update user balance
-      this.prisma.user.update({
+       this.prisma.user.update({
         where: { id: userId },
         data: {
-          total_coin_acc: { increment: DAILY_LOGIN_COINS?.coin_amount },
-          current_coin_balance :{increment:DAILY_LOGIN_COINS?.coin_amount}
-        },
+            total_coin_acc: { increment: DAILY_LOGIN_COINS?.coin_amount ?? 0 } as any,
+            current_coin_balance: { increment: DAILY_LOGIN_COINS?.coin_amount ?? 0 } as any,
+          },
       }),
     ]);
-
+    // 
     return {
       rewarded: true,
       coins: DAILY_LOGIN_COINS?.coin_amount,

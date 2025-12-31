@@ -7,6 +7,8 @@ import {
 import {
   DisputeIssueType,
   DisputePriority,
+  PaymentStatus,
+  TransactionStatus,
   TransactionType,
 } from '@prisma/client';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
@@ -61,6 +63,7 @@ export class DisputeService {
           issueType: dto.issueType,
           description: dto.description,
           priority: this.autoPriority(dto.issueType),
+          evidence: dto.evidenceids
         },
       });
 
@@ -134,8 +137,8 @@ export class DisputeService {
         orderId,
         total_fee: amount,
         type,
-        tx_status: 'COMPLETED',
-        payment_status: 'SUCCESS',
+        tx_status: TransactionStatus.COMPLETED,
+        payment_status: PaymentStatus.PAID,
         transaction_code: `DSP-${Date.now()}`,
       },
     });
@@ -153,14 +156,54 @@ export class DisputeService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
+    const raider = await this.prisma.user.findFirst({
+         where:{
+            raiderProfile:{
+                id:order.assign_rider_id!
+            } 
+         }
+    })
+    // 
+     if(!raider){
+          throw new NotFoundException('Rider not found');
+     }
+
+
     let userAmount = 0;
     let riderAmount = 0;
+    let companyAmount = 0;
 
     if (dto.refundType === 'FULL') {
       userAmount = dto.totalAmount;
     } else {
-      userAmount = (dto.totalAmount * (dto.userPercent ?? 0)) / 100;
+      companyAmount = (dto.totalAmount * (dto.companyPercent ?? 0)) / 100;
       riderAmount = (dto.totalAmount * (dto.riderPercent ?? 0)) / 100;
+      if(raider.currentWalletBalance < riderAmount){
+          throw new BadRequestException('Rider has insufficient wallet balance');
+      }
+      // detucte from user amount
+      await this.prisma.user.update({
+         where:{
+            id:raider.id
+         },
+         data:{
+            totalWalletBalance:{
+                decrement:riderAmount
+            },
+            currentWalletBalance:{
+                decrement:riderAmount
+            }
+         }
+      })
+      //  
+      const totalAmount = companyAmount + riderAmount;
+      if (totalAmount !== dto.totalAmount) {
+        throw new BadRequestException(
+          'Company and Rider percentages do not sum up to total amount',
+        );
+      }
+      // 
+      userAmount = totalAmount ;
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -170,7 +213,7 @@ export class DisputeService {
           status: 'RESOLVED',
           refundType: dto.refundType,
           refundAmount: dto.totalAmount,
-          userPercent: dto.userPercent,
+          companyPercent: dto.companyPercent,
           riderPercent: dto.riderPercent,
           resolvedByAdminId: dto.adminId,
           resolvedAt: new Date(),
@@ -186,32 +229,27 @@ export class DisputeService {
           'DISPUTE_REFUND',
         );
       }
-
-      if (riderAmount > 0 && order.assign_rider_id) {
-        const rider = await tx.raider.findUnique({
-          where: { id: order.assign_rider_id },
-        });
-
-        if (rider?.userId) {
-          await this.creditWallet(
-            tx,
-            rider.userId,
-            riderAmount,
-            order.id,
-            'DISPUTE_COMPENSATION',
-          );
-        }
-      }
     });
 
     return { success: true };
   }
+
+
+
   //  
   async findOne(id:number){
-       return this.prisma.dispute.findFirst({
+       return await this.prisma.dispute.findFirst({
             where:{
                id
+            },
+            include:{
+               order:{
+                  select:{
+                      total_cost:true,
+                  }
+               }
             }
+          
        })
   }
     //  
