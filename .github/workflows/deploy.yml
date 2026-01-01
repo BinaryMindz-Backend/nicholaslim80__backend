@@ -26,6 +26,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build application
+        run: pnpm prisma generate
+
+      - name: Build application
         run: pnpm build
 
       - name: Upload build artifacts
