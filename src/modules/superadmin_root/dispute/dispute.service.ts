@@ -1,12 +1,16 @@
+import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
 import {
   DisputeIssueType,
   DisputePriority,
+  PaymentStatus,
+  TransactionStatus,
   TransactionType,
 } from '@prisma/client';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
@@ -15,7 +19,12 @@ import { PrismaService } from 'src/core/database/prisma.service';
 
 @Injectable()
 export class DisputeService {
-  constructor(private readonly prisma: PrismaService) {}
+      private readonly logger = new Logger(DisputeService.name);
+  
+  constructor(
+         private readonly prisma: PrismaService,
+         private readonly emailQueueService: EmailQueueService,
+  ) {}
 
   // -------------------------
   private autoPriority(issue: DisputeIssueType): DisputePriority {
@@ -61,6 +70,7 @@ export class DisputeService {
           issueType: dto.issueType,
           description: dto.description,
           priority: this.autoPriority(dto.issueType),
+          evidence: dto.evidenceids
         },
       });
 
@@ -134,8 +144,8 @@ export class DisputeService {
         orderId,
         total_fee: amount,
         type,
-        tx_status: 'COMPLETED',
-        payment_status: 'SUCCESS',
+        tx_status: TransactionStatus.COMPLETED,
+        payment_status: PaymentStatus.PAID,
         transaction_code: `DSP-${Date.now()}`,
       },
     });
@@ -150,17 +160,58 @@ export class DisputeService {
 
     const order = await this.prisma.order.findUnique({
       where: { id: dispute.orderId ?? undefined },
+         include:{ user:true}
     });
     if (!order) throw new NotFoundException('Order not found');
 
+    const raider = await this.prisma.user.findFirst({
+         where:{
+            raiderProfile:{
+                id:order.assign_rider_id!
+            } 
+         }
+    })
+    // 
+     if(!raider){
+          throw new NotFoundException('Rider not found');
+     }
+
+
     let userAmount = 0;
     let riderAmount = 0;
+    let companyAmount = 0;
 
     if (dto.refundType === 'FULL') {
       userAmount = dto.totalAmount;
     } else {
-      userAmount = (dto.totalAmount * (dto.userPercent ?? 0)) / 100;
+      companyAmount = (dto.totalAmount * (dto.companyPercent ?? 0)) / 100;
       riderAmount = (dto.totalAmount * (dto.riderPercent ?? 0)) / 100;
+      if(raider.currentWalletBalance < riderAmount){
+          throw new BadRequestException('Rider has insufficient wallet balance');
+      }
+      // detucte from user amount
+      await this.prisma.user.update({
+         where:{
+            id:raider.id
+         },
+         data:{
+            totalWalletBalance:{
+                decrement:riderAmount
+            },
+            currentWalletBalance:{
+                decrement:riderAmount
+            }
+         }
+      })
+      //  
+      const totalAmount = companyAmount + riderAmount;
+      if (totalAmount !== dto.totalAmount) {
+        throw new BadRequestException(
+          'Company and Rider percentages do not sum up to total amount',
+        );
+      }
+      // 
+      userAmount = totalAmount ;
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -170,7 +221,7 @@ export class DisputeService {
           status: 'RESOLVED',
           refundType: dto.refundType,
           refundAmount: dto.totalAmount,
-          userPercent: dto.userPercent,
+          companyPercent: dto.companyPercent,
           riderPercent: dto.riderPercent,
           resolvedByAdminId: dto.adminId,
           resolvedAt: new Date(),
@@ -186,32 +237,52 @@ export class DisputeService {
           'DISPUTE_REFUND',
         );
       }
-
-      if (riderAmount > 0 && order.assign_rider_id) {
-        const rider = await tx.raider.findUnique({
-          where: { id: order.assign_rider_id },
-        });
-
-        if (rider?.userId) {
-          await this.creditWallet(
-            tx,
-            rider.userId,
-            riderAmount,
-            order.id,
-            'DISPUTE_COMPENSATION',
-          );
-        }
-      }
     });
+    
+     // After dispute is resolved and wallet updates are done
+      try {
+        // User notification
+        if (order.user?.fcmToken) {
+          await this.emailQueueService.queuePushNotification({
+            userId: order.user.id,
+            fcmToken: order.user.fcmToken,
+            title: 'Dispute Resolved',
+            body: `Your dispute #${dispute.id} for order #${order.id} has been resolved. Refund amount: ${userAmount}.`,
+          });
+        }
 
-    return { success: true };
+        // Rider notification
+        if (raider.fcmToken) {
+          await this.emailQueueService.queuePushNotification({
+            userId: raider.id,
+            fcmToken: raider.fcmToken,
+            title: 'Dispute Resolved',
+            body: `Dispute #${dispute.id} for order #${order.id} has been resolved. Amount deducted: ${riderAmount}.`,
+          });
+        }
+      } catch (err) {
+        this.logger.error('Failed to queue dispute push notifications:', err);
+      }
+
+      return { success: true };
   }
+
+
+
   //  
   async findOne(id:number){
-       return this.prisma.dispute.findFirst({
+       return await this.prisma.dispute.findFirst({
             where:{
                id
+            },
+            include:{
+               order:{
+                  select:{
+                      total_cost:true,
+                  }
+               }
             }
+          
        })
   }
     //  

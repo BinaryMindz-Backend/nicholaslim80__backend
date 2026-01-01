@@ -1,31 +1,28 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { extname } from 'path';
+import multerS3 from 'multer-s3';
+import { s3Client } from '../aws/s3.client';
 
-/**
- * Multer storage configuration generator
- * @param folder - Folder where files will be saved (default: ./public/uploads)
- */
-export const storageConfig = (folder = './uploads') =>
-  diskStorage({
-    destination: (req, file, callback) => {
+export const storageConfig = (folder = 'uploads') => {
+  if (process.env.USE_S3 !== 'true') {
+    throw new Error('S3 storage is disabled. Set USE_S3=true');
+  }
+
+  return multerS3({
+    s3: s3Client,
+    bucket: process.env.AWS_S3_BUCKET!,
+    // acl: 'public-read', // change to 'private' if needed
+    contentType: multerS3.AUTO_CONTENT_TYPE,
+    key: (req, file, cb) => {
       try {
-        const uploadPath = join(process.cwd(), folder);
+        const uniqueSuffix =
+          Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const ext = extname(file.originalname || '').toLowerCase();
 
-        // Ensure directory exists
-        if (!existsSync(uploadPath)) {
-          mkdirSync(uploadPath, { recursive: true });
-        }
-
-        callback(null, uploadPath);
+        cb(null, `${folder}/${uniqueSuffix}${ext}`);
       } catch (error) {
-        callback(error as Error, '');
+        cb(error as Error, '');
       }
     },
-    filename: (req, file, callback) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      const ext = extname(file.originalname).toLowerCase(); // keeps .jpg, .png, etc.
-      callback(null, `${uniqueSuffix}${ext}`);
-    },
   });
+};

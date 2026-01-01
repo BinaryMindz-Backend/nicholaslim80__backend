@@ -23,6 +23,10 @@ export class CreateDisputeDto {
   @ApiProperty({ enum: DisputeIssueType })
   @IsEnum(DisputeIssueType)
   issueType: DisputeIssueType;
+  
+  @ApiProperty({ example: ['evidence1', 'evidence2', 'evidence3'] })
+  @IsString({ each: true })
+  evidenceids: string[];
 
   @ApiProperty({ required: false })
   @IsOptional()

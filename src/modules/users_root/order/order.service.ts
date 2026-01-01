@@ -480,10 +480,6 @@ export class OrderService {
         return;
       }
 
-      console.log("Processing row:", row);
-      console.log("Sender address:", senderAddress);
-      console.log("Receiver address:", receiverAddress);
-
       /* -------------------- Validate delivery type -------------------- */
       const deliveryTypeEnum = row.delivery_type as DeliveryTypeName;
 
@@ -518,9 +514,7 @@ export class OrderService {
       let senderGeo;
       try {
         senderGeo = await this.geoServices.getLatLngFromAddress(senderAddress);
-        console.log("sender geo--->",senderGeo);
       } catch (error) {
-        console.error('Geocoding error for sender:', error);
         skippedRows.push({
           row,
           reason: `Geocoding failed for sender address: ${error.message}`,
@@ -556,7 +550,6 @@ export class OrderService {
       try {
         receiverGeo = await this.geoServices.getLatLngFromAddress(receiverAddress);
       } catch (error) {
-        console.error('Geocoding error for receiver:', error);
         skippedRows.push({
           row,
           reason: `Geocoding failed for receiver address: ${error.message}`,
@@ -575,12 +568,7 @@ export class OrderService {
       const receivers: Receiver[] = [
         { lat: receiverGeo.lat, lng: receiverGeo.lng },
       ];
-       console.log(  
-        sender,
-        receivers,
-        deliveryTypeEnum,
-        vehicle.id,
-        zone);
+
       /* -------------------- Price calculation -------------------- */
       const pricingResults = await getReceiversWithPrice(
         this.prisma,
@@ -594,7 +582,7 @@ export class OrderService {
           returnFactor: 0.5,
         },
       );
-      console.log("price result-->", pricingResults);
+
       const totalCost = pricingResults[0]?.pricing.totalPrice ?? 0;
       const totalFee = pricingResults[0]?.pricing.totalFee ?? 0;
       
@@ -665,8 +653,6 @@ export class OrderService {
     await processRow(row);
   }
 
-  console.log("Orders to insert:", ordersToInsert.length);
-  console.log("Skipped rows:", skippedRows.length);
 
   if (ordersToInsert.length === 0) {
     return {

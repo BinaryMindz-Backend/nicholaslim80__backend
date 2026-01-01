@@ -301,6 +301,8 @@ export class EmailQueueService {
     }
   }
 
+
+
   // MONITORING & MANAGEMENT  
   async getJobStatus(jobId: string) {
     const emailJob = await this.emailQueue.getJob(jobId);
