@@ -17,7 +17,7 @@ model Dispute {
 
   refundType        String?            // FULL | CUSTOM
   refundAmount      Decimal?            @db.Decimal(12,2)
-  userPercent       Int?
+  companyPercent    Int?
   riderPercent      Int?
 
   resolvedByAdminId Int?               // admin userId

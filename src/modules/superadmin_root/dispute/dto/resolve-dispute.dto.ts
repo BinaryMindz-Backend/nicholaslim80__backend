@@ -22,7 +22,7 @@ export class ResolveDisputeDto {
   @ApiProperty({ required: false, example: 70 })
   @IsOptional()
   @IsInt()
-  userPercent?: number;
+  companyPercent?: number;
 
   @ApiProperty({ required: false, example: 30 })
   @IsOptional()

@@ -5,6 +5,7 @@ import {
   BadRequestException,
   UseInterceptors,
   UploadedFiles,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -97,14 +98,14 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, description: 'Login successful; tokens issued' })
   @ApiResponse({ status: 400, description: 'Invalid OTP' })
-  async loginVerify(@Body() dto: { email?: string, phone?: string, otp: string }) {
+  async loginVerify(@Req() req: any, @Body() dto: { email?: string, phone?: string, otp: string }) {
     const { email, phone, otp } = dto;
     // send to verify otp
     await this.otpService.verifyOtpForLoginAndClear(email, phone, otp);
 
     const user = await this.usersService.findByEmailOrPhone(email, phone);
     // for generate token
-    return this.authService.loginWithOtp(user);
+    return this.authService.loginWithOtp(user, req);
   }
 
 
@@ -115,9 +116,9 @@ export class AuthController {
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() dto: LoginDto) {
+  async login(@Body() dto: LoginDto, @Req() req: any) {
     const user = await this.authService.validateUserByEmailAndPassword(dto);
-    return this.authService.loginWithCredentials(user);
+    return this.authService.loginWithCredentials(user, req);
   }
 
 
@@ -159,7 +160,7 @@ export class AuthController {
   @ApiBody({ type: UploadImageDto })
   @UseInterceptors(
     FilesInterceptor('images', 10, {
-      storage: storageConfig('./uploads'),
+      storage: storageConfig('uploads'),
     }),
   )
   uploadMultipleFiles(
@@ -168,15 +169,18 @@ export class AuthController {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files uploaded');
     }
-    if (!process.env.BASE_URL) {
-      throw new BadRequestException('Base URL not configured');
-    }
-    const fileUrls = files.map((file) =>
-      `${process.env.BASE_URL}/uploads/${file.filename}`
-    );
 
-    return ApiResponses.success(fileUrls, 'Files uploaded successfully');
+    // For S3, file.location contains the full public URL
+    const fileUrls = files
+      .map((file) => (file as Express.Multer.File & { location?: string }).location)
+      .filter((loc): loc is string => typeof loc === 'string');
+
+    return ApiResponses.success(
+      fileUrls,
+      'Files uploaded successfully',
+    );
   }
+
 
 
   
