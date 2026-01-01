@@ -1,6 +1,8 @@
+import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -17,7 +19,12 @@ import { PrismaService } from 'src/core/database/prisma.service';
 
 @Injectable()
 export class DisputeService {
-  constructor(private readonly prisma: PrismaService) {}
+      private readonly logger = new Logger(DisputeService.name);
+  
+  constructor(
+         private readonly prisma: PrismaService,
+         private readonly emailQueueService: EmailQueueService,
+  ) {}
 
   // -------------------------
   private autoPriority(issue: DisputeIssueType): DisputePriority {
@@ -153,6 +160,7 @@ export class DisputeService {
 
     const order = await this.prisma.order.findUnique({
       where: { id: dispute.orderId ?? undefined },
+         include:{ user:true}
     });
     if (!order) throw new NotFoundException('Order not found');
 
@@ -230,8 +238,33 @@ export class DisputeService {
         );
       }
     });
+    
+     // After dispute is resolved and wallet updates are done
+      try {
+        // User notification
+        if (order.user?.fcmToken) {
+          await this.emailQueueService.queuePushNotification({
+            userId: order.user.id,
+            fcmToken: order.user.fcmToken,
+            title: 'Dispute Resolved',
+            body: `Your dispute #${dispute.id} for order #${order.id} has been resolved. Refund amount: ${userAmount}.`,
+          });
+        }
 
-    return { success: true };
+        // Rider notification
+        if (raider.fcmToken) {
+          await this.emailQueueService.queuePushNotification({
+            userId: raider.id,
+            fcmToken: raider.fcmToken,
+            title: 'Dispute Resolved',
+            body: `Dispute #${dispute.id} for order #${order.id} has been resolved. Amount deducted: ${riderAmount}.`,
+          });
+        }
+      } catch (err) {
+        this.logger.error('Failed to queue dispute push notifications:', err);
+      }
+
+      return { success: true };
   }
 
 
