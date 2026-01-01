@@ -13,45 +13,55 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: enable corepack (pnpm)
+        run: corepack enable
+
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm install
+        run: pnpm install --frozen-lockfile
 
-      - name: Build Project
-        run: npm run build
+      - name: Build application
+        run: pnpm build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
 
   build-and-push:
-    name: Build and Push Docker Image
+    name: build and push docker image
     runs-on: ubuntu-latest
     needs: ci-check
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Checkout code from the default
+      - name: checkout code from the default
         uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
+      - name: log in to docker hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.docker_username }}
+          password: ${{ secrets.docker_password }}
 
-      - name: Set up Docker Buildx
+      - name: set up docker buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and Push Docker image
+      - name: build and push docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.PACKAGE_NAME }}:latest
+          tags: ${{ secrets.docker_username }}/${{ secrets.package_name }}:latest
 
   deploy:
-    name: Deploy
+    name: deploy
     runs-on: ubuntu-latest
     needs: build-and-push
     if: github.ref == 'refs/heads/main'
@@ -59,45 +69,45 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
+      - name: login to docker hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.docker_username }}
+          password: ${{ secrets.docker_password }}
 
-      - name: Copy Compose File
+      - name: copy compose file
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          host: ${{ secrets.vps_host }}
+          username: ${{ secrets.vps_user }}
+          key: ${{ secrets.vps_ssh_private_key }}
           source: 'compose.yml'
           target: '~/app'
 
-      - name: Copy Caddy File
+      - name: copy caddy file
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-          source: 'Caddyfile'
+          host: ${{ secrets.vps_host }}
+          username: ${{ secrets.vps_user }}
+          key: ${{ secrets.vps_ssh_private_key }}
+          source: 'caddyfile'
           target: '~/app'
 
-      - name: Deploy via SSH
+      - name: deploy via ssh
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          host: ${{ secrets.vps_host }}
+          username: ${{ secrets.vps_user }}
+          key: ${{ secrets.vps_ssh_private_key }}
           script: |
             cd ~/app
-            # Pull the latest images
+            # pull the latest images
             docker compose pull
 
-            # Stop and remove existing containers safely
+            # stop and remove existing containers safely
             docker compose down --remove-orphans
 
-            # Start containers in detached mode
+            # start containers in detached mode
             docker compose up -d
 
             # Prune unused Docker objects (optional, cleans disk)
