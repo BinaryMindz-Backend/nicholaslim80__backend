@@ -3,7 +3,7 @@ import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { version, name } from "package.json"
+import { version, name } from 'package.json';
 import { join } from 'path';
 import express from 'express';
 
@@ -11,10 +11,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:5174',
-    ],
+    origin: ['http://localhost:5173', 'http://localhost:5174'],
     credentials: true,
   });
 
@@ -28,7 +25,7 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-    })
+    }),
   );
 
   // ENV config
@@ -51,13 +48,13 @@ async function bootstrap() {
   });
 
   // Static folders
-  const publicDir = join(process.cwd(), "public");
-  const uploadDir = join(process.cwd(), "uploads");
+  const publicDir = join(process.cwd(), 'public');
+  const uploadDir = join(process.cwd(), 'uploads');
 
-  app.use("/", express.static(publicDir));
-  app.use("/uploads", express.static(uploadDir));
+  app.use('/', express.static(publicDir));
+  app.use('/uploads', express.static(uploadDir));
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   console.log(`✔ App running at: http://localhost:${host}/${globalPrefix}`);
   console.log(`✔ Swagger docs: http://localhost:${port}/${globalPrefix}/docs`);
@@ -65,7 +62,6 @@ async function bootstrap() {
 
 bootstrap();
 
-
-
 // check if owner ship   // sls -l prisma/migrations
 // change the owner ship // sudo chown -R $(whoami):$(whoami) prisma/migrations
+

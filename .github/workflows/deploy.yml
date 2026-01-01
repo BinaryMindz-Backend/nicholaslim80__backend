@@ -93,7 +93,7 @@ jobs:
           host: ${{ secrets.vps_host }}
           username: ${{ secrets.vps_user }}
           key: ${{ secrets.vps_ssh_private_key }}
-          source: 'caddyfile'
+          source: 'Caddyfile'
           target: '~/app'
 
       - name: deploy via ssh
