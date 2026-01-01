@@ -1,35 +1,47 @@
-# Use Node 20 Alpine
-FROM node:20-alpine
+# =======================
+# 1️⃣ Builder Stage
+# =======================
+FROM node:22 AS builder
 
-# Set working directory
 WORKDIR /usr/src/app
 
-# Install pnpm
-RUN npm install -g pnpm
+# Enable pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy package files
+# Copy only package files first
 COPY package.json pnpm-lock.yaml ./
 
-# Install dependencies
-RUN pnpm install
+# Install all dependencies (dev + prod) for building
+RUN pnpm install --frozen-lockfile && pnpm store prune
 
-# Copy Prisma folder first
-COPY prisma ./prisma/
-COPY prisma.config.ts ./
-
-# Generate Prisma client
-RUN npx prisma generate
-
-# Copy rest of the source code
+# Copy prisma and source code
+COPY prisma ./prisma
 COPY . .
 
-# ✅ Fix permissions for dist and node_modules
-RUN mkdir -p /usr/src/app/dist && chmod -R 777 /usr/src/app
+# Generate Prisma client & build app
+RUN npx prisma generate
+RUN pnpm build
+
+
+# =======================
+# Production Stage
+# =======================
+FROM node:22 AS production
+
+WORKDIR /usr/src/app
+
+# Copy only prod dependencies + build output
+COPY --from=builder /usr/src/app/package*.json ./
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/src/common/services/templates ./dist/src/common/services/templates
+COPY --from=builder /usr/src/app/prisma ./prisma
+
+# Set production env
+ENV NODE_ENV=production
 
 # Expose port
-EXPOSE 3000
+EXPOSE 5000
 
-# Default command
-CMD ["pnpm", "run", "start:dev"]
-
-
+# Run app
+CMD ["node", "dist/src/main"]

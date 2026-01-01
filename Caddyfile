@@ -1,0 +1,4 @@
+api.zipbee.sg {
+    reverse_proxy /* app:5000
+}
+

@@ -1,0 +1,63 @@
+services:
+  app:
+    image: ${DOCKER_USERNAME}/${PACKAGE_NAME}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: nicholas-app
+    restart: unless-stopped
+    volumes:
+      - ./uploads:/usr/src/app/uploads
+    ports:
+      - '5000:5000'
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - nicholas-network
+
+  redis:
+    image: redis:7
+    container_name: nicho_redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+    networks:
+      - nicholas-network
+
+  caddy:
+    image: caddy:latest
+    container_name: caddy_server
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+    networks:
+      - nicholas-network
+
+    depends_on:
+      - app
+
+volumes:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  nicholas-network:
+    external: true
+    driver: bridge
