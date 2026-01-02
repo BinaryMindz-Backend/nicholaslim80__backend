@@ -1,0 +1,21 @@
+model StopPayment {
+  id            Int           @id @default(autoincrement())
+  
+  // Stop Link
+  orderStopId   Int           @unique
+  orderStop     OrderStop     @relation(fields: [orderStopId], references: [id], onDelete: Cascade)
+  
+  // Payment Details
+  payType       PayType
+  amount        Decimal       @db.Decimal(12, 2)
+  status        PaymentStatus @default(UNPAID)
+  
+  // COD Collection
+  collectedAt   DateTime?
+  collectedBy   Int?          // Raider user ID
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  @@map("stop_payments")
+}

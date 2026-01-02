@@ -56,10 +56,10 @@ export class OtpService {
      
      // Send OTP using template TODO:need to replace with queue
       async sendOtpNotification(email: string | null, otp: string, phone?: string | null) {
-        if (email) {
-          await this.mail.sendTemplateMail('otp', email, 'Your OTP Code', { otp });
-          this.logger.log(`OTP email sent to ${email} with OTP ${otp}`);
-        }
+        // if (email) {
+        //   await this.mail.sendTemplateMail('otp', email, 'Your OTP Code', { otp });
+        //   this.logger.log(`OTP email sent to ${email} with OTP ${otp}`);
+        // }
 
         if (phone) {
           // Optionally integrate SMS here

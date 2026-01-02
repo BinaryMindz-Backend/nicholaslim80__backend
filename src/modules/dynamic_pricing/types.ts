@@ -26,6 +26,12 @@ export interface PricingBreakdown {
   surgeAmount: number;
   totalFee: number;
   totalPrice: number;
+  // ✅ ADD THESE FIELDS
+  distance?: number;
+  distanceKm?: number;
+  cumulativeDistance?: number;
+  isRoundTrip?: boolean;
+  returnFactor?: number;
 }
 
 export interface ReceiverWithPricing extends Receiver {

@@ -62,7 +62,6 @@ enum DestinationType {
   RECEIVER
 }
 
-
 enum RouteType {
    ONE_WAY
    ROUND
@@ -96,6 +95,17 @@ enum PaymentStatus {
   FAILED
 }
 
+
+enum StopType {
+  PICKUP
+  DROP
+}
+
+enum StopStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
 
  
 enum TransactionType {

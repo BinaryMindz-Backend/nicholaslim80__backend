@@ -1,0 +1,43 @@
+model OrderStop {
+  id              Int           @id @default(autoincrement())
+  
+  // Order Link
+  orderId         Int
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  // Destination Reference (allows reuse)
+  destinationId   Int
+  destination     Destination   @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+  
+  // Snapshot of destination data at time of order creation
+  // This preserves historical data even if user updates their saved address
+  address         String        // Snapshot
+  latitude        Float         // Snapshot
+  longitude       Float         // Snapshot
+  additionalInfo  String?       // Snapshot
+  
+  // Stop Details
+  type            StopType      // PICKUP or DROP
+  sequence        Int           // Order of stops: 1, 2, 3...
+  status          StopStatus    @default(PENDING)
+  
+  // Delivery Proof
+  proofs          String[]      @default([]) // Photo URLs
+  notes           String?       // Delivery notes from raider
+  
+  // Timestamps
+  arrivedAt       DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  
+  // Payment
+  payment         StopPayment?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([orderId, sequence])
+  @@index([orderId, status])
+  @@map("order_stops")
+}
