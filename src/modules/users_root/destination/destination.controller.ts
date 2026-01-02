@@ -9,7 +9,6 @@ import {
 } from '@nestjs/common';
 import { DestinationService } from './destination.service';
 import { CreateDestinationDto } from './dto/create-destination.dto';
-import { UpdateDestinationDto } from './dto/update-destination.dto';
 
 import {
   ApiBearerAuth,
@@ -25,6 +24,7 @@ import type { IUser } from 'src/types';
 import { ApiResponses } from 'src/common/apiResponse';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { UpsertDestinationDto } from './dto/update-destination.dto';
 
 
 
@@ -82,7 +82,7 @@ export class DestinationController {
   @ApiParam({ name: 'id', type: Number })
   async update(
     @Param('id') id: string,
-    @Body() dto: UpdateDestinationDto,
+    @Body() dto: UpsertDestinationDto,
     @CurrentUser() user: IUser,
   ) {
     try {

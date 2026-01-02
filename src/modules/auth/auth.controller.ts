@@ -59,13 +59,13 @@ export class AuthController {
   @ApiBody({ type: VerifyOtpDto })
   @ApiResponse({ status: 200, description: 'User verified successfully' })
   @ApiResponse({ status: 400, description: 'Invalid or expired OTP' })
-  async verify(@Body() dto: { email?: string, phone?: string; otp: string }) {
+  async verify(@Body() dto: { email?: string, phone?: string; otp: string }, @Req() req: any) {
     const { email, phone, otp } = dto;
     await this.otpService.verifyOtp(email, phone, otp);
 
     const user = await this.usersService.findByEmailOrPhone(email, phone);
     // for generate token
-    return this.authService.loginWithOtp(user);
+    return this.authService.loginWithOtp(user, req);
   }
 
 

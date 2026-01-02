@@ -46,10 +46,9 @@ model Order {
   isDispute               Boolean     @default(false) 
   isBulk                  Boolean     @default(false)
 
-
-  destinations            Destination[]
   transactions            Transaction[]
   declines                OrderDecline[]
+  orderStops              OrderStop[] 
 
   rewards                 Reward[]
   // 
@@ -63,6 +62,6 @@ model Order {
   created_at              DateTime @default(now())
   updated_at              DateTime @updatedAt
 
-  @@index([userId])
+  @@index([userId, order_status])
   @@map("orders")
 }

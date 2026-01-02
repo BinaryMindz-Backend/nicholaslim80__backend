@@ -1,9 +1,10 @@
-import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateDestinationDto } from './dto/create-destination.dto';
-import { UpdateDestinationDto } from './dto/update-destination.dto';
+import { UpsertDestinationDto } from './dto/update-destination.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import type { IUser } from 'src/types';
 import { GeoService } from 'src/utils/geo-location.utils';
+import { DestinationType } from '@prisma/client';
 
 @Injectable()
 export class DestinationService {
@@ -35,7 +36,7 @@ export class DestinationService {
           { latitude: geo.lat },
           { longitude: geo.lng },
         ],
-        user_id: user?.id
+        userId: user?.id
       }
     })
 
@@ -57,7 +58,7 @@ export class DestinationService {
         latitude: geo.lat,
         longitude: geo.lng,
         accuracy: dto.accuracy,
-        user_id: user.id
+        userId: user.id
       }
     });
   }
@@ -66,7 +67,7 @@ export class DestinationService {
   async findAll(user: IUser) {
     return this.prisma.destination.findMany({
       where: {
-        user_id: user.id
+        userId: user.id
       }
     });
   }
@@ -78,7 +79,7 @@ export class DestinationService {
   }
 
   // 
-  async update(id: number, dto: UpdateDestinationDto, user: IUser) {
+  async update(id: number, dto: UpsertDestinationDto, user: IUser) {
     //  
     if (!id) {
       throw new NotFoundException("destination id not found")
@@ -132,7 +133,7 @@ export class DestinationService {
     const isExist = await this.prisma.destination.findFirst({
       where: {
         id,
-        user_id: user?.id
+        userId: user?.id
       }
     })
     // 
@@ -143,4 +144,93 @@ export class DestinationService {
 
     return await this.prisma.destination.delete({ where: { id } });
   }
+  //  
+   async upsertDestination(userId: number, dto: UpsertDestinationDto) {
+    const data = {
+      address: dto.address,
+      latitude: dto.latitude,
+      longitude: dto.longitude,
+      additionalInfo: dto.additionalInfo,
+      type: dto.type,
+      userId,
+    };
+
+    if (userId) {
+      // Update existing
+      const existing = await this.prisma.destination.findFirst({
+        where: { userId, type: dto.type  },
+      });
+
+      if (!existing || existing.userId !== userId) {
+        throw new BadRequestException('Destination not found or unauthorized');
+      }
+
+      return this.prisma.destination.update({
+        where: { id: existing.id
+        },
+        data,
+      });
+    }
+
+    // Create new
+    return this.prisma.destination.create({ data });
+  }
+
+  /**
+   * Get user's saved destinations (address book)
+   */
+  async getUserDestinations(userId: number, type?: DestinationType) {
+    return this.prisma.destination.findMany({
+      where: {
+        userId,
+        ...(type && { type }),
+      },
+      orderBy: [
+        { lastUsedAt: 'desc' },
+        { useCount: 'desc' },
+      ],
+    });
+  }
+
+  /**
+   * Get frequently used destinations
+   */
+  async getFrequentDestinations(userId: number, limit = 5) {
+    return this.prisma.destination.findMany({
+      where: { userId },
+      orderBy: [
+        { useCount: 'desc' },
+        { lastUsedAt: 'desc' },
+      ],
+      take: limit,
+    });
+  }
+
+  /**
+   * Delete a destination from address book
+   */
+  async deleteDestination(userId: number, destinationId: number) {
+    const destination = await this.prisma.destination.findUnique({
+      where: { id: destinationId },
+      include: { orderStops: { where: { order: { order_status: { in: ['PROGRESS', 'PENDING', 'ONGOING'] } } } } },
+    });
+
+    if (!destination || destination.userId !== userId) {
+      throw new BadRequestException('Destination not found or unauthorized');
+    }
+
+    // Prevent deletion if used in active orders
+    if (destination.orderStops.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete destination used in active orders. Complete or cancel those orders first.',
+      );
+    }
+
+    await this.prisma.destination.delete({ where: { id: destinationId } });
+    return { message: 'Destination deleted successfully' };
+  }
+
+
+
+
 }

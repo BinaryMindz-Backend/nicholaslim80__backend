@@ -1,18 +1,16 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import { Parser } from 'json2csv';
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DeliveryZone, DestinationInput, IUser, Receiver } from 'src/types';
-import { CollectTime, DeliveryTypeName, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, RouteType, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, DeliveryTypeName, Destination, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
 import { RedisService } from 'src/modules/auth/redis/redis.service';
 import { competitionQueue } from 'src/core/queues/competition.queue';
 import axios from 'axios';
-import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { ServiceZoneService } from 'src/modules/superadmin_root/service-zone/service-zone.service';
 import { GeoService } from 'src/utils/geo-location.utils';
@@ -20,7 +18,8 @@ import { PaginationDto } from 'src/utils/dto/pagination.dto';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { WalletService } from 'src/common/wallet/wallet.service';
 import csvParser from 'csv-parser';
-import { getReceiversWithPrice } from 'src/modules/dynamic_pricing/getReceiversWithPrice';
+import { getReceiversWithIndividualPrice, getReceiversWithPrice } from 'src/modules/dynamic_pricing/getReceiversWithPrice';
+import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 
 
 @Injectable()
@@ -46,9 +45,13 @@ export class OrderService {
     const res = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
-          ...dto,
-          userId: user.id,
-          total_cost: 0,
+            userId:user.id,
+            total_cost: 0,
+            pay_type: undefined,
+            delivery_type: dto.delivery_type,
+            vehicle_type_id: dto.vehicle_type_id,
+            route_type: dto.route_type ?? RouteType.ONE_WAY,
+            order_status: OrderStatus.PROGRESS,
         },
       });
 
@@ -76,165 +79,589 @@ export class OrderService {
 
     return res;
     }
-    // update destination
-    async upsertDestinationAndRecalculate(
+
+    /**
+   * ADD DESTINATION TO ORDER (Creates OrderStop snapshot)
+   */
+    async addDestinationToOrder(
       orderId: number,
       destinationId: number,
-      user: IUser,
+      userId: number,
+      stopType: StopType,
     ) {
-      if (!orderId) throw new NotFoundException('Order ID is required');
-      if (!destinationId) throw new NotFoundException('Destination ID is required');
-
-      // Fetch order
+      // Verify order ownership
       const order = await this.prisma.order.findUnique({
-        where: { id: orderId, order_status: OrderStatus.PROGRESS },
-        include: { destinations: true },
+        where: { id: orderId },
+        include: { orderStops: true },
       });
-      if (!order) throw new NotFoundException('Order not found');
-      if (order.userId !== user.id) throw new BadRequestException('Unauthorized');
 
-      // Fetch the destination
+      if (!order || order.userId !== userId) {
+        throw new BadRequestException('Order not found or unauthorized');
+      }
+
+      if (order.order_status !== OrderStatus.PROGRESS) {
+        throw new BadRequestException('Cannot modify placed order');
+      }
+
+      // Get destination
       const destination = await this.prisma.destination.findUnique({
         where: { id: destinationId },
       });
-      if (!destination) throw new NotFoundException('Destination not found');
 
-      // Connect the destination to the order if not already
-      if (!order.destinations.some(d => d.id === destinationId)) {
-        await this.prisma.destination.update({
-          where: { id: destinationId },
-          data: { order_id: orderId },
+      if (!destination || destination.userId !== userId) {
+        throw new BadRequestException('Destination not found or unauthorized');
+      }
+
+      // Validate destination type
+      if (stopType === StopType.PICKUP && destination.type === DestinationType.RECEIVER) {
+        throw new BadRequestException('Cannot use RECEIVER-only destination as pickup');
+      }
+      if (stopType === StopType.DROP && destination.type === DestinationType.SENDER) {
+        throw new BadRequestException('Cannot use SENDER-only destination as drop');
+      }
+
+      // Check if already added
+      const existing = await this.prisma.orderStop.findFirst({
+        where: { orderId, destinationId, type: stopType },
+      });
+
+      if (existing) {
+        throw new BadRequestException('Destination already added to order');
+      }
+
+      // Create OrderStop (snapshot)
+      const sequence = order.orderStops.length + 1;
+      
+     // Create OrderStop
+    const orderStop = await this.prisma.orderStop.create({
+      data: {
+        orderId,
+        destinationId,
+        type: stopType,
+        sequence,
+        address: destination.address!,
+        latitude: destination.latitude!,
+        longitude: destination.longitude!,
+        additionalInfo: destination.additionalInfo,
+        status: 'PENDING',
+        payment: {
+          create: {
+            payType: order.pay_type ?? 'COD',
+            amount: 0, // Will be calculated below
+            status: 'UNPAID',
+          },
+        },
+      },
+      include: {
+        destination: true,
+        payment: true,
+      },
+    });
+
+    // Update destination usage stats
+    await this.prisma.destination.update({
+      where: { id: destinationId },
+      data: {
+        lastUsedAt: new Date(),
+        useCount: { increment: 1 },
+      },
+    });
+
+    // Recalculate price with individual pricing
+    const pricingResult = await this.recalculateOrderPrice(orderId);
+
+    return {
+      orderStop,
+      pricing: pricingResult,
+    };
+    }
+   /**
+   * REMOVE DESTINATION FROM ORDER
+   */
+    async removeDestinationFromOrder(orderId: number, orderStopId: number, userId: number) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+      });
+
+      if (!order || order.userId !== userId) {
+        throw new BadRequestException('Order not found or unauthorized');
+      }
+
+      if (order.order_status !== OrderStatus.PROGRESS) {
+        throw new BadRequestException('Cannot modify placed order');
+      }
+
+      const orderStop = await this.prisma.orderStop.findUnique({
+        where: { id: orderStopId },
+      });
+
+      if (!orderStop || orderStop.orderId !== orderId) {
+        throw new BadRequestException('Order stop not found');
+      }
+
+      // Delete stop (cascades to payment)
+      await this.prisma.orderStop.delete({ where: { id: orderStopId } });
+
+      // Resequence remaining stops
+      const remainingStops = await this.prisma.orderStop.findMany({
+        where: { orderId },
+        orderBy: { sequence: 'asc' },
+      });
+
+      for (let i = 0; i < remainingStops.length; i++) {
+        await this.prisma.orderStop.update({
+          where: { id: remainingStops[i].id },
+          data: { sequence: i + 1 },
         });
       }
 
-      // Fetch sender
-      const senderDest = await this.prisma.destination.findFirst({
-        where: {
-          OR: [
-            { order_id: orderId, type: DestinationType.SENDER },
-            { user_id: user.id, type: DestinationType.SENDER },
-          ],
-        },
-      });
+      // Recalculate price
+      await this.recalculateOrderPrice(orderId);
 
-      const sender: Receiver | null = senderDest
-        ? { lat: senderDest.latitude!, lng: senderDest.longitude! }
-        : null;
+      return { message: 'Destination removed from order' };
+    }
 
-      if (!sender) {
-        // No sender yet, price remains 0
-        return { order, updatedDestination: destination, totalCost: 0, totalFee: 0 };
-      }
-
-      // Determine service zone
-      const zone = await this.serviceZone.findZoneByPoint(sender.lat, sender.lng);
-      if (!zone) throw new BadRequestException('Sender address is outside service zone');
-
-      // Collect all receiver destinations (exclude sender)
-      const receiverDestinations = await this.prisma.destination.findMany({
-        where: {
-          order_id: orderId,
-          type: DestinationType.RECEIVER,
-        },
-      });
-
-      const receivers: Receiver[] = receiverDestinations
-        .filter(d => !(d.latitude === sender.lat && d.longitude === sender.lng)) // exclude sender
-        .map(d => ({ lat: d.latitude!, lng: d.longitude! }));
-
-      let totalCost = 0;
-      let totalFee = 0;
-
-      if (receivers.length > 0) {
-        // Calculate pricing based on **all current receivers**
-        const pricingResults = await getReceiversWithPrice(
-          this.prisma,
-          sender,
-          receivers,
-          order.delivery_type,
-          order.vehicle_type_id ?? 1,
-          zone,
-          {
-          isRoundTrip: order.route_type == RouteType.ROUND ? true : false, 
-          returnFactor: 0.5,        // optional (default 50%)
-          }
-        );
-       // Take totalPrice / totalFee from the first receiver (same for all)
-        totalCost = pricingResults[0]?.pricing.totalPrice ?? 0;
-        totalFee = pricingResults[0]?.pricing.totalFee ?? 0;
-      }
-
-      // Update order totals
-      const updatedOrder = await this.prisma.order.update({
+    /**
+   * PLACE ORDER (Lock and configure payments)
+   */
+    async placeOrder(
+      orderId: number,
+      userId: number,
+      dto: {
+        paymentMethod?: PayType;
+        paymentMethodId?: string;
+        codCollectFrom?: 'SENDER' | 'RECEIVER';
+      },
+    ) {
+      const order = await this.prisma.order.findUnique({
         where: { id: orderId },
+        include: {
+          orderStops: {
+            include: { payment: true },
+            orderBy: { sequence: 'asc' },
+          },
+        },
+      });
+
+      if (!order || order.userId !== userId) {
+        throw new BadRequestException('Order not found or unauthorized');
+      }
+
+      if (order.order_status !== OrderStatus.PROGRESS) {
+        throw new BadRequestException('Order already placed');
+      }
+
+      // Validate order has stops
+      const pickupStop = order.orderStops.find(s => s.type === StopType.PICKUP);
+      const dropStops = order.orderStops.filter(s => s.type === StopType.DROP);
+
+      if (!pickupStop || dropStops.length === 0) {
+        throw new BadRequestException('Order must have at least 1 pickup and 1 drop location');
+      }
+
+      const payType = dto.paymentMethod ?? order.pay_type ?? PayType.COD;
+      const codCollectFrom = dto.codCollectFrom ?? 'RECEIVER';
+
+      return await this.prisma.$transaction(async (tx) => {
+        /** ----------------------- UPFRONT PAYMENT ----------------------- */
+        if (payType === PayType.WALLET) {
+          const user = await tx.user.findUnique({ where: { id: userId } });
+
+          if (!user || Number(user.currentWalletBalance) < Number(order.total_cost)) {
+            throw new BadRequestException('Insufficient wallet balance');
+          }
+
+          await tx.user.update({
+            where: { id: userId },
+            data: { currentWalletBalance: { decrement: Number(order.total_cost) } },
+          });
+
+          // Mark all stops as PAID
+          await tx.stopPayment.updateMany({
+            where: { orderStopId: { in: order.orderStops.map(s => s.id) } },
+            data: {
+              payType: PayType.WALLET,
+              status: PaymentStatus.PAID,
+              amount: 0,
+            },
+          });
+        }
+
+        if (payType === PayType.ONLINE_PAY) {
+          if (!dto.paymentMethodId) {
+            throw new BadRequestException('Payment method ID required');
+          }
+
+          const paid = await this.walletService.addMoney(
+            userId,
+            Number(order.total_cost),
+            dto.paymentMethodId,
+            payType,
+          );
+
+          if (!paid) throw new BadRequestException('Online payment failed');
+
+          await tx.stopPayment.updateMany({
+            where: { orderStopId: { in: order.orderStops.map(s => s.id) } },
+            data: {
+              payType: PayType.ONLINE_PAY,
+              status: PaymentStatus.PAID,
+              amount: 0,
+            },
+          });
+        }
+
+        /** ----------------------- COD PAYMENT SETUP ----------------------- */
+        if (payType === PayType.COD) {
+          if (codCollectFrom === 'SENDER') {
+            // Sender pays at pickup
+            await tx.stopPayment.update({
+              where: { orderStopId: pickupStop.id },
+              data: {
+                amount: Number(order.total_cost),
+                payType: PayType.COD,
+                status: PaymentStatus.UNPAID,
+              },
+            });
+
+            // Receivers pay nothing
+            for (const drop of dropStops) {
+              await tx.stopPayment.update({
+                where: { orderStopId: drop.id },
+                data: { amount: 0, status: PaymentStatus.PAID },
+              });
+            }
+          } else {
+            // Each receiver pays
+            const perDropAmount = Number(order.total_cost) / dropStops.length;
+
+            // Sender pays nothing
+            await tx.stopPayment.update({
+              where: { orderStopId: pickupStop.id },
+              data: { amount: 0, status: PaymentStatus.PAID },
+            });
+
+            // Each receiver pays their share
+            for (const drop of dropStops) {
+              await tx.stopPayment.update({
+                where: { orderStopId: drop.id },
+                data: {
+                  amount: perDropAmount,
+                  payType: PayType.COD,
+                  status: PaymentStatus.UNPAID,
+                },
+              });
+            }
+          }
+        }
+
+        /** ----------------------- UPDATE ORDER ----------------------- */
+        return tx.order.update({
+          where: { id: orderId },
+          data: {
+            order_status: OrderStatus.PENDING,
+            is_placed: true,
+            pay_type: payType,
+          },
+          include: {
+            orderStops: {
+              include: {
+                destination: true,
+                payment: true,
+              },
+              orderBy: { sequence: 'asc' },
+            },
+          },
+        });
+      });
+    }
+
+   /**
+   * COMPLETE STOP (Raider)
+   */
+    async completeStop(
+      orderStopId: number,
+      raiderId: number,
+      dto: {
+        proofFiles: string[];
+        codCollected?: number;
+        notes?: string;
+      },
+    ) {
+      const stop = await this.prisma.orderStop.findUnique({
+        where: { id: orderStopId },
+        include: {
+          payment: true,
+          order: true,
+        },
+      });
+
+      if (!stop) throw new NotFoundException('Stop not found');
+      if (stop.status === StopStatus.COMPLETED) {
+        throw new BadRequestException('Stop already completed');
+      }
+
+      return await this.prisma.$transaction(async (tx) => {
+        const requiresPayment = stop.payment && Number(stop.payment.amount) > 0;
+
+        // Validate COD collection
+        if (requiresPayment) {
+          if (!dto.codCollected) {
+            throw new BadRequestException('COD collection required');
+          }
+
+          const expected = Number(stop.payment!.amount);
+          if (dto.codCollected < expected) {
+            throw new BadRequestException(
+              `Insufficient payment. Expected: ${expected}, Received: ${dto.codCollected}`,
+            );
+          }
+
+          // Mark payment as PAID
+          await tx.stopPayment.update({
+            where: { id: stop.payment!.id },
+            data: {
+              amount: dto.codCollected,
+              status: PaymentStatus.PAID,
+              collectedAt: new Date(),
+              collectedBy: raiderId,
+            },
+          });
+        }
+
+        // Mark stop as COMPLETED
+        await tx.orderStop.update({
+          where: { id: orderStopId },
+          data: {
+            proofs: dto.proofFiles,
+            notes: dto.notes,
+            status: StopStatus.COMPLETED,
+            completedAt: new Date(),
+          },
+        });
+
+        // Check if all stops completed
+        const incompleteStops = await tx.orderStop.findMany({
+          where: {
+            orderId: stop.orderId,
+            OR: [
+              { status: { in: [StopStatus.PENDING, StopStatus.FAILED] } },
+              {
+                payment: {
+                  status: PaymentStatus.UNPAID,
+                  amount: { gt: 0 },
+                },
+              },
+            ],
+          },
+        });
+
+        // Auto-complete order if everything done
+        if (incompleteStops.length === 0) {
+          await tx.order.update({
+            where: { id: stop.orderId },
+            data: { order_status: OrderStatus.COMPLETED },
+          });
+
+          await tx.raider.update({
+            where: { userId: raiderId },
+            data: { completed_orders: { increment: 1 } },
+          });
+
+          return {
+            message: 'Stop completed. Order fully completed!',
+            orderCompleted: true,
+          };
+        }
+
+        return {
+          message: 'Stop completed successfully',
+          orderCompleted: false,
+          remainingStops: incompleteStops.length,
+        };
+      });
+    } 
+
+    // cancle order 
+   async cancelOrder(orderId: number, userId: number, reason?: string) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          orderStops: { include: { payment: true } },
+        },
+      });
+
+      if (!order || order.userId !== userId) {
+        throw new BadRequestException('Order not found or unauthorized');
+      }
+
+      // Can only cancel PROGRESS or PENDING orders
+      if (!["PROGRESS", "PENDING"].includes(order.order_status)) {
+        throw new BadRequestException('Cannot cancel order in current status');
+      }
+
+      return await this.prisma.$transaction(async (tx) => {
+        // Refund if already paid
+        if (order.pay_type === PayType.WALLET && order.is_placed) {
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              currentWalletBalance: {
+                increment: Number(order.total_cost),
+              },
+            },
+          });
+        }
+
+        // For ONLINE_PAY, you'd trigger a refund via payment gateway here
+        if (order.pay_type === PayType.ONLINE_PAY && order.is_placed) {
+          // await this.walletService.refund(...)
+        }
+
+        // Update order status
+        const cancelledOrder = await tx.order.update({
+          where: { id: orderId },
+          data: {
+            order_status: OrderStatus.CANCELLED,
+            // You could add a cancellation_reason field to store the reason
+          },
+        });
+
+        // Update transaction if exists
+        const transaction = await tx.transaction.findFirst({
+          where: { orderId },
+        });
+
+        if (transaction) {
+          await tx.transaction.update({
+            where: { id: transaction.id },
+            data: {
+              tx_status: TransactionStatus.FAILED,
+              payment_status: PaymentStatus.PENDING,
+            },
+          });
+        }
+
+        return { 
+          message: 'Order cancelled successfully', 
+          order: cancelledOrder,
+          refunded: order.is_placed 
+        };
+      });
+    }
+
+  /**
+   * Fail a stop (Rule #4: Receiver not available)
+   */
+    async failStop(stopId: number, reason: string) {
+      const stop = await this.prisma.orderStop.findUnique({
+        where: { id: stopId },
+        include: { order: true },
+      });
+
+      if (!stop) throw new NotFoundException('Stop not found');
+
+      if (stop.status === StopStatus.COMPLETED) {
+        throw new BadRequestException('Cannot fail completed stop');
+      }
+
+      await this.prisma.orderStop.update({
+        where: { id: stopId },
         data: {
-          total_cost: totalCost,
-          total_fee: totalFee,
-          serviceZoneId: zone.id,
+          status: StopStatus.FAILED,
+          failedAt: new Date(),
+          failureReason: reason,
         },
       });
 
       return {
-        order: updatedOrder,
-        updatedDestination: destination,
-        totalCost,
-        totalFee,
+        message: 'Stop marked as FAILED. Order cannot complete until resolved.',
+        requiresAdminAction: true,
+        stopId,
+        orderId: stop.orderId,
       };
     }
 
-    // **create indivitual
-    async createOrder(payload: CreateIndiOrderDto, user: IUser) {
-      // 
-      const geocodedDestinations: DestinationInput[] = [];
-      let orderServiceZoneId: number | null = null;
-      let orderServiceZone: DeliveryZone | null = null;
+  /**
+   * Retry a failed stop
+   */
+    async retryFailedStop(stopId: number) {
+      const stop = await this.prisma.orderStop.findUnique({
+        where: { id: stopId },
+      });
 
+      if (!stop) throw new NotFoundException('Stop not found');
 
-      for (const d of payload.destinations) {
+      if (stop.status !== StopStatus.FAILED) {
+        throw new BadRequestException('Stop is not in FAILED state');
+      }
+
+      await this.prisma.orderStop.update({
+        where: { id: stopId },
+        data: {
+          status: StopStatus.PENDING,
+          failedAt: null,
+          failureReason: null,
+        },
+      });
+
+      return { 
+        message: 'Stop reset to PENDING for retry',
+        stopId 
+      };
+    }
+
+    /**
+   * Create individual order with geocoding and pricing
+   */
+    async createIndividualOrder(payload: CreateIndiOrderDto, user: IUser) {
+        // Step 1: Geocode all destinations
+        const geocodedDestinations: DestinationInput[] = [];
+        let orderServiceZoneId: number | null = null;
+        let orderServiceZone: DeliveryZone | null = null;
+
+        for (const d of payload.destinations) {
           let lat = d.latitude;
           let lng = d.longitude;
           let formattedAddress = d.addressFromApr;
 
+          // Geocode if coordinates missing
           if (!lat || !lng) {
             const geo = await this.geoServices.getLatLngFromAddress(d.address ?? '');
             lat = geo.lat;
             lng = geo.lng;
             formattedAddress = geo.formattedAddress;
-
-            console.log("geocoded ->", lat, lng, formattedAddress); // <-- log after assignment
+            console.log('Geocoded ->', lat, lng, formattedAddress);
           }
 
-        const zone = await this.serviceZone.findZoneByPoint(lat, lng);
-        // Assign order service zone from SENDER destination
-        if (
-          d.type === DestinationType.SENDER &&
-          zone &&
-          !orderServiceZone
-        ) {
-          orderServiceZoneId = zone.id;
-          orderServiceZone = zone;
-        }
-  
-        geocodedDestinations.push({
-          ...d,
-          address: d.address ?? '',
-          latitude: lat,
-          longitude: lng,
-          type: d.type ?? DestinationType.SENDER,
-          is_saved: d.is_saved ?? false,
-          // service_zoneId: zone?.id ?? null,
-          addressFromApr: formattedAddress,
-        });
-      }
+          // Find service zone
+          const zone = await this.serviceZone.findZoneByPoint(lat, lng);
 
-      if (!orderServiceZone) {
-        throw new Error('Pickup location is outside service zone');
-      }
-        // geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.latitude!,
-        // geocodedDestinations.find(d => d.type === DestinationType.SENDER)!.longitude!,
-      // sender destination
-      const senderDestination = geocodedDestinations.find(
-          d => d.type === DestinationType.SENDER,
+          // Assign service zone from SENDER destination
+          if (d.type === DestinationType.SENDER && zone && !orderServiceZone) {
+            orderServiceZoneId = zone.id;
+            orderServiceZone = zone;
+          }
+
+          geocodedDestinations.push({
+            ...d,
+            address: d.address ?? '',
+            latitude: lat,
+            longitude: lng,
+            type: d.type ?? DestinationType.SENDER,
+            is_saved: d.is_saved ?? false,
+            addressFromApr: formattedAddress,
+          });
+        }
+
+        // Validate service zone
+        if (!orderServiceZone) {
+          throw new BadRequestException('Pickup location is outside service zone');
+        }
+
+        // Step 2: Extract sender and receivers
+        const senderDestination = geocodedDestinations.find(
+          (d) => d.type === DestinationType.SENDER,
         );
 
         if (!senderDestination?.latitude || !senderDestination?.longitude) {
@@ -246,483 +673,452 @@ export class OrderService {
           lng: senderDestination.longitude,
         };
 
-      // Collect all receivers (exclude SENDER if you want sender → receiver)
-      const receiverDestinations: Receiver[] = geocodedDestinations
-        .filter(d => d.type !== DestinationType.SENDER)
-        .map(d => ({ lat: d.latitude!, lng: d.longitude! }));
-      // 
-      const receiversWithPrice = await getReceiversWithPrice(
-        this.prisma,
-        sender,
-        receiverDestinations,
-        payload.delivery_type,  
-        payload.vehicle_type_id,
-        orderServiceZone,
-        {
-          isRoundTrip: payload.route_type == RouteType.ROUND ? true : false,        // ✅ enable round trip
-          returnFactor: 0.5,        // optional (default 50%)
+        const receiverDestinations: Receiver[] = geocodedDestinations
+          .filter((d) => d.type !== DestinationType.SENDER)
+          .map((d) => ({ lat: d.latitude, lng: d.longitude }));
+
+        if (receiverDestinations.length === 0) {
+          throw new BadRequestException('At least one receiver destination is required');
         }
-      );
 
-       // Calculate total cost for the order
-       const totalCost = receiversWithPrice.reduce(
-                (sum, r) => sum + r.pricing.totalPrice,
-                0
-              );
-
-       const totalFee = receiversWithPrice.reduce(
-                (sum, r) => sum + r.pricing.totalFee,
-                0
-              );
-       
-      const res = await this.prisma.$transaction(async (tx) => {
-        // Create order WITH service zone
-        const order = await tx.order.create({
-          data: {                                                               
-            serviceZoneId:Number(orderServiceZoneId),
-            userId: user.id,
-            route_type: payload.route_type,
-            delivery_type: payload.delivery_type,
-            // pay_type: payload.pay_type,
-            collect_time: payload.collect_time,
-            scheduled_time:payload.scheduled_time,
-            vehicle_type_id: payload.vehicle_type_id,
-            payment_method_id: payload.payment_method_id,
-            total_cost: isNaN(Number(totalCost)) ? 0 : parseFloat(Number(totalCost).toFixed(3)),
-            total_fee:totalFee,
-            isFixed: payload.isFixed,                                       
-            order_status:OrderStatus.PROGRESS,
+        // Step 3: Calculate pricing
+        const receiversWithPrice = await getReceiversWithPrice(
+          this.prisma,
+          sender,
+          receiverDestinations,
+          payload.delivery_type,
+          payload.vehicle_type_id,
+          orderServiceZone,
+          {
+            isRoundTrip: payload.route_type === RouteType.ROUND,
+            returnFactor: 0.5,
           },
-        });
+        );
 
-        const createdDestinations: Destination[] = [];
+        const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
+        const totalFee = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalFee, 0);
 
-        for (const d of geocodedDestinations) {
-          const dest = await tx.destination.create({
+        // Step 4: Create order in transaction
+        const result = await this.prisma.$transaction(async (tx) => {
+          // Create order
+          const order = await tx.order.create({
             data: {
-              order_id: order.id,
-              user_id: user.id,
-              address: d.address,
-              addressFromApr: d.addressFromApr ?? null,
-              floor_unit: d.floor_unit ?? null,
-              contact_name: d.contact_name ?? null,
-              contact_number: d.contact_number ?? null,
-              note_to_driver: d.note_to_driver ?? null,
-              is_saved: d.is_saved,
-              type: d.type,
-              latitude: d.latitude!,
-              longitude: d.longitude!,
-              accuracy: d.accuracy ?? null,
-              // service_zoneId: d.service_zoneId,
+              serviceZoneId: Number(orderServiceZoneId),
+              userId: user.id,
+              route_type: payload.route_type,
+              delivery_type: payload.delivery_type,
+              collect_time: payload.collect_time,
+              scheduled_time: payload.scheduled_time,
+              vehicle_type_id: payload.vehicle_type_id,
+              payment_method_id: payload.payment_method_id,
+              total_cost: isNaN(Number(totalCost)) ? 0 : parseFloat(Number(totalCost).toFixed(2)),
+              total_fee: parseFloat(Number(totalFee).toFixed(2)),
+              isFixed: payload.isFixed ?? false,
+              order_status: OrderStatus.PROGRESS,
             },
           });
 
-          createdDestinations.push(dest);
+          // Create destinations and order stops
+          const createdStops: any[] = [];
+          let sequence = 1;
+
+          for (const d of geocodedDestinations) {
+            // Create destination (if saving to address book)
+            let destinationId: number;
+
+            if (d.is_saved) {
+              const savedDest = await tx.destination.create({
+                data: {
+                  userId: user.id,
+                  address: d.address,
+                  latitude: d.latitude,
+                  longitude: d.longitude,
+                  additionalInfo: d.note_to_driver ?? null,
+                  type: d.type === DestinationType.SENDER 
+                    ? DestinationType.SENDER 
+                    : DestinationType.RECEIVER,
+                  lastUsedAt: new Date(),
+                  useCount: 1,
+                },
+              });
+              destinationId = savedDest.id;
+            } else {
+              // Create temporary destination for this order only
+              const tempDest = await tx.destination.create({
+                data: {
+                  userId: user.id,
+                  address: d.address,
+                  latitude: d.latitude,
+                  longitude: d.longitude,
+                  type: d.type === DestinationType.SENDER 
+                    ? DestinationType.SENDER 
+                    : DestinationType.RECEIVER,
+                },
+              });
+              destinationId = tempDest.id;
+            }
+
+            // Create order stop
+            const stopType = d.type === DestinationType.SENDER ? StopType.PICKUP : StopType.DROP;
+            
+            const stop = await tx.orderStop.create({
+              data: {
+                orderId: order.id,
+                destinationId,
+                type: stopType,
+                sequence,
+                status: StopStatus.PENDING,
+                address: d.address,
+                latitude: d.latitude,
+                longitude: d.longitude,
+                additionalInfo: d.note_to_driver ?? null,
+                // Create payment record
+                payment: {
+                  create: {
+                    payType: payload.pay_type ?? PayType.COD,
+                    amount: 0, // Will be set in placeOrder
+                    status: PaymentStatus.UNPAID,
+                  },
+                },
+              },
+            });
+
+            createdStops.push(stop);
+            sequence++;
+          }
+
+          // Create transaction record
+          const txId = this.txIdService.generate();
+          const transaction = await tx.transaction.create({
+            data: {
+              transaction_code: txId,
+              payment_status: PaymentStatus.UNPAID,
+              payment_method_id: payload.payment_method_id,
+              type: TransactionType.BOOK_ORDER,
+              delivery_fee: order.total_cost,
+              total_fee: order.total_fee,
+              userId: user.id,
+              pay_type: payload.pay_type,
+              orderId: order.id,
+            },
+            include: {
+              user: { select: { username: true } },
+              order: { select: { id: true, order_status: true } },
+            },
+          });
+
+          return { order, transaction, stops: createdStops };
+        });
+
+        return result;
+    }
+
+
+    async bulkCreateOrdersFromCsv(
+          dto: BulkOrderWithDestinationsDto,
+          userId: number,
+        ) {
+          if (!dto?.fileUrl.startsWith(process.env.BASE_URL!)) {
+            throw new BadRequestException('Invalid file source');
+          }
+
+          const response = await axios.get(dto.fileUrl, { responseType: 'stream' });
+
+          const skippedRows: any[] = [];
+          const ordersToInsert: any[] = [];
+          const destinationsToInsert: any[] = [];
+
+    const processRow = async (row: any) => {
+      try {
+        /* -------------------- Validate required fields -------------------- */
+        if (!row.delivery_type || !row.sender_address || !row.receiver_address) {
+          skippedRows.push({ row, reason: 'Missing required fields' });
+          return;
         }
 
-        const txId = this.txIdService.generate();
-        const transaction = await tx.transaction.create({
-          data: {
-            transaction_code: txId,
-            payment_status: PaymentStatus.UNPAID,
-            payment_method_id: payload.payment_method_id,
-            type: TransactionType.BOOK_ORDER,
-            delivery_fee: order.total_cost,
-            total_fee: order.total_cost,
-            userId: user.id,
-            pay_type: order.pay_type,
-            orderId: order.id,
-          },
-          include: {
-            user: { select: { username: true } },
-            order: { select: { id: true, order_status: true } },
+        // Trim and validate addresses
+        const senderAddress = row.sender_address?.trim();
+        const receiverAddress = row.receiver_address?.trim();
+
+        if (!senderAddress || !receiverAddress) {
+          skippedRows.push({ row, reason: 'Empty sender or receiver address' });
+          return;
+        }
+
+        /* -------------------- Validate delivery type -------------------- */
+        const deliveryTypeEnum = row.delivery_type as DeliveryTypeName;
+
+        const deliveryTypeExists = await this.prisma.deliveryType.findFirst({
+          where: { name: deliveryTypeEnum, is_active: true },
+        });
+
+        if (!deliveryTypeExists) {
+          skippedRows.push({ 
+            row, 
+            reason: `Invalid delivery_type: ${row.delivery_type}` 
+          });
+          return;
+        }
+
+        /* -------------------- Validate vehicle type -------------------- */
+        const vehicle = await this.prisma.vehicleType.findFirst({
+          where: {
+            vehicle_type: row.vehicle_type
           },
         });
 
-        return { order, transaction, destinations: createdDestinations };
-      });
+        if (!vehicle) {
+          skippedRows.push({
+            row,
+            reason: `Invalid vehicle_type: ${row.vehicle_type}`,
+          });
+          return;
+        }
 
-      return res;
-    }
-   
-    // export order
-    async exportOrdersAsCsv() {
-      const orders = await this.prisma.order.findMany({
-        // 
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              phone: true,
-            },
-          },
-          vehicle: {
-            select: {
-              vehicle_type: true,
-            },
-          },
-          destinations: true,
-        },
-        orderBy: { created_at: 'desc' },
-      });
+        /* -------------------- Geocode sender with error handling -------------------- */
+        let senderGeo;
+        try {
+          senderGeo = await this.geoServices.getLatLngFromAddress(senderAddress);
+        } catch (error) {
+          skippedRows.push({
+            row,
+            reason: `Geocoding failed for sender address: ${error.message}`,
+          });
+          return;
+        }
 
-      const formatted_orders = orders.map((order) => {
-        const sender = order.destinations.find(d => d.type === 'SENDER');
-        const receiver = order.destinations.find(d => d.type === 'RECEIVER');
+        if (!senderGeo || !senderGeo.lat || !senderGeo.lng) {
+          skippedRows.push({
+            row,
+            reason: `Cannot geocode sender address: ${senderAddress}`,
+          });
+          return;
+        }
 
-        return {
-          order_id: order.id,
-          user_id: order.userId,
-          user_name: order.user?.username ?? '',
-          user_phone: order.user?.phone ?? '',
-
-          route_type: order.route_type,
-          delivery_type: order.delivery_type,
-          pay_type: order.pay_type,
-          collect_time: order.collect_time,
-
-          vehicle_type: order.vehicle?.vehicle_type ?? '',
-          total_cost: order.total_cost,
-
-          order_status: order.order_status,
-          is_fixed: order.isFixed,
-          raider_confirmation: order.raider_confirmation,
-
-          pick_up_items: JSON.stringify(order.pick_up_items),
-
-          sender_address: sender?.address ?? '',
-          sender_contact_name: sender?.contact_name ?? '',
-          sender_contact_number: sender?.contact_number ?? '',
-          sender_latitude: sender?.latitude ?? '',
-          sender_longitude: sender?.longitude ?? '',
-
-          receiver_address: receiver?.address ?? '',
-          receiver_contact_name: receiver?.contact_name ?? '',
-          receiver_contact_number: receiver?.contact_number ?? '',
-          receiver_latitude: receiver?.latitude ?? '',
-          receiver_longitude: receiver?.longitude ?? '',
-
-          created_at: order.created_at,
-          updated_at: order.updated_at,
+        const sender: Receiver = {
+          lat: senderGeo.lat,
+          lng: senderGeo.lng,
         };
-      });
 
-      const fields = [
-        { label: 'order_id', value: 'order_id' },
-        { label: 'user_id', value: 'user_id' },
-        { label: 'user_name', value: 'user_name' },
-        { label: 'user_phone', value: 'user_phone' },
-
-        { label: 'route_type', value: 'route_type' },
-        { label: 'delivery_type', value: 'delivery_type' },
-        { label: 'pay_type', value: 'pay_type' },
-        { label: 'collect_time', value: 'collect_time' },
-
-        { label: 'vehicle_type', value: 'vehicle_type' },
-        { label: 'total_cost', value: 'total_cost' },
-
-        { label: 'order_status', value: 'order_status' },
-        { label: 'is_fixed', value: 'is_fixed' },
-        { label: 'raider_confirmation', value: 'raider_confirmation' },
-
-        { label: 'pick_up_items', value: 'pick_up_items' },
-
-        { label: 'sender_address', value: 'sender_address' },
-        { label: 'sender_contact_name', value: 'sender_contact_name' },
-        { label: 'sender_contact_number', value: 'sender_contact_number' },
-        { label: 'sender_latitude', value: 'sender_latitude' },
-        { label: 'sender_longitude', value: 'sender_longitude' },
-
-        { label: 'receiver_address', value: 'receiver_address' },
-        { label: 'receiver_contact_name', value: 'receiver_contact_name' },
-        { label: 'receiver_contact_number', value: 'receiver_contact_number' },
-        { label: 'receiver_latitude', value: 'receiver_latitude' },
-        { label: 'receiver_longitude', value: 'receiver_longitude' },
-
-        { label: 'created_at', value: 'created_at' },
-        { label: 'updated_at', value: 'updated_at' },
-      ];
-
-      const parser = new Parser({ fields });
-      return parser.parse(formatted_orders);
-    }
-
-  // create bulk order
-  async bulkCreateOrdersFromCsv(
-        dto: BulkOrderWithDestinationsDto,
-        userId: number,
-      ) {
-        if (!dto?.fileUrl.startsWith(process.env.BASE_URL!)) {
-          throw new BadRequestException('Invalid file source');
+        /* -------------------- Service zone -------------------- */
+        const zone = await this.serviceZone.findZoneByPoint(sender.lat, sender.lng);
+        if (!zone) {
+          skippedRows.push({
+            row,
+            reason: 'Sender outside service zone',
+          });
+          return;
+        }
+        
+        /* -------------------- Geocode receiver with error handling -------------------- */
+        let receiverGeo;
+        try {
+          receiverGeo = await this.geoServices.getLatLngFromAddress(receiverAddress);
+        } catch (error) {
+          skippedRows.push({
+            row,
+            reason: `Geocoding failed for receiver address: ${error.message}`,
+          });
+          return;
         }
 
-        const response = await axios.get(dto.fileUrl, { responseType: 'stream' });
+        if (!receiverGeo || !receiverGeo.lat || !receiverGeo.lng) {
+          skippedRows.push({ 
+            row, 
+            reason: `Cannot geocode receiver address: ${receiverAddress}` 
+          });
+          return;
+        }
 
-        const skippedRows: any[] = [];
-        const ordersToInsert: any[] = [];
-        const destinationsToInsert: any[] = [];
+        const receivers: Receiver[] = [
+          { lat: receiverGeo.lat, lng: receiverGeo.lng },
+        ];
 
-  const processRow = async (row: any) => {
-    try {
-      /* -------------------- Validate required fields -------------------- */
-      if (!row.delivery_type || !row.sender_address || !row.receiver_address) {
-        skippedRows.push({ row, reason: 'Missing required fields' });
-        return;
-      }
+        /* -------------------- Price calculation -------------------- */
+        const pricingResults = await getReceiversWithPrice(
+          this.prisma,
+          sender,
+          receivers,
+          deliveryTypeEnum,
+          vehicle.id,
+          zone,
+          {
+            isRoundTrip: row.route_type === RouteType.ROUND,
+            returnFactor: 0.5,
+          },
+        );
 
-      // Trim and validate addresses
-      const senderAddress = row.sender_address?.trim();
-      const receiverAddress = row.receiver_address?.trim();
+        const totalCost = pricingResults[0]?.pricing.totalPrice ?? 0;
+        const totalFee = pricingResults[0]?.pricing.totalFee ?? 0;
+        
+        /* -------------------- Build destinations -------------------- */
+        const senderDest = {
+          user_id: userId,
+          type: DestinationType.SENDER,
+          latitude: sender.lat,
+          longitude: sender.lng,
+          address: senderAddress,
+          contact_name: row.sender_contact_name || null,
+          contact_number: row.sender_contact_number || null,
+          floor_unit: row.sender_floor_unit || null,
+          note_to_driver: row.sender_note_to_driver || null,
+          is_saved: false,
+          accuracy: row.sender_accuracy ? Number(row.sender_accuracy) : null,
+        };
 
-      if (!senderAddress || !receiverAddress) {
-        skippedRows.push({ row, reason: 'Empty sender or receiver address' });
-        return;
-      }
+        const receiverDest = {
+          user_id: userId,
+          type: DestinationType.RECEIVER,
+          latitude: receiverGeo.lat,
+          longitude: receiverGeo.lng,
+          address: receiverAddress,
+          contact_name: row.receiver_contact_name || null,
+          contact_number: row.receiver_contact_number || null,
+          floor_unit: row.receiver_floor_unit || null,
+          note_to_driver: row.receiver_note_to_driver || null,
+          is_saved: false,
+          accuracy: row.receiver_accuracy ? Number(row.receiver_accuracy) : null,
+        };
 
-      /* -------------------- Validate delivery type -------------------- */
-      const deliveryTypeEnum = row.delivery_type as DeliveryTypeName;
+        /* -------------------- Build order -------------------- */
+        ordersToInsert.push({
+          userId,
+          route_type: row.route_type,
+          delivery_type: deliveryTypeEnum,
+          serviceZoneId: zone.id,
+          isBulk: true,
+          collect_time: row.collect_time,
+          vehicle_type_id: vehicle.id,
+          payment_method_id: row.payment_method_id
+            ? Number(row.payment_method_id)
+            : null,
+          total_cost: totalCost,
+          total_fee: totalFee,
+          order_status: row.order_status ?? OrderStatus.PROGRESS,
+          isFixed: row.is_fixed === 'true',
+          raider_confirmation: row.raider_confirmation === 'true',
+        });
 
-      const deliveryTypeExists = await this.prisma.deliveryType.findFirst({
-        where: { name: deliveryTypeEnum, is_active: true },
-      });
-
-      if (!deliveryTypeExists) {
+        destinationsToInsert.push({
+          sender: senderDest,
+          receiver: receiverDest,
+        });
+      } catch (err: any) {
+        console.error('Row processing error:', err);
         skippedRows.push({ 
           row, 
-          reason: `Invalid delivery_type: ${row.delivery_type}` 
+          reason: err.message || 'Unknown error occurred' 
         });
-        return;
       }
+    };
 
-      /* -------------------- Validate vehicle type -------------------- */
-      const vehicle = await this.prisma.vehicleType.findFirst({
-        where: {
-          vehicle_type: row.vehicle_type
-        },
-      });
+    /* -------------------- Stream CSV safely -------------------- */
+    const stream = response.data.pipe(csvParser());
+    for await (const row of stream) {
+      await processRow(row);
+    }
 
-      if (!vehicle) {
-        skippedRows.push({
-          row,
-          reason: `Invalid vehicle_type: ${row.vehicle_type}`,
-        });
-        return;
-      }
 
-      /* -------------------- Geocode sender with error handling -------------------- */
-      let senderGeo;
-      try {
-        senderGeo = await this.geoServices.getLatLngFromAddress(senderAddress);
-      } catch (error) {
-        skippedRows.push({
-          row,
-          reason: `Geocoding failed for sender address: ${error.message}`,
-        });
-        return;
-      }
-
-      if (!senderGeo || !senderGeo.lat || !senderGeo.lng) {
-        skippedRows.push({
-          row,
-          reason: `Cannot geocode sender address: ${senderAddress}`,
-        });
-        return;
-      }
-
-      const sender: Receiver = {
-        lat: senderGeo.lat,
-        lng: senderGeo.lng,
+    if (ordersToInsert.length === 0) {
+      return {
+        total_uploaded: skippedRows.length,
+        success: 0,
+        skipped: skippedRows,
+        message: 'No valid orders to process',
       };
+    }
 
-      /* -------------------- Service zone -------------------- */
-      const zone = await this.serviceZone.findZoneByPoint(sender.lat, sender.lng);
-      if (!zone) {
-        skippedRows.push({
-          row,
-          reason: 'Sender outside service zone',
-        });
-        return;
-      }
-      
-      /* -------------------- Geocode receiver with error handling -------------------- */
-      let receiverGeo;
-      try {
-        receiverGeo = await this.geoServices.getLatLngFromAddress(receiverAddress);
-      } catch (error) {
-        skippedRows.push({
-          row,
-          reason: `Geocoding failed for receiver address: ${error.message}`,
-        });
-        return;
-      }
+    /* -------------------- Insert orders -------------------- */
+    const createdOrders = await this.prisma.$transaction(
+      ordersToInsert.map(order =>
+        this.prisma.order.create({ data: order }),
+      ),
+    );
 
-      if (!receiverGeo || !receiverGeo.lat || !receiverGeo.lng) {
-        skippedRows.push({ 
-          row, 
-          reason: `Cannot geocode receiver address: ${receiverAddress}` 
-        });
-        return;
-      }
+    /* -------------------- Insert destinations -------------------- */
+    for (let i = 0; i < createdOrders.length; i++) {
+      const order = createdOrders[i];
+      const dest = destinationsToInsert[i];
 
-      const receivers: Receiver[] = [
-        { lat: receiverGeo.lat, lng: receiverGeo.lng },
-      ];
-
-      /* -------------------- Price calculation -------------------- */
-      const pricingResults = await getReceiversWithPrice(
-        this.prisma,
-        sender,
-        receivers,
-        deliveryTypeEnum,
-        vehicle.id,
-        zone,
-        {
-          isRoundTrip: row.route_type === RouteType.ROUND,
-          returnFactor: 0.5,
-        },
-      );
-
-      const totalCost = pricingResults[0]?.pricing.totalPrice ?? 0;
-      const totalFee = pricingResults[0]?.pricing.totalFee ?? 0;
-      
-      /* -------------------- Build destinations -------------------- */
-      const senderDest = {
-        user_id: userId,
-        type: DestinationType.SENDER,
-        latitude: sender.lat,
-        longitude: sender.lng,
-        address: senderAddress,
-        contact_name: row.sender_contact_name || null,
-        contact_number: row.sender_contact_number || null,
-        floor_unit: row.sender_floor_unit || null,
-        note_to_driver: row.sender_note_to_driver || null,
-        is_saved: false,
-        accuracy: row.sender_accuracy ? Number(row.sender_accuracy) : null,
-      };
-
-      const receiverDest = {
-        user_id: userId,
-        type: DestinationType.RECEIVER,
-        latitude: receiverGeo.lat,
-        longitude: receiverGeo.lng,
-        address: receiverAddress,
-        contact_name: row.receiver_contact_name || null,
-        contact_number: row.receiver_contact_number || null,
-        floor_unit: row.receiver_floor_unit || null,
-        note_to_driver: row.receiver_note_to_driver || null,
-        is_saved: false,
-        accuracy: row.receiver_accuracy ? Number(row.receiver_accuracy) : null,
-      };
-
-      /* -------------------- Build order -------------------- */
-      ordersToInsert.push({
-        userId,
-        route_type: row.route_type,
-        delivery_type: deliveryTypeEnum,
-        serviceZoneId: zone.id,
-        isBulk: true,
-        collect_time: row.collect_time,
-        vehicle_type_id: vehicle.id,
-        payment_method_id: row.payment_method_id
-          ? Number(row.payment_method_id)
-          : null,
-        total_cost: totalCost,
-        total_fee: totalFee,
-        order_status: row.order_status ?? OrderStatus.PROGRESS,
-        isFixed: row.is_fixed === 'true',
-        raider_confirmation: row.raider_confirmation === 'true',
-      });
-
-      destinationsToInsert.push({
-        sender: senderDest,
-        receiver: receiverDest,
-      });
-    } catch (err: any) {
-      console.error('Row processing error:', err);
-      skippedRows.push({ 
-        row, 
-        reason: err.message || 'Unknown error occurred' 
+      await this.prisma.destination.createMany({
+        data: [
+          { order_id: order.id, ...dest.sender },
+          { order_id: order.id, ...dest.receiver },
+        ],
       });
     }
-  };
 
-  /* -------------------- Stream CSV safely -------------------- */
-  const stream = response.data.pipe(csvParser());
-  for await (const row of stream) {
-    await processRow(row);
-  }
-
-
-  if (ordersToInsert.length === 0) {
     return {
-      total_uploaded: skippedRows.length,
-      success: 0,
+      total_uploaded: ordersToInsert.length + skippedRows.length,
+      success: createdOrders.length,
       skipped: skippedRows,
-      message: 'No valid orders to process',
+      message: 'Bulk orders processed successfully',
     };
-  }
-
-  /* -------------------- Insert orders -------------------- */
-  const createdOrders = await this.prisma.$transaction(
-    ordersToInsert.map(order =>
-      this.prisma.order.create({ data: order }),
-    ),
-  );
-
-  /* -------------------- Insert destinations -------------------- */
-  for (let i = 0; i < createdOrders.length; i++) {
-    const order = createdOrders[i];
-    const dest = destinationsToInsert[i];
-
-    await this.prisma.destination.createMany({
-      data: [
-        { order_id: order.id, ...dest.sender },
-        { order_id: order.id, ...dest.receiver },
-      ],
-    });
-  }
-
-  return {
-    total_uploaded: ordersToInsert.length + skippedRows.length,
-    success: createdOrders.length,
-    skipped: skippedRows,
-    message: 'Bulk orders processed successfully',
-  };
-}
-    // find mine
-   async findMine(
-      userId: number,
-      page: number = 1,
-      limit: number = 20,
-   ) {
-    // 
-    const skip = (page - 1) * limit;
-    // 
-   const [orders, total] = await this.prisma.$transaction([
-        this.prisma.order.findMany({
-          where: { userId },
-          orderBy: { created_at: 'desc' },
-          include: { user: true , transactions:true},
-          skip,
-          take: limit,
-          
-        }),
-        
-        this.prisma.order.count({
-          where: { userId },
-        }),
-      ]);
-
-      return {
-        data: orders,
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      };
    }
 
+
+    // find mine
+    async findMine(
+      userId: number,
+      page = 1,
+      limit = 20,
+    ) {
+      const skip = (page - 1) * limit;
+
+      const [orders, total] = await this.prisma.$transaction([
+        this.prisma.order.findMany({
+          where: { userId },
+          skip,
+          take: limit,
+          orderBy: { created_at: 'desc' },
+          select: {
+            id: true,
+            serviceZoneId: true,
+            userId: true,
+            route_type: true,
+            delivery_type: true,
+            pay_type: true,
+            collect_time: true,
+            scheduled_time: true,
+            vehicle_type_id: true,
+            total_cost: true,
+            total_fee: true,
+            commission: true,
+            refund_amount: true,
+            has_additional_services: true,
+            is_promo_used: true,
+            notify_favorite_raider: true,
+            payment_method_id: true,
+            assign_rider_id: true,
+            raider_confirmation: true,
+            is_auto_confirmation: true,
+            is_reviewed: true,
+
+            // only for counting
+            orderStops: {
+              select: { id: true },
+            },
+          },
+        }),
+        this.prisma.order.count({ where: { userId } }),
+      ]);
+
+      const data = orders.map(({ orderStops, ...order }) => ({
+        ...order,
+        total_stops: orderStops.length,
+      }));
+
+      return {
+        data,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    }
+ 
 
     // find raider order
     async findRaiderMine(
@@ -764,47 +1160,47 @@ export class OrderService {
       };
     }
 
-  // admin only
-  async findUserOrder(
-        userId: number,
-        // page: number = 1,
-        // limit: number = 20,
-        filterDto:OrderFilterDto
-      ) {
+    // admin only
+    async findUserOrder(
+          userId: number,
+          // page: number = 1,
+          // limit: number = 20,
+          filterDto:OrderFilterDto
+        ) {
 
-       const page = filterDto.page ?? 1;
-       const limit = filterDto.limit ?? 10;
-        
-
-        const skip = (page - 1) * limit;
-
-        const where = {
-              order_status:filterDto.status,
-              userId
-        }
-         
-        const [orders, total] = await this.prisma.$transaction([
-          this.prisma.order.findMany({
-            where,
-            orderBy: { created_at: 'desc' },
-            include: { user: true },
-            skip,
-            take: limit,
-          }),
+        const page = filterDto.page ?? 1;
+        const limit = filterDto.limit ?? 10;
           
-          this.prisma.order.count({
-            where
-          }),
-        ]);
 
-        return {
-          data: orders,
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        };
-      }
+          const skip = (page - 1) * limit;
+
+          const where = {
+                order_status:filterDto.status,
+                userId
+          }
+          
+          const [orders, total] = await this.prisma.$transaction([
+            this.prisma.order.findMany({
+              where,
+              orderBy: { created_at: 'desc' },
+              include: { user: true },
+              skip,
+              take: limit,
+            }),
+            
+            this.prisma.order.count({
+              where
+            }),
+          ]);
+
+          return {
+            data: orders,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+          };
+        }
   
 
    // ** for system use user(admin only)
@@ -874,11 +1270,11 @@ export class OrderService {
                 phone: true,
               },
             },
-            destinations:{
-                select:{
-                   address:true
-                }
-            }
+            // destinations:{
+            //     select:{
+            //        address:true
+            //     }
+            // }
           },
           orderBy: { created_at: 'desc' },
           skip,
@@ -945,7 +1341,7 @@ export class OrderService {
                     phone: true,
                   },
                 },
-                destinations:true
+                // destinations:true
               },
               orderBy: { created_at: 'desc' },
               skip,
@@ -999,21 +1395,94 @@ export class OrderService {
     }
 
       // 
-    async findOne(id: number) {
-        const order = await this.prisma.order.findUnique({
-          where: { id },
-          include: {
-            user: true,
-            vehicle: true,
-            payment_method: true,
-            destinations: true,
+    async getOrderDetails(orderId: number) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          orderStops: {
+            include: {
+              destination: true,
+              payment: true,
+            },
+            orderBy: { sequence: 'asc' },
           },
-        });
+        },
+      });
 
-        if (!order) throw new NotFoundException('Order not found');
+      if (!order) throw new NotFoundException('Order not found');
 
-        return order;
+      const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
+      const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
+
+      // ✅ ADD: Calculate pricing breakdown for display
+      if (order.is_placed && pickupStop && dropStops.length > 0) {
+        const zone = await this.serviceZone.findZoneByPoint(
+          pickupStop.latitude,
+          pickupStop.longitude,
+        );
+
+        if (zone) {
+          const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
+          const receivers = dropStops.map((s) => ({
+            lat: s.latitude,
+            lng: s.longitude,
+          }));
+
+          const pricingResults = await getReceiversWithIndividualPrice(
+            this.prisma,
+            sender,
+            receivers,
+            order.delivery_type,
+            order.vehicle_type_id ?? 1,
+            zone,
+            { isRoundTrip: order.route_type === RouteType.ROUND },
+          );
+
+          // ✅ ADD: Enrich stops with pricing details
+          const enrichedStops = order.orderStops.map((stop) => {
+            if (stop.type === StopType.PICKUP) return stop;
+
+            const dropIndex = dropStops.findIndex((d) => d.id === stop.id);
+            const pricing = pricingResults[dropIndex];
+
+            return {
+              ...stop,
+              pricingBreakdown: pricing
+                ? {
+                    distance: pricing.distanceKm,
+                    basePrice: pricing.pricing.basePrice,
+                    deliveryTypeCharge: pricing.pricing.deliveryTypeCharge,
+                    userFeeTotal: pricing.pricing.userFeeTotal,
+                    zoneFee: pricing.pricing.zoneFee,
+                    surgeAmount: pricing.pricing.surgeAmount,
+                    totalFee: pricing.pricing.totalFee,
+                    totalPrice: pricing.pricing.totalPrice,
+                  }
+                : null,
+            };
+          });
+
+          return {
+            ...order,
+            orderStops: enrichedStops,
+            pricingSummary: {
+              totalCost: Number(order.total_cost),
+              totalFee: Number(order.total_fee),
+              dropCount: dropStops.length,
+              perDropBreakdown: pricingResults.map((r, idx) => ({
+                stopId: dropStops[idx].id,
+                address: dropStops[idx].address,
+                sequence: dropStops[idx].sequence,
+                distance: r.distanceKm,
+                price: r.pricing.totalPrice,
+              })),
+            },
+          };
+        }
       }
+
+      return order;
+    }
 
     // 
     async updateOrderStatus(
@@ -1342,7 +1811,7 @@ export class OrderService {
 
   // order update for admin
   async update(id: number, dto: UpdateOrderDto) {
-    await this.findOne(id); // ensures existence
+    // await this.findOne(id); // ensures existence
 
     return this.prisma.order.update({
       where: { id },
@@ -1353,9 +1822,9 @@ export class OrderService {
 
   // its permanently deleted by admin
   async remove(id: number) {
-    await this.findOne(id);
+    // await this.findOne(id);
 
-    return this.prisma.order.delete({
+    return await this.prisma.order.delete({
       where: { id },
     });
   }
@@ -1676,7 +2145,7 @@ export class OrderService {
           include: {
             user: true,
             vehicle: true,
-            destinations: true,
+            // destinations: true,
           },
           skip,
           take: limit,
@@ -1707,16 +2176,168 @@ export class OrderService {
     }
 
   
-  //order decline
-   async declineOrder(orderId: number, raiderId: number) {
-      return await this.prisma.orderDecline.create({
+    //order decline
+    async declineOrder(orderId: number, raiderId: number) {
+        return await this.prisma.orderDecline.create({
+          data: {
+            orderId,
+            raiderId,
+          },
+        });
+      }
+      //
+    //   private async recalculateOrderPrice(orderId: number) {
+    //   const order = await this.prisma.order.findUnique({
+    //     where: { id: orderId },
+    //     include: {
+    //       orderStops: {
+    //         orderBy: { sequence: 'asc' },
+    //       },
+    //     },
+    //   });
+
+    //   if (!order) return;
+
+    //   const pickupStop = order.orderStops.find(s => s.type === StopType.PICKUP);
+    //   const dropStops = order.orderStops.filter(s => s.type === StopType.DROP);
+
+    //   // Need at least pickup + 1 drop to calculate
+    //   if (!pickupStop || dropStops.length === 0) {
+    //     await this.prisma.order.update({
+    //       where: { id: orderId },
+    //       data: { total_cost: 0, total_fee: 0 },
+    //     });
+    //     return { totalCost: 0 };
+    //   }
+
+    //   // Get service zone
+    //   const zone = await this.serviceZone.findZoneByPoint(
+    //     pickupStop.latitude,
+    //     pickupStop.longitude,
+    //   );
+
+    //   if (!zone) {
+    //     throw new BadRequestException('Pickup address outside service zone');
+    //   }
+
+    //   // Calculate price
+    //   const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
+    //   const receivers = dropStops.map(s => ({ lat: s.latitude, lng: s.longitude }));
+
+    //   const pricingResults = await getReceiversWithPrice(
+    //     this.prisma,
+    //     sender,
+    //     receivers,
+    //     order.delivery_type,
+    //     order.vehicle_type_id ?? 1,
+    //     zone,
+    //     { isRoundTrip: order.route_type === RouteType.ROUND },
+    //   );
+
+    //   const totalCost = pricingResults[0]?.pricing.totalPrice ?? 0;
+    //   const totalFee = pricingResults[0]?.pricing.totalFee ?? 0;
+
+    //   // Update order
+    //   await this.prisma.order.update({
+    //     where: { id: orderId },
+    //     data: {
+    //       total_cost: totalCost,
+    //       total_fee: totalFee,
+    //       serviceZoneId: zone.id,
+    //     },
+    //   });
+
+    //   return { totalCost, totalFee };
+    // }
+    
+    private async recalculateOrderPrice(orderId: number) {
+  const order = await this.prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      orderStops: {
+        include: { payment: true },
+        orderBy: { sequence: 'asc' },
+      },
+    },
+  });
+
+  if (!order) return;
+
+  const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
+  const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
+
+  if (!pickupStop || dropStops.length === 0) {
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { total_cost: 0, total_fee: 0 },
+    });
+    return { totalCost: 0, totalFee: 0 };
+  }
+
+  const zone = await this.serviceZone.findZoneByPoint(
+    pickupStop.latitude,
+    pickupStop.longitude,
+  );
+
+  if (!zone) {
+    throw new BadRequestException('Pickup address outside service zone');
+  }
+
+  // ✅ CHANGED: Use individual pricing
+  const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
+  const receivers = dropStops.map((s) => ({
+    lat: s.latitude,
+    lng: s.longitude,
+  }));
+
+  const pricingResults = await getReceiversWithIndividualPrice(
+    this.prisma,
+    sender,
+    receivers,
+    order.delivery_type,
+    order.vehicle_type_id ?? 1,
+    zone,
+    { isRoundTrip: order.route_type === RouteType.ROUND },
+  );
+
+  // ✅ CHANGED: Sum individual prices
+  const totalCost = pricingResults.reduce(
+    (sum, r) => sum + r.pricing.totalPrice,
+    0,
+  );
+  const totalFee = pricingResults.reduce(
+    (sum, r) => sum + r.pricing.totalFee,
+    0,
+  );
+
+  // Update order totals
+  await this.prisma.order.update({
+    where: { id: orderId },
+    data: {
+      total_cost: parseFloat(totalCost.toFixed(2)),
+      total_fee: parseFloat(totalFee.toFixed(2)),
+      serviceZoneId: zone.id,
+    },
+  });
+
+  // ✅ CHANGED: Update individual stop payment amounts
+  await this.prisma.$transaction(
+    dropStops.map((drop, index) => {
+      const pricing = pricingResults[index];
+      return this.prisma.stopPayment.update({
+        where: { orderStopId: drop.id },
         data: {
-          orderId,
-          raiderId,
+          amount: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
         },
       });
-    }
+    }),
+  );
 
+  return {
+    totalCost: parseFloat(totalCost.toFixed(2)),
+    totalFee: parseFloat(totalFee.toFixed(2)),
+  };
+}
 
   }
    

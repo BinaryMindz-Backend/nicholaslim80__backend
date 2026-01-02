@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   Res,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -15,6 +16,7 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -31,6 +33,8 @@ import type { Response } from 'express';
 import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 import { RaiderOrdersFilterDto } from './dto/raider-filter.dto';
+import { StopType } from '@prisma/client';
+import { CancelOrderDto, CompleteStopDto, FailStopDto, PlaceOrderDto } from './dto/place-cancle-order.dto';
 
 @ApiTags('Order (User and admin)')
 @Controller('order')
@@ -54,7 +58,169 @@ export class OrderController {
     }
   }
   
-   //
+
+    //
+    @Patch(':order_id/destinations/add')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.ORDER, Permission.ADD_DESTINATION_TO_ORDER)
+    @ApiOperation({ summary: 'Add destination to order (creates stop)' })
+    async addDestinationToOrder(
+      @Param('order_id') orderId: string,
+      @Query('destination_id') destinationId: string,
+      @Query('stop_type') stopType: StopType, // 'PICKUP' or 'DROP'
+      @CurrentUser() user: IUser,
+    ) {
+      try {
+        if (!destinationId) {
+          return ApiResponses.error(null, 'destination_id is required');
+        }
+
+        if (!stopType || !['PICKUP', 'DROP'].includes(stopType)) {
+          return ApiResponses.error(null, 'stop_type must be PICKUP or DROP');
+        }
+
+        const orderStop = await this.orderService.addDestinationToOrder(
+          +orderId,
+          +destinationId,
+          user.id,
+          stopType,
+        );
+
+        return ApiResponses.success(orderStop, 'Destination added to order successfully');
+        } catch (err) {
+          return ApiResponses.error(err, 'Failed to add destination to order');
+        }
+      }
+
+    // 
+    @Delete(':order_id/stops/:stop_id')
+    @Auth()
+    @ApiBearerAuth()
+    // @RequirePermission(Module.ORDER, Permission)
+    @ApiOperation({ summary: 'Remove destination from order' })
+    async removeDestinationFromOrder(
+      @Param('order_id') orderId: string,
+      @Param('stop_id') stopId: string,
+      @CurrentUser() user: IUser,
+    ) {
+      try {
+        const result = await this.orderService.removeDestinationFromOrder(
+          +orderId,
+          +stopId,
+          user.id,
+        );
+        return ApiResponses.success(result, 'Destination removed from order successfully');
+      } catch (err) {
+        return ApiResponses.error(err, 'Failed to remove destination from order');
+      }
+    }
+
+
+  // PLACE ORDER (Lock & Configure Payment)
+  @Post(':order_id/place')
+  @Auth()
+  @ApiBearerAuth()
+  // @RequirePermission(Module.ORDER, Permission.PLACE_ORDER)
+  @ApiOperation({ summary: 'Place order (finalize and configure payment)' })
+  async placeOrder(
+    @Param('order_id') orderId: string,
+    @CurrentUser() user: IUser,
+    @Body() dto: PlaceOrderDto,
+  ) {
+    try {
+      const order = await this.orderService.placeOrder(+orderId, user.id, dto);
+      return ApiResponses.success(order, 'Order placed successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to place order');
+    }
+  }
+
+
+
+  @Post('stops/:stop_id/complete')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Complete stop (raider only)' })
+  @ApiParam({ name: 'stop_id', description: 'Order Stop ID', example: 201 })
+  @ApiResponse({ status: 200, description: 'Stop completed successfully' })
+  @ApiResponse({ status: 400, description: 'Insufficient payment or validation error' })
+  async completeStop(
+    @Param('stop_id', ParseIntPipe) stopId: number,
+    @CurrentUser() user: IUser,
+    @Body() dto: CompleteStopDto,
+  ) {
+    try {
+      const result = await this.orderService.completeStop(stopId, user.id, {
+        proofFiles: dto.proofUrls!,
+        codCollected: dto.codCollected ? +dto.codCollected : undefined,
+        notes: dto.notes,
+      });
+
+      return ApiResponses.success(result, 'Stop completed successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to complete stop');
+    }
+  }
+   
+  // 
+  @Post('stops/:stop_id/fail')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mark stop as failed (raider only)' })
+  @ApiParam({ name: 'stop_id', description: 'Order Stop ID', example: 201 })
+  @ApiResponse({ status: 200, description: 'Stop marked as failed' })
+  async failStop(
+    @Param('stop_id', ParseIntPipe) stopId: number,
+    @Body() dto: FailStopDto,
+  ) {
+    try {
+      const result = await this.orderService.failStop(stopId, dto.reason);
+      return ApiResponses.success(result, 'Stop marked as failed');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to mark stop as failed');
+    }
+  }
+
+  // RETRY FAILED STOP
+  @Post('stops/:stop_id/retry')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Retry failed stop' })
+  @ApiParam({ name: 'stop_id', description: 'Order Stop ID', example: 201 })
+  @ApiResponse({ status: 200, description: 'Stop reset for retry' })
+  async retryFailedStop(@Param('stop_id', ParseIntPipe) stopId: number) {
+    try {
+      const result = await this.orderService.retryFailedStop(stopId);
+      return ApiResponses.success(result, 'Stop reset for retry');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to retry stop');
+    }
+  }
+
+
+  // CANCEL ORDER
+  @Patch(':order_id/cancel')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel order' })
+  @ApiParam({ name: 'order_id', description: 'Order ID', example: 100 })
+  @ApiResponse({ status: 200, description: 'Order cancelled successfully' })
+  @ApiResponse({ status: 400, description: 'Cannot cancel order in current status' })
+  async cancelOrder(
+    @Param('order_id', ParseIntPipe) orderId: number,
+    @CurrentUser() user: IUser,
+    @Body() dto: CancelOrderDto,
+  ) {
+    try {
+      const result = await this.orderService.cancelOrder(orderId, user.id, dto.reason);
+      return ApiResponses.success(result, 'Order cancelled successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to cancel order');
+    }
+  }
+
+    // create indivitual order
     @Post('indivitual')
     @Auth()
     @RequirePermission(Module.ORDER, Permission.CREATE)
@@ -65,7 +231,7 @@ export class OrderController {
       @CurrentUser() user: IUser,
     ) {
       try {
-        const order = await this.orderService.createOrder(dto, user);
+        const order = await this.orderService.createIndividualOrder(dto, user);
 
         return ApiResponses.success(order, 'Order created successfully');
       } catch (err: any) {
@@ -128,21 +294,21 @@ export class OrderController {
     }
 
   // export as csv
-    @Get('orders/export/csv')
-    @Auth()
-    @ApiBearerAuth()
-    @RequirePermission(Module.ORDER_PLACEMENT, Permission.JUST_ADMIN)
-    async exportOrders(@Res() res: Response) {
-      const csv = await this.orderService.exportOrdersAsCsv();
+    // @Get('orders/export/csv')
+    // @Auth()
+    // @ApiBearerAuth()
+    // @RequirePermission(Module.ORDER_PLACEMENT, Permission.JUST_ADMIN)
+    // async exportOrders(@Res() res: Response) {
+    //   const csv = await this.orderService.exportOrdersAsCsv();
 
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader(
-        'Content-Disposition',
-        'attachment; filename="orders.csv"',
-      );
+    //   res.setHeader('Content-Type', 'text/csv');
+    //   res.setHeader(
+    //     'Content-Disposition',
+    //     'attachment; filename="orders.csv"',
+    //   );
 
-      res.status(200).send(csv);
-    }
+    //   res.status(200).send(csv);
+    // }
 
   
     // 
@@ -302,7 +468,7 @@ export class OrderController {
   @ApiOperation({ summary: 'Get order by ID' })
   async findOne(@Param('id') id: string) {
     try {
-      const order = await this.orderService.findOne(+id);
+      const order = await this.orderService.getOrderDetails(+id);
       return ApiResponses.success(order, 'Order retrieved successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to fetch order');
@@ -344,22 +510,8 @@ export class OrderController {
     }
   }
 
-    //
-    @Patch(':order_id/destination/update')
-    @Auth()
-    @ApiBearerAuth()
-    // @Roles(UserRole.USER)
-    @RequirePermission(Module.ORDER, Permission.ADD_DESTINATION_TO_ORDER)
-    @ApiOperation({ summary: 'Update order by ID (user only)' })
-    async destinationUpdateByUser(@Param('order_id') order_id: string, @Query("desti_id") desti_id:string, @CurrentUser() user:IUser ) {
-      // 
-      try {
-        const order = await this.orderService.upsertDestinationAndRecalculate(+order_id, +desti_id, user);
-        return ApiResponses.success(order, 'Order updated successfully');
-      } catch (err) {
-        return ApiResponses.error(err, 'Failed to update order');
-      }
-    } 
+
+
       //  
       @Patch('bulk/status/pending')
       @Auth()
