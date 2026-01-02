@@ -1,3 +1,7 @@
 api.zipbee.sg {
-    reverse_proxy /* app:5000
+    reverse_proxy  app:5000
+}
+
+admin.zipbee.sg {
+    reverse_proxy  web:3000
 }

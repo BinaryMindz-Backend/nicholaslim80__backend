@@ -30,7 +30,7 @@ async function bootstrap() {
 
   // ENV config
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT') ?? 3000;
+  const port = configService.get<number>('PORT') ?? 5000;
   const host = configService.get<string>('HOST') ?? '0.0.0.0';
 
   // Swagger
@@ -54,9 +54,8 @@ async function bootstrap() {
   app.use('/', express.static(publicDir));
   app.use('/uploads', express.static(uploadDir));
 
-  await app.listen(port, '0.0.0.0');
+  await app.listen(port, host);
 
-  console.log(`✔ App running at: http://localhost:${host}/${globalPrefix}`);
   console.log(`✔ Swagger docs: http://localhost:${port}/${globalPrefix}/docs`);
 }
 
@@ -64,4 +63,3 @@ bootstrap();
 
 // check if owner ship   // sls -l prisma/migrations
 // change the owner ship // sudo chown -R $(whoami):$(whoami) prisma/migrations
-
