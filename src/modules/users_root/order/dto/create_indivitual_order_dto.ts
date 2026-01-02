@@ -1,7 +1,6 @@
 import {
   IsBoolean,
   IsInt,
-  IsNumber,
   IsOptional,
   IsEnum,
   IsArray,
@@ -12,8 +11,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   RouteType,
   DeliveryTypeName,
-  PayType,
   CollectTime,
+  PayType,
 } from '@prisma/client';
 import { CreateDestinationDto } from '../../destination/dto/create-destination.dto';
 import { Type } from 'class-transformer';
@@ -48,20 +47,20 @@ export class CreateIndiOrderDto {
   scheduled_time?: Date;
 
 
-  @ApiPropertyOptional({ example: 250.50 })
-  @IsNumber()
-  @IsOptional()
-  total_cost: number;
+  // @ApiPropertyOptional({ example: 250.50 })
+  // @IsNumber()
+  // @IsOptional()
+  // total_cost: number;
 
   @ApiProperty({ example: false })
   @IsBoolean()
   @IsOptional()
   has_additional_services?: boolean;
 
-  @ApiProperty({ example: false })
-  @IsBoolean()
-  @IsOptional()
-  is_promo_used?: boolean;
+  // @ApiProperty({ example: false })
+  // @IsBoolean()
+  // @IsOptional()
+  // is_promo_used?: boolean;
 
   @ApiProperty({ example: false })
   @IsBoolean()
@@ -78,9 +77,9 @@ export class CreateIndiOrderDto {
   @IsOptional()
   pay_type: PayType ;
 
-  @ApiProperty({ example: ["link1", "link2"] })
-  @IsOptional()
-  pick_up_items?: string[];
+  // @ApiProperty({ example: ["link1", "link2"] })
+  // @IsOptional()
+  // pick_up_items?: string[];
 
   @ApiProperty({ type: [CreateDestinationDto] })
   @IsArray()

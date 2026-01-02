@@ -28,6 +28,7 @@ export class PlaceOrderDto {
   @IsEnum(['SENDER', 'RECEIVER'])
   @IsOptional()
   codCollectFrom?: 'SENDER' | 'RECEIVER';
+
 }
 
 export class CancelOrderDto {

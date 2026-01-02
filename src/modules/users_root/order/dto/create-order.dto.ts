@@ -67,12 +67,4 @@ export class CreateOrderDto {
   @IsOptional()
   payment_method_id?: number;
    
-  // @ApiProperty({ enum: PayType, default: PayType.COD })
-  // @IsEnum(PayType)
-  // pay_type: PayType;
-
-  @ApiProperty({ example: ["link1", "link2"] })
-  @IsOptional()
-  pick_up_items?: string[];
-
 }

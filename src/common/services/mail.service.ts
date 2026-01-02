@@ -49,7 +49,7 @@ export class MailService {
   ): Promise<void> {
     try {
       const templatePath = path.join(this.templatesDir, `${templateName}.hbs`);
-      console.log(templatePath);
+      // console.log(templatePath);
       if (!fs.existsSync(templatePath)) {
         this.logger.error(`Template not found: ${templateName} at ${templatePath}`);
         throw new Error(`Template not found: ${templateName}`);

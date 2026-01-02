@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
@@ -230,7 +231,7 @@ export class OrderService {
       dto: {
         paymentMethod?: PayType;
         paymentMethodId?: string;
-        codCollectFrom?: 'SENDER' | 'RECEIVER';
+        codCollectFrom?: 'SENDER' | 'RECEIVER'
       },
     ) {
       const order = await this.prisma.order.findUnique({
@@ -295,8 +296,7 @@ export class OrderService {
           const paid = await this.walletService.addMoney(
             userId,
             Number(order.total_cost),
-            dto.paymentMethodId,
-            payType,
+            dto.paymentMethodId
           );
 
           if (!paid) throw new BadRequestException('Online payment failed');
