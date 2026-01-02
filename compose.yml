@@ -43,6 +43,7 @@ services:
       - '443:443'
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./public/dist:/usr/share/caddy
       - caddy_data:/data
       - caddy_config:/config
 
@@ -59,5 +60,4 @@ volumes:
 
 networks:
   nicholas-network:
-    external: true
     driver: bridge

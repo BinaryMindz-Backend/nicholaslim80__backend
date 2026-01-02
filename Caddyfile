@@ -3,5 +3,7 @@ api.zipbee.sg {
 }
 
 admin.zipbee.sg {
-    reverse_proxy  web:3000
+    root * /usr/share/caddy
+    try_files {path} /index.html
+    file_server
 }
