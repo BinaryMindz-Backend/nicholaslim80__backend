@@ -8,7 +8,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { RedisService } from './redis/redis.service';
-import { MailService } from 'src/common/services/mail.service';
+import { EmailQueueService } from '../queue/services/email-queue.service';
 
 @Injectable()
 export class OtpService {
@@ -18,7 +18,7 @@ export class OtpService {
   constructor(
     private prisma: PrismaService,
     private redisService: RedisService,
-    private mail: MailService,
+    private mailQueue: EmailQueueService,
   ) { }
 
   private async hashOtp(otp: string) {
@@ -56,10 +56,12 @@ export class OtpService {
      
      // Send OTP using template TODO:need to replace with queue
       async sendOtpNotification(email: string | null, otp: string, phone?: string | null) {
-        // if (email) {
-        //   await this.mail.sendTemplateMail('otp', email, 'Your OTP Code', { otp });
-        //   this.logger.log(`OTP email sent to ${email} with OTP ${otp}`);
-        // }
+          if (email) {
+             await this.mailQueue.queueOtpEmail({
+                email,
+                otp,
+              });
+            }
 
         if (phone) {
           // Optionally integrate SMS here

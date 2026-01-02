@@ -7,7 +7,6 @@ import {
   Param,
   Delete,
   Query,
-  Res,
   ParseIntPipe,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
@@ -29,7 +28,6 @@ import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
-import type { Response } from 'express';
 import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 import { RaiderOrdersFilterDto } from './dto/raider-filter.dto';

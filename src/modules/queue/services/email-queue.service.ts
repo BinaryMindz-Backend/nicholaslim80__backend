@@ -38,7 +38,35 @@ export class EmailQueueService {
       throw error;
     }
   }
+  // 
+  async queueOtpEmail(data: {
+    email: string;
+    otp: string;
+  }) {
+    try {
+      const job = await this.emailQueue.add(
+        EmailJobType.OTP_EMAIL,
+        data,
+        {
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 2000 },
+          removeOnComplete: { age: 24 * 3600, count: 1000 },
+          removeOnFail: { age: 7 * 24 * 3600 },
+        },
+      );
 
+      this.logger.log(
+        `OTP email queued for user ${data.email}, Job ID: ${job.id}`,
+      );
+
+      return job;
+    } catch (error) {
+      this.logger.error('Failed to queue OTP email', error);
+      throw error;
+    }
+  }
+
+  // PUSH NOTIFICATIONS
   async queuePushNotification(data: {
     userId: number;
     fcmToken: string;
