@@ -137,6 +137,6 @@ export async function getReceiversWithIndividualPrice(
       },
     });
   }
-
+    console.log("reciver with pricing-->",receiversWithPricing);
   return receiversWithPricing;
 }

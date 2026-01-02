@@ -388,6 +388,18 @@ export class OrderService {
         notes?: string;
       },
     ) {
+      //  check if raider exist
+      const raider = await this.prisma.raider.findUnique({
+            where:{
+                userId:raiderId
+            }
+      })
+      // 
+      if(!raider){
+            throw new NotFoundException('Aunauthprized raider');
+      }
+      
+      // 
       const stop = await this.prisma.orderStop.findUnique({
         where: { id: orderStopId },
         include: {
@@ -467,6 +479,27 @@ export class OrderService {
             where: { userId: raiderId },
             data: { completed_orders: { increment: 1 } },
           });
+           
+          //  find order to update transaction payment status
+          await tx.transaction.findFirst({
+               where:{
+                orderId: stop.orderId
+               }
+          })
+
+
+          await tx.transaction.update({
+            where: { id: stop.orderId },
+            data:{
+              payment_status: PaymentStatus.PAID,
+              tx_status:TransactionStatus.COMPLETED,
+              pay_type: stop.order.pay_type,
+              total_fee: stop.order.total_cost,
+              delivery_fee: stop.order.total_cost,
+            }
+          })
+
+
 
           return {
             message: 'Stop completed. Order fully completed!',
@@ -619,11 +652,11 @@ export class OrderService {
         const geocodedDestinations: DestinationInput[] = [];
         let orderServiceZoneId: number | null = null;
         let orderServiceZone: DeliveryZone | null = null;
-
+     
         for (const d of payload.destinations) {
           let lat = d.latitude;
           let lng = d.longitude;
-          let formattedAddress = d.addressFromApr;
+          let formattedAddress;
 
           // Geocode if coordinates missing
           if (!lat || !lng) {
@@ -631,7 +664,6 @@ export class OrderService {
             lat = geo.lat;
             lng = geo.lng;
             formattedAddress = geo.formattedAddress;
-            console.log('Geocoded ->', lat, lng, formattedAddress);
           }
 
           // Find service zone
@@ -682,7 +714,7 @@ export class OrderService {
         }
 
         // Step 3: Calculate pricing
-        const receiversWithPrice = await getReceiversWithPrice(
+        const receiversWithPrice = await getReceiversWithIndividualPrice(
           this.prisma,
           sender,
           receiverDestinations,
@@ -731,6 +763,10 @@ export class OrderService {
                 data: {
                   userId: user.id,
                   address: d.address,
+                  addressFromApr: d.addressFromApr ?? null,
+                  floor_unit:d.floor_unit ?? null,
+                  contact_name:d.contact_name ?? null,
+                  contact_number:d.contact_number ?? null,
                   latitude: d.latitude,
                   longitude: d.longitude,
                   additionalInfo: d.note_to_driver ?? null,
@@ -748,6 +784,8 @@ export class OrderService {
                 data: {
                   userId: user.id,
                   address: d.address,
+                  addressFromApr: d.addressFromApr ?? null,
+                  floor_unit:d.floor_unit ?? null,
                   latitude: d.latitude,
                   longitude: d.longitude,
                   type: d.type === DestinationType.SENDER 
@@ -768,7 +806,7 @@ export class OrderService {
                 type: stopType,
                 sequence,
                 status: StopStatus.PENDING,
-                address: d.address,
+                address: d.addressFromApr!,
                 latitude: d.latitude,
                 longitude: d.longitude,
                 additionalInfo: d.note_to_driver ?? null,
@@ -2250,94 +2288,97 @@ export class OrderService {
     //   return { totalCost, totalFee };
     // }
     
+
+
+
     private async recalculateOrderPrice(orderId: number) {
-  const order = await this.prisma.order.findUnique({
-    where: { id: orderId },
-    include: {
-      orderStops: {
-        include: { payment: true },
-        orderBy: { sequence: 'asc' },
-      },
-    },
-  });
+        const order = await this.prisma.order.findUnique({
+          where: { id: orderId },
+          include: {
+            orderStops: {
+              include: { payment: true },
+              orderBy: { sequence: 'asc' },
+            },
+          },
+        });
 
-  if (!order) return;
+        if (!order) return;
 
-  const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
-  const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
+        const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
+        const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
 
-  if (!pickupStop || dropStops.length === 0) {
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: { total_cost: 0, total_fee: 0 },
-    });
-    return { totalCost: 0, totalFee: 0 };
-  }
+        if (!pickupStop || dropStops.length === 0) {
+          await this.prisma.order.update({
+            where: { id: orderId },
+            data: { total_cost: 0, total_fee: 0 },
+          });
+          return { totalCost: 0, totalFee: 0 };
+        }
 
-  const zone = await this.serviceZone.findZoneByPoint(
-    pickupStop.latitude,
-    pickupStop.longitude,
-  );
+        const zone = await this.serviceZone.findZoneByPoint(
+          pickupStop.latitude,
+          pickupStop.longitude,
+        );
 
-  if (!zone) {
-    throw new BadRequestException('Pickup address outside service zone');
-  }
+        if (!zone) {
+          throw new BadRequestException('Pickup address outside service zone');
+        }
 
-  // ✅ CHANGED: Use individual pricing
-  const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
-  const receivers = dropStops.map((s) => ({
-    lat: s.latitude,
-    lng: s.longitude,
-  }));
+        //Use individual pricing
+        const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
+        const receivers = dropStops.map((s) => ({
+          lat: s.latitude,
+          lng: s.longitude,
+        }));
 
-  const pricingResults = await getReceiversWithIndividualPrice(
-    this.prisma,
-    sender,
-    receivers,
-    order.delivery_type,
-    order.vehicle_type_id ?? 1,
-    zone,
-    { isRoundTrip: order.route_type === RouteType.ROUND },
-  );
+        const pricingResults = await getReceiversWithIndividualPrice(
+          this.prisma,
+          sender,
+          receivers,
+          order.delivery_type,
+          order.vehicle_type_id ?? 1,
+          zone,
+          { isRoundTrip: order.route_type === RouteType.ROUND },
+        );
 
-  // ✅ CHANGED: Sum individual prices
-  const totalCost = pricingResults.reduce(
-    (sum, r) => sum + r.pricing.totalPrice,
-    0,
-  );
-  const totalFee = pricingResults.reduce(
-    (sum, r) => sum + r.pricing.totalFee,
-    0,
-  );
+        // Sum individual prices
+        const totalCost = pricingResults.reduce(
+          (sum, r) => sum + r.pricing.totalPrice,
+          0,
+        );
+        const totalFee = pricingResults.reduce(
+          (sum, r) => sum + r.pricing.totalFee,
+          0,
+        );
 
-  // Update order totals
-  await this.prisma.order.update({
-    where: { id: orderId },
-    data: {
-      total_cost: parseFloat(totalCost.toFixed(2)),
-      total_fee: parseFloat(totalFee.toFixed(2)),
-      serviceZoneId: zone.id,
-    },
-  });
+        // Update order totals
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: {
+            total_cost: parseFloat(totalCost.toFixed(2)),
+            total_fee: parseFloat(totalFee.toFixed(2)),
+            serviceZoneId: zone.id,
+          },
+        });
 
-  // ✅ CHANGED: Update individual stop payment amounts
-  await this.prisma.$transaction(
-    dropStops.map((drop, index) => {
-      const pricing = pricingResults[index];
-      return this.prisma.stopPayment.update({
-        where: { orderStopId: drop.id },
-        data: {
-          amount: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
-        },
-      });
-    }),
-  );
+        // Update individual stop payment amounts
+        await this.prisma.$transaction(
+          dropStops.map((drop, index) => {
+            const pricing = pricingResults[index];
+            return this.prisma.stopPayment.update({
+              where: { orderStopId: drop.id },
+              data: {
+                amount: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
+              },
+            });
+          }),
+        );
 
-  return {
-    totalCost: parseFloat(totalCost.toFixed(2)),
-    totalFee: parseFloat(totalFee.toFixed(2)),
-  };
-}
+        return {
+          totalCost: parseFloat(totalCost.toFixed(2)),
+          totalFee: parseFloat(totalFee.toFixed(2)),
+        };
+      }
 
   }
    
