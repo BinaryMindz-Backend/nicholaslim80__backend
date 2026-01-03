@@ -6,6 +6,7 @@ model Role {
   users       User[]
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
+  isActive   Boolean           @default(true)
 
   @@map("roles")
 }

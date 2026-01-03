@@ -1,5 +1,5 @@
 // create-role.dto.ts
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty} from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsString, IsNotEmpty, IsArray, ValidateNested } from 'class-validator';
 
@@ -76,4 +76,27 @@ export class UpdateRoleDto {
   @ValidateNested({ each: true })
   @Type(() => PermissionDto)
   permissions: PermissionDto[];
+}
+
+
+export class UpdateRoleNameDto {
+  @ApiProperty({
+    description: 'Updated name for this role',
+    example: 'FINANCE_MANAGER',
+  })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+}
+
+
+
+
+export class SearchDto {
+  @ApiProperty({ 
+    description: 'Search across orders, users, and raiders', 
+    example: 'John' 
+  })
+  @IsString()
+  search: string;
 }

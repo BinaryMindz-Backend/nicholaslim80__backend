@@ -27,7 +27,8 @@ export class LiveMapFleetTrackService {
     return order
   }
 
-  async findOne(orderId: number) {
+  // 
+   async findOne(orderId: number) {
     // 
     const order = await this.prisma.order.findFirst({
          where:{
