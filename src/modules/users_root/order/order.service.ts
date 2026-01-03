@@ -4,7 +4,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DeliveryZone, DestinationInput, IUser, Receiver } from 'src/types';
-import { CollectTime, DeliveryTypeName, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, DeliveryTypeName, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderStatus, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -2239,7 +2239,7 @@ export class OrderService {
   }
 
   // feed only order
-    async orderForFeed(
+   async orderForFeed(
       userId: number,
       page = 1,
       limit = 100,
@@ -2256,7 +2256,14 @@ export class OrderService {
           where: {
             order_status: OrderStatus.PENDING,
             is_placed: true,
-
+            user:{
+                raiderProfile:{
+                    is_online:true,
+                    isSuspended:false,
+                    raider_status:RaiderStatus.ACTIVE
+                }
+            },
+             
             // EXCLUDE declined orders for THIS raider only
             NOT: {
               declines: {

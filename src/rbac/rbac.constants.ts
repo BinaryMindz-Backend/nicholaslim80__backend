@@ -29,6 +29,7 @@ export enum Module {
   REFERRAL = "referral",
 
 
+
 }
 
 // Granular permissions with specific actions
@@ -60,6 +61,10 @@ export enum Permission {
   ORDER_READ_FEED = "order_read_feed",
   // my raider
   READ_ADMIN_MY_RAIDER = 'read_admin_my_raider',
+    
+  //raider specific
+  ONLINE_STATUS_UPDATE = "online_status_update",
+
 
   // TRANSACTION specific granular permissions
   UPDATE_TRANSACTION_STATUS = 'update_transaction_status',

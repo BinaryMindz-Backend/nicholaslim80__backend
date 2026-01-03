@@ -53,22 +53,25 @@ export class RidersProfileController {
       return ApiResponses.error(error);
     }
   }
-  // 
-  // @Get('rider-profiles/new-joinee')
-  // @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
-  // @Auth()
-  // @Roles(UserRole.SUPER_ADMIN)
-  // @ApiBearerAuth()
-  // async findAll(@Query() query: GetRidersQueryDto) {
-  //   try {
-  //     const res = await this.ridersProfileService.findAll(query);
-  //     return ApiResponses.success(res, 'Rider profiles fetched successfully');
-  //   } catch (error) {
-  //     return ApiResponses.error(error);
-  //   }
-  // }
+  //
+  @Patch('online')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.RAIDER, Permission.ONLINE_STATUS_UPDATE)
+  @ApiOperation({ summary: 'online rider status update' })
+  async online(@CurrentUser() user: IUser) {
+    try {
+      const res = await this.ridersProfileService.updateOnlineRiderStatus(user.id);
+      return ApiResponses.success(res, `Rider is now ${res.is_online ? 'online' : 'offline'}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return ApiResponses.error(message);
+    }
+  } 
   
 
+  
+  // 
 
   @Get(':id')
   @ApiOperation({ summary: 'Rider profile fetching by id (Admin only)' })

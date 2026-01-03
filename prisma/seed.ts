@@ -63,6 +63,7 @@ enum Permission {
   // raider
   ORDER_COMPITITION = "order_compitition",
   ORDER_READ_FEED = "order_read_feed",
+  ONLINE_STATUS_UPDATE = "online_status_update",
   // my raider
   READ_ADMIN_MY_RAIDER = 'read_admin_my_raider',
   // coin reedom
@@ -272,6 +273,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.RAIDER, action: Permission.CREATE },
     { module: Module.RAIDER, action: Permission.READ },
     { module: Module.RAIDER, action: Permission.UPDATE },
+    { module: Module.RAIDER, action: Permission.ONLINE_STATUS_UPDATE },
+    { module: Module.RAIDER, action: Permission.ORDER_READ_FEED },
     // Advertise MODULE
     { module: Module.ADVERTISEMENT, action: Permission.READ },
     // notification
