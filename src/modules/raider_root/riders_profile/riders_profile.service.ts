@@ -47,6 +47,43 @@ export class RidersProfileService {
     });
     return res;
   }
+  
+  // is online riders
+  async updateOnlineRiderStatus(userId:number) {
+
+        const riderExists = await this.prisma.raider.findFirst({
+          where: {
+            userId: userId,
+          },
+        });
+        //  
+        if (!riderExists) {
+          throw new NotFoundException('Rider not found for the given user ID');
+        }
+
+        //  
+        const res = await this.prisma.raider.update({
+          where: {
+            is_online:riderExists.is_online,
+            id:riderExists.id,
+          },
+          data: {
+            is_online:!riderExists.is_online,
+          },
+        });
+        return res;    
+  }
+
+
+
+
+
+
+
+
+
+
+
 
   // async findAll() {
   //   const res = await this.prisma.raider.findMany({
@@ -276,6 +313,7 @@ export class RidersProfileService {
 
     return updatedProfile;
   }
+  // Unsuspend a rider profile
   async unsuspendRiderProfile(id: number) {
 
     const res = await this.prisma.raider.findUnique({
@@ -300,104 +338,8 @@ export class RidersProfileService {
 
     return updatedProfile;
   }
-
-  // //
-  // async adminCreateRiderProfile(dto: CreateRidersProfileDto) {
-  //        // 
-  //       const role = await this.prisma.role.findFirst({
-  //        where:{
-  //             name:UserRole.RAIDER
-  //        }
-  //        })
-  //       if(!role){
-  //           throw new NotFoundException("Role not found")
-  //       }
-
-
-
-  //      // 
-  //     const record = await this.prisma.user.findFirst({
-  //           where:{
-  //              OR:[
-  //                 {email:dto.email_address},
-  //                 {phone:dto.contact_number}
-  //              ]
-  //           }
-  //     })
-  //     //  
-  //     const raider = await tx.raider.create({
-  //       data: {
-  //         userId: user?.id,
-  //         LoginType: LoginType.ADMIN_SIGNIN,
-  //         raider_verificationFromAdmin: RaiderVerification.APPROVED,
-  //         raider_status: RaiderStatus.ACTIVE
-  //       }
-  //     })
-  //     // 
-  //     const reg = await tx.raiderRegistration.create({
-  //       data: {
-  //         ...dto,
-  //         raiderId: raider?.id
-  //       }
-  //     })
-
-
-  //     return {
-  //       user,
-  //       raider,
-  //       reg
-  //     }
-  //     // 
-  //   const cteatedRaider = await this.prisma.$transaction(async(tx)=>{
-  //           // 
-  //          const defaultpassword = process.env.RAIDER_DEFAULT_PASSWORD;
-  //           // 
-  //           if (!defaultpassword) {
-  //                 throw new NotFoundException('Default password is not set in environment variables');
-  //           }
-  //         const hashedPass = await bcrypt.hash(defaultpassword, 10);
-  //             // 
-  //          const user = await tx.user.create({
-  //                data:{
-  //                   username:dto.raider_name,
-  //                   email:dto.email_address,
-  //                   phone:dto.contact_number,
-  //                   roleId:role.id,
-  //                   regi_status:LoginType.ADMIN_SIGNIN,
-  //                   is_active:true,
-  //                   is_verified:true,
-  //                   password:hashedPass
-  //                }
-  //            })
-  //           //  
-  //          const raider =  await tx.raider.create({
-  //                data:{
-  //                   userId:user?.id,
-  //                   LoginType:LoginType.ADMIN_SIGNIN,
-  //                   raider_verificationFromAdmin:RaiderVerification.APPROVED,
-  //                   raider_status:RaiderStatus.ACTIVE
-  //                }
-  //          }) 
-  //         // 
-  //         const reg =await tx.raiderRegistration.create({
-  //               data:{
-  //                   ...dto,
-  //                   raiderId:raider?.id
-  //               } 
-  //         })
-
-
-  //        return {
-  //            user,
-  //            raider,
-  //            reg 
-  //        }
-
-  //      })
-  //   //  send res
-  //   return cteatedRaider
-  // }
-
+    
+  // 
     async adminCreateRiderProfile(dto: CreateRidersProfileDto) {
       // Ensure role exists
       const role = await this.prisma.role.findUnique({
@@ -475,8 +417,6 @@ export class RidersProfileService {
 
       return createdRaider;
     }
-
-
 
 
   //

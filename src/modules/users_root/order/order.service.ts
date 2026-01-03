@@ -4,7 +4,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DeliveryZone, DestinationInput, IUser, Receiver } from 'src/types';
-import { CollectTime, DeliveryTypeName, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, DeliveryTypeName, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderStatus, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -850,254 +850,8 @@ export class OrderService {
 
         return result;
     }
-
-
-  //   async bulkCreateOrdersFromCsv(
-  //         dto: BulkOrderWithDestinationsDto,
-  //         userId: number,
-  //       ) {
-  //         if (!dto?.fileUrl.startsWith(process.env.BASE_URL!)) {
-  //           throw new BadRequestException('Invalid file source');
-  //         }
-
-  //         const response = await axios.get(dto.fileUrl, { responseType: 'stream' });
-
-  //         const skippedRows: any[] = [];
-  //         const ordersToInsert: any[] = [];
-  //         const destinationsToInsert: any[] = [];
-
-  //   const processRow = async (row: any) => {
-  //     try {
-  //       /* -------------------- Validate required fields -------------------- */
-  //       if (!row.delivery_type || !row.sender_address || !row.receiver_address) {
-  //         skippedRows.push({ row, reason: 'Missing required fields' });
-  //         return;
-  //       }
-
-  //       // Trim and validate addresses
-  //       const senderAddress = row.sender_address?.trim();
-  //       const receiverAddress = row.receiver_address?.trim();
-
-  //       if (!senderAddress || !receiverAddress) {
-  //         skippedRows.push({ row, reason: 'Empty sender or receiver address' });
-  //         return;
-  //       }
-
-  //       /* -------------------- Validate delivery type -------------------- */
-  //       const deliveryTypeEnum = row.delivery_type as DeliveryTypeName;
-
-  //       const deliveryTypeExists = await this.prisma.deliveryType.findFirst({
-  //         where: { name: deliveryTypeEnum, is_active: true },
-  //       });
-
-  //       if (!deliveryTypeExists) {
-  //         skippedRows.push({ 
-  //           row, 
-  //           reason: `Invalid delivery_type: ${row.delivery_type}` 
-  //         });
-  //         return;
-  //       }
-
-  //       /* -------------------- Validate vehicle type -------------------- */
-  //       const vehicle = await this.prisma.vehicleType.findFirst({
-  //         where: {
-  //           vehicle_type: row.vehicle_type
-  //         },
-  //       });
-
-  //       if (!vehicle) {
-  //         skippedRows.push({
-  //           row,
-  //           reason: `Invalid vehicle_type: ${row.vehicle_type}`,
-  //         });
-  //         return;
-  //       }
-
-  //       /* -------------------- Geocode sender with error handling -------------------- */
-  //       let senderGeo;
-  //       try {
-  //         senderGeo = await this.geoServices.getLatLngFromAddress(senderAddress);
-  //       } catch (error) {
-  //         skippedRows.push({
-  //           row,
-  //           reason: `Geocoding failed for sender address: ${error.message}`,
-  //         });
-  //         return;
-  //       }
-
-  //       if (!senderGeo || !senderGeo.lat || !senderGeo.lng) {
-  //         skippedRows.push({
-  //           row,
-  //           reason: `Cannot geocode sender address: ${senderAddress}`,
-  //         });
-  //         return;
-  //       }
-
-  //       const sender: Receiver = {
-  //         lat: senderGeo.lat,
-  //         lng: senderGeo.lng,
-  //       };
-
-  //       /* -------------------- Service zone -------------------- */
-  //       const zone = await this.serviceZone.findZoneByPoint(sender.lat, sender.lng);
-  //       if (!zone) {
-  //         skippedRows.push({
-  //           row,
-  //           reason: 'Sender outside service zone',
-  //         });
-  //         return;
-  //       }
-        
-  //       /* -------------------- Geocode receiver with error handling -------------------- */
-  //       let receiverGeo;
-  //       try {
-  //         receiverGeo = await this.geoServices.getLatLngFromAddress(receiverAddress);
-  //       } catch (error) {
-  //         skippedRows.push({
-  //           row,
-  //           reason: `Geocoding failed for receiver address: ${error.message}`,
-  //         });
-  //         return;
-  //       }
-
-  //       if (!receiverGeo || !receiverGeo.lat || !receiverGeo.lng) {
-  //         skippedRows.push({ 
-  //           row, 
-  //           reason: `Cannot geocode receiver address: ${receiverAddress}` 
-  //         });
-  //         return;
-  //       }
-
-  //       const receivers: Receiver[] = [
-  //         { lat: receiverGeo.lat, lng: receiverGeo.lng },
-  //       ];
-
-  //       /* -------------------- Price calculation -------------------- */
-  //       const pricingResults = await getReceiversWithPrice(
-  //         this.prisma,
-  //         sender,
-  //         receivers,
-  //         deliveryTypeEnum,
-  //         vehicle.id,
-  //         zone,
-  //         {
-  //           isRoundTrip: row.route_type === RouteType.ROUND,
-  //           returnFactor: 0.5,
-  //         },
-  //       );
-
-  //       const totalCost = pricingResults[0]?.pricing.totalPrice ?? 0;
-  //       const totalFee = pricingResults[0]?.pricing.totalFee ?? 0;
-        
-  //       /* -------------------- Build destinations -------------------- */
-  //       const senderDest = {
-  //         user_id: userId,
-  //         type: DestinationType.SENDER,
-  //         latitude: sender.lat,
-  //         longitude: sender.lng,
-  //         address: senderAddress,
-  //         contact_name: row.sender_contact_name || null,
-  //         contact_number: row.sender_contact_number || null,
-  //         floor_unit: row.sender_floor_unit || null,
-  //         note_to_driver: row.sender_note_to_driver || null,
-  //         is_saved: false,
-  //         accuracy: row.sender_accuracy ? Number(row.sender_accuracy) : null,
-  //       };
-
-  //       const receiverDest = {
-  //         user_id: userId,
-  //         type: DestinationType.RECEIVER,
-  //         latitude: receiverGeo.lat,
-  //         longitude: receiverGeo.lng,
-  //         address: receiverAddress,
-  //         contact_name: row.receiver_contact_name || null,
-  //         contact_number: row.receiver_contact_number || null,
-  //         floor_unit: row.receiver_floor_unit || null,
-  //         note_to_driver: row.receiver_note_to_driver || null,
-  //         is_saved: false,
-  //         accuracy: row.receiver_accuracy ? Number(row.receiver_accuracy) : null,
-  //       };
-
-  //       /* -------------------- Build order -------------------- */
-  //       ordersToInsert.push({
-  //         userId,
-  //         route_type: row.route_type,
-  //         delivery_type: deliveryTypeEnum,
-  //         serviceZoneId: zone.id,
-  //         isBulk: true,
-  //         collect_time: row.collect_time,
-  //         vehicle_type_id: vehicle.id,
-  //         payment_method_id: row.payment_method_id
-  //           ? Number(row.payment_method_id)
-  //           : null,
-  //         total_cost: totalCost,
-  //         total_fee: totalFee,
-  //         order_status: row.order_status ?? OrderStatus.PROGRESS,
-  //         isFixed: row.is_fixed === 'true',
-  //         raider_confirmation: row.raider_confirmation === 'true',
-  //       });
-
-  //       destinationsToInsert.push({
-  //         sender: senderDest,
-  //         receiver: receiverDest,
-  //       });
-  //     } catch (err: any) {
-  //       console.error('Row processing error:', err);
-  //       skippedRows.push({ 
-  //         row, 
-  //         reason: err.message || 'Unknown error occurred' 
-  //       });
-  //     }
-  //   };
-
-  //   /* -------------------- Stream CSV safely -------------------- */
-  //   const stream = response.data.pipe(csvParser());
-  //   for await (const row of stream) {
-  //     await processRow(row);
-  //   }
-
-
-  //   if (ordersToInsert.length === 0) {
-  //     return {
-  //       total_uploaded: skippedRows.length,
-  //       success: 0,
-  //       skipped: skippedRows,
-  //       message: 'No valid orders to process',
-  //     };
-  //   }
-
-  //   /* -------------------- Insert orders -------------------- */
-  //   const createdOrders = await this.prisma.$transaction(
-  //     ordersToInsert.map(order =>
-  //       this.prisma.order.create({ data: order }),
-  //     ),
-  //   );
-
-  //   /* -------------------- Insert destinations -------------------- */
-  //   for (let i = 0; i < createdOrders.length; i++) {
-  //     const order = createdOrders[i];
-  //     const dest = destinationsToInsert[i];
-
-  //     await this.prisma.destination.createMany({
-  //       data: [
-  //         { order_id: order.id, ...dest.sender },
-  //         { order_id: order.id, ...dest.receiver },
-  //       ],
-  //     });
-  //   }
-
-  //   return {
-  //     total_uploaded: ordersToInsert.length + skippedRows.length,
-  //     success: createdOrders.length,
-  //     skipped: skippedRows,
-  //     message: 'Bulk orders processed successfully',
-  //   };
-  //  }
-
-
-    // find mine
-  
-    async bulkCreateOrdersFromCsv(dto: BulkOrderWithDestinationsDto, userId: number) {
+    // bulk order create from csv
+   async bulkCreateOrdersFromCsv(dto: BulkOrderWithDestinationsDto, userId: number) {
       // Validate file URL
       if (!dto?.fileUrl.startsWith(process.env.BASE_URL!)) {
         throw new BadRequestException('Invalid file source');
@@ -1140,41 +894,216 @@ export class OrderService {
         skippedDetails: skippedRows,
         message: `Bulk orders processed: ${successfulOrders.length} successful, ${skippedRows.length} skipped`,
       };
-  }
+   }
+  
+   // bulk order mark as pending
+   async markOrdersAsPending(userId: number, dto: UpdatePendingOrdersDto) {
+    const { orderIds } = dto;
 
+    if (!orderIds?.length) {
+      throw new BadRequestException('Order IDs are required');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        fcmToken: true,
+        currentWalletBalance: true,
+      },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    /* ---------------- VALIDATE ORDERS ---------------- */
+    const orders = await this.prisma.order.findMany({
+      where: {
+        id: { in: orderIds },
+        userId,
+        isBulk: true,
+        order_status: OrderStatus.PROGRESS,
+      },
+      include: {
+        orderStops: {
+          include: { payment: true },
+          orderBy: { sequence: 'asc' },
+        },
+      },
+    });
+
+    if (orders.length !== orderIds.length) {
+      const foundIds = orders.map(o => o.id);
+      const missing = orderIds.filter(id => !foundIds.includes(id));
+      throw new NotFoundException(`Orders not found: ${missing.join(', ')}`);
+    }
+
+    const totalAmount = orders.reduce((sum, o) => sum + Number(o.total_cost), 0);
+
+    /* ---------------- TRANSACTION ---------------- */
+    const result = await this.prisma.$transaction(async (tx) => {
+      const payType = dto.paymentMethod || PayType.COD;
+      const codCollectFrom = dto.codCollectFrom || 'RECEIVER';
+
+      /* ---------------- UPFRONT PAYMENT (WALLET/ONLINE) ---------------- */
+      if (dto.payType === PaymentType.PAYMENT) {
+        if (dto.paymentMethod === PayType.ONLINE_PAY) {
+          if (!dto.stripePaymentMethodId) {
+            throw new BadRequestException('Stripe payment method required');
+          }
+
+          const paid = await this.walletService.addMoney(
+            userId,
+            totalAmount,
+            dto.stripePaymentMethodId,
+            dto.payType,
+          );
+
+          if (!paid) throw new BadRequestException('Online payment failed');
+        }
+
+        if (dto.paymentMethod === PayType.WALLET) {
+          if (Number(user.currentWalletBalance) < totalAmount) {
+            throw new BadRequestException('Insufficient wallet balance');
+          }
+
+          await tx.user.update({
+            where: { id: userId },
+            data: { currentWalletBalance: { decrement: totalAmount } },
+          });
+        }
+
+        // Mark all stops as PAID for WALLET/ONLINE
+        const allStopIds = orders.flatMap(o => o.orderStops.map(s => s.id));
+        await tx.stopPayment.updateMany({
+          where: { orderStopId: { in: allStopIds } },
+          data: {
+            payType: dto.paymentMethod,
+            status: PaymentStatus.PAID,
+            amount: 0,
+          },
+        });
+      }
+
+      /* ---------------- COD PAYMENT SETUP ---------------- */
+      if (payType === PayType.COD) {
+        for (const order of orders) {
+          const pickupStop = order.orderStops.find(s => s.type === StopType.PICKUP);
+          const dropStops = order.orderStops.filter(s => s.type === StopType.DROP);
+
+          if (codCollectFrom === 'SENDER') {
+            // Sender pays at pickup
+            if (pickupStop) {
+              await tx.stopPayment.update({
+                where: { orderStopId: pickupStop.id },
+                data: {
+                  amount: Number(order.total_cost),
+                  payType: PayType.COD,
+                  status: PaymentStatus.UNPAID,
+                },
+              });
+            }
+
+            // Receivers pay nothing
+            for (const drop of dropStops) {
+              await tx.stopPayment.update({
+                where: { orderStopId: drop.id },
+                data: { amount: 0, status: PaymentStatus.PAID },
+              });
+            }
+          } else {
+            // Each receiver pays
+            const perDropAmount = Number(order.total_cost) / dropStops.length;
+
+            // Sender pays nothing
+            if (pickupStop) {
+              await tx.stopPayment.update({
+                where: { orderStopId: pickupStop.id },
+                data: { amount: 0, status: PaymentStatus.PAID },
+              });
+            }
+
+            // Each receiver pays their share
+            for (const drop of dropStops) {
+              await tx.stopPayment.update({
+                where: { orderStopId: drop.id },
+                data: {
+                  amount: perDropAmount,
+                  payType: PayType.COD,
+                  status: PaymentStatus.UNPAID,
+                },
+              });
+            }
+          }
+        }
+      }
+
+      /* ---------------- UPDATE ORDERS ---------------- */
+      const updateResult = await tx.order.updateMany({
+        where: {
+          id: { in: orderIds },
+          userId,
+          isBulk: true,
+        },
+        data: {
+          order_status: OrderStatus.PENDING,
+          is_placed: true,
+          pay_type: payType,
+        },
+      });
+
+      if (updateResult.count !== orderIds.length) {
+        throw new ConflictException('Some orders could not be updated');
+      }
+
+      /* ---------------- UPDATE TRANSACTIONS ---------------- */
+      await tx.transaction.updateMany({
+        where: { orderId: { in: orderIds } },
+        data: {
+          tx_status: TransactionStatus.COMPLETED,
+          payment_status: 
+            payType === PayType.COD ? PaymentStatus.UNPAID : PaymentStatus.PAID,
+        },
+      });
+
+      return {
+        totalUpdated: updateResult.count,
+        totalAmount,
+      };
+    });
+
+    /* ---------------- NOTIFICATIONS ---------------- */
+    if (user.email && result.totalUpdated > 0) {
+      await this.emailQueueService.queueBulkOrderPendingEmail({
+        userId: user.id,
+        email: user.email,
+        username: user.username ?? undefined,
+        orderIds,
+        totalOrders: result.totalUpdated,
+        totalAmount: result.totalAmount,
+      });
+    }
+
+    if (user.fcmToken) {
+      await this.emailQueueService.queueOrderStatusNotification({
+        userId: user.id,
+        fcmToken: user.fcmToken,
+        orderId: 'BULK',
+        status: OrderStatus.PENDING,
+        message: `Your ${result.totalUpdated} bulk orders are now placed.`,
+      });
+    }
+
+    return {
+      success: true,
+      totalOrders: result.totalUpdated,
+      totalAmount: result.totalAmount,
+    };
+   }
+ 
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+    // find user orders
     async findMine(
       userId: number,
       page = 1,
@@ -1773,159 +1702,6 @@ export class OrderService {
   return updatedOrder;
    }
 
-  
-  // mark bulk order as pending
-   async markOrdersAsPending(
-        userId: number,
-        dto: UpdatePendingOrdersDto,
-      ) {
-        const { orderIds } = dto;
-
-        if (!orderIds?.length) {
-          throw new BadRequestException('Order IDs are required');
-        }
-
-        const user = await this.prisma.user.findUnique({
-          where: { id: userId },
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            fcmToken: true,
-            currentWalletBalance: true,
-          },
-        });
-
-        if (!user) {
-          throw new NotFoundException('User not found');
-        }
-
-        /* ---------------- VALIDATE ORDERS ---------------- */
-        const orders = await this.prisma.order.findMany({
-          where: {
-            id: { in: orderIds },
-            userId,
-            isBulk: true,
-            order_status: OrderStatus.PROGRESS,
-          },
-          select: {
-            id: true,
-            order_status: true,
-            total_cost: true,
-          },
-        });
-
-        if (orders.length !== orderIds.length) {
-          const foundIds = orders.map(o => o.id);
-          const missing = orderIds.filter(id => !foundIds.includes(id));
-          throw new NotFoundException(`Orders not found or invalid: ${missing.join(', ')}`);
-        }
-
-        const totalAmount = orders.reduce(
-          (sum, o) => sum + Number(o.total_cost),
-          0,
-        );
-
-        /* ---------------- TRANSACTION ---------------- */
-        const result = await this.prisma.$transaction(async (tx) => {
-          /* ---------------- PAYMENT ---------------- */
-          if (dto.payType === PaymentType.PAYMENT) {
-            // ONLINE PAYMENT
-            if (dto.paymentMethod === PayType.ONLINE_PAY) {
-              if (!dto.stripePaymentMethodId) {
-                throw new BadRequestException('Stripe payment method required');
-              }
-
-              const paid = await this.walletService.addMoney(
-                userId,
-                totalAmount,
-                dto.stripePaymentMethodId,
-                dto.payType,
-              );
-
-              if (!paid) {
-                throw new BadRequestException('Online payment failed');
-              }
-            }
-
-            // WALLET PAYMENT
-            if (dto.paymentMethod === PayType.WALLET) {
-              if (Number(user.currentWalletBalance) < totalAmount) {
-                throw new BadRequestException('Insufficient wallet balance');
-              }
-
-              await tx.user.update({
-                where: { id: userId },
-                data: {
-                  currentWalletBalance: {
-                    decrement: totalAmount,
-                  },
-                },
-              });
-            }
-          }
-
-          /* ---------------- ORDER UPDATE ---------------- */
-          const updateResult = await tx.order.updateMany({
-            where: {
-              id: { in: orderIds },
-              userId,
-              isBulk: true,
-            },
-            data: {
-              order_status: OrderStatus.PENDING,
-              is_placed: true,
-              pay_type: dto.paymentMethod,
-            },
-          });
-
-          if (updateResult.count !== orderIds.length) {
-            throw new ConflictException('Some orders could not be updated');
-          }
-
-          /* ---------------- TRANSACTION UPDATE ---------------- */
-          await tx.transaction.updateMany({
-            where: { orderId: { in: orderIds } },
-            data: {
-              tx_status: TransactionStatus.COMPLETED,
-            },
-          });
-
-          return {
-            totalUpdated: updateResult.count,
-            totalAmount,
-          };
-        });
-
-        /* ---------------- NOTIFICATIONS (AFTER TX) ---------------- */
-        if (user.email && result.totalUpdated > 0) {
-          await this.emailQueueService.queueBulkOrderPendingEmail({
-            userId: user.id,
-            email: user.email,
-            username: user.username ?? undefined,
-            orderIds,
-            totalOrders: result.totalUpdated,
-            totalAmount: result.totalAmount,
-          });
-        }
-
-        if (user.fcmToken) {
-          await this.emailQueueService.queueOrderStatusNotification({
-            userId: user.id,
-            fcmToken: user.fcmToken,
-            orderId:"N/A",
-            status: OrderStatus.PENDING,
-            message: `Your ${result.totalUpdated} bulk orders are now Placed.`,
-          });
-        }
-
-        return {
-          success: true,
-          totalOrders: result.totalUpdated,
-          totalAmount: result.totalAmount,
-        };
-      }
-
   // order update for admin
   async update(id: number, dto: UpdateOrderDto) {
     const existingOrder =  await this.prisma.order.findUnique({
@@ -2239,7 +2015,7 @@ export class OrderService {
   }
 
   // feed only order
-    async orderForFeed(
+   async orderForFeed(
       userId: number,
       page = 1,
       limit = 100,
@@ -2256,7 +2032,14 @@ export class OrderService {
           where: {
             order_status: OrderStatus.PENDING,
             is_placed: true,
-
+            user:{
+                raiderProfile:{
+                    is_online:true,
+                    isSuspended:false,
+                    raider_status:RaiderStatus.ACTIVE
+                }
+            },
+             
             // EXCLUDE declined orders for THIS raider only
             NOT: {
               declines: {
