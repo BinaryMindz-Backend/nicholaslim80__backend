@@ -65,4 +65,13 @@ export class UpdatePendingOrdersDto {
   @IsOptional()
   @IsString()
   stripePaymentMethodId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Who collects COD payment (only for COD orders)',
+    enum: ['SENDER', 'RECEIVER'],
+    example: 'RECEIVER',
+  })
+  @IsOptional()
+  @IsEnum(['SENDER', 'RECEIVER'])
+  codCollectFrom?: 'SENDER' | 'RECEIVER';
 }
