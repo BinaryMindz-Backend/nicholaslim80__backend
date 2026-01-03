@@ -358,7 +358,7 @@ async findAllBySearch(dto: SearchDto) {
         ],
       },
       include:{
-          role:true
+          role:true,
       }
     }),
 
@@ -376,6 +376,9 @@ async findAllBySearch(dto: SearchDto) {
             ],
           },
         },
+      },
+      include:{
+          registrations:true
       }
     }),
   ]);
