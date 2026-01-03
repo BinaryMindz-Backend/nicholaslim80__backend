@@ -2,7 +2,8 @@
 import { Injectable, OnModuleInit, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Module, Permission, STATIC_ROLES } from './rbac.constants';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { PermissionDto } from './dto/role.dto';
+import { PermissionDto, SearchDto } from './dto/role.dto';
+import { DeliveryTypeName, OrderStatus } from '@prisma/client';
 
 
 
@@ -131,7 +132,76 @@ export class RbacService implements OnModuleInit {
 
     return updatedRole;
   }
- 
+
+  async getAllRoles() {
+    return this.prisma.role.findMany({
+      where:{
+        isStatic: false
+      },
+      include: {
+        permissions: true,
+        _count: {
+          select: { users: true },
+        },
+      },
+    });
+  }
+
+  async getRoleById(roleId: number) {
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      include: {
+        permissions: true,
+      },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    return role;
+  }
+  //
+  async updateRole(roleId: number, name: string) {
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    } 
+    if (role.isStatic) {
+      throw new BadRequestException('Cannot modify static roles');
+    }
+
+    const updatedRole = await this.prisma.role.update({
+      where: { id: roleId },
+      data: { name },
+    });
+  
+    return updatedRole;
+  }
+  // 
+  async makeActiveInactive(roleId: number) {
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    } 
+    if (role.isStatic) {
+      throw new BadRequestException('Cannot modify static roles');
+    }
+
+    const updatedRole = await this.prisma.role.update({
+      where: { id: roleId },
+      data: { isActive: !role.isActive },
+    });
+  
+    return updatedRole;
+  }
+
   // 
   async deleteRole(roleId: number) {
     const role = await this.prisma.role.findUnique({
@@ -145,7 +215,16 @@ export class RbacService implements OnModuleInit {
     if (role.isStatic) {
       throw new BadRequestException('Cannot delete static roles');
     }
+    // 
+    const usersWithRole = await this.prisma.user.count({
+      where: { roleId },
+    });
 
+    if (usersWithRole > 0) {
+      throw new BadRequestException('Cannot delete role assigned to users');
+    }
+
+    // 
     await this.prisma.role.delete({
       where: { id: roleId },
     });
@@ -153,6 +232,7 @@ export class RbacService implements OnModuleInit {
     return { message: 'Role deleted successfully' };
   }
 
+  //  
   async checkPermission(userId: number, module: Module, action: Permission): Promise<boolean> {
     const permission = await this.prisma.rolePermission.findFirst({
       where: {
@@ -217,32 +297,6 @@ export class RbacService implements OnModuleInit {
     };
   }
 
-  async getAllRoles() {
-    return this.prisma.role.findMany({
-      include: {
-        permissions: true,
-        _count: {
-          select: { users: true },
-        },
-      },
-    });
-  }
-
-  async getRoleById(roleId: number) {
-    const role = await this.prisma.role.findUnique({
-      where: { id: roleId },
-      include: {
-        permissions: true,
-      },
-    });
-
-    if (!role) {
-      throw new NotFoundException('Role not found');
-    }
-
-    return role;
-  }
-
   async getAvailablePermissions() {
     // Return all available granular permissions grouped by module
     return {
@@ -264,4 +318,82 @@ export class RbacService implements OnModuleInit {
 
     };
   }
+  // 
+  // Service
+async findAllBySearch(dto: SearchDto) {
+
+  const searchTerm = dto.search.trim();
+  const isNumeric = !isNaN(Number(searchTerm));
+
+  // Search in 3 tables parallelly
+  const [orderResults, userResults, raiderResults] = await Promise.all([
+    // 1. Search in ORDER table
+    this.prisma.order.findMany({
+      where: {
+        OR: [
+          // Order ID
+          ...(isNumeric ? [{ id: Number(searchTerm) }] : []),
+          
+          // Order status (enum exact match)
+          ...(Object.values(OrderStatus).includes(searchTerm.toUpperCase() as OrderStatus)
+            ? [{ order_status: searchTerm.toUpperCase() as OrderStatus }]
+            : []),
+
+          
+          // Delivery type (enum exact match)
+          ...(Object.values(DeliveryTypeName).includes(searchTerm.toUpperCase() as DeliveryTypeName)
+            ? [{ delivery_type: searchTerm.toUpperCase() as DeliveryTypeName }]
+            : []),
+        ],
+      },
+    }),
+
+    // 2. Search in USER table
+    this.prisma.user.findMany({
+      where: {
+        OR: [
+          { username: { contains: searchTerm, mode: 'insensitive' } },
+          { phone: { contains: searchTerm, mode: 'insensitive' } },
+          { email: { contains: searchTerm, mode: 'insensitive' } },
+        ],
+      },
+      include:{
+          role:true
+      }
+    }),
+
+    // 3. Search in RAIDER table
+    this.prisma.raider.findMany({
+      where: {
+        registrations: {
+          some: {
+            OR: [
+              { raider_name: { contains: searchTerm, mode: 'insensitive' } },
+              { current_address: { contains: searchTerm, mode: 'insensitive' } },
+              { contact_number : { contains: searchTerm, mode: 'insensitive' } },
+              { email_address : { contains: searchTerm, mode: 'insensitive' } },
+              { permanent_city : { contains: searchTerm, mode: 'insensitive' } },
+            ],
+          },
+        },
+      }
+    }),
+  ]);
+
+   return{
+    orders: orderResults,
+    users: userResults,
+    raiders: raiderResults
+   }
+
+
+}
+
+
+
+
+
+
+
+
 }

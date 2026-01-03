@@ -1,11 +1,12 @@
-import { Controller, Post, Put, Delete, Get, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Post, Put, Delete, Get, Body, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { RbacService } from './rbac.service';
 import { RequirePermission } from './decorators/require-permission.decorator';
 import { Module, Permission } from './rbac.constants';
 import { Auth } from 'src/decorators/auth.decorator';
 import { ApiBearerAuth } from '@nestjs/swagger';
-import { CreateRoleDto, UpdateRoleDto } from './dto/role.dto';
+import { CreateRoleDto, SearchDto, UpdateRoleDto, UpdateRoleNameDto } from './dto/role.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
+import { ApiResponses } from 'src/common/apiResponse';
 
 
 
@@ -19,40 +20,97 @@ export class RbacController {
   @ApiBearerAuth()
   @RequirePermission(Module.RBAC, Permission.CREATE)
   async createRole(@Body() createRoleDto: CreateRoleDto) {
-    return this.rbacService.createCustomRole(
-      createRoleDto.name,
-      createRoleDto.permissions,
-    );
+       try {
+         const res = await this.rbacService.createCustomRole(
+                createRoleDto.name,
+                createRoleDto.permissions,
+              );
+           return ApiResponses.success(res, 'Role created successfully');
+       } catch (error) {
+            return ApiResponses.error(error, "Failed to create role");
+       }
+  }
+  // 
+  @Get("search")
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.RBAC, Permission.READ)
+  async findAllBySearch(@Query() dto: SearchDto) {
+    return this.rbacService.findAllBySearch(dto);
   }
 
-  @Put(':id')
+  // 
+  @Put('update-role/:id')
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.RBAC, Permission.UPDATE_RBAC_ROLE_PERMISSION)
   async updateRole(
     @Param('id', ParseIntPipe) id: number,
+    @Body() updateRoleDto: UpdateRoleNameDto,
+  ) {
+      
+    try {
+      const res = await this.rbacService.updateRole(id, updateRoleDto.name);
+         return ApiResponses.success(res, 'Role name updated successfully');
+    } catch (error) {
+          return ApiResponses.error(error, "Failed to update role name");
+    }
+ 
+
+    }
+
+  // 
+  @Put(':id/active-status')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.RBAC, Permission.UPDATE_RBAC_ROLE_PERMISSION)
+  async makeActiveInactive(
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+     try {
+      const res = await this.rbacService.makeActiveInactive(id);
+         return ApiResponses.success(res, 'Role status updated successfully');
+     } catch (error) {
+          return ApiResponses.error(error, "Failed to update role status");
+     }
+  }
+
+  //  
+  @Put(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.RBAC, Permission.UPDATE_RBAC_ROLE_PERMISSION)
+  async updateRolePermissions(
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateRoleDto: UpdateRoleDto,
   ) {
     return this.rbacService.updateRolePermissions(id, updateRoleDto.permissions);
   }
-
+   
+  // 
   @Delete(':id')
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.RBAC, Permission.DELETE)
   async deleteRole(@Param('id', ParseIntPipe) id: number) {
-    return this.rbacService.deleteRole(id);
+      try {
+        const res = await this.rbacService.deleteRole(id);
+         return ApiResponses.success(res, 'Role deleted successfully');
+      } catch (error) {
+         return ApiResponses.error(error, "Failed to delete role");
+      }
   }
-
+  
+  // 
   @Get()
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.RBAC, Permission.READ)
-  async getAllRoles(@CurrentUser() user: any) {
-    console.log(user);
+  async getAllRoles() {
     return this.rbacService.getAllRoles();
   }
-
+   
+  // 
   @Get('available-permissions')
   @Auth()
   @ApiBearerAuth()
@@ -60,7 +118,7 @@ export class RbacController {
   async getAvailablePermissions() {
     return this.rbacService.getAvailablePermissions();
   }
-
+  // 
   @Get(':id')
   @Auth()
   @ApiBearerAuth()
@@ -93,4 +151,8 @@ export class RbacController {
   //     )
   //   };
   // }
+    // 
+
+
+
 }

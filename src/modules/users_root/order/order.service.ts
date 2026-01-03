@@ -853,9 +853,9 @@ export class OrderService {
     // bulk order create from csv
    async bulkCreateOrdersFromCsv(dto: BulkOrderWithDestinationsDto, userId: number) {
       // Validate file URL
-      if (!dto?.fileUrl.startsWith(process.env.BASE_URL!)) {
-        throw new BadRequestException('Invalid file source');
-      }
+      // if (!dto?.fileUrl.startsWith(process.env.BASE_URL!)) {
+      //   throw new BadRequestException('Invalid file source');
+      // }
 
       const response = await axios.get(dto.fileUrl, { responseType: 'stream' });
 
