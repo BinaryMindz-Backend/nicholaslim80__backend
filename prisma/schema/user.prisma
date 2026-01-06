@@ -6,8 +6,6 @@ model User {
   email         String?  @unique @db.VarChar(200)
   phone         String   @db.VarChar(20)
   password      String?  @db.VarChar(255)
-  // role          UserRole @default(USER)
-  balance       Int      @default(0)
   reward_points Int      @default(0)
   is_active     Boolean  @default(false)
   is_verified   Boolean  @default(false)

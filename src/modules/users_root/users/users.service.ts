@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { NotificationService } from 'src/modules/superadmin_root/notification/notification.service';
 /* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
 import { Injectable, ConflictException, NotFoundException, BadRequestException, NotAcceptableException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -13,7 +12,6 @@ import { UserFilterDto, UserStatusFilter } from './dto/user-filter.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { startOfDay, endOfDay, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { CoinUtils } from 'src/utils/coin.utils';
-import { MailService } from 'src/common/services/mail.service';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 
 // 
@@ -21,8 +19,6 @@ import { EmailQueueService } from 'src/modules/queue/services/email-queue.servic
 export class UsersService {
   constructor(private readonly prisma: PrismaService,
     private readonly otpService: OtpService,
-    private readonly mailService:MailService,
-    private readonly notify:NotificationService,
     private readonly emailQueueService: EmailQueueService,
 
   ) { }
@@ -366,8 +362,15 @@ export class UsersService {
         adminProfiles: true,
       }
     });
-
+    // 
     if (!res) throw new NotFoundException("User not found");
+    // 
+    const basePoint = await this.prisma.coin.aggregate({
+      _avg: { coin_value_in_cent: true,},
+    });
+    // 
+    const basePrice = Number(basePoint._avg.coin_value_in_cent ?? 0 / 100);
+
 
     // Initialize response object
     let responseData: any = {
@@ -407,6 +410,7 @@ export class UsersService {
         follower: follower || 0,
         avg_raiderRating: formattedAverage,
         total_raiderRatings: avgRating._count.id || 0,
+        rewardMoney:basePrice * res.reward_points,
       };
     }
 
@@ -566,45 +570,45 @@ async updateUser(id: number, updateUserDto: UpdateUserDto) {
 
 
   // ** add wallet //DEPRECATED
-  async addMoneyToWallet(id: number, amount: number) {
+  // async addMoneyToWallet(id: number, amount: number) {
 
-    if (!id) {
-      throw new NotFoundException("id not found")
-    }
+  //   if (!id) {
+  //     throw new NotFoundException("id not found")
+  //   }
 
-    const currentUser = await this.prisma.user.findUnique({
-      where: {
-        id
-      }
-    })
+  //   const currentUser = await this.prisma.user.findUnique({
+  //     where: {
+  //       id
+  //     }
+  //   })
 
-    if (!currentUser) {
-      throw new NotFoundException("User not found")
-    }
+  //   if (!currentUser) {
+  //     throw new NotFoundException("User not found")
+  //   }
 
-    if (currentUser.is_verified === false || currentUser.is_active === false) {
-      throw new NotAcceptableException("For top-up/deposit user need to be verified through email/phone")
-    }
+  //   if (currentUser.is_verified === false || currentUser.is_active === false) {
+  //     throw new NotAcceptableException("For top-up/deposit user need to be verified through email/phone")
+  //   }
 
-    const currentBalance = (currentUser.balance)
-    const newBalance = currentBalance + (amount * 100);  // amount in cent
-    // 
-    if (amount < 20) {
-      throw new NotAcceptableException(`This ${amount} is not acceptable you need minimun 20 USD to added to wallet`)
-    }
-    // 
-    const updatedWallet = await this.prisma.user.update({
-      //  
-      where: {
-        id
-      },
-      data: {
-        balance: newBalance,
-      }
-    })
-    // TODO : need to add transaction 
-    return updatedWallet;
-  }
+  //   const currentBalance = (currentUser.balance)
+  //   const newBalance = currentBalance + (amount * 100);  // amount in cent
+  //   // 
+  //   if (amount < 20) {
+  //     throw new NotAcceptableException(`This ${amount} is not acceptable you need minimun 20 USD to added to wallet`)
+  //   }
+  //   // 
+  //   const updatedWallet = await this.prisma.user.update({
+  //     //  
+  //     where: {
+  //       id
+  //     },
+  //     data: {
+  //       balance: newBalance,
+  //     }
+  //   })
+  //   // TODO : need to add transaction 
+  //   return updatedWallet;
+  // }
 
 
   // create user by admin
