@@ -168,7 +168,7 @@ export class RidersProfileService {
   async findOne(id: string) {
     const res = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
-      include: { registrations: true },
+      include: { registrations: true, locations:true },
     });
     return res;
   }

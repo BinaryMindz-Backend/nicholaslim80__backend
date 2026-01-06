@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable no-case-declarations */
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { NotificationType, UserRole, NotificationSentRole } from '@prisma/client';
@@ -212,6 +213,15 @@ export class NotificationService {
     const { ids } = dto;
     await this.prisma.notification.deleteMany({ where: { id: { in: ids } } });
     return { message: `${ids.length} notifications deleted successfully` };
+  }
+ // store fcm token to db
+  async storeFcmToken(userId: number, fcmToken: string) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { fcmToken },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return { message: 'FCM token stored successfully' };
   }
 }
 

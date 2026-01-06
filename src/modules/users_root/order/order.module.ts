@@ -11,10 +11,19 @@ import { SmsService } from 'src/common/services/sms.service';
 import { QueueModule } from 'src/modules/queue/queue.module';
 import { WalletModule } from 'src/common/wallet/wallet.module';
 import { WalletService } from 'src/common/wallet/wallet.service';
+import { OrderGateway } from './order.gateway';
 
 @Module({
-  imports:[RedisModule,NotificationModule, QueueModule, WalletModule],
+  imports:[
+      RedisModule,
+      NotificationModule, 
+      QueueModule, 
+      WalletModule],
   controllers: [OrderController],
-  providers: [OrderService, TransactionIdService, CompetitionWorker,SmsService, ServiceZoneService,GeoService, WalletService],
+  providers: [OrderService, TransactionIdService, CompetitionWorker,SmsService, ServiceZoneService,GeoService, WalletService, OrderGateway],
+  exports:[
+    OrderService,
+    OrderGateway
+  ]
 })
 export class OrderModule {}

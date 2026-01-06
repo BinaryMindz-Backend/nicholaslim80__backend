@@ -1316,11 +1316,8 @@ export class OrderService {
                 phone: true,
               },
             },
-            // destinations:{
-            //     select:{
-            //        address:true
-            //     }
-            // }
+            orderStops:true
+            
           },
           orderBy: { created_at: 'desc' },
           skip,
@@ -2456,8 +2453,26 @@ export class OrderService {
         };
       }
     }
+    
+    // 
+    async getActiveOrderByRider(riderId: number) {
+      return await this.prisma.order.findFirst({
+        where: { assign_rider_id: riderId, order_status: OrderStatus.ONGOING },
+      });
+    }
 
+    async getAllActiveOrders() {
+      return await this.prisma.order.findMany({ where: { order_status: OrderStatus.ONGOING }})
 
-  }
-   
+    }
+    // 
+    async getAllActiveOrdersByRider(riderId: number) {
+      return await this.prisma.order.findMany({
+        where: {
+          assign_rider_id: riderId,
+          order_status: OrderStatus.ONGOING
+        },
+      });
+}
 
+}
