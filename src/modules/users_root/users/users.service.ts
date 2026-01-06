@@ -409,8 +409,7 @@ export class UsersService {
         ...responseData,
         follower: follower || 0,
         avg_raiderRating: formattedAverage,
-        total_raiderRatings: avgRating._count.id || 0,
-        rewardMoney:basePrice * res.reward_points,
+        total_raiderRatings: avgRating._count.id || 0
       };
     }
 
@@ -439,6 +438,7 @@ export class UsersService {
         ...responseData,
         avg_customerRating: formattedAverageUser,
         total_customerRatings: useravgRating._count.id || 0,
+        rewardMoney:basePrice * res.reward_points || 0,
       };
     }
 
