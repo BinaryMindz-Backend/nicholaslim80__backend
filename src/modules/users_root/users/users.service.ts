@@ -357,7 +357,11 @@ export class UsersService {
         is_deleted: false 
       },
       include: {
-        raiderProfile:true,
+        raiderProfile:{
+             include:{
+                registrations:true
+             }
+        },
         role: true,
         adminProfiles: true,
       }
