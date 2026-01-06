@@ -76,7 +76,7 @@ export class NotificationController {
       return ApiResponses.error(error, 'Failed to fetch notification');
     }
   }
-
+  
   @Patch(':id/mark-read')
   @Auth()
   // @Roles(UserRole.USER, UserRole.RAIDER)
@@ -125,6 +125,23 @@ export class NotificationController {
       return ApiResponses.success(res, 'Notifications deleted successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to delete notifications');
+    }
+  }
+  // store fcm token
+  @Patch('fcm-token')
+  @Auth()
+  // @Roles(UserRole.USER, UserRole.RAIDER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Store FCM token for a user' })
+  @ApiResponse({ status: 200, description: 'FCM token stored successfully' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @ApiBody({ schema: { type: 'object', properties: { fcmToken: { type: 'string' } }, required: ['fcmToken'] } })
+  async storeFcmToken(@CurrentUser() user:IUser , @Body() dto: { fcmToken: string }) {
+    try {
+      const res = await this.notificationService.storeFcmToken(user.id, dto.fcmToken);
+      return ApiResponses.success(res, 'FCM token stored successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to store FCM token');
     }
   }
 

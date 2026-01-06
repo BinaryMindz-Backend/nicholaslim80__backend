@@ -47,8 +47,11 @@ export class RedisService {
   async releaseLock(key: string): Promise<void> {
     await this.client.del(key);
   }
-
-
+  
+  // keys pattern
+  async keys(pattern: string) {
+    return this.client.keys(pattern);
+  }
 
 
 

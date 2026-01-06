@@ -107,7 +107,7 @@ export class RbacController {
   @ApiBearerAuth()
   @RequirePermission(Module.RBAC, Permission.READ)
   async getAllRoles() {
-    return this.rbacService.getAllRoles();
+    return await this.rbacService.getAllRoles();
   }
    
   // 

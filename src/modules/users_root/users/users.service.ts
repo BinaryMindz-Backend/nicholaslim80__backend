@@ -357,17 +357,7 @@ export class UsersService {
         is_deleted: false 
       },
       include: {
-        raiderProfile: {
-          select: {
-            id: true,
-            raider_status: true,
-            isSuspended: true,
-            rank: true,
-            raider_verificationFromAdmin: true,
-            registrations: true,
-            raider_ratings: true,
-          }
-        },
+        raiderProfile:true,
         role: true,
         adminProfiles: true,
       }

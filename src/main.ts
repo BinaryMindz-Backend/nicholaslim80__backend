@@ -6,6 +6,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { version, name } from 'package.json';
 import { join } from 'path';
 import express from 'express';
+import { SocketIOAdapter } from './adapters/socket-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,7 +15,8 @@ async function bootstrap() {
     origin: ['https://admin.zipbee.sg','http://localhost:5173', 'http://localhost:5174'],
     credentials: true,
   });
-
+    // Use the custom Socket.IO adapter
+  app.useWebSocketAdapter(new SocketIOAdapter(app));
   // Global prefix
   const globalPrefix = 'api/v1';
   app.setGlobalPrefix(globalPrefix);

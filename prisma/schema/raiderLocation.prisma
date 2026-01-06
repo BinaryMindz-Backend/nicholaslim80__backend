@@ -4,8 +4,8 @@ model RaiderLocation {
   id         Int      @id @default(autoincrement())
   raider     Raider   @relation(fields: [raiderId], references: [id], onDelete: Cascade)
   raiderId   Int      @unique
-  latitude   Decimal  @db.Decimal(10,7)
-  longitude  Decimal  @db.Decimal(10,7)
+  latitude   Int
+  longitude  Int
   accuracy   Float?
   heading    Float?
   speed      Float?
@@ -21,8 +21,8 @@ model RaiderLocationHistory {
   id         Int      @id @default(autoincrement())
   raider     Raider   @relation(fields: [raiderId], references: [id], onDelete: Cascade)
   raiderId   Int
-  latitude   Decimal  @db.Decimal(10,7)
-  longitude  Decimal  @db.Decimal(10,7)
+  latitude   Int
+  longitude  Int
   recorded_at DateTime @default(now())
 
   @@map("raider_location_history")

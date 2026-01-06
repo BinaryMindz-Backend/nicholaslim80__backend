@@ -52,6 +52,9 @@ import { ReportAndAnalyticsModule } from './modules/superadmin_root/report_and_a
 import { RaiderRankModule } from './modules/raider_root/raider-rank.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { BullModule } from '@nestjs/bullmq';
+import { SnapshotService } from './modules/superadmin_root/cron/snapshot.service';
+import { RaiderModule } from './modules/raider_root/raider gateways/raider.module';
+import { PrismaService } from './core/database/prisma.service';
 
 @Module({
   imports: [
@@ -117,6 +120,7 @@ import { BullModule } from '@nestjs/bullmq';
     ReportAndAnalyticsModule,
     RaiderRankModule,
     QueueModule,
+    RaiderModule
 
 
   ],
@@ -124,6 +128,8 @@ import { BullModule } from '@nestjs/bullmq';
   providers: [
     AppService,
     TransactionIdService,
+    SnapshotService,
+    PrismaService,
 
     {
       provide: APP_GUARD,

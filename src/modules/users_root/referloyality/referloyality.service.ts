@@ -7,11 +7,24 @@ export class ReferloyalityService {
 
 
   // for admin to find all referral
-  async findAll() {
-       const referral = await this.prisma.refer.findMany({
-  
-       });
-       return referral
+  async findAll(referCode?: string): Promise<any[]> {
+ 
+     let totalRefer: any[] = [];
+
+  if (referCode) {
+      totalRefer = await this.prisma.refer.findMany({
+      where: {
+        refer_code: referCode,
+      },
+      include:{
+         user:true,
+      }
+    });
+  } else {
+    totalRefer = await this.prisma.refer.findMany();
+  }
+
+  return totalRefer;
   }
 
   async findOne(id: number) {
@@ -25,22 +38,22 @@ export class ReferloyalityService {
     return record
   }
 
-// refer count
-async referCount(referCode?: string): Promise<number> {
-  let totalCount: number;
+  // refer count
+  async referCount(referCode?: string): Promise<number> {
+    let totalCount: number;
 
-  if (referCode) {
-    totalCount = await this.prisma.refer.count({
-      where: {
-        refer_code: referCode,
-      },
-    });
-  } else {
-    totalCount = await this.prisma.refer.count();
+    if (referCode) {
+      totalCount = await this.prisma.refer.count({
+        where: {
+          refer_code: referCode,
+        },
+      });
+    } else {
+      totalCount = await this.prisma.refer.count();
+    }
+
+    return totalCount;
   }
-
-  return totalCount;
-}
 
   
   

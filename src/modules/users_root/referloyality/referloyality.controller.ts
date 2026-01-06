@@ -20,9 +20,10 @@ export class ReferloyalityController {
   // @Roles(UserRole.USER, UserRole.SUPER_ADMIN) // TODO:need to correct the role
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all referrals' })
-  async findAll() {
+  @ApiQuery({ name: 'refer_code', required: false, description: 'Referral code (optional)' })
+  async findAll(@Query('refer_code') refer_code?: string) {
     try {
-      const result = await this.referloyalityService.findAll();
+      const result = await this.referloyalityService.findAll(refer_code);
       return ApiResponses.success(result, 'referrals retrieved successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to retrieve referrals');
