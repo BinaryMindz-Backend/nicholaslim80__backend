@@ -1,12 +1,12 @@
-import { Controller, Delete, Get, Param, Query } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { ReferloyalityService } from './referloyality.service';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Auth } from 'src/decorators/auth.decorator';
-// import { Roles } from 'src/decorators/roles.decorator';
-// import { UserRole } from '@prisma/client';
 import { ApiResponses } from 'src/common/apiResponse';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 @ApiTags("Refer and loyality (only for user)")
 @Controller('referloyality')
@@ -47,7 +47,25 @@ async referCount(@Query('refer_code') refer_code?: string) {
   }
 }
 
-
+// 
+  @Post('redeem-point')
+  @ApiOperation({ summary: 'User reward point (Only USER role)' })
+  @Auth()
+  // @Roles(UserRole.USER)
+  @RequirePermission(Module.COIN, Permission.REEDOM_COIN)
+  @ApiBearerAuth()
+  @RequirePermission(Module.COIN, Permission.READ)
+  async reedomCoin(@Query('point') point: string, @CurrentUser() user: IUser,) {
+    try {
+      const data = await this.referloyalityService.redeemPoint(user, +point);
+      return ApiResponses.success(
+        data,
+        `User point reedomed successfully `,
+      );
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
 
 
   // find one

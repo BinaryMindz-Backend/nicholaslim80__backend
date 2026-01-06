@@ -182,7 +182,7 @@ export class RidersProfileService {
     });
 
     if (!r) {
-      throw new Error('Rider profile not found');
+      throw new NotFoundException('Rider profile not found');
     }
 
     const registration = await this.prisma.raiderRegistration.findFirst({
@@ -190,7 +190,7 @@ export class RidersProfileService {
     });
 
     if (!registration) {
-      throw new Error('Rider registration not found for this rider');
+      throw new NotFoundException('Rider registration not found for this rider');
     }
 
     if (verify === RaiderVerification.APPROVED) {

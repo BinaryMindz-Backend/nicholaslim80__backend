@@ -1731,12 +1731,19 @@ export class OrderService {
   // **HOT CAKE: driver compitition algorithom (If you dont understand it then dont touch it)
   async driverCompitition(user:IUser, orderId: number) {
     // console.log("form order compition--->", user, orderId);
-     //  
+    //  
      const raider = await this.prisma.raider.findFirst({
             where:{
-                userId:user.id
+                userId:user.id,
+                raider_verificationFromAdmin:RaiderVerification.APPROVED,
+                isSuspended:false,
+                raider_status:RaiderStatus.ACTIVE
             }
      })
+
+
+
+    //  
     if(!raider){
         throw new NotFoundException("Raider not found")
     }  
@@ -1925,15 +1932,18 @@ export class OrderService {
   // order assign by admin
     async assignDriver(id: number, riderId: number) {
       //  
-      const raider = await this.prisma.raider.findFirst({
-           where:{
-               id:riderId,
-               raider_verificationFromAdmin:RaiderVerification.APPROVED
-           }
-      }) 
+     const raider = await this.prisma.raider.findFirst({
+            where:{
+                id:riderId,
+                raider_verificationFromAdmin:RaiderVerification.APPROVED,
+                isSuspended:false,
+                raider_status:RaiderStatus.ACTIVE
+            }
+     })
+
       // 
        if(!raider){
-          throw new NotFoundException("Verified order not found")
+          throw new NotFoundException("Rider is not verified")
        }
 
       // 1. Check order exists
