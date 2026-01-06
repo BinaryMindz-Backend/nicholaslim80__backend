@@ -118,7 +118,7 @@ export class ReferloyalityService {
     
     return {
       updatedUser,
-      redeemedAmountInCent: pointAmount * basePrice,
+      redeemedAmount: (pointAmount * basePrice)/ 100,
     };
 }
 
