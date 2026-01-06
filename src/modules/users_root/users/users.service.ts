@@ -369,8 +369,8 @@ export class UsersService {
       _avg: { coin_value_in_cent: true,},
     });
     // 
-    const basePrice = Number(basePoint._avg.coin_value_in_cent ?? 0 / 100);
-
+    const basePriceIncent = Number((basePoint._avg.coin_value_in_cent ?? 0));
+    const basePrice = basePriceIncent / 100
 
     // Initialize response object
     let responseData: any = {
@@ -438,7 +438,7 @@ export class UsersService {
         ...responseData,
         avg_customerRating: formattedAverageUser,
         total_customerRatings: useravgRating._count.id || 0,
-        rewardMoney:basePrice * res.reward_points || 0,
+        rewardMoney:basePrice * Number(res.reward_points) || 0,
       };
     }
 
