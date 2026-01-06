@@ -48,31 +48,31 @@ export class RidersProfileService {
     return res;
   }
   
-  // is online riders
-  async updateOnlineRiderStatus(userId:number) {
+  // is online riders // TODO:
+  // async updateOnlineRiderStatus(userId:number) {
 
-        const riderExists = await this.prisma.raider.findFirst({
-          where: {
-            userId: userId,
-          },
-        });
-        //  
-        if (!riderExists) {
-          throw new NotFoundException('Rider not found for the given user ID');
-        }
+  //       const riderExists = await this.prisma.raider.findFirst({
+  //         where: {
+  //           userId: userId,
+  //         },
+  //       });
+  //       //  
+  //       if (!riderExists) {
+  //         throw new NotFoundException('Rider not found for the given user ID');
+  //       }
 
-        //  
-        const res = await this.prisma.raider.update({
-          where: {
-            is_online:riderExists.is_online,
-            id:riderExists.id,
-          },
-          data: {
-            is_online:!riderExists.is_online,
-          },
-        });
-        return res;    
-  }
+  //       //  
+  //       const res = await this.prisma.raider.update({
+  //         where: {
+  //           is_online:riderExists.is_online,
+  //           id:riderExists.id,
+  //         },
+  //         data: {
+  //           is_online:!riderExists.is_online,
+  //         },
+  //       });
+  //       return res;    
+  // }
 
 
 

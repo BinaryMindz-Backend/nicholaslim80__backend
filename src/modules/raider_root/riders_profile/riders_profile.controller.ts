@@ -54,20 +54,20 @@ export class RidersProfileController {
     }
   }
   //
-  @Patch('online')
-  @Auth()
-  @ApiBearerAuth()
-  @RequirePermission(Module.RAIDER, Permission.ONLINE_STATUS_UPDATE)
-  @ApiOperation({ summary: 'online rider status update' })
-  async online(@CurrentUser() user: IUser) {
-    try {
-      const res = await this.ridersProfileService.updateOnlineRiderStatus(user.id);
-      return ApiResponses.success(res, `Rider is now ${res.is_online ? 'online' : 'offline'}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      return ApiResponses.error(message);
-    }
-  } 
+  // @Patch('online')
+  // @Auth()
+  // @ApiBearerAuth()
+  // @RequirePermission(Module.RAIDER, Permission.ONLINE_STATUS_UPDATE)
+  // @ApiOperation({ summary: 'online rider status update' })
+  // async online(@CurrentUser() user: IUser) {
+  //   try {
+  //     const res = await this.ridersProfileService.updateOnlineRiderStatus(user.id);
+  //     return ApiResponses.success(res, `Rider is now ${res.is_online ? 'online' : 'offline'}`);
+  //   } catch (error) {
+  //     const message = error instanceof Error ? error.message : 'Unknown error';
+  //     return ApiResponses.error(message);
+  //   }
+  // } 
   
 
   
