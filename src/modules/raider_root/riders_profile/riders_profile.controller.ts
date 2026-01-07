@@ -52,7 +52,7 @@ export class RidersProfileController {
       if (error?.code === 'P2002') {
         return ApiResponses.error('Rider with this information already exists');
       }
-      return ApiResponses.error(error);
+      return ApiResponses.error(error, error.response.message);
     }
   }
 
