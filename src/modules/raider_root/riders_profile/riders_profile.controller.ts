@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, Delete, } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, Delete, BadRequestException, } from '@nestjs/common';
 import { RidersProfileService } from './riders_profile.service';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
@@ -27,16 +27,31 @@ export class RidersProfileController {
   @ApiOperation({ summary: 'Rider profile creation (Rider only)' })
   @ApiBody({ type: CreateRidersProfileDto })
   @ApiBearerAuth()
-  async create(@Body() createRidersProfileDto: CreateRidersProfileDto,
+  async create(
+    @Body() createRidersProfileDto: CreateRidersProfileDto,
     @CurrentUser() user: IUser,
   ) {
     try {
       const res = await this.ridersProfileService.create(user.id, createRidersProfileDto);
       return ApiResponses.success(res, 'Rider profile created successfully');
     } catch (error) {
-      return ApiResponses.error(error);
+      console.error('Error creating rider profile:', error);
+
+      // Handle known Prisma or validation errors
+      if (error.code === 'P2002') {
+        // Unique constraint failed
+        return ApiResponses.error('A rider with this information already exists');
+      }
+
+      if (error instanceof BadRequestException) {
+        return ApiResponses.error(error.message);
+      }
+
+      // Default fallback for unknown errors
+      return ApiResponses.error('Internal server error');
     }
   }
+
 
 
   @Get('rider-profiles')
@@ -68,9 +83,9 @@ export class RidersProfileController {
   //     return ApiResponses.error(message);
   //   }
   // } 
-  
 
-  
+
+
   // 
 
   @Get(':id')
