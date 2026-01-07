@@ -34,7 +34,7 @@ export class RidersProfileController {
     try {
       // Make sure user.id exists
       if (!user?.id) {
-        return ApiResponses.error('Invalid user', 401);
+        return ApiResponses.error('Invalid user');
       }
 
       // Call the service
@@ -50,16 +50,16 @@ export class RidersProfileController {
 
       // Handle known Prisma unique constraint error
       if (error?.code === 'P2002') {
-        return ApiResponses.error('Rider with this information already exists', 409);
+        return ApiResponses.error('Rider with this information already exists');
       }
 
       // Handle validation errors (if using class-validator or custom exceptions)
       if (error?.response?.statusCode === 400 || error instanceof BadRequestException) {
-        return ApiResponses.error(error.message || 'Invalid input', 400);
+        return ApiResponses.error(error.message || 'Invalid input');
       }
 
       // Default fallback: internal server error
-      return ApiResponses.error('Internal server error', 500);
+      return ApiResponses.error('Internal server error');
     }
   }
 
