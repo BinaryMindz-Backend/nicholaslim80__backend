@@ -52,11 +52,6 @@ export class RidersProfileController {
       if (error?.code === 'P2002') {
         return ApiResponses.error('Rider with this information already exists');
       }
-      //  
-      // Handle known Prisma unique constraint error
-      if (error?.response?.statusCode === 309) {
-        return ApiResponses.error('Rider with this information already exists');
-      }
       return ApiResponses.error(error);
     }
   }
