@@ -2045,13 +2045,13 @@ export class OrderService {
         where: {
           order_status: OrderStatus.PENDING,
           is_placed: true,
-          user: {
-            raiderProfile: {
-              is_online: true,
-              isSuspended: false,
-              raider_status: RaiderStatus.ACTIVE
-            }
-          },
+          // user: {
+          //   raiderProfile: {
+          //     is_online: true,
+          //     isSuspended: false,
+          //     // raider_status: RaiderStatus.ACTIVE
+          //   }
+          // },
 
           // EXCLUDE declined orders for THIS raider only
           NOT: {
