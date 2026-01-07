@@ -32,25 +32,37 @@ export class RidersProfileController {
     @CurrentUser() user: IUser,
   ) {
     try {
-      const res = await this.ridersProfileService.create(user.id, createRidersProfileDto);
-      return ApiResponses.success(res, 'Rider profile created successfully');
-    } catch (error) {
+      // Make sure user.id exists
+      if (!user?.id) {
+        return ApiResponses.error('Invalid user', 401);
+      }
+
+      // Call the service
+      const result = await this.ridersProfileService.create(user.id, createRidersProfileDto);
+
+      // Success response
+      return ApiResponses.success(result, 'Rider profile created successfully');
+
+    } catch (error: any) {
+      // Log full error for debugging
       console.error('Error creating rider profile:', error);
+      console.error('Stack:', error.stack);
 
-      // Handle known Prisma or validation errors
-      if (error.code === 'P2002') {
-        // Unique constraint failed
-        return ApiResponses.error('A rider with this information already exists');
+      // Handle known Prisma unique constraint error
+      if (error?.code === 'P2002') {
+        return ApiResponses.error('Rider with this information already exists', 409);
       }
 
-      if (error instanceof BadRequestException) {
-        return ApiResponses.error(error.message);
+      // Handle validation errors (if using class-validator or custom exceptions)
+      if (error?.response?.statusCode === 400 || error instanceof BadRequestException) {
+        return ApiResponses.error(error.message || 'Invalid input', 400);
       }
 
-      // Default fallback for unknown errors
-      return ApiResponses.error('Internal server error');
+      // Default fallback: internal server error
+      return ApiResponses.error('Internal server error', 500);
     }
   }
+
 
 
 
