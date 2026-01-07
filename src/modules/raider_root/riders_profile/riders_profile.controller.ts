@@ -52,14 +52,7 @@ export class RidersProfileController {
       if (error?.code === 'P2002') {
         return ApiResponses.error('Rider with this information already exists');
       }
-
-      // Handle validation errors (if using class-validator or custom exceptions)
-      if (error?.response?.statusCode === 400 || error instanceof BadRequestException) {
-        return ApiResponses.error(error.message || 'Invalid input');
-      }
-
-      // Default fallback: internal server error
-      return ApiResponses.error('Internal server error');
+      return ApiResponses.error(error);
     }
   }
 
