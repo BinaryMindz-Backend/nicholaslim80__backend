@@ -1464,6 +1464,11 @@ export class OrderService {
           },
           orderBy: { sequence: 'asc' },
         },
+        assign_rider: {
+          include: {
+            locations: true
+          }
+        },
       },
     });
 
