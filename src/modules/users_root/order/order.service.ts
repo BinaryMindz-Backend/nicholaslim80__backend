@@ -1187,7 +1187,7 @@ export class OrderService {
           ...(status && { order_status: status }), // filter if status provided
         },
         orderBy: { created_at: 'desc' },
-        include: { user: true, transactions: true },
+        include: { user: true, transactions: true, orderStops: true },
         skip,
         take: limit,
       }),
