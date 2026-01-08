@@ -2066,7 +2066,7 @@ export class OrderService {
         include: {
           user: true,
           vehicle: true,
-          // destinations: true,
+          orderStops: true,
         },
         skip,
         take: limit,

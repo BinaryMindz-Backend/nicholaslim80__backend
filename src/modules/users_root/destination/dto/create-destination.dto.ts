@@ -8,11 +8,11 @@ export class CreateDestinationDto {
   @IsOptional()
   @IsString()
   address?: string;
-   
+
   @ApiProperty({ example: 'addressFromApr' })
   @IsOptional()
   @IsString()
-  addressFromApr?:string;
+  addressFromApr?: string;
 
   @ApiProperty({ example: '5A' })
   @IsOptional()
