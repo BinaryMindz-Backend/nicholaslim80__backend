@@ -1145,7 +1145,11 @@ export class OrderService {
           is_reviewed: true,
 
           // only for counting
-          orderStops: true,
+          orderStops: {
+            include: {
+              destination: true,
+            }
+          },
         },
       }),
       this.prisma.order.count({ where: { userId } }),
@@ -1187,7 +1191,13 @@ export class OrderService {
           ...(status && { order_status: status }), // filter if status provided
         },
         orderBy: { created_at: 'desc' },
-        include: { user: true, transactions: true },
+        include: {
+          user: true, transactions: true, orderStops: {
+            include: {
+              destination: true,
+            }
+          }
+        },
         skip,
         take: limit,
       }),
