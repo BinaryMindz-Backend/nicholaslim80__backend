@@ -1115,7 +1115,7 @@ export class OrderService {
     const [orders, total] = await this.prisma.$transaction([
       this.prisma.order.findMany({
         where: {
-          id: userId,
+          userId,
           ...(status && { order_status: status }), // filter if status provided
         },
         skip,

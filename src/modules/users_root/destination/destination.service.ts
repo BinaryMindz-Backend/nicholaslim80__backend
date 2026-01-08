@@ -10,7 +10,7 @@ import { DestinationType } from '@prisma/client';
 export class DestinationService {
   constructor(
     private prisma: PrismaService,
-    private readonly geoServices:GeoService,
+    private readonly geoServices: GeoService,
   ) { }
 
 
@@ -29,7 +29,7 @@ export class DestinationService {
     if (isUserExist === null) throw new UnauthorizedException("You Are Not Authorize");
     // 
     const geo = await this.geoServices.getLatLngFromAddress(dto.address ?? '');
-    
+
     const isExist = await this.prisma.destination.findFirst({
       where: {
         OR: [
@@ -43,12 +43,10 @@ export class DestinationService {
     if (isExist) {
       throw new ConflictException("Destination is already exists")
     }
-
-    // 
-    return await this.prisma.destination.create({
+    const result = await this.prisma.destination.create({
       data: {
         address: dto.address,
-        addressFromApr:geo.formattedAddress,
+        addressFromApr: geo.formattedAddress,
         floor_unit: dto.floor_unit,
         contact_name: dto.contact_name,
         contact_number: dto.contact_number,
@@ -61,7 +59,24 @@ export class DestinationService {
         userId: user.id
       }
     });
+    if (dto.order_id) {
+      await this.prisma.orderStop.updateMany({
+        where: {
+          orderId: dto.order_id
+        },
+        data: {
+          destinationId: result.id
+        }
+      })
+    }
+
+
+
+    // 
+    return result
   }
+  // 
+
 
   //
   async findAll(user: IUser) {
@@ -108,9 +123,9 @@ export class DestinationService {
       where: { id },
       data: {
         ...dto,
-        latitude:geo.lat,
-        longitude:geo.lng,
-        addressFromApr:geo.formattedAddress,
+        latitude: geo.lat,
+        longitude: geo.lng,
+        addressFromApr: geo.formattedAddress,
       },
     });
   }
@@ -145,7 +160,7 @@ export class DestinationService {
     return await this.prisma.destination.delete({ where: { id } });
   }
   //  
-   async upsertDestination(userId: number, dto: UpsertDestinationDto) {
+  async upsertDestination(userId: number, dto: UpsertDestinationDto) {
     const data = {
       address: dto.address,
       latitude: dto.latitude,
@@ -158,7 +173,7 @@ export class DestinationService {
     if (userId) {
       // Update existing
       const existing = await this.prisma.destination.findFirst({
-        where: { userId, type: dto.type  },
+        where: { userId, type: dto.type },
       });
 
       if (!existing || existing.userId !== userId) {
@@ -166,7 +181,8 @@ export class DestinationService {
       }
 
       return this.prisma.destination.update({
-        where: { id: existing.id
+        where: {
+          id: existing.id
         },
         data,
       });
