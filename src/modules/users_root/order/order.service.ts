@@ -1145,21 +1145,19 @@ export class OrderService {
           is_reviewed: true,
 
           // only for counting
-          orderStops: {
-            select: { id: true },
-          },
+          orderStops: true,
         },
       }),
       this.prisma.order.count({ where: { userId } }),
     ]);
 
-    const data = orders.map(({ orderStops, ...order }) => ({
-      ...order,
-      total_stops: orderStops.length,
-    }));
+    // const data = orders.map(({ orderStops, ...order }) => ({
+    //   ...order,
+    //   total_stops: orderStops.length,
+    // }));
 
     return {
-      data,
+      data: orders,
       pagination: {
         total,
         page,
