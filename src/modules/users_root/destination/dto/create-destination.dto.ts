@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsOptional, IsBoolean, IsEnum, IsNumber } from 'class-validator';
 import { DestinationType } from '@prisma/client';
 
@@ -59,7 +59,8 @@ export class CreateDestinationDto {
   accuracy?: number;
 
 
-  @ApiProperty({ example: 1 })
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
   @IsNumber()
   order_id: number;
 }
