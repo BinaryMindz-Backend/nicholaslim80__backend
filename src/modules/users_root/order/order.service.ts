@@ -729,6 +729,7 @@ export class OrderService {
 
     const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
     const totalFee = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+    const totalDistance = receiversWithPrice.reduce((total, result) => total + result.distanceKm, 0);
 
     // Step 4: Create order in transaction
     const result = await this.prisma.$transaction(async (tx) => {
@@ -745,6 +746,7 @@ export class OrderService {
           payment_method_id: payload.payment_method_id,
           total_cost: isNaN(Number(totalCost)) ? 0 : parseFloat(Number(totalCost).toFixed(2)),
           total_fee: parseFloat(Number(totalFee).toFixed(2)),
+          total_distance: totalDistance,
           isFixed: payload.isFixed ?? false,
           order_status: OrderStatus.PROGRESS,
         },
@@ -1133,6 +1135,7 @@ export class OrderService {
           vehicle_type_id: true,
           total_cost: true,
           total_fee: true,
+          total_distance: true,
           commission: true,
           refund_amount: true,
           has_additional_services: true,
@@ -1500,7 +1503,7 @@ export class OrderService {
           zone,
           { isRoundTrip: order.route_type === RouteType.ROUND },
         );
-
+        const totalDistance = pricingResults.reduce((total, result) => total + result.distanceKm, 0);
         // ✅ ADD: Enrich stops with pricing details
         const enrichedStops = order.orderStops.map((stop) => {
           if (stop.type === StopType.PICKUP) return stop;
@@ -1529,6 +1532,7 @@ export class OrderService {
           ...order,
           orderStops: enrichedStops,
           pricingSummary: {
+            totalDistance,
             totalCost: Number(order.total_cost),
             totalFee: Number(order.total_fee),
             dropCount: dropStops.length,

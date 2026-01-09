@@ -21,7 +21,7 @@ export async function getReceiversWithPrice(
   zone: DeliveryZone,
   options?: RouteOptions,
 ): Promise<ReceiverWithPricing[]> {
-    
+
   const [deliveryType, vehicle] = await Promise.all([
     prisma.deliveryType.findFirst({
       where: { name: deliveryTypeEnum, is_active: true },
@@ -137,6 +137,6 @@ export async function getReceiversWithIndividualPrice(
       },
     });
   }
-    console.log("reciver with pricing-->",receiversWithPricing);
+  // console.log("reciver with pricing-->",receiversWithPricing);
   return receiversWithPricing;
 }
