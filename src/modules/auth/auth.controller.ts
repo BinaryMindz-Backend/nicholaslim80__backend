@@ -68,6 +68,25 @@ export class AuthController {
     return this.authService.loginWithOtp(user, req);
   }
 
+  // 
+  @Post('otp/resent')
+  @Public()
+  @ApiOperation({ summary: 'Resent Otp' })
+  @ApiBody({
+    type: RequestOtpDto
+  })
+  @ApiResponse({ status: 200, description: 'OTP sent for Verify' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async resentOtp(@Body() dto: { email: string, phone: string }) {
+    const user = await this.usersService.findByEmailOrPhone(dto.email, dto.phone);
+    if (!user) throw new BadRequestException('User not found');
+    if (user.is_verified) throw new BadRequestException('User already verified');
+    await this.otpService.generateOtp(dto.email, dto.phone);
+    return { message: 'OTP Resent for Verifiy' };
+  }
+  
+
+
 
   //** Login Request OTP //login by otp
   @Post('login/request-otp')
