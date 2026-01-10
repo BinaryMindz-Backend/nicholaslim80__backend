@@ -339,3 +339,9 @@ enum DisputePriority {
   MEDIUM
   HIGH
 }
+
+// promo code
+enum DiscountType {
+    PERCENTAGE
+    FIXED
+}

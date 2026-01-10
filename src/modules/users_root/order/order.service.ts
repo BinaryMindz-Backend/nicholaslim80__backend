@@ -21,6 +21,9 @@ import csvParser from 'csv-parser';
 import { getReceiversWithIndividualPrice } from 'src/modules/dynamic_pricing/getReceiversWithPrice';
 import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 import { CreateDestinationDto } from '../destination/dto/create-destination.dto';
+import { Parser } from 'json2csv';
+import { UpdateOrderDetailsDto } from './dto/update-order-details.dto';
+import { ApplyDiscountDto } from './dto/apply-discount.dto';
 
 
 @Injectable()
@@ -84,7 +87,100 @@ export class OrderService {
   /**
  * ADD DESTINATION TO ORDER (Creates OrderStop snapshot)
  */
-  async addDestinationToOrder(
+  // async addDestinationToOrder(
+  //   orderId: number,
+  //   destinationId: number,
+  //   userId: number,
+  //   stopType: StopType,
+  // ) {
+  //   // Verify order ownership
+  //   const order = await this.prisma.order.findUnique({
+  //     where: { id: orderId },
+  //     include: { orderStops: true },
+  //   });
+
+  //   if (!order || order.userId !== userId) {
+  //     throw new BadRequestException('Order not found or unauthorized');
+  //   }
+
+  //   if (order.order_status !== OrderStatus.PROGRESS) {
+  //     throw new BadRequestException('Cannot modify placed order');
+  //   }
+
+  //   // Get destination
+  //   const destination = await this.prisma.destination.findUnique({
+  //     where: { id: destinationId },
+  //   });
+
+  //   if (!destination || destination.userId !== userId) {
+  //     throw new BadRequestException('Destination not found or unauthorized');
+  //   }
+
+  //   // Validate destination type
+  //   if (stopType === StopType.PICKUP && destination.type === DestinationType.RECEIVER) {
+  //     throw new BadRequestException('Cannot use RECEIVER-only destination as pickup');
+  //   }
+  //   if (stopType === StopType.DROP && destination.type === DestinationType.SENDER) {
+  //     throw new BadRequestException('Cannot use SENDER-only destination as drop');
+  //   }
+
+  //   // Check if already added
+  //   const existing = await this.prisma.orderStop.findFirst({
+  //     where: { orderId, destinationId, type: stopType },
+  //   });
+
+  //   if (existing) {
+  //     throw new BadRequestException('Destination already added to order');
+  //   }
+
+  //   // Create OrderStop (snapshot)
+  //   const sequence = order.orderStops.length + 1;
+
+  //   // Create OrderStop
+  //   const orderStop = await this.prisma.orderStop.create({
+  //     data: {
+  //       orderId,
+  //       destinationId,
+  //       type: stopType,
+  //       sequence,
+  //       address: destination.address!,
+  //       latitude: destination.latitude!,
+  //       longitude: destination.longitude!,
+  //       additionalInfo: destination.additionalInfo,
+  //       status: 'PENDING',
+  //       payment: {
+  //         create: {
+  //           payType: order.pay_type ?? 'COD',
+  //           amount: 0, // Will be calculated below
+  //           status: 'UNPAID',
+  //         },
+  //       },
+  //     },
+  //     include: {
+  //       destination: true,
+  //       payment: true,
+  //     },
+  //   });
+
+  //   // Update destination usage stats
+  //   await this.prisma.destination.update({
+  //     where: { id: destinationId },
+  //     data: {
+  //       lastUsedAt: new Date(),
+  //       useCount: { increment: 1 },
+  //     },
+  //   });
+
+  //   // Recalculate price with individual pricing
+  //   const pricingResult = await this.recalculateOrderPrice(orderId);
+
+  //   return {
+  //     orderStop,
+  //     pricing: pricingResult,
+  //   };
+  // }
+  // 
+    async addDestinationToOrder(
     orderId: number,
     destinationId: number,
     userId: number,
@@ -130,34 +226,60 @@ export class OrderService {
       throw new BadRequestException('Destination already added to order');
     }
 
-    // Create OrderStop (snapshot)
-    const sequence = order.orderStops.length + 1;
+      // Determine sequence
+      let sequence: number;
+      
+      if (stopType === StopType.PICKUP) {
+        // Pickup is always sequence 1 (index 0)
+        sequence = 1;
+        
+        // If pickup already exists, update it instead
+        const existingPickup = await this.prisma.orderStop.findFirst({
+          where: { orderId, type: StopType.PICKUP },
+        });
+        
+        if (existingPickup) {
+          // Update existing pickup
+          return this.prisma.orderStop.update({
+            where: { id: existingPickup.id },
+            data: {
+              destinationId,
+              address: destination.address!,
+              latitude: destination.latitude!,
+              longitude: destination.longitude!,
+            },
+          });
+        }
+      } else {
+        // Drops start from sequence 2, 3, 4...
+        const maxSequence = await this.prisma.orderStop.findFirst({
+          where: { orderId },
+          orderBy: { sequence: 'desc' },
+          select: { sequence: true },
+        });
+        
+        sequence = (maxSequence?.sequence || 1) + 1;
+      }
 
-    // Create OrderStop
-    const orderStop = await this.prisma.orderStop.create({
-      data: {
-        orderId,
-        destinationId,
-        type: stopType,
-        sequence,
-        address: destination.address!,
-        latitude: destination.latitude!,
-        longitude: destination.longitude!,
-        additionalInfo: destination.additionalInfo,
-        status: 'PENDING',
-        payment: {
-          create: {
-            payType: order.pay_type ?? 'COD',
-            amount: 0, // Will be calculated below
-            status: 'UNPAID',
+      // Create stop
+      const orderStop = await this.prisma.orderStop.create({
+        data: {
+          orderId,
+          destinationId,
+          type: stopType,
+          sequence,
+          address: destination.address!,
+          latitude: destination.latitude!,
+          longitude: destination.longitude!,
+          payment: {
+            create: {
+              payType: order.pay_type ?? PayType.COD,
+              amount: 0,
+              status: PaymentStatus.UNPAID,
+            },
           },
         },
-      },
-      include: {
-        destination: true,
-        payment: true,
-      },
-    });
+      });
 
     // Update destination usage stats
     await this.prisma.destination.update({
@@ -176,6 +298,7 @@ export class OrderService {
       pricing: pricingResult,
     };
   }
+
   /**
   * REMOVE DESTINATION FROM ORDER
   */
@@ -221,6 +344,56 @@ export class OrderService {
 
     return { message: 'Destination removed from order' };
   }
+  
+  // Update order and recalculate price
+  async updateOrderDetails(
+    orderId: number,
+    userId: number,
+    dto: UpdateOrderDetailsDto,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId, userId },
+    });
+
+    if (!order) throw new NotFoundException('Order not found');
+    
+    if (order.order_status !== OrderStatus.PROGRESS) {
+      throw new BadRequestException('Cannot update placed order');
+    }
+
+    // Track if price needs recalculation
+    const needsRecalculation = 
+      dto.delivery_type !== undefined || 
+      dto.vehicle_type_id !== undefined ||
+      dto.route_type !== undefined ||
+      dto.scheduled_time !== undefined; 
+
+    // Update order
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        ...(dto.delivery_type && { delivery_type: dto.delivery_type }),
+        ...(dto.route_type && { route_type: dto.route_type }),
+        ...(dto.collect_time && { collect_time: dto.collect_time }),
+        ...(dto.scheduled_time && { scheduled_time: dto.scheduled_time }),
+        ...(dto.vehicle_type_id && {
+          vehicle: {
+            connect: { id: dto.vehicle_type_id},
+          },
+        }),
+      },
+    });
+
+    // Recalculate price if relevant fields changed
+    if (needsRecalculation) {
+      await this.recalculateOrderPrice(orderId);
+    }
+
+    return this.getOrderDetails(orderId);
+  }
+
+
+
 
   /**
  * PLACE ORDER (Lock and configure payments)
@@ -644,214 +817,565 @@ export class OrderService {
     };
   }
 
-  /**
+  /** deprecated
  * Create individual order with geocoding and pricing
  */
+  // async createIndividualOrder(payload: CreateIndiOrderDto, user: IUser) {
+  //   // Step 1: Geocode all destinations
+  //   const geocodedDestinations: DestinationInput[] = [];
+  //   let orderServiceZoneId: number | null = null;
+  //   let orderServiceZone: DeliveryZone | null = null;
+
+  //   for (const d of payload.destinations) {
+  //     let lat = d.latitude;
+  //     let lng = d.longitude;
+  //     let formattedAddress;
+
+  //     // Geocode if coordinates missing
+  //     if (!lat || !lng) {
+  //       const geo = await this.geoServices.getLatLngFromAddress(d.address ?? '');
+  //       lat = geo.lat;
+  //       lng = geo.lng;
+  //       formattedAddress = geo.formattedAddress;
+  //     }
+
+  //     // Find service zone
+  //     const zone = await this.serviceZone.findZoneByPoint(lat, lng);
+
+  //     // Assign service zone from SENDER destination
+  //     if (d.type === DestinationType.SENDER && zone && !orderServiceZone) {
+  //       orderServiceZoneId = zone.id;
+  //       orderServiceZone = zone;
+  //     }
+
+  //     geocodedDestinations.push({
+  //       ...d,
+  //       address: d.address ?? '',
+  //       latitude: lat,
+  //       longitude: lng,
+  //       type: d.type ?? DestinationType.SENDER,
+  //       is_saved: d.is_saved ?? false,
+  //       addressFromApr: formattedAddress,
+  //     });
+  //   }
+
+  //   // Validate service zone
+  //   if (!orderServiceZone) {
+  //     throw new BadRequestException('Pickup location is outside service zone');
+  //   }
+
+  //   // Step 2: Extract sender and receivers
+  //   const senderDestination = geocodedDestinations.find(
+  //     (d) => d.type === DestinationType.SENDER,
+  //   );
+
+  //   if (!senderDestination?.latitude || !senderDestination?.longitude) {
+  //     throw new BadRequestException('Sender location not found');
+  //   }
+
+  //   const sender: Receiver = {
+  //     lat: senderDestination.latitude,
+  //     lng: senderDestination.longitude,
+  //   };
+
+  //   const receiverDestinations: Receiver[] = geocodedDestinations
+  //     .filter((d) => d.type !== DestinationType.SENDER)
+  //     .map((d) => ({ lat: d.latitude, lng: d.longitude }));
+
+  //   if (receiverDestinations.length === 0) {
+  //     throw new BadRequestException('At least one receiver destination is required');
+  //   }
+
+  //   // Step 3: Calculate pricing
+  //   const receiversWithPrice = await getReceiversWithIndividualPrice(
+  //     this.prisma,
+  //     sender,
+  //     receiverDestinations,
+  //     payload.delivery_type,
+  //     payload.vehicle_type_id,
+  //     orderServiceZone,
+  //     {
+  //       isRoundTrip: payload.route_type === RouteType.ROUND,
+  //       returnFactor: 0.5,
+  //     },
+  //   );
+
+  //   const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
+  //   const totalFee = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+  //   const totalDistance = receiversWithPrice.reduce((total, result) => total + result.distanceKm, 0);
+
+  //   // Step 4: Create order in transaction
+  //   const result = await this.prisma.$transaction(async (tx) => {
+  //     // Create order
+  //     const order = await tx.order.create({
+  //       data: {
+  //         serviceZoneId: Number(orderServiceZoneId),
+  //         userId: user.id,
+  //         route_type: payload.route_type,
+  //         delivery_type: payload.delivery_type,
+  //         collect_time: payload.collect_time,
+  //         scheduled_time: payload.scheduled_time,
+  //         vehicle_type_id: payload.vehicle_type_id,
+  //         payment_method_id: payload.payment_method_id,
+  //         total_cost: isNaN(Number(totalCost)) ? 0 : parseFloat(Number(totalCost).toFixed(2)),
+  //         total_fee: parseFloat(Number(totalFee).toFixed(2)),
+  //         total_distance: totalDistance,
+  //         isFixed: payload.isFixed ?? false,
+  //         order_status: OrderStatus.PROGRESS,
+  //       },
+  //     });
+
+  //     // Create destinations and order stops
+  //     const createdStops: any[] = [];
+  //     let sequence = 1;
+
+  //     for (const d of geocodedDestinations) {
+  //       // Create destination (if saving to address book)
+  //       let destinationId: number;
+
+  //       if (d.is_saved) {
+  //         const savedDest = await tx.destination.create({
+  //           data: {
+  //             userId: user.id,
+  //             address: d.address,
+  //             addressFromApr: d.addressFromApr ?? null,
+  //             floor_unit: d.floor_unit ?? null,
+  //             contact_name: d.contact_name ?? null,
+  //             contact_number: d.contact_number ?? null,
+  //             latitude: d.latitude,
+  //             longitude: d.longitude,
+  //             additionalInfo: d.note_to_driver ?? null,
+  //             type: d.type === DestinationType.SENDER
+  //               ? DestinationType.SENDER
+  //               : DestinationType.RECEIVER,
+  //             lastUsedAt: new Date(),
+  //             useCount: 1,
+  //           },
+  //         });
+  //         destinationId = savedDest.id;
+  //       } else {
+  //         // Create temporary destination for this order only
+  //         const tempDest = await tx.destination.create({
+  //           data: {
+  //             userId: user.id,
+  //             address: d.address,
+  //             addressFromApr: d.addressFromApr ?? null,
+  //             floor_unit: d.floor_unit ?? null,
+  //             latitude: d.latitude,
+  //             longitude: d.longitude,
+  //             type: d.type === DestinationType.SENDER
+  //               ? DestinationType.SENDER
+  //               : DestinationType.RECEIVER,
+  //           },
+  //         });
+  //         destinationId = tempDest.id;
+  //       }
+
+  //       // Create order stop
+  //       const stopType = d.type === DestinationType.SENDER ? StopType.PICKUP : StopType.DROP;
+
+  //       const stop = await tx.orderStop.create({
+  //         data: {
+  //           orderId: order.id,
+  //           destinationId,
+  //           type: stopType,
+  //           sequence,
+  //           status: StopStatus.PENDING,
+  //           address: d.addressFromApr!,
+  //           latitude: d.latitude,
+  //           longitude: d.longitude,
+  //           additionalInfo: d.note_to_driver ?? null,
+  //           // Create payment record
+  //           payment: {
+  //             create: {
+  //               payType: payload.pay_type ?? PayType.COD,
+  //               amount: 0, // Will be set in placeOrder
+  //               status: PaymentStatus.UNPAID,
+  //             },
+  //           },
+  //         },
+  //       });
+
+  //       createdStops.push(stop);
+  //       sequence++;
+  //     }
+
+  //     // Create transaction record
+  //     const txId = this.txIdService.generate();
+  //     const transaction = await tx.transaction.create({
+  //       data: {
+  //         transaction_code: txId,
+  //         payment_status: PaymentStatus.UNPAID,
+  //         payment_method_id: payload.payment_method_id,
+  //         type: TransactionType.BOOK_ORDER,
+  //         delivery_fee: order.total_cost,
+  //         total_fee: order.total_fee,
+  //         userId: user.id,
+  //         pay_type: payload.pay_type,
+  //         orderId: order.id,
+  //       },
+  //       include: {
+  //         user: { select: { username: true } },
+  //         order: { select: { id: true, order_status: true } },
+  //       },
+  //     });
+
+  //     return { order, transaction, stops: createdStops };
+  //   });
+
+  //   return result;
+  // }
+
+  // export as csv
+ 
+ 
+
+  // create indivitual order
+ 
+ 
+  //  
   async createIndividualOrder(payload: CreateIndiOrderDto, user: IUser) {
-    // Step 1: Geocode all destinations
-    const geocodedDestinations: DestinationInput[] = [];
-    let orderServiceZoneId: number | null = null;
-    let orderServiceZone: DeliveryZone | null = null;
+  // Step 1: Geocode all destinations
+  const geocodedDestinations: DestinationInput[] = [];
+  let orderServiceZoneId: number | null = null;
+  let orderServiceZone: DeliveryZone | null = null;
 
-    for (const d of payload.destinations) {
-      let lat = d.latitude;
-      let lng = d.longitude;
-      let formattedAddress;
+  for (const d of payload.destinations) {
+    let lat = d.latitude;
+    let lng = d.longitude;
+    let formattedAddress = d.addressFromApr;
 
-      // Geocode if coordinates missing
-      if (!lat || !lng) {
-        const geo = await this.geoServices.getLatLngFromAddress(d.address ?? '');
-        lat = geo.lat;
-        lng = geo.lng;
-        formattedAddress = geo.formattedAddress;
-      }
-
-      // Find service zone
-      const zone = await this.serviceZone.findZoneByPoint(lat, lng);
-
-      // Assign service zone from SENDER destination
-      if (d.type === DestinationType.SENDER && zone && !orderServiceZone) {
-        orderServiceZoneId = zone.id;
-        orderServiceZone = zone;
-      }
-
-      geocodedDestinations.push({
-        ...d,
-        address: d.address ?? '',
-        latitude: lat,
-        longitude: lng,
-        type: d.type ?? DestinationType.SENDER,
-        is_saved: d.is_saved ?? false,
-        addressFromApr: formattedAddress,
-      });
+    // Geocode if coordinates missing
+    if (!lat || !lng) {
+      const geo = await this.geoServices.getLatLngFromAddress(d.address ?? '');
+      lat = geo.lat;
+      lng = geo.lng;
+      formattedAddress = geo.formattedAddress;
     }
 
-    // Validate service zone
-    if (!orderServiceZone) {
-      throw new BadRequestException('Pickup location is outside service zone');
+    // Find service zone
+    const zone = await this.serviceZone.findZoneByPoint(lat, lng);
+
+    // Assign service zone from SENDER destination
+    if (d.type === DestinationType.SENDER && zone && !orderServiceZone) {
+      orderServiceZoneId = zone.id;
+      orderServiceZone = zone;
     }
 
-    // Step 2: Extract sender and receivers
-    const senderDestination = geocodedDestinations.find(
-      (d) => d.type === DestinationType.SENDER,
-    );
+    geocodedDestinations.push({
+      ...d,
+      address: d.address ?? '',
+      latitude: lat,
+      longitude: lng,
+      type: d.type ?? DestinationType.SENDER,
+      is_saved: d.is_saved ?? false,
+      addressFromApr: formattedAddress,
+    });
+  }
 
-    if (!senderDestination?.latitude || !senderDestination?.longitude) {
-      throw new BadRequestException('Sender location not found');
-    }
+  // Validate service zone
+  if (!orderServiceZone) {
+    throw new BadRequestException('Pickup location is outside service zone');
+  }
 
-    const sender: Receiver = {
-      lat: senderDestination.latitude,
-      lng: senderDestination.longitude,
-    };
+  // Step 2: Extract sender and receivers
+  const senderDestination = geocodedDestinations.find(
+    (d) => d.type === DestinationType.SENDER,
+  );
 
-    const receiverDestinations: Receiver[] = geocodedDestinations
-      .filter((d) => d.type !== DestinationType.SENDER)
-      .map((d) => ({ lat: d.latitude, lng: d.longitude }));
+  if (!senderDestination?.latitude || !senderDestination?.longitude) {
+    throw new BadRequestException('Sender location not found');
+  }
 
-    if (receiverDestinations.length === 0) {
-      throw new BadRequestException('At least one receiver destination is required');
-    }
+  const sender: Receiver = {
+    lat: senderDestination.latitude,
+    lng: senderDestination.longitude,
+  };
 
-    // Step 3: Calculate pricing
-    const receiversWithPrice = await getReceiversWithIndividualPrice(
-      this.prisma,
-      sender,
-      receiverDestinations,
-      payload.delivery_type,
-      payload.vehicle_type_id,
-      orderServiceZone,
-      {
-        isRoundTrip: payload.route_type === RouteType.ROUND,
-        returnFactor: 0.5,
+  const receiverDestinations = geocodedDestinations.filter(
+    (d) => d.type !== DestinationType.SENDER
+  );
+
+  if (receiverDestinations.length === 0) {
+    throw new BadRequestException('At least one receiver destination is required');
+  }
+
+  // Step 3: Calculate individual pricing per drop
+  const receiversWithPrice = await getReceiversWithIndividualPrice(
+    this.prisma,
+    sender,
+    receiverDestinations.map((d) => ({ lat: d.latitude, lng: d.longitude })),
+    payload.delivery_type,
+    payload.vehicle_type_id,
+    orderServiceZone,
+    {
+      isRoundTrip: payload.route_type === RouteType.ROUND,
+      returnFactor: 0.5,
+    },
+  );
+
+  const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
+  const totalFee = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+  const totalDistance = receiversWithPrice.reduce((sum, r) => sum + r.distanceKm, 0);
+
+  // Step 4: Create order in transaction
+  const result = await this.prisma.$transaction(async (tx) => {
+    // Create order
+    const order = await tx.order.create({
+      data: {
+        serviceZoneId: Number(orderServiceZoneId),
+        userId: user.id,
+        route_type: payload.route_type,
+        delivery_type: payload.delivery_type,
+        collect_time: payload.collect_time,
+        scheduled_time: payload.scheduled_time,
+        vehicle_type_id: payload.vehicle_type_id,
+        total_cost: parseFloat(totalCost.toFixed(2)),
+        total_fee: parseFloat(totalFee.toFixed(2)),
+        total_distance: parseFloat(totalDistance.toFixed(2)),
+        isFixed: payload.isFixed ?? false,
+        order_status: OrderStatus.PROGRESS,
       },
-    );
-
-    const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
-    const totalFee = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalFee, 0);
-    const totalDistance = receiversWithPrice.reduce((total, result) => total + result.distanceKm, 0);
-
-    // Step 4: Create order in transaction
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Create order
-      const order = await tx.order.create({
-        data: {
-          serviceZoneId: Number(orderServiceZoneId),
-          userId: user.id,
-          route_type: payload.route_type,
-          delivery_type: payload.delivery_type,
-          collect_time: payload.collect_time,
-          scheduled_time: payload.scheduled_time,
-          vehicle_type_id: payload.vehicle_type_id,
-          payment_method_id: payload.payment_method_id,
-          total_cost: isNaN(Number(totalCost)) ? 0 : parseFloat(Number(totalCost).toFixed(2)),
-          total_fee: parseFloat(Number(totalFee).toFixed(2)),
-          total_distance: totalDistance,
-          isFixed: payload.isFixed ?? false,
-          order_status: OrderStatus.PROGRESS,
-        },
-      });
-
-      // Create destinations and order stops
-      const createdStops: any[] = [];
-      let sequence = 1;
-
-      for (const d of geocodedDestinations) {
-        // Create destination (if saving to address book)
-        let destinationId: number;
-
-        if (d.is_saved) {
-          const savedDest = await tx.destination.create({
-            data: {
-              userId: user.id,
-              address: d.address,
-              addressFromApr: d.addressFromApr ?? null,
-              floor_unit: d.floor_unit ?? null,
-              contact_name: d.contact_name ?? null,
-              contact_number: d.contact_number ?? null,
-              latitude: d.latitude,
-              longitude: d.longitude,
-              additionalInfo: d.note_to_driver ?? null,
-              type: d.type === DestinationType.SENDER
-                ? DestinationType.SENDER
-                : DestinationType.RECEIVER,
-              lastUsedAt: new Date(),
-              useCount: 1,
-            },
-          });
-          destinationId = savedDest.id;
-        } else {
-          // Create temporary destination for this order only
-          const tempDest = await tx.destination.create({
-            data: {
-              userId: user.id,
-              address: d.address,
-              addressFromApr: d.addressFromApr ?? null,
-              floor_unit: d.floor_unit ?? null,
-              latitude: d.latitude,
-              longitude: d.longitude,
-              type: d.type === DestinationType.SENDER
-                ? DestinationType.SENDER
-                : DestinationType.RECEIVER,
-            },
-          });
-          destinationId = tempDest.id;
-        }
-
-        // Create order stop
-        const stopType = d.type === DestinationType.SENDER ? StopType.PICKUP : StopType.DROP;
-
-        const stop = await tx.orderStop.create({
-          data: {
-            orderId: order.id,
-            destinationId,
-            type: stopType,
-            sequence,
-            status: StopStatus.PENDING,
-            address: d.addressFromApr!,
-            latitude: d.latitude,
-            longitude: d.longitude,
-            additionalInfo: d.note_to_driver ?? null,
-            // Create payment record
-            payment: {
-              create: {
-                payType: payload.pay_type ?? PayType.COD,
-                amount: 0, // Will be set in placeOrder
-                status: PaymentStatus.UNPAID,
-              },
-            },
-          },
-        });
-
-        createdStops.push(stop);
-        sequence++;
-      }
-
-      // Create transaction record
-      const txId = this.txIdService.generate();
-      const transaction = await tx.transaction.create({
-        data: {
-          transaction_code: txId,
-          payment_status: PaymentStatus.UNPAID,
-          payment_method_id: payload.payment_method_id,
-          type: TransactionType.BOOK_ORDER,
-          delivery_fee: order.total_cost,
-          total_fee: order.total_fee,
-          userId: user.id,
-          pay_type: payload.pay_type,
-          orderId: order.id,
-        },
-        include: {
-          user: { select: { username: true } },
-          order: { select: { id: true, order_status: true } },
-        },
-      });
-
-      return { order, transaction, stops: createdStops };
     });
 
-    return result;
-  }
+    const createdStops: any[] = [];
+
+    // Step 1: Create PICKUP first (sequence 1 - index 0)
+    const pickupDest = await tx.destination.create({
+      data: {
+        userId: user.id,
+        address: senderDestination.address,
+        addressFromApr: senderDestination.addressFromApr ?? senderDestination.address,
+        floor_unit: senderDestination.floor_unit ?? null,
+        contact_name: senderDestination.contact_name ?? null,
+        contact_number: senderDestination.contact_number ?? null,
+        latitude: senderDestination.latitude,
+        longitude: senderDestination.longitude,
+        additionalInfo: senderDestination.note_to_driver ?? null,
+        type: DestinationType.SENDER,
+        is_saved: senderDestination.is_saved ?? false,
+        lastUsedAt: new Date(),
+        useCount: 1,
+      },
+    });
+
+    const pickupStop = await tx.orderStop.create({
+      data: {
+        orderId: order.id,
+        destinationId: pickupDest.id,
+        type: StopType.PICKUP,
+        sequence: 1, // Always first
+        status: StopStatus.PENDING,
+        address: senderDestination.addressFromApr ?? senderDestination.address,
+        latitude: senderDestination.latitude,
+        longitude: senderDestination.longitude,
+        additionalInfo: senderDestination.note_to_driver ?? null,
+        payment: {
+          create: {
+            payType:PayType.COD,
+            amount: 0, // Pickup doesn't pay
+            status: PaymentStatus.PAID,
+          },
+        },
+      },
+    });
+
+    createdStops.push(pickupStop);
+
+    // Step 2: Create DROP stops (sequence 2, 3, 4...)
+    for (let i = 0; i < receiverDestinations.length; i++) {
+      const d = receiverDestinations[i];
+      const pricing = receiversWithPrice[i];
+
+      // Create destination
+      const dropDest = await tx.destination.create({
+        data: {
+          userId: user.id,
+          address: d.address,
+          addressFromApr: d.addressFromApr ?? d.address,
+          floor_unit: d.floor_unit ?? null,
+          contact_name: d.contact_name ?? null,
+          contact_number: d.contact_number ?? null,
+          latitude: d.latitude,
+          longitude: d.longitude,
+          additionalInfo: d.note_to_driver ?? null,
+          type: DestinationType.RECEIVER,
+          is_saved: d.is_saved ?? false,
+          lastUsedAt: new Date(),
+          useCount: 1,
+        },
+      });
+
+      // Create drop stop with individual price
+      const dropStop = await tx.orderStop.create({
+        data: {
+          orderId: order.id,
+          destinationId: dropDest.id,
+          type: StopType.DROP,
+          sequence: i + 2, // Starts from 2 (after pickup)
+          status: StopStatus.PENDING,
+          address: d.addressFromApr ?? d.address,
+          latitude: d.latitude,
+          longitude: d.longitude,
+          additionalInfo: d.note_to_driver ?? null,
+          payment: {
+            create: {
+              payType:PayType.COD,
+              amount: parseFloat(pricing.pricing.totalPrice.toFixed(2)), // Individual price
+              status: PaymentStatus.UNPAID,
+            },
+          },
+        },
+      });
+
+      createdStops.push(dropStop);
+    }
+
+    // Create transaction record
+    const txId = this.txIdService.generate();
+    const transaction = await tx.transaction.create({
+      data: {
+        transaction_code: txId,
+        payment_status: PaymentStatus.UNPAID,
+        type: TransactionType.BOOK_ORDER,
+        delivery_fee: order.total_cost,
+        total_fee: order.total_fee,
+        userId: user.id,
+        pay_type: PayType.COD,
+        orderId: order.id,
+      },
+    });
+
+    return { 
+      order, 
+      transaction, 
+      stops: createdStops,
+      pricingBreakdown: receiversWithPrice.map((r, i) => ({
+        stopSequence: i + 2,
+        address: receiverDestinations[i].address,
+        distance: r.distanceKm,
+        price: r.pricing.totalPrice,
+      })),
+    };
+  });
+
+  return result;
+}
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+//  export as csv
+  async exportOrdersAsCsv() {
+  const orders = await this.prisma.order.findMany({
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          phone: true,
+        },
+      },
+      vehicle: {
+        select: {
+          vehicle_type: true,
+        },
+      },
+      orderStops: {
+        include: {
+          destination: true,
+        },
+        orderBy: { sequence: 'asc' },
+      },
+    },
+    orderBy: { created_at: 'desc' },
+  });
+
+  const formatted_orders = orders.map((order) => {
+    const sender = order.orderStops.find(
+      s => s.type === 'PICKUP' 
+    );
+    
+    const receiver = order.orderStops.find(
+      s => s.type === 'DROP'
+    );
+
+    return {
+      order_id: order.id,
+      user_name: order.user?.username ?? '',
+      user_phone: order.user?.phone ?? '',
+      route_type: order.route_type,
+      delivery_type: order.delivery_type,
+      pay_type: order.pay_type,
+      collect_time: order.collect_time,
+      vehicle_type: order.vehicle?.vehicle_type ?? '',
+      total_cost: order.total_cost,
+      total_fee: order.total_fee,
+      total_distance : order.total_distance,
+      order_status: order.order_status,
+      is_fixed: order.isFixed,
+      raider_confirmation: order.raider_confirmation,
+      
+      // Sender info from stop
+      sender_address: sender?.address ?? '',
+      sender_contact_name: sender?.destination?.contact_name ?? '',
+      sender_contact_number: sender?.destination?.contact_number ?? '',
+      sender_floor_unit: sender?.destination?.floor_unit ?? '',
+      sender_note: sender?.destination?.additionalInfo ?? '',
+      
+      // Receiver info from stop
+      receiver_address: receiver?.address ?? '',
+      receiver_contact_name: receiver?.destination?.contact_name ?? '',
+      receiver_contact_number: receiver?.destination?.contact_number ?? '',
+      receiver_floor_unit: receiver?.destination?.floor_unit ?? '',
+      receiver_note: receiver?.destination?.additionalInfo ?? '',
+      
+      created_at: order.created_at, 
+      updated_at: order.updated_at, 
+    };
+  });
+
+  const fields = [
+    { label: 'Order ID', value: 'order_id' },
+    { label: 'User Name', value: 'user_name' },
+    { label: 'User Phone', value: 'user_phone' },
+    { label: 'Route Type', value: 'route_type' },
+    { label: 'Delivery Type', value: 'delivery_type' },
+    { label: 'Payment Type', value: 'pay_type' },
+    { label: 'Collection Time', value: 'collect_time' },
+    { label: 'Vehicle Type', value: 'vehicle_type' },
+    { label: 'Total Cost', value: 'total_cost' },
+    { label: 'Total Fee', value: 'total_fee' },
+    { label: 'Total Distance', value: 'total_distance' },
+    { label: 'Order Status', value: 'order_status' },
+    { label: 'Is Fixed', value: 'is_fixed' },
+    { label: 'Raider Confirmation', value: 'raider_confirmation' },
+    
+    { label: 'Sender Address', value: 'sender_address' },
+    { label: 'Sender Contact Name', value: 'sender_contact_name' },
+    { label: 'Sender Contact Number', value: 'sender_contact_number' },
+    { label: 'Sender Floor/Unit', value: 'sender_floor_unit' },
+    { label: 'Sender Note', value: 'sender_note' },
+    
+    { label: 'Receiver Address', value: 'receiver_address' },
+    { label: 'Receiver Contact Name', value: 'receiver_contact_name' },
+    { label: 'Receiver Contact Number', value: 'receiver_contact_number' },
+    { label: 'Receiver Floor/Unit', value: 'receiver_floor_unit' },
+    { label: 'Receiver Note', value: 'receiver_note' },
+    
+    { label: 'Created At', value: 'created_at' },
+    { label: 'Updated At', value: 'updated_at' },
+  ];
+
+  const parser = new Parser({ fields });
+  return parser.parse(formatted_orders);
+}
+
+
   // bulk order create from csv
   async bulkCreateOrdersFromCsv(dto: BulkOrderWithDestinationsDto, userId: number) {
     // Validate file URL
@@ -1139,7 +1663,6 @@ export class OrderService {
           commission: true,
           refund_amount: true,
           has_additional_services: true,
-          is_promo_used: true,
           notify_favorite_raider: true,
           payment_method_id: true,
           assign_rider_id: true,
@@ -1311,7 +1834,6 @@ export class OrderService {
           collect_time: true,
           scheduled_time: true,
           has_additional_services: true,
-          is_promo_used: true,
           notify_favorite_raider: true,
           payment_method_id: true,
           assign_rider_id: true,
@@ -1379,7 +1901,6 @@ export class OrderService {
           collect_time: true,
           scheduled_time: true,
           has_additional_services: true,
-          is_promo_used: true,
           notify_favorite_raider: true,
           payment_method_id: true,
           assign_rider_id: true,
@@ -2215,6 +2736,167 @@ export class OrderService {
       totalFee: parseFloat(totalFee.toFixed(2)),
     };
   }
+
+
+
+
+  //Promo code applay discount
+   async applyDiscount(
+      orderId: number,
+      userId: number,
+      dto: ApplyDiscountDto,
+    ) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId, userId },
+      });
+
+      if (!order) throw new NotFoundException('Order not found');
+      
+      if (order.order_status !== OrderStatus.PROGRESS) {
+        throw new BadRequestException('Cannot apply discount to placed order');
+      }
+
+      let totalDiscount = 0;
+      let coinsUsed = 0;
+      let promoDiscount = 0;
+
+      await this.prisma.$transaction(async (tx) => {
+        // 1. Apply Coins (e.g., 100 coins = ৳10)
+        if (dto.useCoins && dto.coinsAmount) {
+          const userWallet = await tx.user.findUnique({
+            where: { id:userId },
+          });
+          // calculate total coin
+          const coinBalance = Number(userWallet?.current_coin_balance) + Number(userWallet?.reward_points);
+          // 
+          if (!userWallet || coinBalance < dto.coinsAmount) {
+            throw new BadRequestException('Insufficient coins');
+          }
+
+          // Convert coins to money (e.g., 1 coins = ৳1)
+          const result = await tx.coin.aggregate({
+                    _avg: {
+                      coin_value_in_cent: true,
+                    },
+              });
+
+          const avgPrice = result._avg.coin_value_in_cent ?? 0;
+          const coinValue = dto.coinsAmount * avgPrice;
+          
+          // Deduct coins
+          await tx.user.update({
+            where: { id:userId },
+            data: { current_coin_balance: { decrement: dto.coinsAmount } },
+          });
+
+          totalDiscount += coinValue;
+          coinsUsed = dto.coinsAmount;
+        }
+
+        // 2. Apply Promo Code
+        if (dto.promoCode) {
+          const promo = await tx.promoCode.findUnique({
+            where: { promoCode: dto.promoCode, isActive: true },
+          });
+
+          if (!promo) {
+            throw new BadRequestException('Invalid promo code');
+          }
+
+          // Check expiry
+          if (promo.expires_at && promo.expires_at < new Date()) {
+            throw new BadRequestException('Promo code expired');
+          }
+
+          // Calculate discount
+          if (promo.discountType === 'PERCENTAGE') {
+            promoDiscount = (Number(order.total_cost) * promo.discountValue) / 100;
+            
+            // Apply max cap if exists
+            // if (promo.maxDiscount && promoDiscount > promo.maxDiscount) {
+            //   promoDiscount = promo.maxDiscount;
+            // }
+          } else {
+            // Fixed amount
+            promoDiscount = promo.discountValue;
+          }
+
+          totalDiscount += promoDiscount;
+
+          // Mark promo as used
+          await tx.promaCodeUses.create({
+            data: {
+              promoCodeId: promo.id,
+              userId,
+              orderId,
+              discountAmount: promoDiscount,
+              discounttype  : promo.discountType,
+            },
+          });
+        }
+
+        // ✅ 3. Update Order
+        const finalCost = Math.max(
+          Number(order.total_cost) - totalDiscount,
+          0, // Never go below 0
+        );
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            originalCost: order.total_cost,
+            discountAmount: totalDiscount,
+            coinsRedeemed: coinsUsed,
+            promoCode: dto.promoCode || null,
+            promoDiscount,
+            total_cost: finalCost,
+          },
+        });
+      });
+
+  return this.getOrderDetails(orderId);
+}
+
+  // Remove discount
+  async removeDiscount(orderId: number, userId: number) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId, userId },
+    });
+
+    if (!order) throw new NotFoundException('Order not found');
+
+    await this.prisma.$transaction(async (tx) => {
+      // Refund coins
+      if (order.coinsRedeemed > 0) {
+        await tx.user.update({
+          where: { id:userId },
+          data: { current_coin_balance: { increment: order.coinsRedeemed } },
+        });
+      }
+
+      // Remove promo usage
+      if (order.promoCode) {
+        await tx.promaCodeUses.deleteMany({
+          where: { orderId },
+        });
+      }
+
+      // Restore original price
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          total_cost: order.originalCost || order.total_cost,
+          discountAmount: 0,
+          coinsRedeemed: 0,
+          promoCode: null,
+          promoDiscount: 0,
+        },
+      });
+    });
+
+    return this.getOrderDetails(orderId);
+  }
+
 
   // **HOT CAKE: process and create bulk order
   private async processAndCreateOrder(

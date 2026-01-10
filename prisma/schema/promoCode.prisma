@@ -1,0 +1,18 @@
+model PromoCode {
+
+      id             Int @id @default(autoincrement())
+      promoCode      String @unique
+      discountType   DiscountType
+      discountValue  Int
+
+      isActive       Boolean @default(false)
+       
+      expires_at     DateTime 
+
+      created_at     DateTime       @default(now())
+      updated_at     DateTime       @updatedAt
+      promaCodeUses  PromaCodeUses[]
+
+}
+
+

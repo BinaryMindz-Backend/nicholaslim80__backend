@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   ParseIntPipe,
+  Res,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -33,6 +34,9 @@ import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 import { RaiderOrdersFilterDto } from './dto/raider-filter.dto';
 import { StopType } from '@prisma/client';
 import { CancelOrderDto, CompleteStopDto, FailStopDto, PlaceOrderDto } from './dto/place-cancle-order.dto';
+import type { Response } from 'express';
+import { UpdateOrderDetailsDto } from './dto/update-order-details.dto';
+import { ApplyDiscountDto } from './dto/apply-discount.dto';
 
 @ApiTags('Order (User and admin)')
 @Controller('order')
@@ -113,6 +117,44 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to remove destination from order');
     }
   }
+    // update order details
+    @Patch(':order_id/update-details')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.ORDER, Permission.CREATE)
+    async updateOrderDetails(
+      @Param('order_id', ParseIntPipe) orderId: number,
+      @CurrentUser() user: IUser,
+      @Body() dto: UpdateOrderDetailsDto,
+    ) {
+      const order = await this.orderService.updateOrderDetails(orderId, user.id, dto);
+      return ApiResponses.success(order, 'Order updated and price recalculated');
+    }
+  
+    // 
+    @Post(':order_id/apply-discount')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.ORDER, Permission.CREATE)
+    async applyDiscount(
+      @Param('order_id', ParseIntPipe) orderId: number,
+      @CurrentUser() user: IUser,
+      @Body() dto: ApplyDiscountDto,
+    ) {
+      const order = await this.orderService.applyDiscount(orderId, user.id, dto);
+      return ApiResponses.success(order, 'Discount applied successfully');
+    }
+
+    @Delete(':order_id/remove-discount')
+    @Auth()
+    @RequirePermission(Module.ORDER, Permission.CREATE)
+    async removeDiscount(
+      @Param('order_id', ParseIntPipe) orderId: number,
+      @CurrentUser() user: IUser,
+    ) {
+      const order = await this.orderService.removeDiscount(orderId, user.id);
+      return ApiResponses.success(order, 'Discount removed');
+    }
 
 
   // PLACE ORDER (Lock & Configure Payment)
@@ -246,7 +288,7 @@ export class OrderController {
       return ApiResponses.error(message, statusCode);
     }
   }
-
+   
 
   // create bulk order
   @Post('orders/bulk')
@@ -292,21 +334,21 @@ export class OrderController {
   }
 
   // export as csv
-  // @Get('orders/export/csv')
-  // @Auth()
-  // @ApiBearerAuth()
-  // @RequirePermission(Module.ORDER_PLACEMENT, Permission.JUST_ADMIN)
-  // async exportOrders(@Res() res: Response) {
-  //   const csv = await this.orderService.exportOrdersAsCsv();
+  @Get('orders/export/csv')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER_PLACEMENT, Permission.JUST_ADMIN)
+  async exportOrders(@Res() res: Response) {
+    const csv = await this.orderService.exportOrdersAsCsv();
 
-  //   res.setHeader('Content-Type', 'text/csv');
-  //   res.setHeader(
-  //     'Content-Disposition',
-  //     'attachment; filename="orders.csv"',
-  //   );
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="orders.csv"',
+    );
 
-  //   res.status(200).send(csv);
-  // }
+    res.status(200).send(csv);
+  }
 
 
   // 

@@ -1,0 +1,13 @@
+
+
+model PromaCodeUses {
+         id             Int @id @default(autoincrement())
+         promoCodeId    Int
+         promo          PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+         userId         Int
+         orderId        Int
+         discounttype   DiscountType
+         discountAmount Int
+         created_at     DateTime  @default(now())
+         updated_at     DateTime  @updatedAt
+}
