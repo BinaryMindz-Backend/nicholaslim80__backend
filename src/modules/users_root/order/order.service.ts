@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
+import { NotifyRaider, PriorityOrder, UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DeliveryZone, DestinationInput, IUser, Receiver } from 'src/types';
 import { CollectTime, DeliveryTypeName, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, RaiderStatus, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType } from '@prisma/client';
@@ -391,10 +391,7 @@ export class OrderService {
 
     return this.getOrderDetails(orderId);
   }
-
-
-
-
+  
   /**
  * PLACE ORDER (Lock and configure payments)
  */
@@ -544,6 +541,109 @@ export class OrderService {
             },
             orderBy: { sequence: 'asc' },
           },
+        },
+      });
+    });
+  }
+   
+  // notify rider
+  async notifyRider(orderId:number, userId:number, dto:NotifyRaider){
+          // 
+         const isOrderExist = await this.prisma.order.findFirst({
+              where:{
+                  id:orderId,
+                  userId:userId
+              }
+         })
+        //  
+         if(!isOrderExist || (isOrderExist && isOrderExist?.collect_time !== CollectTime.SCHEDULED)){
+             throw new NotFoundException(`${isOrderExist?.collect_time !== CollectTime.SCHEDULED && "Scheduled"} Order Not found`)
+         }
+        //  
+        const r = await this.prisma.order.update({
+             where:{
+                id:orderId
+             },
+             data:{
+                notify_favorite_raider:dto.notify_rider,
+                is_auto_confirmation:false,
+             }
+        }) 
+        
+        // 
+       return r;
+
+
+  }
+  
+  // 
+  async priorityOrder(
+    orderId: number,
+    userId: number,
+    dto: PriorityOrder,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: {
+          id: orderId,
+          userId,
+        },
+      });
+
+      if (!order) {
+        throw new NotFoundException(`ORD-${orderId} not found`);
+      }
+
+      if (order.isPriorited === true) {
+        throw new BadRequestException(`ORD-${orderId} is already on priority`);
+      }
+
+      // ───────────────── WALLET PAYMENT ─────────────────
+      if (dto.payType === PayType.WALLET) {
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+        });
+
+        if (
+          !user ||
+          Number(user.currentWalletBalance) < Number(5)
+        ) {
+          throw new BadRequestException('Insufficient wallet balance minimum priory amount 5');
+        }
+        // 
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            currentWalletBalance: {
+              decrement: Number(order.total_cost),
+            },
+          },
+        });
+      }
+
+      // ───────────────── ONLINE PAYMENT ─────────────────
+      if (dto.payType === PayType.ONLINE_PAY) {
+        if (!dto.paymentMethodId) {
+          throw new BadRequestException('Payment method ID required');
+        }
+
+        const paid = await this.walletService.addMoney(
+          userId,
+          Number(order.total_cost),
+          dto.paymentMethodId,
+        );
+
+        if (!paid) {
+          throw new BadRequestException('Online payment failed');
+        }
+      }
+
+      // ───────────────── UPDATE ORDER PRIORITY ─────────────────
+      return tx.order.update({
+        where: { id: orderId },
+        data: {
+          isPriorited: true,
+          priorityAt: new Date(),
         },
       });
     });
@@ -820,220 +920,8 @@ export class OrderService {
   /** deprecated
  * Create individual order with geocoding and pricing
  */
-  // async createIndividualOrder(payload: CreateIndiOrderDto, user: IUser) {
-  //   // Step 1: Geocode all destinations
-  //   const geocodedDestinations: DestinationInput[] = [];
-  //   let orderServiceZoneId: number | null = null;
-  //   let orderServiceZone: DeliveryZone | null = null;
 
-  //   for (const d of payload.destinations) {
-  //     let lat = d.latitude;
-  //     let lng = d.longitude;
-  //     let formattedAddress;
-
-  //     // Geocode if coordinates missing
-  //     if (!lat || !lng) {
-  //       const geo = await this.geoServices.getLatLngFromAddress(d.address ?? '');
-  //       lat = geo.lat;
-  //       lng = geo.lng;
-  //       formattedAddress = geo.formattedAddress;
-  //     }
-
-  //     // Find service zone
-  //     const zone = await this.serviceZone.findZoneByPoint(lat, lng);
-
-  //     // Assign service zone from SENDER destination
-  //     if (d.type === DestinationType.SENDER && zone && !orderServiceZone) {
-  //       orderServiceZoneId = zone.id;
-  //       orderServiceZone = zone;
-  //     }
-
-  //     geocodedDestinations.push({
-  //       ...d,
-  //       address: d.address ?? '',
-  //       latitude: lat,
-  //       longitude: lng,
-  //       type: d.type ?? DestinationType.SENDER,
-  //       is_saved: d.is_saved ?? false,
-  //       addressFromApr: formattedAddress,
-  //     });
-  //   }
-
-  //   // Validate service zone
-  //   if (!orderServiceZone) {
-  //     throw new BadRequestException('Pickup location is outside service zone');
-  //   }
-
-  //   // Step 2: Extract sender and receivers
-  //   const senderDestination = geocodedDestinations.find(
-  //     (d) => d.type === DestinationType.SENDER,
-  //   );
-
-  //   if (!senderDestination?.latitude || !senderDestination?.longitude) {
-  //     throw new BadRequestException('Sender location not found');
-  //   }
-
-  //   const sender: Receiver = {
-  //     lat: senderDestination.latitude,
-  //     lng: senderDestination.longitude,
-  //   };
-
-  //   const receiverDestinations: Receiver[] = geocodedDestinations
-  //     .filter((d) => d.type !== DestinationType.SENDER)
-  //     .map((d) => ({ lat: d.latitude, lng: d.longitude }));
-
-  //   if (receiverDestinations.length === 0) {
-  //     throw new BadRequestException('At least one receiver destination is required');
-  //   }
-
-  //   // Step 3: Calculate pricing
-  //   const receiversWithPrice = await getReceiversWithIndividualPrice(
-  //     this.prisma,
-  //     sender,
-  //     receiverDestinations,
-  //     payload.delivery_type,
-  //     payload.vehicle_type_id,
-  //     orderServiceZone,
-  //     {
-  //       isRoundTrip: payload.route_type === RouteType.ROUND,
-  //       returnFactor: 0.5,
-  //     },
-  //   );
-
-  //   const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
-  //   const totalFee = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalFee, 0);
-  //   const totalDistance = receiversWithPrice.reduce((total, result) => total + result.distanceKm, 0);
-
-  //   // Step 4: Create order in transaction
-  //   const result = await this.prisma.$transaction(async (tx) => {
-  //     // Create order
-  //     const order = await tx.order.create({
-  //       data: {
-  //         serviceZoneId: Number(orderServiceZoneId),
-  //         userId: user.id,
-  //         route_type: payload.route_type,
-  //         delivery_type: payload.delivery_type,
-  //         collect_time: payload.collect_time,
-  //         scheduled_time: payload.scheduled_time,
-  //         vehicle_type_id: payload.vehicle_type_id,
-  //         payment_method_id: payload.payment_method_id,
-  //         total_cost: isNaN(Number(totalCost)) ? 0 : parseFloat(Number(totalCost).toFixed(2)),
-  //         total_fee: parseFloat(Number(totalFee).toFixed(2)),
-  //         total_distance: totalDistance,
-  //         isFixed: payload.isFixed ?? false,
-  //         order_status: OrderStatus.PROGRESS,
-  //       },
-  //     });
-
-  //     // Create destinations and order stops
-  //     const createdStops: any[] = [];
-  //     let sequence = 1;
-
-  //     for (const d of geocodedDestinations) {
-  //       // Create destination (if saving to address book)
-  //       let destinationId: number;
-
-  //       if (d.is_saved) {
-  //         const savedDest = await tx.destination.create({
-  //           data: {
-  //             userId: user.id,
-  //             address: d.address,
-  //             addressFromApr: d.addressFromApr ?? null,
-  //             floor_unit: d.floor_unit ?? null,
-  //             contact_name: d.contact_name ?? null,
-  //             contact_number: d.contact_number ?? null,
-  //             latitude: d.latitude,
-  //             longitude: d.longitude,
-  //             additionalInfo: d.note_to_driver ?? null,
-  //             type: d.type === DestinationType.SENDER
-  //               ? DestinationType.SENDER
-  //               : DestinationType.RECEIVER,
-  //             lastUsedAt: new Date(),
-  //             useCount: 1,
-  //           },
-  //         });
-  //         destinationId = savedDest.id;
-  //       } else {
-  //         // Create temporary destination for this order only
-  //         const tempDest = await tx.destination.create({
-  //           data: {
-  //             userId: user.id,
-  //             address: d.address,
-  //             addressFromApr: d.addressFromApr ?? null,
-  //             floor_unit: d.floor_unit ?? null,
-  //             latitude: d.latitude,
-  //             longitude: d.longitude,
-  //             type: d.type === DestinationType.SENDER
-  //               ? DestinationType.SENDER
-  //               : DestinationType.RECEIVER,
-  //           },
-  //         });
-  //         destinationId = tempDest.id;
-  //       }
-
-  //       // Create order stop
-  //       const stopType = d.type === DestinationType.SENDER ? StopType.PICKUP : StopType.DROP;
-
-  //       const stop = await tx.orderStop.create({
-  //         data: {
-  //           orderId: order.id,
-  //           destinationId,
-  //           type: stopType,
-  //           sequence,
-  //           status: StopStatus.PENDING,
-  //           address: d.addressFromApr!,
-  //           latitude: d.latitude,
-  //           longitude: d.longitude,
-  //           additionalInfo: d.note_to_driver ?? null,
-  //           // Create payment record
-  //           payment: {
-  //             create: {
-  //               payType: payload.pay_type ?? PayType.COD,
-  //               amount: 0, // Will be set in placeOrder
-  //               status: PaymentStatus.UNPAID,
-  //             },
-  //           },
-  //         },
-  //       });
-
-  //       createdStops.push(stop);
-  //       sequence++;
-  //     }
-
-  //     // Create transaction record
-  //     const txId = this.txIdService.generate();
-  //     const transaction = await tx.transaction.create({
-  //       data: {
-  //         transaction_code: txId,
-  //         payment_status: PaymentStatus.UNPAID,
-  //         payment_method_id: payload.payment_method_id,
-  //         type: TransactionType.BOOK_ORDER,
-  //         delivery_fee: order.total_cost,
-  //         total_fee: order.total_fee,
-  //         userId: user.id,
-  //         pay_type: payload.pay_type,
-  //         orderId: order.id,
-  //       },
-  //       include: {
-  //         user: { select: { username: true } },
-  //         order: { select: { id: true, order_status: true } },
-  //       },
-  //     });
-
-  //     return { order, transaction, stops: createdStops };
-  //   });
-
-  //   return result;
-  // }
-
-  // export as csv
- 
- 
-
-  // create indivitual order
- 
- 
-  //  
+    // 
   async createIndividualOrder(payload: CreateIndiOrderDto, user: IUser) {
   // Step 1: Geocode all destinations
   const geocodedDestinations: DestinationInput[] = [];
@@ -1130,6 +1018,7 @@ export class OrderService {
         collect_time: payload.collect_time,
         scheduled_time: payload.scheduled_time,
         vehicle_type_id: payload.vehicle_type_id,
+        originalCost:parseFloat(totalCost.toFixed(2)),
         total_cost: parseFloat(totalCost.toFixed(2)),
         total_fee: parseFloat(totalFee.toFixed(2)),
         total_distance: parseFloat(totalDistance.toFixed(2)),
@@ -1261,10 +1150,6 @@ export class OrderService {
 
   return result;
 }
- 
- 
- 
- 
  
  
  

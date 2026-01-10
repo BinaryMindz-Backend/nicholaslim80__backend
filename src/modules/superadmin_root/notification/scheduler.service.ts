@@ -14,7 +14,7 @@ export class NotificationSchedulerService {
     private notificationService: NotificationService,
   ) { }
 
-  @Cron(CronExpression.EVERY_10_HOURS) //TODO:need to change to second
+  @Cron(CronExpression.EVERY_10_SECONDS)
   async handleScheduledNotifications() {
     const now = new Date();
     this.logger.log(`Cron running at ${now.toISOString()}`);

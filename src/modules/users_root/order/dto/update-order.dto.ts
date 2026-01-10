@@ -1,8 +1,8 @@
-import { PartialType } from '@nestjs/swagger';
+import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CreateOrderDto } from './create-order.dto';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional } from 'class-validator';
-import { OrderStatus } from '@prisma/client';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { OrderStatus, PayType } from '@prisma/client';
 
 export class UpdateOrderDto extends PartialType(CreateOrderDto) {
   @ApiProperty({
@@ -33,4 +33,37 @@ export class UpdateOrderDto extends PartialType(CreateOrderDto) {
   @IsOptional() 
   @IsInt()
   assign_rider_id?: number;
+}
+
+
+export class NotifyRaider {
+  @ApiProperty({ required: true })
+  @IsBoolean()
+  notify_rider: boolean;
+
+}
+
+export class PriorityOrder {
+
+      @ApiPropertyOptional({
+      description: 'Payment method',
+      enum: PayType,
+      example: PayType.ONLINE_PAY,
+      })
+      @IsEnum(PayType)
+      @IsOptional()
+      payType?: PayType;
+
+      @ApiPropertyOptional({
+      description: 'Stripe payment method ID (required for ONLINE_PAY)',
+      example: 'pm_1234567890abcdef',
+      })
+      @IsString()
+      @IsOptional()
+      paymentMethodId?: string;
+
+
+      @ApiProperty({example:10, required:true})
+      @IsInt()
+      amount : number
 }
