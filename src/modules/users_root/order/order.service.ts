@@ -23,6 +23,7 @@ import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 import { CreateDestinationDto } from '../destination/dto/create-destination.dto';
 import { Parser } from 'json2csv';
 import { UpdateOrderDetailsDto } from './dto/update-order-details.dto';
+import { ApplyDiscountDto } from './dto/apply-discount.dto';
 
 
 @Injectable()
@@ -1662,7 +1663,6 @@ export class OrderService {
           commission: true,
           refund_amount: true,
           has_additional_services: true,
-          is_promo_used: true,
           notify_favorite_raider: true,
           payment_method_id: true,
           assign_rider_id: true,
@@ -1834,7 +1834,6 @@ export class OrderService {
           collect_time: true,
           scheduled_time: true,
           has_additional_services: true,
-          is_promo_used: true,
           notify_favorite_raider: true,
           payment_method_id: true,
           assign_rider_id: true,
@@ -1902,7 +1901,6 @@ export class OrderService {
           collect_time: true,
           scheduled_time: true,
           has_additional_services: true,
-          is_promo_used: true,
           notify_favorite_raider: true,
           payment_method_id: true,
           assign_rider_id: true,
@@ -2738,6 +2736,167 @@ export class OrderService {
       totalFee: parseFloat(totalFee.toFixed(2)),
     };
   }
+
+
+
+
+  //Promo code applay discount
+   async applyDiscount(
+      orderId: number,
+      userId: number,
+      dto: ApplyDiscountDto,
+    ) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId, userId },
+      });
+
+      if (!order) throw new NotFoundException('Order not found');
+      
+      if (order.order_status !== OrderStatus.PROGRESS) {
+        throw new BadRequestException('Cannot apply discount to placed order');
+      }
+
+      let totalDiscount = 0;
+      let coinsUsed = 0;
+      let promoDiscount = 0;
+
+      await this.prisma.$transaction(async (tx) => {
+        // 1. Apply Coins (e.g., 100 coins = ৳10)
+        if (dto.useCoins && dto.coinsAmount) {
+          const userWallet = await tx.user.findUnique({
+            where: { id:userId },
+          });
+          // calculate total coin
+          const coinBalance = Number(userWallet?.current_coin_balance) + Number(userWallet?.reward_points);
+          // 
+          if (!userWallet || coinBalance < dto.coinsAmount) {
+            throw new BadRequestException('Insufficient coins');
+          }
+
+          // Convert coins to money (e.g., 1 coins = ৳1)
+          const result = await tx.coin.aggregate({
+                    _avg: {
+                      coin_value_in_cent: true,
+                    },
+              });
+
+          const avgPrice = result._avg.coin_value_in_cent ?? 0;
+          const coinValue = dto.coinsAmount * avgPrice;
+          
+          // Deduct coins
+          await tx.user.update({
+            where: { id:userId },
+            data: { current_coin_balance: { decrement: dto.coinsAmount } },
+          });
+
+          totalDiscount += coinValue;
+          coinsUsed = dto.coinsAmount;
+        }
+
+        // 2. Apply Promo Code
+        if (dto.promoCode) {
+          const promo = await tx.promoCode.findUnique({
+            where: { promoCode: dto.promoCode, isActive: true },
+          });
+
+          if (!promo) {
+            throw new BadRequestException('Invalid promo code');
+          }
+
+          // Check expiry
+          if (promo.expires_at && promo.expires_at < new Date()) {
+            throw new BadRequestException('Promo code expired');
+          }
+
+          // Calculate discount
+          if (promo.discountType === 'PERCENTAGE') {
+            promoDiscount = (Number(order.total_cost) * promo.discountValue) / 100;
+            
+            // Apply max cap if exists
+            // if (promo.maxDiscount && promoDiscount > promo.maxDiscount) {
+            //   promoDiscount = promo.maxDiscount;
+            // }
+          } else {
+            // Fixed amount
+            promoDiscount = promo.discountValue;
+          }
+
+          totalDiscount += promoDiscount;
+
+          // Mark promo as used
+          await tx.promaCodeUses.create({
+            data: {
+              promoCodeId: promo.id,
+              userId,
+              orderId,
+              discountAmount: promoDiscount,
+              discounttype  : promo.discountType,
+            },
+          });
+        }
+
+        // ✅ 3. Update Order
+        const finalCost = Math.max(
+          Number(order.total_cost) - totalDiscount,
+          0, // Never go below 0
+        );
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            originalCost: order.total_cost,
+            discountAmount: totalDiscount,
+            coinsRedeemed: coinsUsed,
+            promoCode: dto.promoCode || null,
+            promoDiscount,
+            total_cost: finalCost,
+          },
+        });
+      });
+
+  return this.getOrderDetails(orderId);
+}
+
+  // Remove discount
+  async removeDiscount(orderId: number, userId: number) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId, userId },
+    });
+
+    if (!order) throw new NotFoundException('Order not found');
+
+    await this.prisma.$transaction(async (tx) => {
+      // Refund coins
+      if (order.coinsRedeemed > 0) {
+        await tx.user.update({
+          where: { id:userId },
+          data: { current_coin_balance: { increment: order.coinsRedeemed } },
+        });
+      }
+
+      // Remove promo usage
+      if (order.promoCode) {
+        await tx.promaCodeUses.deleteMany({
+          where: { orderId },
+        });
+      }
+
+      // Restore original price
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          total_cost: order.originalCost || order.total_cost,
+          discountAmount: 0,
+          coinsRedeemed: 0,
+          promoCode: null,
+          promoDiscount: 0,
+        },
+      });
+    });
+
+    return this.getOrderDetails(orderId);
+  }
+
 
   // **HOT CAKE: process and create bulk order
   private async processAndCreateOrder(

@@ -36,6 +36,7 @@ import { StopType } from '@prisma/client';
 import { CancelOrderDto, CompleteStopDto, FailStopDto, PlaceOrderDto } from './dto/place-cancle-order.dto';
 import type { Response } from 'express';
 import { UpdateOrderDetailsDto } from './dto/update-order-details.dto';
+import { ApplyDiscountDto } from './dto/apply-discount.dto';
 
 @ApiTags('Order (User and admin)')
 @Controller('order')
@@ -129,6 +130,32 @@ export class OrderController {
       const order = await this.orderService.updateOrderDetails(orderId, user.id, dto);
       return ApiResponses.success(order, 'Order updated and price recalculated');
     }
+  
+    // 
+    @Post(':order_id/apply-discount')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.ORDER, Permission.CREATE)
+    async applyDiscount(
+      @Param('order_id', ParseIntPipe) orderId: number,
+      @CurrentUser() user: IUser,
+      @Body() dto: ApplyDiscountDto,
+    ) {
+      const order = await this.orderService.applyDiscount(orderId, user.id, dto);
+      return ApiResponses.success(order, 'Discount applied successfully');
+    }
+
+    @Delete(':order_id/remove-discount')
+    @Auth()
+    @RequirePermission(Module.ORDER, Permission.CREATE)
+    async removeDiscount(
+      @Param('order_id', ParseIntPipe) orderId: number,
+      @CurrentUser() user: IUser,
+    ) {
+      const order = await this.orderService.removeDiscount(orderId, user.id);
+      return ApiResponses.success(order, 'Discount removed');
+    }
+
 
   // PLACE ORDER (Lock & Configure Payment)
   @Post(':order_id/place')
