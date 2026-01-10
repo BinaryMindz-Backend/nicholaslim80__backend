@@ -3,15 +3,13 @@ import {
   IsInt,
   IsOptional,
   IsEnum,
-  IsDate
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import {
   RouteType,
   DeliveryTypeName,
   CollectTime,
 } from '@prisma/client';
-import { Type } from 'class-transformer';
 
 
 export class CreateOrderDto {
@@ -37,34 +35,34 @@ export class CreateOrderDto {
   @IsEnum(CollectTime)
   collect_time: CollectTime;
 
-  @ApiProperty({ example: '2025-12-25T10:00:00.000Z' })
-  @Type(() => Date)
-  @IsOptional()
-  @IsDate()
-  scheduled_time?: Date;
+  // @ApiProperty({ example: '2025-12-25T10:00:00.000Z' })
+  // @Type(() => Date)
+  // @IsOptional()
+  // @IsDate()
+  // scheduled_time?: Date;
 
   // @ApiProperty({ example: 250.50 })
   // @IsNumber()
   // total_cost: number;
 
-  @ApiProperty({ example: false })
-  @IsBoolean()
-  @IsOptional()
-  has_additional_services?: boolean;
+  // @ApiProperty({ example: false })
+  // @IsBoolean()
+  // @IsOptional()
+  // has_additional_services?: boolean;
 
-  @ApiProperty({ example: false })
-  @IsBoolean()
-  @IsOptional()
-  is_promo_used?: boolean;
+  // @ApiProperty({ example: false })
+  // @IsBoolean()
+  // @IsOptional()
+  // is_promo_used?: boolean;
 
-  @ApiProperty({ example: false })
-  @IsBoolean()
-  @IsOptional()
-  notify_favorite_raider?: boolean;
+  // @ApiProperty({ example: false })
+  // @IsBoolean()
+  // @IsOptional()
+  // notify_favorite_raider?: boolean;
 
-  @ApiPropertyOptional({ example: 2 })
-  @IsInt()
-  @IsOptional()
-  payment_method_id?: number;
+  // @ApiPropertyOptional({ example: 2 })
+  // @IsInt()
+  // @IsOptional()
+  // payment_method_id?: number;
    
 }

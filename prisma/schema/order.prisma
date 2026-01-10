@@ -42,7 +42,12 @@ model Order {
 
   assign_rider_id         Int?
   assign_rider            Raider? @relation("AssignedRaider", fields: [assign_rider_id], references: [id], onDelete: SetNull)
+  
 
+
+  //
+  isPriorited             Boolean     @default(false)
+  priorityAt              DateTime?
   raider_confirmation     Boolean     @default(false)
   is_auto_confirmation    Boolean     @default(false)
   is_reviewed             Boolean     @default(false)

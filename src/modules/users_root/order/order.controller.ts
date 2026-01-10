@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
+import { NotifyRaider, PriorityOrder, UpdateOrderDto } from './dto/update-order.dto';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -175,7 +175,34 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to place order');
     }
   }
+  
+  @Post(':order_id/notify-rider')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER, Permission.CREATE)
+  async notifyRider(
+    @Param('order_id', ParseIntPipe) orderId: number,
+    @CurrentUser() user: IUser,
+    @Body() dto: NotifyRaider,
+  ) {
+    const order = await this.orderService.notifyRider(orderId, user.id, dto);
+    return ApiResponses.success(order, 'raider will notified you');
+  }
 
+  //  
+
+  @Post(':order_id/priority-order')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER, Permission.CREATE)
+  async priorityOrder(
+    @Param('order_id', ParseIntPipe) orderId: number,
+    @CurrentUser() user: IUser,
+    @Body() dto: PriorityOrder,
+  ) {
+    const order = await this.orderService.priorityOrder(orderId, user.id, dto);
+    return ApiResponses.success(order, 'Priorited your order successfully');
+  }
 
 
   @Post('stops/:stop_id/complete')
