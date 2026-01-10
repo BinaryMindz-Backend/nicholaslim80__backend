@@ -22,7 +22,7 @@ import { Module, Permission } from 'src/rbac/rbac.constants';
 @ApiTags('quizzes')
 @Controller('quizzes')
 export class QuizController {
-  constructor(private readonly quizService: QuizService) {}
+  constructor(private readonly quizService: QuizService) { }
 
   @Post()
   @UsePipes(new ValidationPipe())
@@ -64,6 +64,26 @@ export class QuizController {
       return ApiResponses.error(error, 'Failed to fetch quizzes');
     }
   }
+  //get active quizzes
+  @Get('active')
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.QUIZ, Permission.READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get active quiz' })
+  @ApiResponse({ status: 200, description: 'Return active quiz' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async findOneActive() {
+    try {
+      const res = await this.quizService.findActiveQuiz();
+      return ApiResponses.success(res, 'Quiz fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to fetch quiz');
+    }
+  }
+
+
+
 
   @Get(':id')
   @Auth()

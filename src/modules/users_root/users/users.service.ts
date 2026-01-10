@@ -7,7 +7,7 @@ import { OtpService } from 'src/modules/auth/otp.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ReferralUtils } from 'src/utils/referral.util';
 import { CoinEvent, IUser } from 'src/types';
-import { CoinHistoryType, LoginType,  UserRole } from '@prisma/client';
+import { CoinHistoryType, LoginType, UserRole } from '@prisma/client';
 import { UserFilterDto, UserStatusFilter } from './dto/user-filter.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { startOfDay, endOfDay, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
@@ -25,133 +25,133 @@ export class UsersService {
 
 
   // ** Create new user // signup with otp verify
- async createUser(dto: { 
-      email?: string; 
-      password?: string; 
-      username?: string; 
-      phone: string, 
-      referral_code?: string, 
-      role_name: string 
-    }) {
-      // Pre-transaction validations (same as before)
-      if (dto.role_name === UserRole.SUPER_ADMIN) {
-        throw new NotAcceptableException("You can't create superadmin or admin by general login");
-      }
+  async createUser(dto: {
+    email?: string;
+    password?: string;
+    username?: string;
+    phone: string,
+    referral_code?: string,
+    role_name: string
+  }) {
+    // Pre-transaction validations (same as before)
+    if (dto.role_name === UserRole.SUPER_ADMIN) {
+      throw new NotAcceptableException("You can't create superadmin or admin by general login");
+    }
 
-      const role = await this.prisma.role.findFirst({
-        where: { name: dto.role_name }
+    const role = await this.prisma.role.findFirst({
+      where: { name: dto.role_name }
+    });
+
+    if (!role) {
+      throw new NotFoundException("Role not found");
+    }
+
+    let referredByUser;
+    if (dto.referral_code) {
+      referredByUser = await this.prisma.user.findUnique({
+        where: { referral_code: dto.referral_code }
       });
 
-      if (!role) {
-        throw new NotFoundException("Role not found");
+      if (!referredByUser) {
+        throw new BadRequestException('Invalid referral code');
       }
+    }
 
-      let referredByUser;
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: dto.email },
+          { phone: dto.phone }
+        ]
+      }
+    });
+
+    if (existing) {
+      throw new ConflictException('User already exists');
+    }
+
+    let hashed: string | undefined = undefined;
+    if (dto.password) {
+      const salt = Number(process.env.SALT_ROUNDS ?? 10);
+      hashed = await bcrypt.hash(dto.password, salt);
+    }
+
+    const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
+
+    const coin = await this.prisma.coin.findFirst({
+      where: { key: CoinEvent.FIRST_SIGNUP }
+    });
+
+    // Transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: dto.email,
+          username: dto.username,
+          phone: dto.phone,
+          password: hashed,
+          referral_code: code,
+          referral_link: link,
+          is_acc_refered: dto.referral_code ? true : false,
+          roleId: role.id,
+        },
+      });
+
+      const coinUtils = new CoinUtils(tx as any);
+      await coinUtils.earnCoin(
+        user.id,
+        coin ? Number(coin.coin_amount) : 0,
+        CoinEvent.FIRST_SIGNUP
+      );
+
       if (dto.referral_code) {
-        referredByUser = await this.prisma.user.findUnique({
-          where: { referral_code: dto.referral_code }
-        });
-
-        if (!referredByUser) {
-          throw new BadRequestException('Invalid referral code');
-        }
-      }
-
-      const existing = await this.prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: dto.email },
-            { phone: dto.phone }
-          ]
-        }
-      });
-
-      if (existing) {
-        throw new ConflictException('User already exists');
-      }
-
-      let hashed: string | undefined = undefined;
-      if (dto.password) {
-        const salt = Number(process.env.SALT_ROUNDS ?? 10);
-        hashed = await bcrypt.hash(dto.password, salt);
-      }
-
-      const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
-
-      const coin = await this.prisma.coin.findFirst({
-        where: { key: CoinEvent.FIRST_SIGNUP }
-      });
-
-      // Transaction
-      const result = await this.prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({
+        await tx.refer.create({
           data: {
-            email: dto.email,
-            username: dto.username,
-            phone: dto.phone,
-            password: hashed,
-            referral_code: code,
-            referral_link: link,
-            is_acc_refered: dto.referral_code ? true : false,
-            roleId: role.id,
-          },
+            refer_code: dto.referral_code,
+            user_id: user.id
+          }
         });
+      }
 
-        const coinUtils = new CoinUtils(tx as any);
-        await coinUtils.earnCoin(
-          user.id, 
-          coin ? Number(coin.coin_amount) : 0, 
-          CoinEvent.FIRST_SIGNUP
-        );
+      if (role.name === UserRole.RAIDER) {
+        await tx.raider.create({
+          data: { userId: user.id }
+        });
+      }
 
-        if (dto.referral_code) {
-          await tx.refer.create({
-            data: {
-              refer_code: dto.referral_code,
-              user_id: user.id
-            }
-          });
-        }
+      return user;
+    });
 
-        if (role.name === UserRole.RAIDER) {
-          await tx.raider.create({
-            data: { userId: user.id }
-          });
-        }
-
-        return user;
+    // Generate OTP
+    const otp = await this.otpService.generateOtp(result.email, result.phone);
+    // Queue welcome email
+    if (result.email) {
+      await this.emailQueueService.queueWelcomeEmail({
+        userId: result.id,
+        email: result.email,
+        username: result.username ?? undefined,
+        referralCode: result.referral_code ?? undefined,
       });
+    }
 
-      // Generate OTP
-      const otp = await this.otpService.generateOtp(result.email, result.phone);
-            // Queue welcome email
-        if (result.email) {
-          await this.emailQueueService.queueWelcomeEmail({
-            userId: result.id,
-            email: result.email,
-            username: result.username ?? undefined,
-            referralCode: result.referral_code ?? undefined,
-          });
-        }
+    // Queue push notification
+    if (result.fcmToken) {
+      await this.emailQueueService.queuePushNotification({
+        userId: result.id,
+        fcmToken: result.fcmToken,
+        title: 'Welcome to NodeNINJAr!',
+        body: `Hello ${result.username ?? 'User'}, welcome!`,
+      });
+    }
 
-        // Queue push notification
-        if (result.fcmToken) {
-          await this.emailQueueService.queuePushNotification({
-            userId: result.id,
-            fcmToken: result.fcmToken,
-            title: 'Welcome to NodeNINJAr!',
-            body: `Hello ${result.username ?? 'User'}, welcome!`,
-          });
-        }
-
-        return { otp };
+    return { otp };
 
   }
 
   // 
   async findByEmailOrPhone(email?: string, phone?: string) {
     // 
-   const res = await this.prisma.user.findFirst({
+    const res = await this.prisma.user.findFirst({
       where: {
         OR: [
           { email },
@@ -182,8 +182,8 @@ export class UsersService {
     return await this.prisma.user.findMany({
       where: { is_deleted: false },
       orderBy: { created_at: 'desc' },
-      include:{
-          role:true
+      include: {
+        role: true
       }
     });
   }
@@ -336,37 +336,19 @@ export class UsersService {
 
 
   // ** Get user by ID
-    async findOneuser(id: number) {
-      if (!id) throw new NotFoundException("User id not found")
+  async findOneuser(id: number) {
+    if (!id) throw new NotFoundException("User id not found")
 
-      return await this.prisma.user.findUnique({ where: { id, is_deleted: false }, include: { raiderProfile: true, role: true, adminProfiles: true } });
-    }
-
-    // ** Get user by user id
-    async findMe(user: IUser) {
-    if (!user.id) throw new NotFoundException("User id not found");
-
-    // Fetch user data
-    const res = await this.prisma.user.findFirst({
-      where: { 
-        id: Number(user.id), 
-        is_deleted: false 
-      },
-      include: {
-        raiderProfile:{
-             include:{
-                registrations:true
-             }
-        },
-        role: true,
-        adminProfiles: true,
-      }
+    const res = await this.prisma.user.findUnique({
+      where: { id, is_deleted: false },
+      include: { raiderProfile: true, role: true, adminProfiles: true }
     });
+
     // 
     if (!res) throw new NotFoundException("User not found");
     // 
     const basePoint = await this.prisma.coin.aggregate({
-      _avg: { coin_value_in_cent: true,},
+      _avg: { coin_value_in_cent: true, },
     });
     // 
     const basePriceIncent = Number((basePoint._avg.coin_value_in_cent ?? 0));
@@ -379,7 +361,7 @@ export class UsersService {
 
     // Check if user has RAIDER role
     const isRaider = res.role?.name === 'RAIDER' || res.role?.name === 'raider';
-    
+
     if (isRaider && res.raiderProfile?.id) {
       // Get follower count for raider
       const follower = await this.prisma.myRaider.count({
@@ -401,8 +383,8 @@ export class UsersService {
         }
       });
 
-      const formattedAverage = avgRating._avg.rating_star 
-        ? Number(avgRating._avg.rating_star.toFixed(2)) 
+      const formattedAverage = avgRating._avg.rating_star
+        ? Number(avgRating._avg.rating_star.toFixed(2))
         : 0;
 
       responseData = {
@@ -415,7 +397,112 @@ export class UsersService {
 
     // Check if user has CUSTOMER/USER role (or get customer ratings for all users)
     const isCustomer = res.role?.name === 'CUSTOMER' || res.role?.name === 'USER' || res.role?.name === 'customer' || res.role?.name === 'user';
-    
+
+    if (isCustomer || !isRaider) {
+      // Get customer rating average
+      const useravgRating = await this.prisma.rateCustomer.aggregate({
+        where: {
+          user_id: id
+        },
+        _avg: {
+          rating_star: true
+        },
+        _count: {
+          id: true
+        }
+      });
+
+      const formattedAverageUser = useravgRating._avg.rating_star
+        ? Number(useravgRating._avg.rating_star.toFixed(2))
+        : 0;
+
+      responseData = {
+        ...responseData,
+        avg_customerRating: formattedAverageUser,
+        total_customerRatings: useravgRating._count.id || 0,
+        rewardMoney: basePrice * Number(res.reward_points) || 0,
+      };
+    }
+
+    return responseData;
+  }
+
+
+
+  // ** Get user by user id
+  async findMe(user: IUser) {
+    if (!user.id) throw new NotFoundException("User id not found");
+
+    // Fetch user data
+    const res = await this.prisma.user.findFirst({
+      where: {
+        id: Number(user.id),
+        is_deleted: false
+      },
+      include: {
+        raiderProfile: {
+          include: {
+            registrations: true
+          }
+        },
+        role: true,
+        adminProfiles: true,
+      }
+    });
+    // 
+    if (!res) throw new NotFoundException("User not found");
+    // 
+    const basePoint = await this.prisma.coin.aggregate({
+      _avg: { coin_value_in_cent: true, },
+    });
+    // 
+    const basePriceIncent = Number((basePoint._avg.coin_value_in_cent ?? 0));
+    const basePrice = basePriceIncent / 100
+
+    // Initialize response object
+    let responseData: any = {
+      ...res,
+    };
+
+    // Check if user has RAIDER role
+    const isRaider = res.role?.name === 'RAIDER' || res.role?.name === 'raider';
+
+    if (isRaider && res.raiderProfile?.id) {
+      // Get follower count for raider
+      const follower = await this.prisma.myRaider.count({
+        where: {
+          raiderId: res.raiderProfile.id
+        }
+      });
+
+      // Get raider rating average
+      const avgRating = await this.prisma.rateRaider.aggregate({
+        where: {
+          raiderId: res.raiderProfile.id
+        },
+        _avg: {
+          rating_star: true
+        },
+        _count: {
+          id: true
+        }
+      });
+
+      const formattedAverage = avgRating._avg.rating_star
+        ? Number(avgRating._avg.rating_star.toFixed(2))
+        : 0;
+
+      responseData = {
+        ...responseData,
+        follower: follower || 0,
+        avg_raiderRating: formattedAverage,
+        total_raiderRatings: avgRating._count.id || 0
+      };
+    }
+
+    // Check if user has CUSTOMER/USER role (or get customer ratings for all users)
+    const isCustomer = res.role?.name === 'CUSTOMER' || res.role?.name === 'USER' || res.role?.name === 'customer' || res.role?.name === 'user';
+
     if (isCustomer || !isRaider) {
       // Get customer rating average
       const useravgRating = await this.prisma.rateCustomer.aggregate({
@@ -430,15 +517,15 @@ export class UsersService {
         }
       });
 
-      const formattedAverageUser = useravgRating._avg.rating_star 
-        ? Number(useravgRating._avg.rating_star.toFixed(2)) 
+      const formattedAverageUser = useravgRating._avg.rating_star
+        ? Number(useravgRating._avg.rating_star.toFixed(2))
         : 0;
 
       responseData = {
         ...responseData,
         avg_customerRating: formattedAverageUser,
         total_customerRatings: useravgRating._count.id || 0,
-        rewardMoney:basePrice * Number(res.reward_points) || 0,
+        rewardMoney: basePrice * Number(res.reward_points) || 0,
       };
     }
 
@@ -458,46 +545,46 @@ export class UsersService {
 
 
   // ** Update user
-async updateUser(id: number, updateUserDto: UpdateUserDto) {
-  if (!id) {
-    throw new NotFoundException('User id not found');
-  }
+  async updateUser(id: number, updateUserDto: UpdateUserDto) {
+    if (!id) {
+      throw new NotFoundException('User id not found');
+    }
 
-  const user = await this.prisma.user.findUnique({
-    where: { id },
-    include: { raiderProfile: true },
-  });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: { raiderProfile: true },
+    });
 
-  if (!user) {
-    throw new NotFoundException('User not found');
-  }
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
-  const { raider, ...userData } = updateUserDto;
+    const { raider, ...userData } = updateUserDto;
 
-  return await this.prisma.user.update({
-    where: { id },
-    data: {
-      ...userData,
+    return await this.prisma.user.update({
+      where: { id },
+      data: {
+        ...userData,
 
-      ...(raider && {
-        raiderProfile: user.raiderProfile
-          ? {
+        ...(raider && {
+          raiderProfile: user.raiderProfile
+            ? {
               update: {
                 rank: raider.rank,
               },
             }
-          : {
+            : {
               create: {
                 rank: raider.rank,
               },
             },
-      }),
-    },
-    include:{
-       raiderProfile:true
-    }
-  });
-}
+        }),
+      },
+      include: {
+        raiderProfile: true
+      }
+    });
+  }
 
 
 
@@ -679,7 +766,7 @@ async updateUser(id: number, updateUserDto: UpdateUserDto) {
         data: {
           userId: user.id,
           type: CoinHistoryType.ACCUMULATION,
-          role_triggered:CoinEvent.FIRST_SIGNUP,
+          role_triggered: CoinEvent.FIRST_SIGNUP,
           coin_acc_amount: Number(coin?.coin_amount) || 0,
         }
       })
