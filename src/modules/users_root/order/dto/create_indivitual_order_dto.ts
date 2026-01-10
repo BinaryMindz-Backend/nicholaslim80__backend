@@ -7,12 +7,11 @@ import {
   ValidateNested,
   IsDate,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import {
   RouteType,
   DeliveryTypeName,
   CollectTime,
-  PayType,
 } from '@prisma/client';
 import { CreateDestinationDto } from '../../destination/dto/create-destination.dto';
 import { Type } from 'class-transformer';
@@ -62,20 +61,20 @@ export class CreateIndiOrderDto {
   // @IsOptional()
   // is_promo_used?: boolean;
 
-  @ApiProperty({ example: false })
-  @IsBoolean()
-  @IsOptional()
-  notify_favorite_raider?: boolean;
+  // @ApiProperty({ example: false })
+  // @IsBoolean()
+  // @IsOptional()
+  // notify_favorite_raider?: boolean;
 
-  @ApiPropertyOptional({ example: 2 })
-  @IsInt()
-  @IsOptional()
-  payment_method_id?: number;
+  // @ApiPropertyOptional({ example: 2 })
+  // @IsInt()
+  // @IsOptional()
+  // payment_method_id?: number;
    
-  @ApiPropertyOptional({ enum: PayType, default: PayType.COD })
-  @IsEnum(PayType)
-  @IsOptional()
-  pay_type: PayType ;
+  // @ApiPropertyOptional({ enum: PayType, default: PayType.COD })
+  // @IsEnum(PayType)
+  // @IsOptional()
+  // pay_type: PayType ;
 
   // @ApiProperty({ example: ["link1", "link2"] })
   // @IsOptional()
