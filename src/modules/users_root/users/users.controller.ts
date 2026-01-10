@@ -40,20 +40,20 @@ export class UsersController {
 
 
   // ** Get all
-    @Get()
-    @Auth()
-    @RequirePermission(Module.USER, Permission.READ)
-    @ApiBearerAuth()
-    @ApiOperation({ summary: 'Get all users (with filters & pagination)' })
-    @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
-    async findAllUsers(@Query() filterDto: UserFilterDto) {
-      try {
-        const users = await this.usersService.findAllUsers(filterDto);
-        return ApiResponses.success(users, 'Users retrieved successfully');
-      } catch (err) {
-        return ApiResponses.error(err, 'Failed to fetch users');
-      }
+  @Get()
+  @Auth()
+  @RequirePermission(Module.USER, Permission.READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all users (with filters & pagination)' })
+  @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
+  async findAllUsers(@Query() filterDto: UserFilterDto) {
+    try {
+      const users = await this.usersService.findAllUsers(filterDto);
+      return ApiResponses.success(users, 'Users retrieved successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch users');
     }
+  }
 
 
   //  TODO:need to verify by role currently hold
@@ -183,9 +183,8 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async activeStatusChange(
 
-    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE })) id: number) 
-    {
-      try {
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE })) id: number) {
+    try {
       const updatedUser = await this.usersService.activeStatusChange(id);
       return ApiResponses.success(updatedUser, 'User active updated successfully');
     } catch (err) {
@@ -254,7 +253,7 @@ export class UsersController {
     }
   }
 
-    // admin create role user 
+  // admin create role user 
   @Post('admin/custom-role-user')
   @Auth()
   @RequirePermission(Module.USER, Permission.CREATE)
