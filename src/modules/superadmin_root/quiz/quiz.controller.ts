@@ -68,7 +68,7 @@ export class QuizController {
   @Get('active')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.QUIZ, Permission.READ)
+  @RequirePermission(Module.QUIZ, Permission.GET_ONE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get active quiz' })
   @ApiResponse({ status: 200, description: 'Return active quiz' })
