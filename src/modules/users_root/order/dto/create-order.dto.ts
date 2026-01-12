@@ -18,7 +18,7 @@ export class CreateOrderDto {
   @IsEnum(RouteType)
   route_type: RouteType;
 
-  @ApiProperty({example:false})
+  @ApiProperty({ example: false })
   @IsBoolean()
   @IsOptional()
   isFixed: boolean;
@@ -31,7 +31,7 @@ export class CreateOrderDto {
   @IsInt()
   vehicle_type_id: number;
 
-  @ApiProperty({enum:CollectTime, default: CollectTime.ASAP })
+  @ApiProperty({ enum: CollectTime, default: CollectTime.ASAP })
   @IsEnum(CollectTime)
   collect_time: CollectTime;
 
@@ -64,5 +64,5 @@ export class CreateOrderDto {
   // @IsInt()
   // @IsOptional()
   // payment_method_id?: number;
-   
+
 }

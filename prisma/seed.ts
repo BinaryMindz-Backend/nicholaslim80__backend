@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 // DEFINE YOUR MODULES (Add new modules here)
 export enum Module {
-  DASHBOARD="dashboard",
+  DASHBOARD = "dashboard",
   USER = 'user',
   RAIDER = "raider",
   ORDER = 'order',
@@ -34,6 +34,7 @@ export enum Module {
   PAYMENT_METHOD = "payment_method",
   // referral module
   REFERRAL = "referral",
+  FAQ = "faq",
 
 }
 
@@ -56,7 +57,7 @@ enum Permission {
   GET_ORDER_DETAILS = 'get_order_details',
   ADD_DESTINATION_TO_ORDER = 'add_destination_to_order',
   CANCEL_ORDER = 'cancel_order',
-  DECLINE_ORDER="DECLINE_ORDER",
+  DECLINE_ORDER = "DECLINE_ORDER",
 
   // admin
   ORDER_READ_MINE = 'order_read_mine',
@@ -240,7 +241,11 @@ const ROLE_PERMISSIONS = {
     { module: Module.REFERRAL, action: Permission.READ },
     { module: Module.REFERRAL, action: Permission.DELETE },
     { module: Module.REFERRAL, action: Permission.UPDATE },
-
+    //  faq
+    { module: Module.FAQ, action: Permission.CREATE },
+    { module: Module.FAQ, action: Permission.READ },
+    { module: Module.FAQ, action: Permission.DELETE },
+    { module: Module.FAQ, action: Permission.UPDATE },
 
     // RBAC MODULE
     { module: Module.RBAC, action: Permission.CREATE },
@@ -283,6 +288,10 @@ const ROLE_PERMISSIONS = {
     { module: Module.QUIZ, action: Permission.GET_ONE },
     // wallet module
     { module: Module.WALLET, action: Permission.READ },
+    // faq
+    { module: Module.FAQ, action: Permission.READ },
+    // content management
+    { module: Module.CONTENT_MANAGEMENT, action: Permission.READ },
 
 
   ],
@@ -317,6 +326,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.ADVERTISEMENT, action: Permission.READ },
     // notification
     { module: Module.NOTIFICATION, action: Permission.READ },
+    // 
+    { module: Module.CONTENT_MANAGEMENT, action: Permission.READ },
 
 
     //sub module
@@ -337,6 +348,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.REFERRAL, action: Permission.UPDATE },
     // coin module
     { module: Module.COIN, action: Permission.REEDOM_COIN },
+    // 
+    { module: Module.FAQ, action: Permission.READ },
 
   ],
 };

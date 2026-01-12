@@ -1,5 +1,5 @@
 export enum Module {
-  DASHBOARD="dashboard",
+  DASHBOARD = "dashboard",
   USER = 'user',
   RAIDER = "raider",
   ORDER = 'order',
@@ -19,6 +19,7 @@ export enum Module {
   CUSTOMER_ORDER_CONFIRMATION = "customer_order_confirmation",
   ORDER_PLACEMENT = "order_placement",
   RBAC = "rbac",
+  FAQ = "faq",
   //DESTINATION
   DESTINATION = 'destination',
   // my raider
@@ -51,7 +52,7 @@ export enum Permission {
   GET_ORDER_DETAILS = 'get_order_details',
   ADD_DESTINATION_TO_ORDER = 'add_destination_to_order',
   CANCEL_ORDER = 'cancel_order',
-  DECLINE_ORDER="DECLINE_ORDER",
+  DECLINE_ORDER = "DECLINE_ORDER",
   // admin
   ORDER_READ_MINE = 'order_read_mine',
   // my raider
@@ -61,7 +62,7 @@ export enum Permission {
   ORDER_READ_FEED = "order_read_feed",
   // my raider
   READ_ADMIN_MY_RAIDER = 'read_admin_my_raider',
-    
+
   //raider specific
   ONLINE_STATUS_UPDATE = "online_status_update",
 
