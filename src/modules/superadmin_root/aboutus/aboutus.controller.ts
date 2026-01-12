@@ -3,12 +3,19 @@ import { AboutusService } from './aboutus.service';
 import { CreateAboutusDto } from './dto/create-aboutus.dto';
 import { UpdateAboutusDto } from './dto/update-aboutus.dto';
 import { ApiResponses } from 'src/common/apiResponse';
+import { Auth } from 'src/decorators/auth.decorator';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Controller('aboutus')
 export class AboutusController {
   constructor(private readonly aboutusService: AboutusService) { }
 
   @Post()
+  @Auth()
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.CREATE)
+  @ApiBearerAuth()
   async create(@Body() createAboutusDto: CreateAboutusDto) {
     try {
       const data = await this.aboutusService.create(createAboutusDto);
@@ -19,6 +26,9 @@ export class AboutusController {
   }
 
   @Get()
+  @Auth()
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.READ)
+  @ApiBearerAuth()
   async findAll() {
     try {
       const data = await this.aboutusService.findAll();
@@ -29,6 +39,9 @@ export class AboutusController {
   }
 
   @Patch('changeStatus/:id')
+  @Auth()
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.UPDATE)
+  @ApiBearerAuth()
   async changeStatus(@Param('id') id: string) {
     try {
       await this.aboutusService.changeStatus(+id);
@@ -39,6 +52,9 @@ export class AboutusController {
   }
 
   @Patch(':id')
+  @Auth()
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.UPDATE)
+  @ApiBearerAuth()
   async update(@Param('id') id: string, @Body() updateAboutusDto: UpdateAboutusDto) {
     try {
       const data = await this.aboutusService.update(+id, updateAboutusDto);
@@ -49,6 +65,9 @@ export class AboutusController {
   }
 
   @Delete(':id')
+  @Auth()
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.DELETE)
+  @ApiBearerAuth()
   async remove(@Param('id') id: string) {
     try {
       const data = await this.aboutusService.remove(+id);
