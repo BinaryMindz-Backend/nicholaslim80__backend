@@ -9,6 +9,11 @@ export class CreateDestinationDto {
   @IsString()
   address?: string;
 
+  @ApiProperty({ example: '12345' })
+  @IsOptional()
+  @IsString()
+  postal_code?: string;
+
   @ApiProperty({ example: 'addressFromApr' })
   @IsOptional()
   @IsString()
