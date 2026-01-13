@@ -1,12 +1,17 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { CollectTime, DeliveryTypeName, RouteType } from "@prisma/client";
-import { IsDateString, IsEnum, IsNumber, IsOptional } from "class-validator";
+import { IsBoolean, IsDateString, IsEnum, IsNumber, IsOptional } from "class-validator";
 
 export class UpdateOrderDetailsDto {
   @ApiPropertyOptional({ enum: DeliveryTypeName })
   @IsEnum(DeliveryTypeName)
   @IsOptional()
   delivery_type?: DeliveryTypeName;
+
+  @ApiPropertyOptional({ example: false })
+  @IsBoolean()
+  @IsOptional()
+  isFixed?: boolean;
 
   @ApiPropertyOptional({ example: 1 })
   @IsNumber()
@@ -18,7 +23,7 @@ export class UpdateOrderDetailsDto {
   @IsOptional()
   route_type?: RouteType;
 
-  @ApiPropertyOptional({enum:CollectTime, default: CollectTime.ASAP })
+  @ApiPropertyOptional({ enum: CollectTime, default: CollectTime.ASAP })
   @IsOptional()
   @IsEnum(CollectTime)
   collect_time?: CollectTime;
