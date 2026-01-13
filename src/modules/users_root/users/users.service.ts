@@ -332,8 +332,295 @@ export class UsersService {
   }
 
 
+  async findAllWebPortalUsers(filterDto: UserFilterDto) {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      sortBy = 'created_at',
+      sortOrder = 'desc',
+      dateFilter
+    } = filterDto;
 
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
 
+    const where: any = {};
+
+    // ==========================
+    if (status) {
+      switch (status) {
+        case UserStatusFilter.ACTIVE:
+          where.is_active = true;
+          break;
+        case UserStatusFilter.VERIFIED:
+          where.is_verified = true;
+          break;
+        case UserStatusFilter.DELETED:
+          where.is_deleted = true;
+          break;
+        case UserStatusFilter.ALL:
+          break;
+      }
+    }
+
+    // DATE FILTER
+
+    if (dateFilter) {
+      const now = new Date();
+
+      switch (dateFilter) {
+        case 'today':
+          where.created_at = {
+            gte: startOfDay(now),
+            lte: endOfDay(now),
+          };
+          break;
+
+        case 'yesterday': {
+          const yStart = startOfDay(subDays(now, 1));
+          const yEnd = endOfDay(subDays(now, 1));
+          where.created_at = {
+            gte: yStart,
+            lte: yEnd,
+          };
+          break;
+        }
+
+        case 'last_7_days':
+          where.created_at = {
+            gte: subDays(now, 7),
+          };
+          break;
+
+        case 'last_30_days':
+          where.created_at = {
+            gte: subDays(now, 30),
+          };
+          break;
+
+        case 'last_month': {
+          const firstDayPrevMonth = startOfMonth(subMonths(now, 1));
+          const lastDayPrevMonth = endOfMonth(subMonths(now, 1));
+          where.created_at = {
+            gte: firstDayPrevMonth,
+            lte: lastDayPrevMonth,
+          };
+          break;
+        }
+      }
+    }
+
+    // SAFE SORTING
+    const allowedSortFields = [
+      'created_at',
+      'username',
+      'email',
+      'phone',
+      'is_active',
+      'is_verified'
+    ];
+
+    const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'created_at';
+    const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
+
+    // FETCH USERS
+
+    const users = await this.prisma.user.findMany({
+      where,
+      skip,
+      take,
+      include: {
+        role: true,
+      },
+      orderBy: { [safeSortBy]: safeSortOrder },
+    });
+    // 
+    const userIds = users.map(u => u.id);
+
+    // AGGREGATION
+
+    const aggregated = await this.prisma.order.groupBy({
+      by: ['userId'],
+      where: {
+        userId: { in: userIds }
+      },
+      _count: { id: true },
+      _sum: { total_cost: true }
+    });
+
+    const result = users.map(u => {
+      const stat = aggregated.find(a => a.userId === u.id);
+      return {
+        id: u.id,
+        name: u.username,
+        contactNum: u.phone,
+        contactEmail: u.email,
+        totalOrders: stat?._count?.id ?? 0,
+        totalCost: stat?._sum?.total_cost ?? 0,
+        joiningDate: u.created_at,
+        activeStatus: u.is_active,
+        is_verified: u.is_verified,
+        is_deleted: u.is_deleted,
+        role: u.role.name
+      };
+    });
+
+    const total = await this.prisma.user.count({ where });
+
+    return {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      data: result
+    };
+  }
+
+  // 
+
+  async findAllOnlyUsers(filterDto: UserFilterDto) {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      sortBy = 'created_at',
+      sortOrder = 'desc',
+      dateFilter
+    } = filterDto;
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+
+    const where: any = { role: { name: UserRole.USER } };
+
+    // ==========================
+    if (status) {
+      switch (status) {
+        case UserStatusFilter.ACTIVE:
+          where.is_active = true;
+          break;
+        case UserStatusFilter.VERIFIED:
+          where.is_verified = true;
+          break;
+        case UserStatusFilter.DELETED:
+          where.is_deleted = true;
+          break;
+        case UserStatusFilter.ALL:
+          break;
+      }
+    }
+
+    // DATE FILTER
+
+    if (dateFilter) {
+      const now = new Date();
+
+      switch (dateFilter) {
+        case 'today':
+          where.created_at = {
+            gte: startOfDay(now),
+            lte: endOfDay(now),
+          };
+          break;
+
+        case 'yesterday': {
+          const yStart = startOfDay(subDays(now, 1));
+          const yEnd = endOfDay(subDays(now, 1));
+          where.created_at = {
+            gte: yStart,
+            lte: yEnd,
+          };
+          break;
+        }
+
+        case 'last_7_days':
+          where.created_at = {
+            gte: subDays(now, 7),
+          };
+          break;
+
+        case 'last_30_days':
+          where.created_at = {
+            gte: subDays(now, 30),
+          };
+          break;
+
+        case 'last_month': {
+          const firstDayPrevMonth = startOfMonth(subMonths(now, 1));
+          const lastDayPrevMonth = endOfMonth(subMonths(now, 1));
+          where.created_at = {
+            gte: firstDayPrevMonth,
+            lte: lastDayPrevMonth,
+          };
+          break;
+        }
+      }
+    }
+
+    // SAFE SORTING
+    const allowedSortFields = [
+      'created_at',
+      'username',
+      'email',
+      'phone',
+      'is_active',
+      'is_verified'
+    ];
+
+    const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'created_at';
+    const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
+
+    // FETCH USERS
+
+    const users = await this.prisma.user.findMany({
+      where,
+      skip,
+      take,
+      include: {
+        role: true,
+      },
+      orderBy: { [safeSortBy]: safeSortOrder },
+    });
+
+    const userIds = users.map(u => u.id);
+
+    // AGGREGATION
+
+    const aggregated = await this.prisma.order.groupBy({
+      by: ['userId'],
+      where: {
+        userId: { in: userIds }
+      },
+      _count: { id: true },
+      _sum: { total_cost: true }
+    });
+
+    const result = users.map(u => {
+      const stat = aggregated.find(a => a.userId === u.id);
+      return {
+        id: u.id,
+        name: u.username,
+        contactNum: u.phone,
+        contactEmail: u.email,
+        totalOrders: stat?._count?.id ?? 0,
+        totalCost: stat?._sum?.total_cost ?? 0,
+        joiningDate: u.created_at,
+        activeStatus: u.is_active,
+        is_verified: u.is_verified,
+        is_deleted: u.is_deleted,
+        role: u.role.name
+      };
+    });
+
+    const total = await this.prisma.user.count({ where });
+
+    return {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      data: result
+    };
+  }
 
   // ** Get user by ID
   async findOneuser(id: number) {

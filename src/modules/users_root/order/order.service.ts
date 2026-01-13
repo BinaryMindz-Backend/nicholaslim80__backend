@@ -1003,7 +1003,7 @@ export class OrderService {
         returnFactor: 0.5,
       },
     );
-
+    console.log(receiversWithPrice,)
     const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
     const totalFee = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalFee, 0);
     const totalDistance = receiversWithPrice.reduce((sum, r) => sum + r.distanceKm, 0);
