@@ -32,16 +32,20 @@ export class DestinationService {
 
     const isExist = await this.prisma.destination.findFirst({
       where: {
-        OR: [
-          { latitude: geo.lat },
-          { longitude: geo.lng },
-        ],
-        userId: user?.id
+        latitude: geo.lat,
+        longitude: geo.lng,
+        userId: user?.id,
+        floor_unit: dto.floor_unit,
+        contact_name: dto.contact_name,
+        contact_number: dto.contact_number
       }
     })
 
     if (isExist) {
-      throw new ConflictException("Destination is already exists")
+      return {
+        message: "Destination is already exists",
+        data: isExist,
+      }
     }
     const result = await this.prisma.destination.create({
       data: {
@@ -70,10 +74,11 @@ export class DestinationService {
       })
     }
 
-
-
     // 
-    return result
+    return {
+      message: "Destination is created successfully",
+      result
+    }
   }
   // 
 
