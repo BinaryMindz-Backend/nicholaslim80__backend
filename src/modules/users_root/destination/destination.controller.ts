@@ -45,9 +45,9 @@ export class DestinationController {
   async create(@Body() dto: CreateDestinationDto, @CurrentUser() user: IUser) {
     try {
       const result = await this.service.create(dto, user);
-      return ApiResponses.success(result, 'Destination created successfully');
+      return ApiResponses.success(result);
     } catch (err) {
-      return ApiResponses.error(err, 'Destination creation failed');
+      return ApiResponses.error(err);
     }
   }
 
