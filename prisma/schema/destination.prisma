@@ -2,6 +2,7 @@ model Destination {
   id                 Int       @id @default(autoincrement())
   address            String?  
   addressFromApr     String?
+  postal_code        String?
   floor_unit         String?   @db.VarChar(100)
   contact_name       String?   @db.VarChar(100)
   contact_number     String?   @db.VarChar(20)

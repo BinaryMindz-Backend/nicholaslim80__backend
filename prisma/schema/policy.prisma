@@ -2,6 +2,7 @@ model Policy {
   id                         Int       @id @default(autoincrement())
   title                      String    @db.VarChar(255) 
   desc                       String    
+  faq_for   UserRole @default(USER)
   isPublist                  Boolean @default(true) 
   created_at                 DateTime  @default(now())
   updated_at                 DateTime  @updatedAt

@@ -117,44 +117,44 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to remove destination from order');
     }
   }
-    // update order details
-    @Patch(':order_id/update-details')
-    @Auth()
-    @ApiBearerAuth()
-    @RequirePermission(Module.ORDER, Permission.CREATE)
-    async updateOrderDetails(
-      @Param('order_id', ParseIntPipe) orderId: number,
-      @CurrentUser() user: IUser,
-      @Body() dto: UpdateOrderDetailsDto,
-    ) {
-      const order = await this.orderService.updateOrderDetails(orderId, user.id, dto);
-      return ApiResponses.success(order, 'Order updated and price recalculated');
-    }
-  
-    // 
-    @Post(':order_id/apply-discount')
-    @Auth()
-    @ApiBearerAuth()
-    @RequirePermission(Module.ORDER, Permission.CREATE)
-    async applyDiscount(
-      @Param('order_id', ParseIntPipe) orderId: number,
-      @CurrentUser() user: IUser,
-      @Body() dto: ApplyDiscountDto,
-    ) {
-      const order = await this.orderService.applyDiscount(orderId, user.id, dto);
-      return ApiResponses.success(order, 'Discount applied successfully');
-    }
+  // update order details
+  @Patch(':order_id/update-details')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER, Permission.CREATE)
+  async updateOrderDetails(
+    @Param('order_id', ParseIntPipe) orderId: number,
+    @CurrentUser() user: IUser,
+    @Body() dto: UpdateOrderDetailsDto,
+  ) {
+    const order = await this.orderService.updateOrderDetails(orderId, user.id, dto);
+    return ApiResponses.success(order, 'Order updated and price recalculated');
+  }
 
-    @Delete(':order_id/remove-discount')
-    @Auth()
-    @RequirePermission(Module.ORDER, Permission.CREATE)
-    async removeDiscount(
-      @Param('order_id', ParseIntPipe) orderId: number,
-      @CurrentUser() user: IUser,
-    ) {
-      const order = await this.orderService.removeDiscount(orderId, user.id);
-      return ApiResponses.success(order, 'Discount removed');
-    }
+  // 
+  @Post(':order_id/apply-discount')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER, Permission.CREATE)
+  async applyDiscount(
+    @Param('order_id', ParseIntPipe) orderId: number,
+    @CurrentUser() user: IUser,
+    @Body() dto: ApplyDiscountDto,
+  ) {
+    const order = await this.orderService.applyDiscount(orderId, user.id, dto);
+    return ApiResponses.success(order, 'Discount applied successfully');
+  }
+
+  @Delete(':order_id/remove-discount')
+  @Auth()
+  @RequirePermission(Module.ORDER, Permission.CREATE)
+  async removeDiscount(
+    @Param('order_id', ParseIntPipe) orderId: number,
+    @CurrentUser() user: IUser,
+  ) {
+    const order = await this.orderService.removeDiscount(orderId, user.id);
+    return ApiResponses.success(order, 'Discount removed');
+  }
 
 
   // PLACE ORDER (Lock & Configure Payment)
@@ -175,7 +175,7 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to place order');
     }
   }
-  
+
   @Post(':order_id/notify-rider')
   @Auth()
   @ApiBearerAuth()
@@ -315,7 +315,7 @@ export class OrderController {
       return ApiResponses.error(message, statusCode);
     }
   }
-   
+
 
   // create bulk order
   @Post('orders/bulk')

@@ -1,6 +1,7 @@
 model article {
   id        Int      @id @default(autoincrement())
   title     String
+  faq_for   UserRole @default(USER)
   content   String
   published Boolean  @default(false)
   createdAt DateTime @default(now())

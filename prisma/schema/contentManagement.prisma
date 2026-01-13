@@ -1,6 +1,7 @@
 model ContentManagement {
     id          Int                   @id @default(autoincrement())
     contenttype ContentManagementType
+    faq_for   UserRole @default(USER)
     description String
     isPublished Boolean
     version     Int?
