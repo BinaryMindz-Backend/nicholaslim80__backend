@@ -56,6 +56,38 @@ export class UsersController {
   }
 
 
+  // 
+  @Get("web-portal")
+  @Auth()
+  @RequirePermission(Module.USER, Permission.READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all web portal users (with filters & pagination)' })
+  @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
+  async findAllWebPortalUsers(@Query() filterDto: UserFilterDto) {
+    try {
+      const users = await this.usersService.findAllWebPortalUsers(filterDto);
+      return ApiResponses.success(users, 'Users retrieved successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch users');
+    }
+  }
+  // 
+  @Get("only-users")
+  @Auth()
+  @RequirePermission(Module.USER, Permission.READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all only users (with filters & pagination)' })
+  @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
+  async findAllOnlyUsers(@Query() filterDto: UserFilterDto) {
+    try {
+      const users = await this.usersService.findAllOnlyUsers(filterDto);
+      return ApiResponses.success(users, 'Users retrieved successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch users');
+    }
+  }
+
+
   //  TODO:need to verify by role currently hold
   // add money to wallet 
   // @Patch('add-money')
