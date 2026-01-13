@@ -1,7 +1,7 @@
-import { ContentManagementType } from '@prisma/client';
+import { ContentManagementType, UserRole } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
-import { Type } from 'class-transformer'; 
+import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateContentManagementDto {
   @ApiProperty({
@@ -11,6 +11,10 @@ export class CreateContentManagementDto {
   })
   @IsEnum(ContentManagementType)
   contenttype: ContentManagementType;
+
+  @ApiProperty({ example: 'USER' })
+  @IsNotEmpty()
+  faq_for: UserRole;
 
   @ApiProperty({
     example: 'This is the About Us description.',
