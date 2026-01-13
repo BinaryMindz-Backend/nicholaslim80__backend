@@ -364,6 +364,7 @@ export class OrderService {
     // Track if price needs recalculation
     const needsRecalculation =
       dto.delivery_type !== undefined ||
+      dto.isFixed !== undefined ||
       dto.vehicle_type_id !== undefined ||
       dto.route_type !== undefined ||
       dto.scheduled_time !== undefined;
@@ -373,6 +374,7 @@ export class OrderService {
       where: { id: orderId },
       data: {
         ...(dto.delivery_type && { delivery_type: dto.delivery_type }),
+        ...(dto.isFixed && { isFixed: dto.isFixed }),
         ...(dto.route_type && { route_type: dto.route_type }),
         ...(dto.collect_time && { collect_time: dto.collect_time }),
         ...(dto.scheduled_time && { scheduled_time: dto.scheduled_time }),
