@@ -491,7 +491,7 @@ export class UsersService {
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
-    const where: any = { role: { name: UserRole.USER } };
+    const where: any = { role: { name: UserRole.USER }, regi_status: LoginType.DIRECT_SIGNIN };
 
     // ==========================
     if (status) {
