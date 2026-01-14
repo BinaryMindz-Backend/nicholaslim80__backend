@@ -676,5 +676,20 @@ export class OrderController {
     return ApiResponses.success(result, 'Order declined successfully');
   }
   // 
+  // order decline from feed
+  @Post('followed-rider/order/:orderId')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER, Permission.DECLINE_ORDER)
+  @ApiOperation({ summary: 'Followed order (raider only)' })
+  async followedRiderOrder(
+    @Param('orderId') orderId: string
+  ) {
+
+    const result = await this.orderService.followedRiderOrder(Number(orderId));
+
+    return ApiResponses.success(result, 'Followed order successfully');
+  }
+
 
 }
