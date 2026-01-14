@@ -6,6 +6,9 @@ import { Auth } from 'src/decorators/auth.decorator';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
+import { UserRole } from '@prisma/client';
 
 @Controller('faq')
 export class FaqController {
@@ -28,6 +31,18 @@ export class FaqController {
   async findAll() {
     return await this.faqService.findAll();
   }
+  // 
+  @Get("faqs-by-role")
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all FAQs' })
+  @RequirePermission(Module.FAQ, Permission.READ)
+  async findByRole(@CurrentUser() user: IUser) {
+    return await this.faqService.findByRole(user);
+  }
+
+
+
 
   @Patch('change-status/:id')
   @Auth()
