@@ -139,8 +139,8 @@ export class UsersService {
       await this.emailQueueService.queuePushNotification({
         userId: result.id,
         fcmToken: result.fcmToken,
-        title: 'Welcome to NodeNINJAr!',
-        body: `Hello ${result.username ?? 'User'}, welcome!`,
+        title: 'Welcome to Zipbee!',
+        body: `Hello ${result.username ?? 'User'}, welcome to Zipbee!`,
       });
     }
 

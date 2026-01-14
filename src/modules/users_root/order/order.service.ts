@@ -2226,7 +2226,7 @@ export class OrderService {
       // console.log(updated,updated.compititor_id.length === 1, raider );
       // Start competition only once
       if (
-        updated.compititor_id.length === 1 &&
+        updated.compititor_id.length === 2 &&
         !updated.competition_started_at
       ) {
         await this.prisma.order.update({
