@@ -3,6 +3,8 @@ import { CreateFaqDto } from './dto/create-faq.dto';
 import { UpdateFaqDto } from './dto/update-faq.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { ApiResponses } from 'src/common/apiResponse';
+import { UserRole } from '@prisma/client';
+import { IUser } from 'src/types';
 
 @Injectable()
 export class FaqService {
@@ -27,6 +29,25 @@ export class FaqService {
     const data = await this.prisma.fAQ.findMany();
     return ApiResponses.success(data, 'FAQs retrieved successfully');
   }
+
+  //  
+  async findByRole(filters: IUser) {
+    return await this.prisma.fAQ.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { faq_for: filters.role.name as UserRole },
+          { faq_for: UserRole.USER }, // USER sees common FAQs
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+
+
+
+
 
   async findOne(id: number) {
     const ids = await this.prisma.fAQ.findUnique({
