@@ -3058,6 +3058,47 @@ export class OrderService {
     }
   }
 
+  // sent notification to followed rider
+  async followedRiderOrder(orderId: number) {
+    // find order
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) return;
+
+    // find fav riders
+    const favRaiders = await this.prisma.myRaider.findMany({
+      where: {
+        user_id: order.userId!,
+        is_fav: true,
+
+      }
+    });
+    if (!favRaiders) return;
+
+    // find sender
+    const sender = await this.prisma.user.findUnique({ where: { id: order.userId! } });
+    if (!sender) return;
+
+    // send notification to each rider
+    favRaiders.map((rider) => rider.id).forEach(async (riderId) => {
+      const rider = await this.prisma.user.findFirst({
+        where: {
+          id: riderId
+        }
+      });
+      if (!rider) return;
+
+      await this.emailQueueService.queuePushNotification({
+        userId: rider.id,
+        fcmToken: rider.fcmToken!,
+        title: 'Incoming Order',
+        body: `You have a new order from your follower ${sender.username} orderID: ${order.id}`,
+      });
+    })
+
+  }
+
+
+
   // 
   async getActiveOrderByRider(riderId: number) {
     return await this.prisma.order.findFirst({
