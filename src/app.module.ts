@@ -55,6 +55,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { SnapshotService } from './modules/superadmin_root/cron/snapshot.service';
 import { RaiderModule } from './modules/raider_root/raider gateways/raider.module';
 import { PrismaService } from './core/database/prisma.service';
+import { TipModule } from './modules/users_root/tip/tip.module';
+
 
 @Module({
   imports: [
@@ -67,7 +69,7 @@ import { PrismaService } from './core/database/prisma.service';
         DATABASE_URL: Joi.string().required(),
       }),
     }),
-     BullModule.forRoot({
+    BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT as string) || 6379,
@@ -120,7 +122,8 @@ import { PrismaService } from './core/database/prisma.service';
     ReportAndAnalyticsModule,
     RaiderRankModule,
     QueueModule,
-    RaiderModule
+    RaiderModule,
+    TipModule,
 
 
   ],

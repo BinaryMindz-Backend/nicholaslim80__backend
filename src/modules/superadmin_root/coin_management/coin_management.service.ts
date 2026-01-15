@@ -5,13 +5,16 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { IUser } from 'src/types';
 import { CreateCoinDto } from './dto/create-coin_management.dto';
 import { CoinEvent, CoinHistoryType, UserRole } from '@prisma/client';
+import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 
 @Injectable()
 export class CoinManagementService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService,
+    private readonly emailQueueService: EmailQueueService
+  ) { }
 
   // 
-  async create(   createCoinDto: CreateCoinDto) {
+  async create(createCoinDto: CreateCoinDto) {
     // 
     const dataExist = await this.prisma.coin.findFirst({
       where: {
@@ -27,12 +30,12 @@ export class CoinManagementService {
     }
     // 
     const data = await this.prisma.coin.create({
-      data:createCoinDto
+      data: createCoinDto
     });
     // 
     return data;
   }
-  
+
   // 
   async findAll() {
     const data = await this.prisma.coin.findMany()
@@ -48,8 +51,8 @@ export class CoinManagementService {
         role: {
           name: UserRole.USER,
         },
-        total_coin_acc:{
-            gt:0
+        total_coin_acc: {
+          gt: 0
         },
         ...(userId && { id: userId }),
         ...(username && {
@@ -139,7 +142,7 @@ export class CoinManagementService {
     });
 
     // ---------------- Record Coin History ----------------
-    await this.prisma.coinHistory.create({
+    const data = await this.prisma.coinHistory.create({
       data: {
         userId: user.id,
         role_triggered: CoinEvent.COMPLETED_ORDER, // example role, or your own context
@@ -147,14 +150,22 @@ export class CoinManagementService {
         type: CoinHistoryType.APPLICATION, // spending
       },
     });
-
+    //  SEND NOTIFICATION
+    if (data && userRecord.fcmToken) {
+      await this.emailQueueService.queuePushNotification({
+        userId: user.id,
+        fcmToken: userRecord.fcmToken,
+        title: "Coin Redeemed",
+        body: "You have redeemed " + coinAmount + " coins",
+      })
+    }
     return {
       updatedUser,
       redeemedAmountInCent: coinAmount * basePrice,
     };
   }
 
-   
+
   // 
   async basePrice() {
     const result = await this.prisma.coin.aggregate({
@@ -167,6 +178,60 @@ export class CoinManagementService {
 
     return avgPrice;
   }
+
+
+  async collectCoin(userId: number, coinAmount: number) {
+
+    const userExit = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!userExit) throw new NotFoundException('User not found');
+    // 
+    const coinExit = await this.prisma.coin.findFirst({
+      where: {
+        key: "ORDER_PLACED"
+      }
+    })
+    if (!coinExit) throw new NotFoundException('Coin not found');
+    // 
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        total_coin_acc: Number(userExit.total_coin_acc) + Number(coinAmount),
+        current_coin_balance: Number(userExit.current_coin_balance) + Number(coinAmount)
+      }
+    })
+    const data = await this.prisma.coinHistory.create({
+      data: {
+        userId: userId,
+        role_triggered: "ORDER_PLACED",
+        coin_acc_amount: coinExit.coin_amount,
+        type: CoinHistoryType.ACCUMULATION,
+      }
+    })
+    //  SEND NOTIFICATION
+    if (data && userExit.fcmToken) {
+      await this.emailQueueService.queuePushNotification({
+        userId: userId,
+        fcmToken: userExit.fcmToken,
+        title: "Coin Accumulated",
+        body: "You have accumulated " + coinExit.coin_amount + " coins",
+      })
+    }
+
+
+
+    return data;
+  }
+
+
+
+
+
+
+
+
+
 
 
   //     await this.prisma.user.update({
@@ -222,22 +287,22 @@ export class CoinManagementService {
   //     return ApiResponses.error(error, 'Failed to fetch coin history');
   //   }
   // }
-     
-   // get coin acc history
-    async coinAccHistory(id: number) {
-      try {
-        const data = await this.prisma.coinHistory.findMany({
-          where: {
-            userId: id
-          },
-          orderBy: {
-            created_at: 'desc',
-          }
-        });
-        return data;
-      } catch (error) {
-        return ApiResponses.error(error, 'Failed to fetch user wallet history');
-      }
+
+  // get coin acc history
+  async coinAccHistory(id: number) {
+    try {
+      const data = await this.prisma.coinHistory.findMany({
+        where: {
+          userId: id
+        },
+        orderBy: {
+          created_at: 'desc',
+        }
+      });
+      return data;
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to fetch user wallet history');
     }
+  }
 
 }
