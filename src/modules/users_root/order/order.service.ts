@@ -1889,6 +1889,7 @@ export class OrderService {
                 current_city: true,
                 current_zip_post_code: true,
                 current_country: true,
+                current_address: true,
               }
             },
             locations: true
