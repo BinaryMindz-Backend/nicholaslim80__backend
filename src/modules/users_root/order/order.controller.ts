@@ -147,6 +147,7 @@ export class OrderController {
 
   @Delete(':order_id/remove-discount')
   @Auth()
+  @ApiBearerAuth()
   @RequirePermission(Module.ORDER, Permission.CREATE)
   async removeDiscount(
     @Param('order_id', ParseIntPipe) orderId: number,
