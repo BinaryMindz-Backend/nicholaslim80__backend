@@ -5,8 +5,8 @@ model Coin {
   coin_amount    Int
   condition      Json?    // dynamic rules
   expire_days    Int?     // optional expiry
-  coin_value_in_cent Int?
-  is_active      Boolean  @default(true)
+  coin_value_in_cent  Decimal   @db.Decimal(10, 2) @default(0.0)
+  is_active            Boolean  @default(true)
   created_at           DateTime     @default(now())
   updated_at           DateTime     @updatedAt
   @@map("coins")

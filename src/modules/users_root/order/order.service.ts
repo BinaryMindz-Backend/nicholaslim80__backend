@@ -2644,6 +2644,7 @@ export class OrderService {
       throw new BadRequestException('Cannot apply discount to placed order');
     }
 
+
     let totalDiscount = 0;
     let coinsUsed = 0;
     let promoDiscount = 0;
@@ -2668,8 +2669,13 @@ export class OrderService {
           },
         });
 
-        const avgPrice = result._avg.coin_value_in_cent ?? 0;
+        const avgPrice = Number(result._avg.coin_value_in_cent ?? 0);
         const coinValue = dto.coinsAmount * avgPrice;
+
+
+        if (Number(order.total_cost) < coinValue) {
+          throw new BadRequestException('Coins amount is greater than order total cost');
+        }
 
         // Deduct coins
         await tx.user.update({
@@ -2746,7 +2752,7 @@ export class OrderService {
   }
 
   // Remove discount
-  async removeDiscount(orderId: number, userId: number) {
+  async removeDiscount(orderId: number, userId: number, type: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId, userId },
     });
@@ -2755,7 +2761,7 @@ export class OrderService {
 
     await this.prisma.$transaction(async (tx) => {
       // Refund coins
-      if (order.coinsRedeemed > 0) {
+      if (order.coinsRedeemed > 0 && type === 'coin') {
         await tx.user.update({
           where: { id: userId },
           data: { current_coin_balance: { increment: order.coinsRedeemed } },
@@ -2763,21 +2769,26 @@ export class OrderService {
       }
 
       // Remove promo usage
-      if (order.promoCode) {
+      if (order.promoCode && type === 'promo') {
         await tx.promaCodeUses.deleteMany({
           where: { orderId },
         });
       }
 
+
+      const discountAmount = type === 'coin' ? Number(order.discountAmount) - Number(order.coinsRedeemed) : Number(order.discountAmount) - Number(order.promoDiscount);
+      const coinsRedeemed = type === 'coin' ? Number(order.coinsRedeemed) - Number(order.coinsRedeemed) : Number(order.coinsRedeemed);
+      const promoDiscount = type === 'promo' ? Number(order.promoDiscount) - Number(order.promoDiscount) : Number(order.promoDiscount);
+
       // Restore original price
       await tx.order.update({
         where: { id: orderId },
         data: {
-          total_cost: order.originalCost || order.total_cost,
-          discountAmount: 0,
-          coinsRedeemed: 0,
-          promoCode: null,
-          promoDiscount: 0,
+          total_cost: order.total_cost,
+          discountAmount: discountAmount,
+          coinsRedeemed: coinsRedeemed,
+          promoCode: type === 'promo' && order.promoCode ? null : order.promoCode,
+          promoDiscount: promoDiscount,
         },
       });
     });

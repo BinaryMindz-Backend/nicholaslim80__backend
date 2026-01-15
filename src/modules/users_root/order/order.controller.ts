@@ -17,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -149,11 +150,15 @@ export class OrderController {
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.ORDER, Permission.CREATE)
+  @ApiOperation({ summary: 'Remove discount from order' })
+  @ApiParam({ name: 'order_id', description: 'Order ID', required: true })
+  @ApiQuery({ name: 'type', description: 'Discount type', required: true, example: 'coin or promo' })
   async removeDiscount(
+    @Query('type') type: string,
     @Param('order_id', ParseIntPipe) orderId: number,
     @CurrentUser() user: IUser,
   ) {
-    const order = await this.orderService.removeDiscount(orderId, user.id);
+    const order = await this.orderService.removeDiscount(orderId, user.id, type);
     return ApiResponses.success(order, 'Discount removed');
   }
 
