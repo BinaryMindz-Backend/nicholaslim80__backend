@@ -12,7 +12,7 @@ import { CoinManagementService } from './coin_management.service';
 import { UpdateCoinManagementDto } from './dto/update-coin_management.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Auth } from 'src/decorators/auth.decorator';
-import { ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
@@ -58,14 +58,29 @@ export class CoinManagementController {
   @Get('base-price')
   @Auth()
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get avg base price'})
+  @ApiOperation({ summary: 'Get avg base price' })
   async basePrice() {
     try {
       // 
       const res = await this.coinManagementService.basePrice();
       return ApiResponses.success(res, 'Get Coin Avg base price Successfully ');
     } catch (error) {
-        return ApiResponses.error(error);
+      return ApiResponses.error(error);
+    }
+  }
+
+  //  
+  @Post('collect-coin')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Collect coin' })
+  async collectCoin(@CurrentUser() user: IUser, @Query('coin') coin: number) {
+    try {
+      // 
+      const res = await this.coinManagementService.collectCoin(+user.id, coin);
+      return ApiResponses.success(res, 'Coin collected successfully ');
+    } catch (error) {
+      return ApiResponses.error(error);
     }
   }
 
@@ -83,12 +98,12 @@ export class CoinManagementController {
     try {
       // 
       const res = await this.coinManagementService.findAllCoinAcc({
-      userId: userId ? Number(userId) : undefined,
-      username,
-    });
+        userId: userId ? Number(userId) : undefined,
+        username,
+      });
       return ApiResponses.success(res, 'Coin Data Get Successfully ');
     } catch (error) {
-        return ApiResponses.error(error);
+      return ApiResponses.error(error);
     }
   }
 

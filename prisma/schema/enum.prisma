@@ -116,6 +116,7 @@ enum TransactionType {
   PROMO
   DISPUTE_REFUND
   DISPUTE_COMPENSATION
+  TIP
 }
 
 enum TransactionStatus {
