@@ -3132,7 +3132,15 @@ export class OrderService {
   }
 
   async getAllActiveOrders() {
-    return await this.prisma.order.findMany({ where: { order_status: OrderStatus.ONGOING } })
+    return await this.prisma.order.findMany({
+      where: { order_status: OrderStatus.ONGOING }, include: {
+        vehicle: {
+          select: {
+            vehicle_type: true,
+          }
+        }
+      }
+    })
 
   }
   // 
