@@ -17,6 +17,7 @@ export class FaqService {
         data: {
           question: createFaqDto.question,
           answer: createFaqDto.answer,
+          faq_for: createFaqDto.faq_for,
         },
       });
       return ApiResponses.success(data, 'FAQ created successfully');

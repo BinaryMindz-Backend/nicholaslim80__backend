@@ -1869,6 +1869,7 @@ export class OrderService {
       where: { id: orderId },
       include: {
         user: true,
+        vehicle: true,
         orderStops: {
           include: {
             destination: true,
@@ -1878,6 +1879,19 @@ export class OrderService {
         },
         assign_rider: {
           include: {
+            registrations: {
+              select: {
+                id: true,
+                raider_name: true,
+                contact_number: true,
+                email_address: true,
+                current_state_province: true,
+                current_city: true,
+                current_zip_post_code: true,
+                current_country: true,
+                current_address: true,
+              }
+            },
             locations: true
           }
         },
