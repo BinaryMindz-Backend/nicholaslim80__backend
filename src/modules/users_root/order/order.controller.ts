@@ -554,9 +554,9 @@ export class OrderController {
     // 
     try {
       const order = await this.orderService.driverCompitition(user, +order_id);
-      return ApiResponses.success(order, 'Order updated successfully');
+      return ApiResponses.success(order, 'Raider join as compitition driver');
     } catch (err) {
-      return ApiResponses.error(err, 'Failed to update order');
+      return ApiResponses.error(err, 'Failed to join as compitition driver');
     }
   }
 
