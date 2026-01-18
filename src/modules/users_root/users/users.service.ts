@@ -462,7 +462,8 @@ export class UsersService {
         activeStatus: u.is_active,
         is_verified: u.is_verified,
         is_deleted: u.is_deleted,
-        role: u.role.name
+        role: u.role.name,
+         regi_status:u.regi_status
       };
     });
 
