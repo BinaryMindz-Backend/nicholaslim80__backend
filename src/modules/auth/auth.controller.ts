@@ -84,7 +84,7 @@ export class AuthController {
     await this.otpService.generateOtp(dto.email, dto.phone);
     return { message: 'OTP Resent for Verifiy' };
   }
-  
+
 
 
 
@@ -105,7 +105,7 @@ export class AuthController {
     await this.otpService.generateOtp(dto.email, dto.phone);
     return { message: 'OTP sent for login' };
   }
-  
+
 
 
   //** */ Verify Login OTP → returns Access + Refresh Tokens
@@ -202,16 +202,16 @@ export class AuthController {
 
 
 
-  
+
   // forgot password 
   @Post('forgot-password')
   @Public()
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     try {
-     const res = await this.authService.forgotPassword( dto.email, dto.phone);
+      const res = await this.authService.forgotPassword(dto.email, dto.phone);
       return ApiResponses.success(res, 'otp send successfully');
     } catch (error) {
-       return ApiResponses.error(error, "Forget Password failed")
+      return ApiResponses.error(error, "Forget Password failed")
     }
   }
 
@@ -229,9 +229,9 @@ export class AuthController {
     // send to verify otp
     try {
       const res = await this.authService.verifyOtpForForgetPass(email, phone, otp);
-      return ApiResponses.success(res,"otp verified successfully")
+      return ApiResponses.success(res, "otp verified successfully")
     } catch (error) {
-        return ApiResponses.error(error,"otp verified error")
+      return ApiResponses.error(error, "otp verified error")
     }
   }
 
@@ -241,26 +241,26 @@ export class AuthController {
   @Public()
   async forgotResetPassword(@Body() dto: ResetPasswordDto) {
     //  
-    try{
-       const res = await this.authService.forgotResetPassword(dto.email,dto.phone, dto.newPassword);
-       return ApiResponses.success(res, 'Reset password successfully');
-    }catch(err){
+    try {
+      const res = await this.authService.forgotResetPassword(dto.email, dto.phone, dto.newPassword);
+      return ApiResponses.success(res, 'Reset password successfully');
+    } catch (err) {
       console.log(err);
-       return ApiResponses.success(err, 'Failed to forget password');
+      return ApiResponses.success(err, 'Failed to forget password');
     }
   }
-    // reset pass
+  // reset pass
   @Post('reset-password')
   @Auth()
   @ApiBearerAuth()
-  async resetPassword(@Body() dto: ResetPasswordDto, @CurrentUser() user:IUser) {
+  async resetPassword(@Body() dto: ResetPasswordDto, @CurrentUser() user: IUser) {
     //  
-    try{
-       const res = await this.authService.resetPassword(user,dto.oldPassword, dto.newPassword);
-       return ApiResponses.success(res, 'Reset password successfully');
-    }catch(err){
+    try {
+      const res = await this.authService.resetPassword(user, dto.oldPassword, dto.newPassword);
+      return ApiResponses.success(res, 'Reset password successfully');
+    } catch (err) {
       console.log(err);
-       return ApiResponses.success(err, 'Failed to forget password');
+      return ApiResponses.success(err, 'Failed to forget password');
     }
   }
 

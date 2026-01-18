@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole } from '@prisma/client';
+import { LoginType, PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -96,7 +96,7 @@ enum Permission {
 
 // DEFAULT PERMISSIONS FOR EACH ROLE
 const ROLE_PERMISSIONS = {
-  [UserRole.SUPER_ADMIN]: [
+  [UserRole.ADMIN]: [
     // DASBOARD
     { module: Module.DASHBOARD, action: Permission.READ },
     // USER module - full access
@@ -362,7 +362,7 @@ async function syncPermissionsForExistingRoles() {
   const roles = await prisma.role.findMany({
     where: {
       name: {
-        in: [UserRole.SUPER_ADMIN, UserRole.USER, UserRole.RAIDER],
+        in: [UserRole.ADMIN, UserRole.USER, UserRole.RAIDER],
       },
     },
     include: {
@@ -463,10 +463,10 @@ async function initialSeed() {
     // 1️⃣ Create SUPER_ADMIN role with full permissions
     const superAdminRole = await tx.role.create({
       data: {
-        name: UserRole.SUPER_ADMIN,
+        name: UserRole.ADMIN,
         isStatic: true,
         permissions: {
-          create: ROLE_PERMISSIONS[UserRole.SUPER_ADMIN],
+          create: ROLE_PERMISSIONS[UserRole.ADMIN],
         },
       },
       include: {
@@ -517,6 +517,7 @@ async function initialSeed() {
         is_verified: true,
         is_active: true,
         roleId: superAdminRole.id,
+        regi_status:LoginType.ADMIN_SIGNIN
       },
     });
     console.log(`✅ User created: ${user.email}`);

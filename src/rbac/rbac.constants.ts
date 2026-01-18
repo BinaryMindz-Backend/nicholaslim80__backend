@@ -87,6 +87,7 @@ export enum Permission {
 // statc role
 export const STATIC_ROLES = {
   SUPER_ADMIN: 'SUPER_ADMIN',
+  ADMIN:'ADMIN',
   RAIDER: 'RAIDER',
   USER: 'USER',
 };

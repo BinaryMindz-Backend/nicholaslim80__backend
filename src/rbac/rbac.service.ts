@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/require-await */
 import { Injectable, OnModuleInit, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Module, Permission, STATIC_ROLES } from './rbac.constants';
@@ -136,9 +135,6 @@ export class RbacService implements OnModuleInit {
 
   async getAllRoles() {
     return await this.prisma.role.findMany({
-      where:{
-        isStatic: false
-      },
       include: {
         permissions: true,
         _count: {

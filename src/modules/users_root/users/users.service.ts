@@ -345,7 +345,7 @@ export class UsersService {
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
-    const where: any = {};
+    const where: any = {regi_status: LoginType.ADMIN_SIGNIN };
 
     // ==========================
     if (status) {
@@ -608,7 +608,8 @@ export class UsersService {
         activeStatus: u.is_active,
         is_verified: u.is_verified,
         is_deleted: u.is_deleted,
-        role: u.role.name
+        role: u.role.name,
+        regi_status:u.regi_status
       };
     });
 
