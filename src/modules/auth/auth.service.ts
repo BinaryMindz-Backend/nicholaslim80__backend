@@ -20,7 +20,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly otpService: OtpService,
-    private readonly loginRewardServices:LoginRewardService,
+    private readonly loginRewardServices: LoginRewardService,
   ) { }
 
 
@@ -61,7 +61,7 @@ export class AuthService {
 
 
   // Login using OTP
-  async loginWithOtp(user: any , req?: any) {
+  async loginWithOtp(user: any, req?: any) {
 
     const tokens = await this.generateTokens(user);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
@@ -84,10 +84,10 @@ export class AuthService {
   // Validate email/password
   async validateUserByEmailAndPassword(dto: LoginDto) {
     const user = await this.usersService.findByEmailOrPhone(dto.email, dto.phone);
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user) throw new UnauthorizedException('Invalid Email or Phone');
 
     const valid = await bcrypt.compare(dto.password, user.password as string);
-    if (!valid) throw new UnauthorizedException('Invalid credentials');
+    if (!valid) throw new UnauthorizedException('Invalid Password');
 
     return user;
   }
@@ -209,13 +209,13 @@ export class AuthService {
     return { message: 'Password reset successful' };
   }
   // 
-    async resetPassword(user:IUser,oldPassword:string, newPassword: string) {
+  async resetPassword(user: IUser, oldPassword: string, newPassword: string) {
     // 
     // console.log(phone, newPassword);
     // 
     const userExist = await this.prisma.user.findFirst({
       where: {
-          id:user.id
+        id: user.id
       },
     });
     if (!userExist) throw new BadRequestException('Invalid User');
@@ -230,7 +230,7 @@ export class AuthService {
     // 
     await this.prisma.user.update({
       where: {
-          id:user.id
+        id: user.id
       },
       data: {
         password: hashed,
@@ -240,16 +240,16 @@ export class AuthService {
   }
   // 
 
-  private async handlePostLogin(user: IUser, req:any) {
-        await this.prisma.userLogin.create({
-             data:{
-                 userId:user.id,
-                 ip:req.ip,
-                 device:req.headers['user-agent'] || 'unknown'
-             }
-        })
-        // 
-        await this.loginRewardServices.rewardDailyLogin(user.id);
+  private async handlePostLogin(user: IUser, req: any) {
+    await this.prisma.userLogin.create({
+      data: {
+        userId: user.id,
+        ip: req.ip,
+        device: req.headers['user-agent'] || 'unknown'
+      }
+    })
+    // 
+    await this.loginRewardServices.rewardDailyLogin(user.id);
   }
 
 
