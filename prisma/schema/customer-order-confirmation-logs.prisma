@@ -1,0 +1,19 @@
+model CustomerOrderConfirmationLog {
+  id                              Int      @id @default(autoincrement())
+  customerOrderConfirmationId     Int
+
+  // Snapshot of values after change
+  isNewCustomerWeight             Int
+  completedOrdersWeight           Int
+  followersWeight                 Int
+
+  changedByRole                   String   // e.g. 'admin', 'system', 'ops'
+  changedByUserId                 Int?      // optional (if user-based)
+
+  createdAt                       DateTime @default(now())
+  
+  customerOrderConfirmation Customer_order_confirmation @relation(fields: [customerOrderConfirmationId], references: [id])
+
+  @@index([customerOrderConfirmationId])
+  @@index([createdAt])
+}

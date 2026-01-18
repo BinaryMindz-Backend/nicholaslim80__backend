@@ -9,12 +9,14 @@ import {
   ValidationPipe,
   ParseIntPipe,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiTags,
   ApiParam,
+  ApiResponse,
 } from '@nestjs/swagger';
 import { ApiResponses } from 'src/common/apiResponse';
 import { CustomerOrderConfirmationService } from './customer_order_confirmation.service';
@@ -23,6 +25,9 @@ import { RequirePermission } from 'src/rbac/decorators/require-permission.decora
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { CreateCustomerOrderConfirmationDto } from './dto/create-customer_order_confirmation.dto';
 import { UpdateCustomerOrderConfirmationDto } from './dto/update-customer_order_confirmation.dto';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
+import { DateByFilterDto } from './dto/date-filter.dto';
 
 
 
@@ -76,8 +81,37 @@ export class CustomerOrderConfirmationController {
       return ApiResponses.error(err, 'Fetch failed');
     }
   }
+  //  
+  @Get('logs')
+  @Auth()
+  @RequirePermission(Module.CUSTOMER_ORDER_CONFIRMATION, Permission.READ)
+  @ApiOperation({
+    summary: 'Get all customer order confirmation configuration change logs (Admin only)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Customer order confirmation logs fetched successfully',
+  })
+  async findAllLogs(@Query() filterDto: DateByFilterDto) {
+    try {
+      const res = await this.service.findAllLogs(
+        filterDto.fromDate,
+        filterDto.toDate,
+      );
 
+      return ApiResponses.success(
+        res,
+        'Customer order confirmation logs fetched successfully',
+      );
+    } catch (err) {
+      return ApiResponses.error(
+        err,
+        'Failed to fetch customer order confirmation logs',
+      );
+    }
+  }
 
+ 
   // FIND ONE
   @Get(':id')
   @Auth()
@@ -105,9 +139,10 @@ export class CustomerOrderConfirmationController {
   async update(
     @Param('id', new ParseIntPipe({errorHttpStatusCode:HttpStatus.NOT_ACCEPTABLE})) id: string,
     @Body() dto: UpdateCustomerOrderConfirmationDto,
+    @CurrentUser() user:IUser
   ) {
     try {
-      const res = await this.service.update(+id, dto);
+      const res = await this.service.update(+id, dto, user.role.name, user.id);
       return ApiResponses.success(res, 'Configuration updated successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Update failed');
