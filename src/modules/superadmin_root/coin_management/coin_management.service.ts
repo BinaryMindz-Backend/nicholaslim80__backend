@@ -14,27 +14,43 @@ export class CoinManagementService {
   ) { }
 
   // 
-  async create(createCoinDto: CreateCoinDto) {
-    // 
+  async create(
+    createCoinDto: CreateCoinDto,
+    changedByRole :string,
+    changedByUserId: number,
+  ) {
     const dataExist = await this.prisma.coin.findFirst({
       where: {
-        OR: [
-          { key: createCoinDto.key },
-        ],
+        key: createCoinDto.key,
       },
     });
 
-    // 
     if (dataExist) {
-      return ApiResponses.error("This Event Coin data already exit")
+      return ApiResponses.error('This Event Coin data already exist');
     }
-    // 
+
     const data = await this.prisma.coin.create({
-      data: createCoinDto
+      data: createCoinDto,
     });
-    // 
+
+    await this.prisma.coinLog.create({
+      data: {
+        coinId: data.id,
+        key: data.key,
+        description: data.description,
+        coinAmount: data.coin_amount,
+        condition: data.condition!,
+        expireDays: data.expire_days,
+        coinValueInCent: data.coin_value_in_cent,
+        isActive: data.is_active,
+        changedByRole,
+        changedByUserId,
+      },
+    });
+
     return data;
   }
+
 
   // 
   async findAll() {
@@ -78,26 +94,43 @@ export class CoinManagementService {
 
 
   // 
-  async update(id: number, updateCoinManagementDto: UpdateCoinManagementDto) {
+  async update(
+    id: number,
+    updateCoinManagementDto: UpdateCoinManagementDto,
+    changedByRole :string,
+    changedByUserId: number,
+  ) {
+    const existData = await this.prisma.coin.findUnique({
+      where: { id },
+    });
 
-    const existData = await this.prisma.coin.findFirst({
-      where: {
-        id
-      }
-    })
     if (!existData) {
-      return ApiResponses.error("Your Coin data not found")
+      return ApiResponses.error('Your Coin data not found');
     }
+
     const updated = await this.prisma.coin.update({
-      where: {
-        id
-      },
+      where: { id },
+      data: updateCoinManagementDto,
+    });
+
+    await this.prisma.coinLog.create({
       data: {
-        ...updateCoinManagementDto
-      }
-    })
-    return updated
+        coinId: updated.id,
+        key: updated.key,
+        description: updated.description,
+        coinAmount: updated.coin_amount,
+        condition: updated.condition!,
+        expireDays: updated.expire_days,
+        coinValueInCent: updated.coin_value_in_cent,
+        isActive: updated.is_active,
+        changedByRole,
+        changedByUserId,
+      },
+    });
+
+    return updated;
   }
+
 
   async remove(id: number) {
     const exitData = await this.prisma.coin.findFirst({
@@ -225,15 +258,6 @@ export class CoinManagementService {
   }
 
 
-
-
-
-
-
-
-
-
-
   //     await this.prisma.user.update({
   //       where: {
   //         id: user.id
@@ -288,6 +312,7 @@ export class CoinManagementService {
   //   }
   // }
 
+
   // get coin acc history
   async coinAccHistory(id: number) {
     try {
@@ -304,5 +329,25 @@ export class CoinManagementService {
       return ApiResponses.error(error, 'Failed to fetch user wallet history');
     }
   }
+  
+  // find all logs
+  async findAllLogs(fromDate?: string, toDate?: string) {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return await this.prisma.coinLog.findMany({
+    where: {
+      createdAt: {
+        gte: fromDate ? new Date(fromDate) : undefined,
+        lte: toDate ? new Date(toDate) : undefined,
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+}
+
+
+
+
 
 }

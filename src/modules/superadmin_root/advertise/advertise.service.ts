@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, NotAcceptableException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateAdvertiseDto } from './dto/create-advertise.dto';
@@ -10,25 +11,27 @@ export class AdvertiseService {
   constructor(private prisma: PrismaService) { }
 
   // CREATE
-  async create(dto: CreateAdvertiseDto) {
+  async create(
+    dto: CreateAdvertiseDto,
+    changedByRole :string,
+    changedByUserId?: number,
+  ) {
     const currentDate = new Date();
     const startDate = new Date(dto.start_date);
     const endDate = new Date(dto.end_date);
-    // Validate: start date must be in future
+
     if (startDate < currentDate) {
       throw new NotAcceptableException(
         'Start date must be equal or greater than the current date',
       );
     }
 
-    // Validate: end date must be in future
     if (endDate < currentDate) {
       throw new NotAcceptableException(
         'End date must be greater than the current date',
       );
     }
 
-    // Validate: end date must be after start date
     if (endDate <= startDate) {
       throw new NotAcceptableException(
         'End date must be greater than start date',
@@ -36,20 +39,32 @@ export class AdvertiseService {
     }
 
     const record = await this.prisma.advertise.findFirst({
-      where: {
-        ad_title: dto.ad_title
-      }
-    })
+      where: { ad_title: dto.ad_title },
+    });
 
     if (record) {
-      throw new NotFoundException("Record exist")
+      throw new NotFoundException('Record exist');
     }
-    //  
+
     const res = await this.prisma.advertise.create({
       data: {
         ...dto,
         start_date: startDate,
         end_date: endDate,
+      },
+    });
+
+    await this.prisma.advertiseLog.create({
+      data: {
+        advertiseId: res.id,
+        createFor: res.create_for,
+        adTitle: res.ad_title,
+        adImage: res.ad_image,
+        status: res.status,
+        startDate: res.start_date,
+        endDate: res.end_date,
+        changedByRole,
+        changedByUserId,
       },
     });
 
@@ -129,34 +144,73 @@ export class AdvertiseService {
 
 
   // UPDATE
-  async update(id: number, dto: UpdateAdvertiseDto) {
-    // 
+  async update(
+    id: number,
+    dto: UpdateAdvertiseDto,
+    changedByRole :string,
+    changedByUserId: number,
+  ) {
     await this.prisma.advertise.findFirst({
       where: {
         ad_title: dto.ad_title,
-        id: {
-          not: id
-        }
-      }
+        id: { not: id },
+      },
     });
-    // 
-    return this.prisma.advertise.update({
+
+    const updated = await this.prisma.advertise.update({
       where: { id },
       data: dto,
     });
+
+    await this.prisma.advertiseLog.create({
+      data: {
+        advertiseId: updated.id,
+        createFor: updated.create_for,
+        adTitle: updated.ad_title,
+        adImage: updated.ad_image,
+        status: updated.status,
+        startDate: updated.start_date,
+        endDate: updated.end_date,
+        changedByRole,
+        changedByUserId,
+      },
+    });
+
+    return updated;
   }
 
+
   // UPDATE STATUS (toggle true/false)
-  async statusUpdate(id: number) {
+  async statusUpdate(
+    id: number,
+    changedByRole :string,
+    changedByUserId: number,
+  ) {
     const ad = await this.findOne(id);
     if (!ad) throw new NotFoundException('Advertise not found');
 
-    // Toggle status
     const newStatus = !ad.status;
-    return this.prisma.advertise.update({
+
+    const updated = await this.prisma.advertise.update({
       where: { id },
       data: { status: newStatus },
     });
+
+    await this.prisma.advertiseLog.create({
+      data: {
+        advertiseId: updated.id,
+        createFor: updated.create_for,
+        adTitle: updated.ad_title,
+        adImage: updated.ad_image,
+        status: updated.status,
+        startDate: updated.start_date,
+        endDate: updated.end_date,
+        changedByRole,
+        changedByUserId,
+      },
+    });
+
+    return updated;
   }
 
 
@@ -396,6 +450,24 @@ async getPerformanceTrands(role?: string, months = 1) {
       data: { advertiseId, click: 1 },
     });
   }
+  // 
+ async findAllLogs(fromDate?: string, toDate?: string) {
+  return await this.prisma.advertiseLog.findMany({
+    where: {
+      createdAt: {
+        gte: fromDate ? new Date(fromDate) : undefined,
+        lte: toDate ? new Date(toDate) : undefined,
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+}
+
+
+
+
 
 
 

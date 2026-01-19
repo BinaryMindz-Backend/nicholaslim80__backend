@@ -1,3 +1,5 @@
+
+import { CurrentUser } from './../../../decorators/current-user.decorator';
 import {
   Controller,
   Post,
@@ -8,6 +10,7 @@ import {
   Delete,
   UsePipes,
   ValidationPipe,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { QuizService } from './quiz.service';
@@ -17,6 +20,8 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
+import type { IUser } from 'src/types';
 
 
 @ApiTags('quizzes')
@@ -36,9 +41,9 @@ export class QuizController {
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async create(@Body() createQuizDto: CreateQuizDto) {
+  async create(@Body() createQuizDto: CreateQuizDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.quizService.create(createQuizDto);
+      const res = await this.quizService.create(createQuizDto,user.role.name, user.id);
       if (!res) {
         return ApiResponses.error(null, 'Failed to create quiz');
       }
@@ -81,6 +86,33 @@ export class QuizController {
       return ApiResponses.error(error, 'Failed to fetch quiz');
     }
   }
+   
+  @Get('logs')
+  @Auth()
+  @RequirePermission(Module.QUIZ, Permission.READ)
+  @ApiOperation({ summary: 'Get all quiz configuration change logs (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Quiz configuration logs fetched successfully',
+  })
+  async findAllLogs(@Query() filterDto: DateByFilterDto) {
+    try {
+      const res = await this.quizService.findAllLogs(
+        filterDto.fromDate,
+        filterDto.toDate,
+      );
+
+      return ApiResponses.success(
+        res,
+        'Quiz configuration logs fetched successfully',
+      );
+    } catch (err) {
+      return ApiResponses.error(
+        err,
+        'Failed to fetch quiz configuration logs',
+      );
+    }
+  }
 
 
 
@@ -121,9 +153,9 @@ export class QuizController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Quiz not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async update(@Param('id') id: string, @Body() updateQuizDto: UpdateQuizDto) {
+  async update(@Param('id') id: string, @Body() updateQuizDto: UpdateQuizDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.quizService.update(+id, updateQuizDto);
+      const res = await this.quizService.update(+id, updateQuizDto, user.role.name, user.id);
       if (!res) {
         return ApiResponses.error(null, 'Quiz not found');
       }

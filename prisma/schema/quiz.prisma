@@ -14,6 +14,8 @@ model Quiz {
   raider_quizs    RaiderQuiz[]
 
   questions  Question[]
+
+  quizLogs   QuizLog[]
   
   @@map("quizzes")
 }

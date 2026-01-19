@@ -26,6 +26,7 @@ import type { IUser } from 'src/types';
 import { Auth } from 'src/decorators/auth.decorator';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
 
 @ApiTags('Advertise')
 @Controller('advertise')
@@ -41,9 +42,9 @@ export class AdvertiseController {
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: 'Advertise created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid payload' })
-  async create(@Body() dto: CreateAdvertiseDto) {
+  async create(@Body() dto: CreateAdvertiseDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.advertiseService.create(dto);
+      const res = await this.advertiseService.create(dto, user.role.name, user.id);
       if (!res) {
         return ApiResponses.error(null, 'Failed to create advertise');
       }
@@ -73,6 +74,34 @@ export class AdvertiseController {
       return ApiResponses.error(error, 'Failed to fetch advertisements');
     }
   }
+  // logs
+  @Get('logs')
+  @Auth()
+  @RequirePermission(Module.ADVERTISEMENT, Permission.READ)
+  @ApiOperation({ summary: 'Get all advertise configuration change logs (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Advertise configuration logs fetched successfully',
+  })
+  async findAllLogs(@Query() filterDto: DateByFilterDto) {
+    try {
+      const res = await this.advertiseService.findAllLogs(
+        filterDto.fromDate,
+        filterDto.toDate,
+      );
+
+      return ApiResponses.success(
+        res,
+        'Advertise configuration logs fetched successfully',
+      );
+    } catch (err) {
+      return ApiResponses.error(
+        err,
+        'Failed to fetch advertise configuration logs',
+      );
+    }
+  }
+
 
   // FIND ALL (PAGINATED)
   @Get("/role-based")
@@ -185,9 +214,9 @@ export class AdvertiseController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Advertise updated successfully' })
   @ApiResponse({ status: 404, description: 'Advertise not found' })
-  async update(@Param('id') id: string, @Body() dto: UpdateAdvertiseDto) {
+  async update(@Param('id') id: string, @Body() dto: UpdateAdvertiseDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.advertiseService.update(+id, dto);
+      const res = await this.advertiseService.update(+id, dto, user.role.name, user.id);
       if (!res) return ApiResponses.error(null, 'Failed to update advertise');
 
       return ApiResponses.success(res, 'Advertise updated successfully');
@@ -204,9 +233,9 @@ export class AdvertiseController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Advertise  status updated successfully' })
   @ApiResponse({ status: 404, description: 'Advertise not found' })
-  async statusUpdate(@Param('id') id: string) {
+  async statusUpdate(@Param('id') id: string, @CurrentUser() user:IUser) {
     try {
-      const res = await this.advertiseService.statusUpdate(+id);
+      const res = await this.advertiseService.statusUpdate(+id, user.role.name, user.id);
       if (!res) return ApiResponses.error(null, 'Failed to update advertise status');
 
       return ApiResponses.success(res, 'Advertise updated ststus successfully');

@@ -1,0 +1,22 @@
+model IncentiveLog {
+  id            Int      @id @default(autoincrement())
+  incentiveId   Int
+
+  incentiveName String?
+  type          IncentiveType
+  startDate     DateTime?
+  endDate       DateTime?
+  incentiveAmount Int?
+  status        IncentiveStatus
+
+  changedByRole String
+  changedByAdminId Int?
+
+  createdAt     DateTime @default(now())
+
+  incentive Incentive @relation(fields: [incentiveId], references: [id])
+
+  @@index([incentiveId])
+  @@index([createdAt])
+  @@map("incentive_logs")
+}

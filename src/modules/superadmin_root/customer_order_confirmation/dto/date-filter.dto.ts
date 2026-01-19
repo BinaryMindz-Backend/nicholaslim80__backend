@@ -11,7 +11,7 @@ export class DateByFilterDto {
   fromDate?: string;
 
   @ApiPropertyOptional({
-    example: '2025-01-31',
+    example: '2027-01-31',
     description: 'End date (YYYY-MM-DD)',
   })
   @IsOptional()
