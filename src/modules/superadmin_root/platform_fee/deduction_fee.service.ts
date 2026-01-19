@@ -1,12 +1,19 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, RaiderDeductionFee } from '@prisma/client';
+import { FeeLogType, Prisma, RaiderDeductionFee } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
+import { StandardCommissionRateService } from './commision_rate.services';
 
 @Injectable()
 export class RaiderDeductionFeeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService,
+       private readonly logServices :StandardCommissionRateService
+  ) {}
 
-  async create(data: Prisma.RaiderDeductionFeeCreateInput): Promise<RaiderDeductionFee> {
+  async create(data: Prisma.RaiderDeductionFeeCreateInput,
+         changedByRole:string,
+         changedById:number,
+
+  ): Promise<RaiderDeductionFee> {
       //  
      const record = await this.prisma.raiderDeductionFee.findFirst({
          where:{
@@ -17,9 +24,20 @@ export class RaiderDeductionFeeService {
       if(record){
            throw new ConflictException("Record all-ready exist")
       }
+     const r = await this.prisma.raiderDeductionFee.create({ data });
+      
+       await this.logServices.createFeeLog({
+        logType: FeeLogType.RAIDER_DEDUCTION_FEE,
+        referenceId: r.id,
+        applicableUser: r.applicable_user,
+        serviceArea: r.service_area,
+        snapshot: r,
+        changedByRole,
+        changedById,
+      });
 
-    // 
-    return this.prisma.raiderDeductionFee.create({ data });
+      // 
+    return r 
   }
 
   async findAll(): Promise<RaiderDeductionFee[]> {
@@ -34,9 +52,26 @@ export class RaiderDeductionFeeService {
     return record;
   }
 
-  async update(id: number, data: Prisma.RaiderDeductionFeeUpdateInput): Promise<RaiderDeductionFee> {
+  async update(id: number, data: Prisma.RaiderDeductionFeeUpdateInput,
+        changedByRole:string,
+        changedById:number,
+
+  ): Promise<RaiderDeductionFee> {
     await this.findOne(id);
-    return this.prisma.raiderDeductionFee.update({ where: { id }, data });
+   const updated = await this.prisma.raiderDeductionFee.update({ where: { id }, data });
+    
+     await this.logServices.createFeeLog({
+        logType: FeeLogType.RAIDER_COMPENSATION_ROLE,
+        referenceId: updated.id,
+        applicableUser: updated.applicable_user,
+        serviceArea: updated.service_area,
+        snapshot: updated,
+        changedByRole,
+        changedById,
+      });
+      
+      // 
+    return updated 
   }
 
   async remove(id: number): Promise<RaiderDeductionFee> {

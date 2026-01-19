@@ -89,6 +89,7 @@ export class QuizController {
    
   @Get('logs')
   @Auth()
+  @ApiBearerAuth()
   @RequirePermission(Module.QUIZ, Permission.READ)
   @ApiOperation({ summary: 'Get all quiz configuration change logs (Admin only)' })
   @ApiResponse({

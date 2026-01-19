@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';

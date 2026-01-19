@@ -68,6 +68,7 @@ export class ContentManagementController {
   // 
   @Get('logs')
   @Auth()
+  @ApiBearerAuth()
   @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.READ)
   @ApiOperation({
     summary: 'Get all content management configuration change logs (Admin only)',

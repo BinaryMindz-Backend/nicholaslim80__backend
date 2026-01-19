@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateIncentiveDto } from './dto/create-incentive.dto';
 import { UpdateIncentiveDto } from './dto/update-incentive.dto';

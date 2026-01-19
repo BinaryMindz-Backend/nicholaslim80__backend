@@ -60,6 +60,7 @@ export class CoinManagementController {
   //  
   @Get('logs')
   @Auth()
+  @ApiBearerAuth()
   @RequirePermission(Module.COIN, Permission.READ)
   @ApiOperation({ summary: 'Get all coin configuration change logs (Admin only)' })
   @ApiResponse({

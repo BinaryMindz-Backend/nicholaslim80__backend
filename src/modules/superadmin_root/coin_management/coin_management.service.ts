@@ -332,7 +332,6 @@ export class CoinManagementService {
   
   // find all logs
   async findAllLogs(fromDate?: string, toDate?: string) {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return await this.prisma.coinLog.findMany({
     where: {
       createdAt: {

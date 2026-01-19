@@ -1,16 +1,19 @@
 import { CreateRaiderCompensationRoleDto } from './dto/create_compensation_role.dto';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { RaiderCompensationRole } from '@prisma/client';
+import { FeeLogType, RaiderCompensationRole } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { UpdateRaiderCompensationRoleDto } from './dto/update-platform_fee.dto';
+import { StandardCommissionRateService } from './commision_rate.services';
 
 
 
 @Injectable()
 export class RaiderCompensationRoleService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService,
+          private readonly logServices :StandardCommissionRateService
+     ) {}
 
-  async create(data: CreateRaiderCompensationRoleDto){
+  async create(data: CreateRaiderCompensationRoleDto, changedByRole:string, changedById:number, ){
       
         //  
         const record = await this.prisma.raiderCompensationRole.findFirst({
@@ -22,9 +25,19 @@ export class RaiderCompensationRoleService {
           if(record){
                throw new ConflictException("Record all ready exist")
           }
-    
-      
-    return await this.prisma.raiderCompensationRole.create({ data });
+      const r = await this.prisma.raiderCompensationRole.create({ data });
+       //
+       await this.logServices.createFeeLog({
+        logType: FeeLogType.RAIDER_COMPENSATION_ROLE,
+        referenceId: r.id,
+        applicableUser: r.applicable_user,
+        serviceArea: r.service_area,
+        snapshot: r,
+        changedByRole,
+        changedById,
+      });
+      // 
+    return r
   }
 
   async findAll() {
@@ -39,9 +52,26 @@ export class RaiderCompensationRoleService {
     return record;
   }
 
-  async update(id: number, data: UpdateRaiderCompensationRoleDto) {
+  async update(id: number, data: UpdateRaiderCompensationRoleDto,
+        changedByRole:string,
+        changedById:number,
+  ) {
     await this.findOne(id);
-    return this.prisma.raiderCompensationRole.update({ where: { id }, data });
+
+    const updated = await this.prisma.raiderCompensationRole.update({ where: { id }, data });
+
+        await this.logServices.createFeeLog({
+        logType: FeeLogType.RAIDER_COMPENSATION_ROLE,
+        referenceId: updated.id,
+        applicableUser: updated.applicable_user,
+        serviceArea: updated.service_area,
+        snapshot: updated,
+        changedByRole,
+        changedById,
+      });
+
+   return updated;
+
   }
 
   async remove(id: number): Promise<RaiderCompensationRole> {

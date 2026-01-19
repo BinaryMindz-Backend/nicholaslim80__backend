@@ -122,6 +122,7 @@ export class IncentiveController {
   // 
   @Get('logs')
   @Auth()
+  @ApiBearerAuth()
   @RequirePermission(Module.WALLET, Permission.READ)
   @ApiOperation({ summary: 'Get all incentive configuration change logs (Admin only)' })
   @ApiResponse({
