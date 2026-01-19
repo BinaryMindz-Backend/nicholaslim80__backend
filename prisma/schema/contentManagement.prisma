@@ -5,4 +5,5 @@ model ContentManagement {
     description String
     isPublished Boolean
     version     Int?
+    contentManagementLogs ContentManagementLog[]
 }

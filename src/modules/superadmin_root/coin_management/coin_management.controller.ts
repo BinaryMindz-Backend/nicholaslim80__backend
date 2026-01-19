@@ -12,12 +12,13 @@ import { CoinManagementService } from './coin_management.service';
 import { UpdateCoinManagementDto } from './dto/update-coin_management.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Auth } from 'src/decorators/auth.decorator';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Permission, Module } from 'src/rbac/rbac.constants';
 import { CreateCoinDto } from './dto/create-coin_management.dto';
+import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
 
 @Controller('coin-management')
 export class CoinManagementController {
@@ -29,11 +30,13 @@ export class CoinManagementController {
   @RequirePermission(Module.COIN, Permission.CREATE)
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  async create(@Body() createCoinManagementDto: CreateCoinDto) {
+  async create(@Body() createCoinManagementDto: CreateCoinDto, @CurrentUser() user:IUser) {
     try {
 
       const res = await this.coinManagementService.create(
         createCoinManagementDto,
+        user.role.name,
+        user.id
       );
       return ApiResponses.success(res, 'Coin created successfully ');
     } catch (error) {
@@ -54,6 +57,37 @@ export class CoinManagementController {
       return ApiResponses.error(error);
     }
   }
+  //  
+  @Get('logs')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.COIN, Permission.READ)
+  @ApiOperation({ summary: 'Get all coin configuration change logs (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Coin configuration logs fetched successfully',
+  })
+  @ApiQuery({ type: DateByFilterDto })
+  async findAllLogs(@Query() filterDto: DateByFilterDto) {
+    try {
+      const res = await this.coinManagementService.findAllLogs(
+        filterDto.fromDate,
+        filterDto.toDate,
+      );
+
+      return ApiResponses.success(
+        res,
+        'Coin configuration logs fetched successfully',
+      );
+    } catch (err) {
+      return ApiResponses.error(
+        err,
+        'Failed to fetch coin configuration logs',
+      );
+    }
+  }
+
+
   //  
   @Get('base-price')
   @Auth()
@@ -117,11 +151,14 @@ export class CoinManagementController {
   async update(
     @Param('id') id: string,
     @Body() updateCoinManagementDto: UpdateCoinManagementDto,
+    @CurrentUser() user:IUser 
   ) {
     try {
       const data = await this.coinManagementService.update(
         +id,
         updateCoinManagementDto,
+        user.role.name,
+        user.id
       );
       return ApiResponses.success(data, 'Coin Data updated Successfully ');
     } catch (error) {

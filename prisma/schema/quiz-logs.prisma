@@ -1,0 +1,21 @@
+model QuizLog {
+  id            Int      @id @default(autoincrement())
+  quizId        Int
+
+  title         String
+  quizOption    Json?
+  description   String?
+  category      String?
+  isActive      Boolean
+
+  changedByRole String
+  changedByAdminId Int?
+
+  createdAt     DateTime @default(now())
+
+  quiz Quiz @relation(fields: [quizId], references: [id])
+
+  @@index([quizId])
+  @@index([createdAt])
+  @@map("quiz_logs")
+}

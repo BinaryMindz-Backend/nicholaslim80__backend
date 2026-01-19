@@ -9,7 +9,8 @@ model Advertise {
   created_at    DateTime          @default(now())
   updated_at    DateTime          @updatedAt
 
-  analytics     AdvertiseAnalytics[]
+  analytics      AdvertiseAnalytics[]
+  advertiseLogs  AdvertiseLog[]
 }
 
 model AdvertiseAnalytics {

@@ -1,0 +1,22 @@
+model AdvertiseLog {
+  id              Int      @id @default(autoincrement())
+  advertiseId     Int
+
+  createFor       String
+  adTitle         String
+  adImage         String
+  status          Boolean
+  startDate       DateTime
+  endDate         DateTime
+
+  changedByRole   String
+  changedByUserId Int?
+
+  createdAt       DateTime @default(now())
+
+  advertise Advertise @relation(fields: [advertiseId], references: [id])
+
+  @@index([advertiseId])
+  @@index([createdAt])
+  @@map("advertise_logs")
+}

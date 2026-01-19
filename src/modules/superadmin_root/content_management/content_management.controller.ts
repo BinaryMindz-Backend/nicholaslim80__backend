@@ -6,16 +6,20 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ContentManagementService } from './content_management.service';
 import { CreateContentManagementDto } from './dto/create-content_management.dto';
 import { UpdateContentManagementDto } from './dto/update-content_management.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Auth } from 'src/decorators/auth.decorator';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { Public } from 'src/decorators/public.decorator';
+import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 
 
@@ -31,10 +35,12 @@ export class ContentManagementController {
   // @Roles(UserRole.SUPER_ADMIN)
   @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.CREATE)
   @ApiBearerAuth()
-  async create(@Body() createContentManagementDto: CreateContentManagementDto) {
+  async create(@Body() createContentManagementDto: CreateContentManagementDto, @CurrentUser() user:IUser) {
     try {
       const data = await this.contentManagementService.create(
         createContentManagementDto,
+        user.role.name,
+        user.id
       );
       return ApiResponses.success(
         data,
@@ -59,6 +65,37 @@ export class ContentManagementController {
       return ApiResponses.error(error);
     }
   }
+  // 
+  @Get('logs')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.READ)
+  @ApiOperation({
+    summary: 'Get all content management configuration change logs (Admin only)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Content management logs fetched successfully',
+  })
+  async findAllLogs(@Query() filterDto: DateByFilterDto) {
+    try {
+      const res = await this.contentManagementService.findAllLogs(
+        filterDto.fromDate,
+        filterDto.toDate,
+      );
+
+      return ApiResponses.success(
+        res,
+        'Content management logs fetched successfully',
+      );
+    } catch (err) {
+      return ApiResponses.error(
+        err,
+        'Failed to fetch content management logs',
+      );
+    }
+  }
+
 
   @Get(':id')
   @Public()
@@ -81,11 +118,14 @@ export class ContentManagementController {
   async update(
     @Param('id') id: string,
     @Body() updateContentManagementDto: UpdateContentManagementDto,
+    @CurrentUser() user:IUser
   ) {
     try {
       const res = await this.contentManagementService.update(
         +id,
         updateContentManagementDto,
+        user.role.name,
+        user.id
       );
       return ApiResponses.success(
         res,

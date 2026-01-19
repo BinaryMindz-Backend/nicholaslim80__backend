@@ -1,0 +1,22 @@
+model FeeConfigurationLog {
+  id              Int        @id @default(autoincrement())
+
+  log_type        FeeLogType
+  reference_id    Int        // ID from source table
+
+  applicable_user ApplicableTyp
+  service_area    String?    @db.VarChar(100)
+
+  // Snapshot payload (full row state)
+  snapshot        Json
+
+  changed_by_role String
+  changed_by_id   Int?
+
+  created_at      DateTime   @default(now())
+
+  @@index([log_type])
+  @@index([reference_id])
+  @@index([created_at])
+  @@map("fee_configuration_logs")
+}

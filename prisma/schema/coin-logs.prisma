@@ -1,0 +1,23 @@
+model CoinLog {
+  id                 Int      @id @default(autoincrement())
+  coinId             Int
+
+  key                String
+  description        String?
+  coinAmount         Int
+  condition          Json?
+  expireDays         Int?
+  coinValueInCent    Decimal   @db.Decimal(10, 2)
+  isActive           Boolean
+
+  changedByRole      String
+  changedByUserId    Int?
+
+  createdAt          DateTime @default(now())
+
+  coin Coin @relation(fields: [coinId], references: [id])
+
+  @@index([coinId])
+  @@index([createdAt])
+  @@map("coin_logs")
+}

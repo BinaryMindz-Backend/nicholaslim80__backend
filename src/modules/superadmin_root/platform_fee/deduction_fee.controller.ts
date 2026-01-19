@@ -7,6 +7,8 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { UpdateRaiderDeductionFeeDto } from './dto/update-platform_fee.dto';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 
 @ApiTags('Raider Deduction Fee (platform fee) (admin only)')
@@ -20,9 +22,9 @@ export class RaiderDeductionFeeController {
   @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a raider deduction fee' })
-  async create(@Body() dto: CreateRaiderDeductionFeeDto) {
+  async create(@Body() dto: CreateRaiderDeductionFeeDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.service.create(dto);
+      const res = await this.service.create(dto, user.role.name, user.id);
       return ApiResponses.success(res, 'Raider deduction fee created successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to create record');
@@ -65,9 +67,9 @@ export class RaiderDeductionFeeController {
   @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a raider deduction fee by ID' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRaiderDeductionFeeDto) {
+  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRaiderDeductionFeeDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.service.update(id, dto);
+      const res = await this.service.update(id, dto, user.role.name, user.id);
       return ApiResponses.success(res, 'Record updated successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to update record');

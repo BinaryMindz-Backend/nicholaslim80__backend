@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateCustomerOrderConfirmationDto } from './dto/create-customer_order_confirmation.dto';
@@ -91,13 +92,51 @@ export class CustomerOrderConfirmationService {
     return record;
   }
 
-  async update(id: number, dto: UpdateCustomerOrderConfirmationDto) {
-    await this.findOne(id);
-    //  
-    return await this.prisma.customer_order_confirmation.update({
+  async update(
+    id: number,
+    dto: UpdateCustomerOrderConfirmationDto,
+    changedByRole: string,
+    changedByUserId?: number,
+  ) {
+    const existing = await this.findOne(id);
+    if(!existing){
+        throw new NotFoundException("Confirmation data not found")
+    }
+
+    const updated = await this.prisma.customer_order_confirmation.update({
       where: { id },
       data: dto,
     });
+
+    await this.prisma.customerOrderConfirmationLog.create({
+      data: {
+        customerOrderConfirmationId: id,
+        isNewCustomerWeight: updated.is_new_customer_weight,
+        completedOrdersWeight: updated.completed_orders_weight,
+        followersWeight: updated.followers_weight,
+        changedByRole,
+        changedByUserId,
+      },
+    });
+
+    return updated;
   }
+
+  async findAllLogs(fromDate?: string, toDate?: string) {
+    return await this.prisma.customerOrderConfirmationLog.findMany({
+      where: {
+        createdAt: {
+          gte: fromDate ? new Date(fromDate) : undefined,
+          lte: toDate ? new Date(toDate) : undefined,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+
+
   // 
 }

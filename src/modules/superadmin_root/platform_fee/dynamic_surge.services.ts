@@ -1,12 +1,18 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, UserDynamicSurge } from '@prisma/client';
+import { FeeLogType, Prisma, UserDynamicSurge } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
+import { StandardCommissionRateService } from './commision_rate.services';
 
 @Injectable()
 export class UserDynamicSurgeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService,
+      private readonly logServices :StandardCommissionRateService
+  ) {}
 
-  async create(data: Prisma.UserDynamicSurgeCreateInput): Promise<UserDynamicSurge> {
+  async create(data: Prisma.UserDynamicSurgeCreateInput,
+        changedByRole:string,
+        changedById:number,
+  ): Promise<UserDynamicSurge> {
       // 
      const record = await this.prisma.userDynamicSurge.findFirst({
          where:{
@@ -17,10 +23,20 @@ export class UserDynamicSurgeService {
       if(record){
            throw new ConflictException("Record all ready exist")
       }
-
-    
     // 
-    return this.prisma.userDynamicSurge.create({ data });
+    const r = await this.prisma.userDynamicSurge.create({ data });
+      // 
+    await this.logServices.createFeeLog({
+        logType: FeeLogType.USER_DYNAMIC_SURGE,
+        referenceId: r.id,
+        applicableUser: r.applicable_user,
+        serviceArea: "",
+        snapshot: r,
+        changedByRole,
+        changedById,
+      });
+
+    return r;
   }
 
   async findAll(): Promise<UserDynamicSurge[]> {
@@ -35,9 +51,26 @@ export class UserDynamicSurgeService {
     return record;
   }
 
-  async update(id: number, data: Prisma.UserDynamicSurgeUpdateInput): Promise<UserDynamicSurge> {
+  async update(id: number, data: Prisma.UserDynamicSurgeUpdateInput,
+        changedByRole:string,
+        changedById:number,
+  ): Promise<UserDynamicSurge> {
     await this.findOne(id);
-    return this.prisma.userDynamicSurge.update({ where: { id }, data });
+    //  
+    const updated = await this.prisma.userDynamicSurge.update({ where: { id }, data });
+    // 
+    await this.logServices.createFeeLog({
+        logType: FeeLogType.USER_DYNAMIC_SURGE,
+        referenceId: updated.id,
+        applicableUser: updated.applicable_user,
+        serviceArea: "",
+        snapshot: updated,
+        changedByRole,
+        changedById,
+      });
+    
+   
+    return updated ;
   }
     //
     async updateStaus(id: number): Promise<UserDynamicSurge> {

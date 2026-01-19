@@ -12,6 +12,7 @@ model Incentive {
   status           IncentiveStatus
   collected_incentives CollectedIncentive[]
   created_at       DateTime       @default(now())
+  incentiveLogs    IncentiveLog[] 
 
   @@map("incentives")
 }

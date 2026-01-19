@@ -8,6 +8,7 @@ import {
   Patch,
   UsePipes,
   ValidationPipe,
+  Query,
 } from '@nestjs/common';
 import { IncentiveService } from './incentive.service';
 import { CreateIncentiveDto } from './dto/create-incentive.dto';
@@ -27,6 +28,7 @@ import { RequirePermission } from 'src/rbac/decorators/require-permission.decora
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
+import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
 
 @ApiTags('incentives (admin)') // Group endpoints under the "incentives" tag in Swagger UI
 @ApiBearerAuth() // Indicates that the endpoints require a Bearer token
@@ -48,9 +50,9 @@ export class IncentiveController {
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async create(@Body() createIncentiveDto: CreateIncentiveDto) {
+  async create(@Body() createIncentiveDto: CreateIncentiveDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.incentiveService.create(createIncentiveDto);
+      const res = await this.incentiveService.create(createIncentiveDto, user.id, user.role.name);
       if (!res) {
         return ApiResponses.error(null, 'Failed to create incentive');
       }
@@ -116,7 +118,36 @@ export class IncentiveController {
     } catch (error) {
       return ApiResponses.error(error, 'Failed to fetch incentive stats');
     }
+  } 
+  // 
+  @Get('logs')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.WALLET, Permission.READ)
+  @ApiOperation({ summary: 'Get all incentive configuration change logs (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Incentive configuration logs fetched successfully',
+  })
+  async findAllLogs(@Query() filterDto: DateByFilterDto) {
+    try {
+      const res = await this.incentiveService.findAllLogs(
+        filterDto.fromDate,
+        filterDto.toDate,
+      );
+
+      return ApiResponses.success(
+        res,
+        'Incentive configuration logs fetched successfully',
+      );
+    } catch (err) {
+      return ApiResponses.error(
+        err,
+        'Failed to fetch incentive configuration logs',
+      );
+    }
   }
+
 
 
   @Get(':id')
@@ -160,9 +191,10 @@ export class IncentiveController {
   async update(
     @Param('id') id: string,
     @Body() updateIncentiveDto: UpdateIncentiveDto,
+    @CurrentUser() user:IUser
   ) {
     try {
-      const res = await this.incentiveService.update(+id, updateIncentiveDto);
+      const res = await this.incentiveService.update(+id, updateIncentiveDto, user.id, user.role.name);
       if (!res) {
         return ApiResponses.error(null, 'Incentive not found');
       }

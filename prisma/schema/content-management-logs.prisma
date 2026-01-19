@@ -1,0 +1,21 @@
+model ContentManagementLog {
+  id             Int      @id @default(autoincrement())
+  contentId      Int
+
+  contentType    ContentManagementType
+  faqFor         UserRole
+  description    String
+  isPublished    Boolean
+  version        Int?
+
+  changedByRole  String
+  changedByUserId Int?
+
+  createdAt      DateTime @default(now())
+
+  contentManagement ContentManagement @relation(fields: [contentId], references: [id])
+
+  @@index([contentId])
+  @@index([createdAt])
+  @@map("content_management_logs")
+}

@@ -13,27 +13,41 @@ export class IncentiveService {
   ) { }
 
   // 
-  async create(dto: CreateIncentiveDto) {
-    // 
+  async create(dto: CreateIncentiveDto, adminId?: number, role? : string) {
     const record = await this.prisma.incentive.findFirst({
       where: {
-        OR: [
-          { start_date: dto.start_date },
-          { end_date: dto.end_date }
-        ]
-      }
-    })
+        OR: [{ start_date: dto.start_date }, { end_date: dto.end_date }],
+      },
+    });
 
     if (record) {
-      throw new ConflictException("Incentive record found by same date")
+      throw new ConflictException('Incentive record found by same date');
     }
 
-    // 
     const res = await this.prisma.incentive.create({
-      data: dto
-    })
-    return res
+      data: {
+        ...dto,
+        adminId,
+      },
+    });
+
+    await this.prisma.incentiveLog.create({
+      data: {
+        incentiveId: res.id,
+        incentiveName: res.incentive_name,
+        type: res.type,
+        startDate: res.start_date,
+        endDate: res.end_date,
+        incentiveAmount: res.incentive_amount,
+        status: res.status,
+        changedByRole: role!,
+        changedByAdminId: adminId,
+      },
+    });
+
+    return res;
   }
+
 
   // 
   async findAll() {
@@ -92,26 +106,39 @@ export class IncentiveService {
   }
 
   //
-  async update(id: number, updateIncentiveDto: UpdateIncentiveDto) {
-    // 
-    const rec = await this.prisma.incentive.findFirst({
-      where: {
-        id
-      }
-    })
-    // 
-    if (!rec) throw new NotFoundException("Incentive not found")
+  async update(
+      id: number,
+      updateIncentiveDto: UpdateIncentiveDto,
+      adminId?: number,
+      role? :string
+    ) {
+      const rec = await this.prisma.incentive.findUnique({
+        where: { id },
+      });
 
-    // 
-    const updateIncentive = await this.prisma.incentive.update({
-      where: {
-        id
-      },
-      data: updateIncentiveDto,
-    })
-    // 
-    return updateIncentive;
-  }
+      if (!rec) throw new NotFoundException('Incentive not found');
+
+      const updated = await this.prisma.incentive.update({
+        where: { id },
+        data: updateIncentiveDto,
+      });
+
+      await this.prisma.incentiveLog.create({
+        data: {
+          incentiveId: updated.id,
+          incentiveName: updated.incentive_name,
+          type: updated.type,
+          startDate: updated.start_date,
+          endDate: updated.end_date,
+          incentiveAmount: updated.incentive_amount,
+          status: updated.status,
+          changedByRole: role!,
+          changedByAdminId: adminId,
+        },
+      });
+
+      return updated;
+    }
 
 
   // ** status update
@@ -229,4 +256,18 @@ export class IncentiveService {
     return res;
   }
   // 
+  async findAllLogs(fromDate?: string, toDate?: string) {
+    return await this.prisma.incentiveLog.findMany({
+      where: {
+        createdAt: {
+          gte: fromDate ? new Date(fromDate) : undefined,
+          lte: toDate ? new Date(toDate) : undefined,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
 }
