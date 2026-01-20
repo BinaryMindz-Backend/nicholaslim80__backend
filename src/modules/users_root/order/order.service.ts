@@ -2540,10 +2540,30 @@ export class OrderService {
 
   //order decline
   async declineOrder(orderId: number, raiderId: number) {
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: raiderId },
+      include: {
+        raiderProfile: true
+      }
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     return await this.prisma.orderDecline.create({
       data: {
         orderId,
-        raiderId,
+        raiderId: user.raiderProfile?.id!
       },
     });
   }
