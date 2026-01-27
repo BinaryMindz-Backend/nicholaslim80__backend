@@ -93,7 +93,11 @@ export class UsersService {
           referral_code: code,
           referral_link: link,
           is_acc_refered: dto.referral_code ? true : false,
-          roleId: role.id,
+          roles: {
+              connect:{
+                  id:role.id,
+              }
+          }
         },
       });
 
@@ -159,7 +163,7 @@ export class UsersService {
         ]
       },
       include: {
-        role: true,
+        roles: true,
       }
     });
     return res
@@ -183,7 +187,7 @@ export class UsersService {
       where: { is_deleted: false },
       orderBy: { created_at: 'desc' },
       include: {
-        role: true
+        roles: true
       }
     });
   }
@@ -431,7 +435,7 @@ export class UsersService {
       skip,
       take,
       include: {
-        role: true,
+        roles: true,
       },
       orderBy: { [safeSortBy]: safeSortOrder },
     });
@@ -462,8 +466,8 @@ export class UsersService {
         activeStatus: u.is_active,
         is_verified: u.is_verified,
         is_deleted: u.is_deleted,
-        role: u.role.name,
-         regi_status:u.regi_status
+        role: u.roles?.map(r => r.name) ?? [],
+        regi_status:u.regi_status
       };
     });
 
@@ -578,7 +582,7 @@ export class UsersService {
       skip,
       take,
       include: {
-        role: true,
+        roles: true,
       },
       orderBy: { [safeSortBy]: safeSortOrder },
     });
@@ -609,8 +613,8 @@ export class UsersService {
         activeStatus: u.is_active,
         is_verified: u.is_verified,
         is_deleted: u.is_deleted,
-        role: u.role.name,
-        regi_status:u.regi_status
+        role: u.roles?.map(r => r.name) ?? [],
+        regi_status:u.regi_status,
       };
     });
 
@@ -630,7 +634,7 @@ export class UsersService {
 
     const res = await this.prisma.user.findUnique({
       where: { id, is_deleted: false },
-      include: { raiderProfile: true, role: true, adminProfiles: true }
+      include: { raiderProfile: true, roles: true, adminProfiles: true }
     });
 
     // 
@@ -649,7 +653,7 @@ export class UsersService {
     };
 
     // Check if user has RAIDER role
-    const isRaider = res.role?.name === 'RAIDER' || res.role?.name === 'raider';
+    const isRaider = res.roles?.map(r => r.name === 'RAIDER')  || res.roles.map(r=>r.name === 'raider');
 
     if (isRaider && res.raiderProfile?.id) {
       // Get follower count for raider
@@ -685,7 +689,7 @@ export class UsersService {
     }
 
     // Check if user has CUSTOMER/USER role (or get customer ratings for all users)
-    const isCustomer = res.role?.name === 'CUSTOMER' || res.role?.name === 'USER' || res.role?.name === 'customer' || res.role?.name === 'user';
+    const isCustomer = res.roles?.map(r => r.name === 'CUSTOMER') || res.roles?.map(r => r.name === 'USER') || res.roles?.map(r => r.name === 'customer') || res.roles?.map(r => r.name === 'user');
 
     if (isCustomer || !isRaider) {
       // Get customer rating average
@@ -734,7 +738,7 @@ export class UsersService {
             registrations: true
           }
         },
-        role: true,
+        roles: true,
         adminProfiles: true,
       }
     });
@@ -754,7 +758,7 @@ export class UsersService {
     };
 
     // Check if user has RAIDER role
-    const isRaider = res.role?.name === 'RAIDER' || res.role?.name === 'raider';
+    const isRaider = res.roles?.map(r => r.name === 'RAIDER') || res.roles?.map(r => r.name === 'raider');
 
     if (isRaider && res.raiderProfile?.id) {
       // Get follower count for raider
@@ -790,7 +794,7 @@ export class UsersService {
     }
 
     // Check if user has CUSTOMER/USER role (or get customer ratings for all users)
-    const isCustomer = res.role?.name === 'CUSTOMER' || res.role?.name === 'USER' || res.role?.name === 'customer' || res.role?.name === 'user';
+    const isCustomer = res.roles?.map(r => r.name === 'CUSTOMER') || res.roles?.map(r => r.name === 'USER') ||res.roles?.map(r => r.name=== 'customer') || res.roles?.map(r => r.name === 'user');
 
     if (isCustomer || !isRaider) {
       // Get customer rating average
@@ -945,140 +949,116 @@ export class UsersService {
   }
 
 
-  // ** add wallet //DEPRECATED
-  // async addMoneyToWallet(id: number, amount: number) {
-
-  //   if (!id) {
-  //     throw new NotFoundException("id not found")
-  //   }
-
-  //   const currentUser = await this.prisma.user.findUnique({
-  //     where: {
-  //       id
-  //     }
-  //   })
-
-  //   if (!currentUser) {
-  //     throw new NotFoundException("User not found")
-  //   }
-
-  //   if (currentUser.is_verified === false || currentUser.is_active === false) {
-  //     throw new NotAcceptableException("For top-up/deposit user need to be verified through email/phone")
-  //   }
-
-  //   const currentBalance = (currentUser.balance)
-  //   const newBalance = currentBalance + (amount * 100);  // amount in cent
-  //   // 
-  //   if (amount < 20) {
-  //     throw new NotAcceptableException(`This ${amount} is not acceptable you need minimun 20 USD to added to wallet`)
-  //   }
-  //   // 
-  //   const updatedWallet = await this.prisma.user.update({
-  //     //  
-  //     where: {
-  //       id
-  //     },
-  //     data: {
-  //       balance: newBalance,
-  //     }
-  //   })
-  //   // TODO : need to add transaction 
-  //   return updatedWallet;
-  // }
-
 
   // create user by admin
   async adminCreateUser(dto: CreateUserDto) {
+    return this.prisma.$transaction(async (tx) => {
 
-    //  
-    const res = await this.prisma.$transaction(async (tx) => {
-      // 
-      let role = await tx.role.findFirst({
-        where: {
-          name: dto.role_name
+      //  Get existing roles
+        let existingRoles = await tx.role.findMany({
+          where: {
+            name: {
+              in: [...new Set(dto.custom_role_name)],
+            },
+          },
+        });
+
+        //  Determine missing role names
+        const existingNames = new Set(existingRoles.map(r => r.name));
+        const missingNames = [...new Set(dto.custom_role_name)].filter(
+          name => !existingNames.has(name),
+        );
+
+        // Create missing roles
+        if (missingNames.length > 0) {
+          await tx.role.createMany({
+            data: missingNames.map(name => ({ name })),
+            skipDuplicates: true, // optional but safe
+          });
         }
-      })
-      // 
-      if (!role) {
-        role = await tx.role.create({
-          data: {
-            name: dto.role_name!
-          }
-        })
-      }
-      // 
-      const hasedPass = await bcrypt.hash(dto.password!, Number(process.env.SALT_ROUNDS ?? 10));
-      // 
+
+        // Re-fetch all roles (so you have Role[] for connecting)
+        existingRoles = await tx.role.findMany({
+          where: {
+            name: {
+              in: [...new Set(dto.custom_role_name)],
+            },
+          },
+        });
+
+      // Check existing user
       const userExists = await tx.user.findFirst({
         where: {
           OR: [
             { email: dto.email },
-            { phone: dto.phone }
-          ]
+            { phone: dto.phone },
+          ],
         },
       });
 
-      // 
       if (userExists) {
-        throw new ConflictException("User already exist")
+        throw new ConflictException('User already exists');
       }
 
-      //
+      //  Hash password
+      const hashedPass = await bcrypt.hash(
+        dto.password!,
+        Number(process.env.SALT_ROUNDS ?? 10),
+      );
+
+      // Get signup coin
       const coin = await tx.coin.findFirst({
-        where: {
-          key: CoinEvent.FIRST_SIGNUP
-        }
-      })
-      // 
-      const user = await tx.user.create({
-        data: {
-          username: dto.username,
-          email: dto.email,
-          roleId: role.id,
-          phone: dto.phone,
-          is_verified: true,
-          is_active: true,
-          regi_status: LoginType.ADMIN_SIGNIN,
-          password: hasedPass,
-          image: dto.image,
-          total_coin_acc: Number(coin?.coin_amount) || 0,
-          current_coin_balance: Number(coin?.coin_amount) || 0,
-        },
-        include: {
-          role: true
-        }
+        where: { key: CoinEvent.FIRST_SIGNUP },
       });
 
-      //
-      // 
+      //  Create user + roles 
+        const user = await tx.user.create({
+          data: {
+            username: dto.username,
+            email: dto.email,
+            phone: dto.phone,
+            password: hashedPass,
+            image: dto.image,
+            is_verified: true,
+            is_active: true,
+            regi_status: LoginType.ADMIN_SIGNIN,
+            total_coin_acc: Number(coin?.coin_amount) || 0,
+            current_coin_balance: Number(coin?.coin_amount) || 0,
+            roles: {
+              connect: existingRoles.map(r => ({ id: r.id })),
+            },
+          },
+          include: {
+            roles: true,
+          },
+        });
+
+      // Coin history
       await tx.coinHistory.create({
         data: {
           userId: user.id,
           type: CoinHistoryType.ACCUMULATION,
           role_triggered: CoinEvent.FIRST_SIGNUP,
           coin_acc_amount: Number(coin?.coin_amount) || 0,
-        }
-      })
+        },
+      });
 
+      // Admin profile
       const adminProfile = await tx.admin.create({
         data: {
           userId: user.id,
           first_name: dto.username,
           email: dto.email,
           phone_number: dto.phone,
-          password: hasedPass,
-          role_id: role.id,
+          password: hashedPass,
+          role_id: user.roles[0].id,
+        },
+      });
 
-        }
-      })
-      return {
-        user,
-        adminProfile
-      };
-    })
-
-    return res;
+      return { user, adminProfile };
+    });
   }
+
   // 
 
 

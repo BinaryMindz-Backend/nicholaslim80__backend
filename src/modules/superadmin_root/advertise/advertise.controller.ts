@@ -44,7 +44,7 @@ export class AdvertiseController {
   @ApiResponse({ status: 400, description: 'Invalid payload' })
   async create(@Body() dto: CreateAdvertiseDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.advertiseService.create(dto, user.role.name, user.id);
+      const res = await this.advertiseService.create(dto, user.roles[0].name, user.id);
       if (!res) {
         return ApiResponses.error(null, 'Failed to create advertise');
       }
@@ -118,7 +118,7 @@ export class AdvertiseController {
       const res = await this.advertiseService.findAllRoleBased(
         pagination.page,
         pagination.limit,
-        user.role.name
+        user.roles[0].name
       );
       return ApiResponses.success(res, 'Advertise list fetched successfully');
     } catch (error) {
@@ -216,7 +216,7 @@ export class AdvertiseController {
   @ApiResponse({ status: 404, description: 'Advertise not found' })
   async update(@Param('id') id: string, @Body() dto: UpdateAdvertiseDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.advertiseService.update(+id, dto, user.role.name, user.id);
+      const res = await this.advertiseService.update(+id, dto, user.roles[0].name, user.id);
       if (!res) return ApiResponses.error(null, 'Failed to update advertise');
 
       return ApiResponses.success(res, 'Advertise updated successfully');
@@ -235,7 +235,7 @@ export class AdvertiseController {
   @ApiResponse({ status: 404, description: 'Advertise not found' })
   async statusUpdate(@Param('id') id: string, @CurrentUser() user:IUser) {
     try {
-      const res = await this.advertiseService.statusUpdate(+id, user.role.name, user.id);
+      const res = await this.advertiseService.statusUpdate(+id, user.roles[0].name, user.id);
       if (!res) return ApiResponses.error(null, 'Failed to update advertise status');
 
       return ApiResponses.success(res, 'Advertise updated ststus successfully');

@@ -24,7 +24,7 @@ export class UserFeeStructureController {
   @ApiOperation({ summary: 'Create a user fee structure' })
   async create(@Body() dto: CreateUserFeeStructureDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.service.create(dto, user.role.name, user.id);
+      const res = await this.service.create(dto, user.roles[0].name, user.id);
       return ApiResponses.success(res, 'User fee structure created successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to create record');
@@ -69,7 +69,7 @@ export class UserFeeStructureController {
   @ApiOperation({ summary: 'Update a user fee structure by ID' })
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserFeeStructureDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.service.update(id, dto, user.role.name, user.id);
+      const res = await this.service.update(id, dto, user.roles[0].name, user.id);
       return ApiResponses.success(res, 'Record updated successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to update record');

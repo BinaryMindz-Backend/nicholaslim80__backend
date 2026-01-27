@@ -37,7 +37,7 @@ export class FaqService {
       where: {
         isActive: true,
         OR: [
-          { faq_for: filters.role.name as UserRole },
+          { faq_for: filters.roles[0].name as UserRole },
           { faq_for: UserRole.USER }, // USER sees common FAQs
         ],
       },

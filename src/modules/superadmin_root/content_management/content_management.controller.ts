@@ -39,7 +39,7 @@ export class ContentManagementController {
     try {
       const data = await this.contentManagementService.create(
         createContentManagementDto,
-        user.role.name,
+        user.roles[0].name,
         user.id
       );
       return ApiResponses.success(
@@ -124,7 +124,7 @@ export class ContentManagementController {
       const res = await this.contentManagementService.update(
         +id,
         updateContentManagementDto,
-        user.role.name,
+        user.roles[0].name,
         user.id
       );
       return ApiResponses.success(

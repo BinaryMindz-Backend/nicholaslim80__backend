@@ -382,7 +382,9 @@ export class RidersProfileService {
             username: dto.raider_name,
             email: dto.email_address,
             phone: dto.contact_number,
-            roleId: role.id,
+            roles:{
+              connect:{id:role.id}
+            },
             regi_status: LoginType.ADMIN_SIGNIN,
             is_active: true,
             is_verified: true,

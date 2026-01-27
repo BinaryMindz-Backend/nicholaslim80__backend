@@ -29,10 +29,9 @@ export class AuthService {
     const payload = {
       sub: user.id,
       email: user.email,
-      role: user.role,
+      roles: user.roles,
       phone: user.phone
     };
-
     const access_token = await this.jwtService.signAsync(payload, {
       expiresIn: '1d', // 1 day
     });
@@ -114,7 +113,7 @@ export class AuthService {
       const validData: IUser = {
         id: user.id,
         email: user.email!,
-        role: user.role,
+        roles: user.roles,
         phone: user.phone
       }
       // Generate new tokens

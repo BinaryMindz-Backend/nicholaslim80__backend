@@ -516,8 +516,10 @@ async function initialSeed() {
         password: hashed,
         is_verified: true,
         is_active: true,
-        roleId: superAdminRole.id,
-        regi_status:LoginType.ADMIN_SIGNIN
+        roles:{
+           connect:{id:superAdminRole.id}
+        },
+        regi_status: LoginType.ADMIN_SIGNIN
       },
     });
     console.log(`✅ User created: ${user.email}`);

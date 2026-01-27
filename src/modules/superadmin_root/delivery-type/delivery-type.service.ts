@@ -14,7 +14,7 @@ export class DeliveryTypeService {
 
   // ** check role
     private verifyAdmin(user: IUser) {
-      if (user.role.name !== UserRole.SUPER_ADMIN) {
+      if (user.roles[0].name !== UserRole.SUPER_ADMIN) {
         throw new ForbiddenException('Admin access only');
       }
     }

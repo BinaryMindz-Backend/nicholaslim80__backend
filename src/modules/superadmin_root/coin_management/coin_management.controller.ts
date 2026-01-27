@@ -35,7 +35,7 @@ export class CoinManagementController {
 
       const res = await this.coinManagementService.create(
         createCoinManagementDto,
-        user.role.name,
+        user.roles[0].name,
         user.id
       );
       return ApiResponses.success(res, 'Coin created successfully ');
@@ -157,7 +157,7 @@ export class CoinManagementController {
       const data = await this.coinManagementService.update(
         +id,
         updateCoinManagementDto,
-        user.role.name,
+        user.roles[0].name,
         user.id
       );
       return ApiResponses.success(data, 'Coin Data updated Successfully ');

@@ -47,9 +47,20 @@ export class NotificationSchedulerService {
       // else if (n.target_role === UserRole.RAIDER) whereRole.role.name = UserRole.RAIDER;
       
        if (n.target_role === UserRole.USER) {
-            whereRole = { role: { name: UserRole.USER } };
+            whereRole = { 
+              roles: { 
+               some: {
+                 name:UserRole.USER
+              }
+             } 
+            };
           } else if (n.target_role === UserRole.RAIDER) {
-            whereRole = { role: { name: UserRole.RAIDER } };
+            whereRole = { 
+               roles: {
+                  some:{
+                     name:UserRole.RAIDER
+                  }  
+            }};
           }
 
       // 

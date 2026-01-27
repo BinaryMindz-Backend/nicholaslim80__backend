@@ -217,7 +217,13 @@ export class RbacService implements OnModuleInit {
     }
     // 
     const usersWithRole = await this.prisma.user.count({
-      where: { roleId },
+      where: { 
+          roles:{
+              some:{
+                  id:roleId
+              }
+          }
+       },
     });
 
     if (usersWithRole > 0) {
@@ -269,7 +275,7 @@ export class RbacService implements OnModuleInit {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        role: {
+        roles: {
           include: {
             permissions: true,
           },
@@ -283,17 +289,19 @@ export class RbacService implements OnModuleInit {
 
     // Group permissions by module
     const permissionsByModule: Record<string, string[]> = {};
-    user.role.permissions.forEach((perm) => {
-      if (!permissionsByModule[perm.module]) {
-        permissionsByModule[perm.module] = [];
-      }
-      permissionsByModule[perm.module].push(perm.action);
-    });
+        user.roles.map(r=>(
+              r.permissions.forEach((perm) => {
+              if (!permissionsByModule[perm.module]) {
+              permissionsByModule[perm.module] = [];
+            }
+            permissionsByModule[perm.module].push(perm.action);
+          })
+        ))
 
     return {
-      roleName: user.role.name,
+      roleName: user.roles?.map(r => r.name) ?? [],
       permissions: permissionsByModule,
-      detailedPermissions: user.role.permissions,
+      detailedPermissions: user.roles.map(r=>r.permissions) ?? [],
     };
   }
 
@@ -358,7 +366,7 @@ async findAllBySearch(dto: SearchDto) {
         ],
       },
       include:{
-          role:true,
+          roles:true,
       }
     }),
 
