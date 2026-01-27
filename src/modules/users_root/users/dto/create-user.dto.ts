@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsEmail, IsOptional, IsString } from 'class-validator';
 
 export class CreateUserDto {
 
@@ -27,10 +27,17 @@ export class CreateUserDto {
   @IsString()
   referral_code?: string;
 
-  @ApiPropertyOptional({ example: 'custom name' })
+  @ApiPropertyOptional({ example: 'role name' })
   @IsOptional()
   @IsString()
   role_name?: string;
+
+  @ApiPropertyOptional({ example: ['role1', 'role2'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true }) // ensures each element is a string
+  custom_role_name?: string[];
+
 
   @ApiPropertyOptional({ example: 'https://image.url' })
   @IsOptional()

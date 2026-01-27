@@ -156,7 +156,7 @@ export class NotificationService {
         const where: any = {
           OR: [
             { target_role: null },
-            { target_role: user.role.name }
+            { target_role: user.roles[0].name }
           ]
         };
         

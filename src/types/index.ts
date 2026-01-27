@@ -15,7 +15,7 @@ export interface IUser {
   id: number;
   email: string;
   phone: string;
-  role: IUserRole;
+  roles: IUserRole[];
 }
 
 export type WeeklyStat = {

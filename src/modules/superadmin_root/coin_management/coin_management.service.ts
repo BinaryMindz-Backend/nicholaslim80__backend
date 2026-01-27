@@ -64,8 +64,10 @@ export class CoinManagementService {
 
     const data = await this.prisma.user.findMany({
       where: {
-        role: {
-          name: UserRole.USER,
+        roles: {
+          some: {
+            name: UserRole.USER,
+          },
         },
         total_coin_acc: {
           gt: 0

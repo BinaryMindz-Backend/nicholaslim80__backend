@@ -52,7 +52,7 @@ export class IncentiveController {
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async create(@Body() createIncentiveDto: CreateIncentiveDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.incentiveService.create(createIncentiveDto, user.id, user.role.name);
+      const res = await this.incentiveService.create(createIncentiveDto, user.id, user.roles[0].name);
       if (!res) {
         return ApiResponses.error(null, 'Failed to create incentive');
       }
@@ -194,7 +194,7 @@ export class IncentiveController {
     @CurrentUser() user:IUser
   ) {
     try {
-      const res = await this.incentiveService.update(+id, updateIncentiveDto, user.id, user.role.name);
+      const res = await this.incentiveService.update(+id, updateIncentiveDto, user.id, user.roles[0].name);
       if (!res) {
         return ApiResponses.error(null, 'Incentive not found');
       }

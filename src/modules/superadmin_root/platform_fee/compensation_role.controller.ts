@@ -26,7 +26,7 @@ export class RaiderCompensationRoleController {
   @ApiOperation({ summary: 'Create a raider compensation role' })
   async create(@Body() dto: CreateRaiderCompensationRoleDto, @CurrentUser() user: IUser) {
     try {
-      const res = await this.service.create(dto, user.role.name, user.id);
+      const res = await this.service.create(dto, user.roles[0].name, user.id);
       return ApiResponses.success(res, 'Raider compensation role created successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to create record');
@@ -75,7 +75,7 @@ export class RaiderCompensationRoleController {
     @CurrentUser() user: IUser
   ) {
     try {
-      const res = await this.service.update(id, dto, user.role.name, user.id);
+      const res = await this.service.update(id, dto, user.roles[0].name, user.id);
       return ApiResponses.success(res, 'Record updated successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to update record');

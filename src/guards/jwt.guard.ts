@@ -1,11 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-// import { Injectable } from '@nestjs/common';
-// import { AuthGuard } from '@nestjs/passport';
-
-// @Injectable()
-// export class JwtAuthGuard extends AuthGuard('jwt') {}
-
-
 import {
   ExecutionContext,
   Injectable,

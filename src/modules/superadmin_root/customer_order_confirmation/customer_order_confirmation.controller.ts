@@ -142,7 +142,7 @@ export class CustomerOrderConfirmationController {
     @CurrentUser() user:IUser
   ) {
     try {
-      const res = await this.service.update(+id, dto, user.role.name, user.id);
+      const res = await this.service.update(+id, dto, user.roles[0].name, user.id);
       return ApiResponses.success(res, 'Configuration updated successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Update failed');

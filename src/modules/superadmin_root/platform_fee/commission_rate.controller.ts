@@ -29,7 +29,7 @@ export class StandardCommissionRateController {
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async create(@Body() data: CreateStandardCommissionRateDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.service.create(data, user.role.name, user.id);
+      const res = await this.service.create(data, user.roles[0].name, user.id);
       return ApiResponses.success(res, 'Record created successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to create record');
@@ -153,7 +153,7 @@ export class StandardCommissionRateController {
     @CurrentUser() user:IUser
   ) {
     try {
-      const res = await this.service.update(id, data, user.role.name,user.id);
+      const res = await this.service.update(id, data, user.roles[0].name,user.id);
       return ApiResponses.success(res, 'Record updated successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to update record');

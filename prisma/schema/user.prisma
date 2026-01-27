@@ -65,8 +65,7 @@ model User {
   user1Conversations Conversation[] @relation("User1Conversations")
   user2Conversations Conversation[] @relation("User2Conversations")
   // 
-  roleId    Int          @map("role_id")
-  role      Role         @relation(fields: [roleId], references: [id])
+  roles  Role[]
   // 
   logins                 UserLogin[]
 

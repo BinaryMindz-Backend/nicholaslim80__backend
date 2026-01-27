@@ -43,7 +43,7 @@ export class QuizController {
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async create(@Body() createQuizDto: CreateQuizDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.quizService.create(createQuizDto,user.role.name, user.id);
+      const res = await this.quizService.create(createQuizDto,user.roles[0].name, user.id);
       if (!res) {
         return ApiResponses.error(null, 'Failed to create quiz');
       }
@@ -156,7 +156,7 @@ export class QuizController {
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async update(@Param('id') id: string, @Body() updateQuizDto: UpdateQuizDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.quizService.update(+id, updateQuizDto, user.role.name, user.id);
+      const res = await this.quizService.update(+id, updateQuizDto, user.roles[0].name, user.id);
       if (!res) {
         return ApiResponses.error(null, 'Quiz not found');
       }
