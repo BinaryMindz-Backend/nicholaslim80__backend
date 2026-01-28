@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
+/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -24,6 +27,7 @@ import { CreateDestinationDto } from '../destination/dto/create-destination.dto'
 import { Parser } from 'json2csv';
 import { UpdateOrderDetailsDto } from './dto/update-order-details.dto';
 import { ApplyDiscountDto } from './dto/apply-discount.dto';
+import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.gateway';
 
 
 @Injectable()
@@ -35,8 +39,10 @@ export class OrderService {
     private readonly serviceZone: ServiceZoneService,
     private readonly geoServices: GeoService,
     private readonly emailQueueService: EmailQueueService,
-    private readonly walletService: WalletService
-
+    private readonly walletService: WalletService,
+     private raiderGateway: RaiderGateway,
+  
+  
   ) { }
 
   // create 
@@ -1154,8 +1160,7 @@ export class OrderService {
   }
 
 
-
-
+  
   //  export as csv
   async exportOrdersAsCsv() {
     const orders = await this.prisma.order.findMany({
@@ -2176,204 +2181,202 @@ export class OrderService {
 
 
   // **HOT CAKE: driver compitition algorithom (If you dont understand it then dont touch it)
-  async driverCompitition(user: IUser, orderId: number) {
-    // console.log("form order compition--->", user, orderId);
-    //  
-    const raider = await this.prisma.raider.findFirst({
-      where: {
-        userId: user.id,
-        raider_verificationFromAdmin: RaiderVerification.APPROVED,
-        isSuspended: false,
-        raider_status: RaiderStatus.ACTIVE
-      }
-    })
+  // async driverCompitition(user: IUser, orderId: number) {
+  //   // console.log("form order compition--->", user, orderId);
+  //   //  
+  //   const raider = await this.prisma.raider.findFirst({
+  //     where: {
+  //       userId: user.id,
+  //       raider_verificationFromAdmin: RaiderVerification.APPROVED,
+  //       isSuspended: false,
+  //       raider_status: RaiderStatus.ACTIVE
+  //     }
+  //   })
+
+  //   //  
+  //   if (!raider) {
+  //     throw new NotFoundException("Raider not found")
+  //   }
+
+  //   const lockKey = `order:competition:${orderId}`;
+
+  //   const lockAcquired = await this.redisService.acquireLock(lockKey, 3000);
+  //   if (!lockAcquired) {
+  //     throw new ConflictException(
+  //       'Competition is processing, please try again',
+  //     );
+  //   }
+
+  //   try {
+  //     const config = await this.prisma.driver_order_competition.findFirst();
+  //     if (!config) throw new NotFoundException('Competition config missing');
+
+  //     const order = await this.prisma.order.findUnique({
+  //       where: { id: orderId },
+  //     });
+
+  //     if (!order) throw new NotFoundException('Order not found');
+  //     if (order.order_status !== OrderStatus.PENDING) {
+  //       throw new NotFoundException("Order is not ready for compitition")
+  //     }
+
+  //     if (order.competition_closed) {
+  //       throw new BadRequestException('Competition already closed');
+  //     }
+
+  //     if (order.compititor_id.includes(raider.id)) {
+  //       return order; // already joined
+  //     }
+
+  //     if (order.compititor_id.length >= config.max_users_to_join) {
+  //       throw new BadRequestException(
+  //         'Maximum number of competitors has been reached',
+  //       );
+  //     }
+
+  //     const updated = await this.prisma.order.update({
+  //       where: { id: orderId },
+  //       data: {
+  //         compititor_id: { push: raider.id },
+  //       },
+  //     });
+  //     // console.log(updated,updated.compititor_id.length === 1, raider );
+  //     // Start competition only once
+  //     if (
+  //       updated.compititor_id.length === 1 &&
+  //       !updated.competition_started_at
+  //     ) {
+  //       await this.prisma.order.update({
+  //         where: { id: orderId },
+  //         data: { competition_started_at: new Date() },
+  //       });
+
+  //       // Schedule BullMQ job to auto-close competition
+  //       await competitionQueue.add(
+  //         'close-competition',          // job name
+  //         { orderId },                  // job data
+  //         { delay: config.challenges_timeout * 1000 } // delay in ms
+  //       );
+  //     }
 
 
+  //     // Auto Order Confirmation
+  //     const c = await this.prisma.customer_order_confirmation.findFirst();
+  //     if (!c) return;
 
-    //  
-    if (!raider) {
-      throw new NotFoundException("Raider not found")
-    }
+  //     // Get customer's completed order count
+  //     const orderCount = await this.prisma.order.count({
+  //       where: {
+  //         userId: user.id,
+  //         order_status: 'COMPLETED'
+  //       }
+  //     });
 
-    const lockKey = `order:competition:${orderId}`;
+  //     // Get average rating from drivers for this customer
+  //     const avgRating = await this.prisma.rateCustomer.aggregate({
+  //       where: {
+  //         user_id: order.userId
+  //       },
+  //       _avg: {
+  //         rating_star: true
+  //       }
+  //     });
 
-    const lockAcquired = await this.redisService.acquireLock(lockKey, 3000);
-    if (!lockAcquired) {
-      throw new ConflictException(
-        'Competition is processing, please try again',
-      );
-    }
+  //     // Default rating for new customers (no ratings yet)
+  //     const customerRating = avgRating._avg.rating_star ?? 3.0;
 
-    try {
-      const config = await this.prisma.driver_order_competition.findFirst();
-      if (!config) throw new NotFoundException('Competition config missing');
+  //     // Determine if new customer
+  //     const isNewCustomer = orderCount === 0;
 
-      const order = await this.prisma.order.findUnique({
-        where: { id: orderId },
-      });
+  //     // Calculate score components (normalized to 0-5 scale for consistency)
+  //     const newCustomerScore = isNewCustomer ? 0 : 5; // New customer = 0, Existing = 5
+  //     const completedOrdersScore = Math.min(orderCount / 10, 1) * 5; // Scale: 0-5 based on orders
 
-      if (!order) throw new NotFoundException('Order not found');
-      if (order.order_status !== OrderStatus.PENDING) {
-        throw new NotFoundException("Order is not ready for compitition")
-      }
+  //     // Apply weights (convert percentage to decimal)
+  //     const score =
+  //       (newCustomerScore * (c.is_new_customer_weight / 100)) +
+  //       (completedOrdersScore * (c.completed_orders_weight / 100));
+  //     // (followerScore * (config.followers_weight / 100));
 
-      if (order.competition_closed) {
-        throw new BadRequestException('Competition already closed');
-      }
+  //     // With your weights: 50% + 0% + 50%
+  //     // Max possible score = 5 (if not new customer + is follower)
+  //     // Example: (5 × 0.50) + (x × 0.00) + (5 × 0.50) = 2.5 + 0 + 2.5 = 5.0
 
-      if (order.compititor_id.includes(raider.id)) {
-        return order; // already joined
-      }
+  //     // Determine if auto-confirm
+  //     const autoConfirmThreshold = 3.0; // Configurable
+  //     const shouldAutoConfirm = score >= autoConfirmThreshold;
+  //     // 
+  //     console.log({
+  //       userId: user.id,
+  //       orderCount,
+  //       isNewCustomer,
+  //       customerRating,
+  //       components: {
+  //         newCustomer: newCustomerScore * (c.is_new_customer_weight / 100),
+  //         completedOrders: completedOrdersScore * (c.completed_orders_weight / 100),
+  //         // follower: followerScore * (config.followers_weight / 100)
+  //       },
+  //       finalScore: score,
+  //       shouldAutoConfirm
+  //     });
+  //     //  check and create logs
+  //     if (shouldAutoConfirm) {
+  //       const res = await this.prisma.$transaction(async (tx) => {
+  //         await tx.order.update({
+  //           where: {
+  //             id: order.id
+  //           },
+  //           data: {
+  //             raider_confirmation: true,
+  //             is_auto_confirmation: true
+  //           }
+  //         })
+  //         await tx.customer_order_confirmation_ratio_logs.create({
+  //           data: {
+  //             customer_id: user?.id,
+  //             raider_id: raider.id,
+  //             confirmation_ratio_type: OrderConfirmationRatioType.GENIUNE,
+  //             is_auto_confirm: true
+  //           }
+  //         })
+  //       })
+  //       return res;
+  //     }
+  //     else if (!shouldAutoConfirm && customerRating < 3) {
+  //       await this.prisma.customer_order_confirmation_ratio_logs.create({
+  //         data: {
+  //           customer_id: user?.id,
+  //           raider_id: raider?.id,
+  //           confirmation_ratio_type: OrderConfirmationRatioType.SUSPICIOUS,
+  //           is_auto_confirm: false
 
-      if (order.compititor_id.length >= config.max_users_to_join) {
-        throw new BadRequestException(
-          'Maximum number of competitors has been reached',
-        );
-      }
+  //         }
+  //       })
+  //     }
+  //     else {
+  //       await this.prisma.customer_order_confirmation_ratio_logs.create({
+  //         data: {
+  //           customer_id: user?.id,
+  //           raider_id: raider?.id,
+  //           confirmation_ratio_type: OrderConfirmationRatioType.MANUAL_CHECK,
+  //           is_auto_confirm: false
 
-      const updated = await this.prisma.order.update({
-        where: { id: orderId },
-        data: {
-          compititor_id: { push: raider.id },
-        },
-      });
-      // console.log(updated,updated.compititor_id.length === 1, raider );
-      // Start competition only once
-      if (
-        updated.compititor_id.length === 1 &&
-        !updated.competition_started_at
-      ) {
-        await this.prisma.order.update({
-          where: { id: orderId },
-          data: { competition_started_at: new Date() },
-        });
-
-        // Schedule BullMQ job to auto-close competition
-        await competitionQueue.add(
-          'close-competition',          // job name
-          { orderId },                  // job data
-          { delay: config.challenges_timeout * 1000 } // delay in ms
-        );
-      }
-
-
-      // Auto Order Confirmation
-      const c = await this.prisma.customer_order_confirmation.findFirst();
-      if (!c) return;
-
-      // Get customer's completed order count
-      const orderCount = await this.prisma.order.count({
-        where: {
-          userId: user.id,
-          order_status: 'COMPLETED'
-        }
-      });
-
-      // Get average rating from drivers for this customer
-      const avgRating = await this.prisma.rateCustomer.aggregate({
-        where: {
-          user_id: order.userId
-        },
-        _avg: {
-          rating_star: true
-        }
-      });
-
-      // Default rating for new customers (no ratings yet)
-      const customerRating = avgRating._avg.rating_star ?? 3.0;
-
-      // Determine if new customer
-      const isNewCustomer = orderCount === 0;
-
-      // Calculate score components (normalized to 0-5 scale for consistency)
-      const newCustomerScore = isNewCustomer ? 0 : 5; // New customer = 0, Existing = 5
-      const completedOrdersScore = Math.min(orderCount / 10, 1) * 5; // Scale: 0-5 based on orders
-
-      // Apply weights (convert percentage to decimal)
-      const score =
-        (newCustomerScore * (c.is_new_customer_weight / 100)) +
-        (completedOrdersScore * (c.completed_orders_weight / 100));
-      // (followerScore * (config.followers_weight / 100));
-
-      // With your weights: 50% + 0% + 50%
-      // Max possible score = 5 (if not new customer + is follower)
-      // Example: (5 × 0.50) + (x × 0.00) + (5 × 0.50) = 2.5 + 0 + 2.5 = 5.0
-
-      // Determine if auto-confirm
-      const autoConfirmThreshold = 3.0; // Configurable
-      const shouldAutoConfirm = score >= autoConfirmThreshold;
-      // 
-      console.log({
-        userId: user.id,
-        orderCount,
-        isNewCustomer,
-        customerRating,
-        components: {
-          newCustomer: newCustomerScore * (c.is_new_customer_weight / 100),
-          completedOrders: completedOrdersScore * (c.completed_orders_weight / 100),
-          // follower: followerScore * (config.followers_weight / 100)
-        },
-        finalScore: score,
-        shouldAutoConfirm
-      });
-      //  check and create logs
-      if (shouldAutoConfirm) {
-        const res = await this.prisma.$transaction(async (tx) => {
-          await tx.order.update({
-            where: {
-              id: order.id
-            },
-            data: {
-              raider_confirmation: true,
-              is_auto_confirmation: true
-            }
-          })
-          await tx.customer_order_confirmation_ratio_logs.create({
-            data: {
-              customer_id: user?.id,
-              raider_id: raider.id,
-              confirmation_ratio_type: OrderConfirmationRatioType.GENIUNE,
-              is_auto_confirm: true
-            }
-          })
-        })
-        return res;
-      }
-      else if (!shouldAutoConfirm && customerRating < 3) {
-        await this.prisma.customer_order_confirmation_ratio_logs.create({
-          data: {
-            customer_id: user?.id,
-            raider_id: raider?.id,
-            confirmation_ratio_type: OrderConfirmationRatioType.SUSPICIOUS,
-            is_auto_confirm: false
-
-          }
-        })
-      }
-      else {
-        await this.prisma.customer_order_confirmation_ratio_logs.create({
-          data: {
-            customer_id: user?.id,
-            raider_id: raider?.id,
-            confirmation_ratio_type: OrderConfirmationRatioType.MANUAL_CHECK,
-            is_auto_confirm: false
-
-          }
-        })
-      }
+  //         }
+  //       })
+  //     }
 
 
-      return {
-        updated,
-        score,
-        shouldAutoConfirm,
-        requiresManualConfirmation: !shouldAutoConfirm
-      };
+  //     return {
+  //       updated,
+  //       score,
+  //       shouldAutoConfirm,
+  //       requiresManualConfirmation: !shouldAutoConfirm
+  //     };
 
-    } finally {
-      await this.redisService.releaseLock(lockKey);
-    }
-  }
+  //   } finally {
+  //     await this.redisService.releaseLock(lockKey);
+  //   }
+  // }
 
 
   // order assign by admin
@@ -3172,5 +3175,258 @@ export class OrderService {
       },
     });
   }
+
+   //
+  // async getActiveCompetitionsForRider(riderId: number) {
+  //   const rider = await this.prisma.raider.findUnique({
+  //     where: { id: riderId },
+  //     // include: { vehicle: true },
+  //   });
+
+  //   if (!rider) return [];
+
+  //   const competitions = await this.prisma.order.findMany({
+  //     where: {
+  //       competition_closed: false,
+  //       competition_started_at: { not: null },
+  //       order_status: OrderStatus.PENDING,
+  //       // vehicle_type_id: rider.vehicle?.id,
+  //     },
+  //     include: { orderStops: true },
+  //   });
+
+  //   return competitions.map((order) => {
+  //     const now = new Date();
+  //     const started = order.competition_started_at && new Date(order.competition_started_at);
+  //     const elapsed = Math.floor((now.getTime() - started.getTime()) / 1000);
+  //     const timeRemaining = Math.max(0, 10 - elapsed);
+
+  //     return {
+  //       orderId: order.id,
+  //       totalCost: Number(order.total_cost),
+  //       timeRemaining,
+  //       competitorCount: order.compititor_id.length,
+  //       isParticipating: order.compititor_id.includes(riderId),
+  //       pickupAddress: order.orderStops[0]?.address,
+  //       deliveryAddress: order.orderStops[order.orderStops.length - 1]?.address,
+  //     };
+  //   });
+  // }
+
+     //** new
+  // DRIVER JOINS COMPETITION
+  async driverCompitition(user: IUser, orderId: number) {
+    console.log(`🎯 Rider joining competition - User: ${user.id}, Order: ${orderId}`);
+
+    // Validate raider
+    const raider = await this.prisma.raider.findFirst({
+      where: {
+        id: user.id,
+        raider_verificationFromAdmin: RaiderVerification.APPROVED,
+        isSuspended: false,
+        raider_status: RaiderStatus.ACTIVE,
+      },
+      include: { user: true },
+    });
+
+    if (!raider) {
+      throw new NotFoundException('Raider not found or not eligible');
+    }
+
+    // Acquire lock
+    const lockKey = `order:competition:${orderId}`;
+    const lockAcquired = await this.redisService.acquireLock(lockKey, 3000);
+    
+    if (!lockAcquired) {
+      throw new ConflictException('Competition is processing, please try again');
+    }
+
+    try {
+      // Get config
+      const config = await this.prisma.driver_order_competition.findFirst();
+      if (!config) throw new NotFoundException('Competition config missing');
+
+      // Validate order
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: { orderStops: true, vehicle: true, user: true },
+      });
+
+      if (!order) throw new NotFoundException('Order not found');
+      // if (order.order_status !== OrderStatus.PENDING) {
+      //   throw new NotFoundException('Order is not ready for competition');
+      // }
+      if (order.competition_closed) {
+        throw new BadRequestException('Competition already closed');
+      }
+
+      // Check if already joined
+      if (order.compititor_id.includes(raider.id)) {
+        console.log(`⚠️ Rider ${raider.id} already joined`);
+        return {
+          updated: order,
+          score: 0,
+          shouldAutoConfirm: false,
+          requiresManualConfirmation: true,
+          alreadyJoined: true,
+        };
+      }
+
+      // Check max participants
+      if (order.compititor_id.length >= config.max_users_to_join) {
+        throw new BadRequestException('Maximum competitors reached');
+      }
+
+      // Add rider to competition
+      const updated = await this.prisma.order.update({
+        where: { id: orderId },
+        data: { compititor_id: { push: raider.id } },
+        include: { orderStops: true, vehicle: true, user: true },
+      });
+
+      console.log(`✅ Rider ${raider.id} joined! Total: ${updated.compititor_id.length}`);
+
+      // Start competition if first rider
+      if (updated.compititor_id.length === 1 && !updated.competition_started_at) {
+        console.log('🏁 First rider - starting competition');
+        await this.startCompetition(orderId, config.challenges_timeout);
+      }
+
+      // Check auto-confirmation
+      const autoConfirmResult = await this.checkAutoConfirmation(order, user, raider);
+
+      return {
+        updated,
+        ...autoConfirmResult,
+        alreadyJoined: false,
+      };
+
+    } finally {
+      await this.redisService.releaseLock(lockKey);
+    }
+  }
+
+
+  // START COMPETITION (First rider triggers this)
+  private async startCompetition(orderId: number, timeoutSeconds: number) {
+    console.log(`🏁 Starting competition - Order: ${orderId}, Duration: ${timeoutSeconds}s`);
+
+    const order = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { competition_started_at: new Date() },
+      include: { orderStops: true, vehicle: true, serviceZone: true },
+    });
+
+    // Schedule BullMQ job
+    await competitionQueue.add(
+      'close-competition',
+      { orderId },
+      { delay: timeoutSeconds * 1000 },
+    );
+    console.log(`⏰ Auto-close scheduled in ${timeoutSeconds}s`);
+
+    // Prepare competition data
+    const competitionData = {
+      orderId: order.id,
+      serviceZoneId: order.serviceZoneId!,
+      vehicleTypeId: order.vehicle_type_id!,
+      totalCost: Number(order.total_cost),
+      pickupLocation: {
+        lat: order.orderStops[0]?.latitude || 0,
+        lng: order.orderStops[0]?.longitude || 0,
+        address: order.orderStops[0]?.address || '',
+      },
+      deliveryLocation: {
+        lat: order.orderStops[order.orderStops.length - 1]?.latitude || 0,
+        lng: order.orderStops[order.orderStops.length - 1]?.longitude || 0,
+        address: order.orderStops[order.orderStops.length - 1]?.address || '',
+      },
+      competitionStartedAt: order.competition_started_at!,
+      competitionEndsAt: order.competition_started_at! && new Date(order.competition_started_at.getTime() + timeoutSeconds * 1000),
+      timeRemaining: timeoutSeconds,
+      competitorIds: order.compititor_id,
+      competitorCount: order.compititor_id.length,
+    };
+
+    // ONLY broadcast to riders 
+    await this.raiderGateway.broadcastNewCompetitionToZone(competitionData);
+
+    console.log('✅ Competition started');
+  }
+
+  // AUTO-CONFIRMATION CHECK
+  private async checkAutoConfirmation(order: any, user: IUser, raider: any) {
+    const c = await this.prisma.customer_order_confirmation.findFirst();
+    if (!c) return { score: 0, shouldAutoConfirm: false, requiresManualConfirmation: true };
+
+    const orderCount = await this.prisma.order.count({
+      where: { userId: user.id, order_status: 'COMPLETED' },
+    });
+
+    const avgRating = await this.prisma.rateCustomer.aggregate({
+      where: { user_id: order.userId },
+      _avg: { rating_star: true },
+    });
+
+    const customerRating = avgRating._avg.rating_star ?? 3.0;
+    const isNewCustomer = orderCount === 0;
+
+    const newCustomerScore = isNewCustomer ? 0 : 5;
+    const completedOrdersScore = Math.min(orderCount / 10, 1) * 5;
+
+    const score =
+      newCustomerScore * (c.is_new_customer_weight / 100) +
+      completedOrdersScore * (c.completed_orders_weight / 100);
+      // also will checked by follower
+
+    const shouldAutoConfirm = score >= 3.0;
+
+    if (shouldAutoConfirm) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { raider_confirmation: true, is_auto_confirmation: true },
+        });
+        
+        await tx.customer_order_confirmation_ratio_logs.create({
+          data: {
+            customer_id: user?.id,
+            raider_id: raider.id,
+            confirmation_ratio_type: OrderConfirmationRatioType.GENIUNE,
+            is_auto_confirm: true,
+          },
+        });
+      });
+
+      this.raiderGateway.server.to(`rider:${raider.id}`).emit('rider:order_auto_confirmed', {
+        orderId: order.id,
+        message: '✅ Order auto-confirmed!',
+      });
+
+    } else if (!shouldAutoConfirm && customerRating < 3) {
+      await this.prisma.customer_order_confirmation_ratio_logs.create({
+        data: {
+          customer_id: user?.id,
+          raider_id: raider?.id,
+          confirmation_ratio_type: OrderConfirmationRatioType.SUSPICIOUS,
+          is_auto_confirm: false,
+        },
+      });
+    } else {
+      await this.prisma.customer_order_confirmation_ratio_logs.create({
+        data: {
+          customer_id: user?.id,
+          raider_id: raider?.id,
+          confirmation_ratio_type: OrderConfirmationRatioType.MANUAL_CHECK,
+          is_auto_confirm: false,
+        },
+      });
+    }
+
+    return { score, shouldAutoConfirm, requiresManualConfirmation: !shouldAutoConfirm };
+  }
+
+  
+
 
 }

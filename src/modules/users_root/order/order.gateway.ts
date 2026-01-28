@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/await-thenable */
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -120,4 +121,20 @@ export class OrderGateway implements OnGatewayConnection {
     console.log('Admin requested refresh');
     await this.sendAllOrdersWithLocations(client);
   }
+  // 
+  async broadcastOrderAssigned(orderId: number, riderId: number, riderName: string) {
+    console.log(`📣 Broadcasting: Order ${orderId} assigned to ${riderName} (${riderId})`);
+    
+    await this.server.to('admin:live-map').emit('admin:order_assigned', {
+      orderId,
+      riderId,
+      riderName,
+      assignedAt: new Date(),
+    });
+  }
+
+
+
+
+
 }

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { OrderController } from './order.controller';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -12,18 +12,21 @@ import { QueueModule } from 'src/modules/queue/queue.module';
 import { WalletModule } from 'src/common/wallet/wallet.module';
 import { WalletService } from 'src/common/wallet/wallet.service';
 import { OrderGateway } from './order.gateway';
+import { RaiderModule } from 'src/modules/raider_root/raider gateways/raider.module';
+
 
 @Module({
   imports:[
       RedisModule,
       NotificationModule, 
       QueueModule, 
-      WalletModule],
+      WalletModule,
+      forwardRef(()=> RaiderModule)
+    ],
   controllers: [OrderController],
   providers: [OrderService, TransactionIdService, CompetitionWorker,SmsService, ServiceZoneService,GeoService, WalletService, OrderGateway],
   exports:[
     OrderService,
-    OrderGateway
-  ]
+    OrderGateway  ]
 })
 export class OrderModule {}
