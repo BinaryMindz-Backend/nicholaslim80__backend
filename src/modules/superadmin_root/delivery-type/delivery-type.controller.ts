@@ -16,32 +16,34 @@ import { CreateDeliveryTypeDto } from './dto/create-delivery-type.dto';
 import { UpdateDeliveryTypeDto } from './dto/update-delivery-type.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Auth } from 'src/decorators/auth.decorator';
-import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
 import type { IUser } from 'src/types';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { Public } from 'src/decorators/public.decorator';
+import { CurrentUser } from '../../../decorators/current-user.decorator';
 
 
 @ApiTags('Delivery Types (admin)')
 @ApiBearerAuth()
 @Controller('delivery-types')
 export class DeliveryTypeController {
-  constructor(private readonly service: DeliveryTypeService) {}
-  
+  constructor(private readonly service: DeliveryTypeService) { }
+
   // create delivery type
   @Post('create')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
   @RequirePermission(Module.VECHICLE_PRICING, Permission.CREATE)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create Delivery Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async create(@CurrentUser() user: IUser,
     @Body() dto: CreateDeliveryTypeDto,
   ) {
+    console.log("user----->", user)
     try {
-      const result = await this.service.create(dto,user);
+      const result = await this.service.create(dto, user);
       return ApiResponses.success(result, 'Delivery type created');
     } catch (err) {
       return ApiResponses.error(err, 'Creation failed');
@@ -76,11 +78,12 @@ export class DeliveryTypeController {
       return ApiResponses.error(err, 'Fetch failed');
     }
   }
-  
+
   // 
   @Patch(':id')
   @Auth()
   @RequirePermission(Module.VECHICLE_PRICING, Permission.UPDATE)
+  @ApiBearerAuth()
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update Delivery Type (Admin only)' })
   async update(
@@ -96,10 +99,11 @@ export class DeliveryTypeController {
       return ApiResponses.error(err, 'Update failed');
     }
   }
-   
+
   // 
   @Delete(':id')
   @Auth()
+  @ApiBearerAuth()
   // @Roles(UserRole.SUPER_ADMIN)
   @RequirePermission(Module.VECHICLE_PRICING, Permission.DELETE)
   @ApiOperation({ summary: 'Delete Delivery Type (Admin only)' })
