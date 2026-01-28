@@ -170,3 +170,27 @@ export interface ReceiverWithPricing extends Receiver {
   durationMin: number;
   pricing: PricingBreakdown;
 }
+
+
+// compitions
+export interface OrderCompetitionData {
+  orderId: number;
+  serviceZoneId: number;
+  vehicleTypeId: number;
+  totalCost: number;
+  pickupLocation: {
+    lat: number;
+    lng: number;
+    address: string;
+  };
+  deliveryLocation: {
+    lat: number;
+    lng: number;
+    address: string;
+  };
+  competitionStartedAt: Date;
+  competitionEndsAt: Date;
+  timeRemaining: number; // in seconds (8-10)
+  competitorIds: number[];
+  competitorCount: number;
+}

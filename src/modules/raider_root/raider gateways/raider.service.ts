@@ -76,4 +76,19 @@ export class RaiderService {
     console.log(`✅ Rider ${riderId} location updated:`, { lat, lng, heading });
     console.log(`✅ Redis key set: ${key}`);
   }
-}
+  // 
+    async getOnlineRidersInZone(compititiorIds: number[]) {
+      const riders = await this.prisma.raider.findMany({
+        where: {
+          id: {
+            in: compititiorIds,
+          },
+        },
+      });
+
+      return riders;
+    }
+
+  }
+
+

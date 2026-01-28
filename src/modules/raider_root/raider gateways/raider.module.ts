@@ -1,4 +1,4 @@
-import {  Module } from '@nestjs/common';
+import {  forwardRef, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { RaiderGateway } from './raider.gateway';
 import { RaiderService } from './raider.service';
@@ -8,7 +8,7 @@ import { RedisService } from 'src/modules/auth/redis/redis.service';
 
 @Module({
   imports: [
-    OrderModule,
+    forwardRef(()=> OrderModule),
     JwtModule.register({
       secret: process.env.JWT_SECRET,
     }),
