@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/await-thenable */
 import {
   WebSocketGateway,
@@ -114,40 +115,32 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.error('❌ Error broadcasting to admin:', err.message);
     }
   }
-  
-  // RIDER JOINS COMPETITION (via WebSocket or REST API)
+   
+  // raider join throw socket to compition
   @SubscribeMessage('rider:join_competition')
   async handleJoinCompetition(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { orderId: number },
   ) {
     const user = client.data.user;
-    if (!user) {
-      console.log('❌ No user data in socket');
-      return;
-    }
-    
+    if (!user) return;
+    //
     try {
-      console.log(`🏁 Rider ${user.raider.id} joining competition for order ${payload.orderId}`);
+      console.log(`🏁 Rider ${user.raider.id} joining competition ${payload.orderId}`);
       
-      // Call your existing service method
       const result = await this.orderService.driverCompitition(user, payload.orderId);
       
-      // Notify rider of successful join
       client.emit('rider:competition_joined', {
         orderId: payload.orderId,
         success: true,
         competitorCount: result.updated?.compititor_id?.length || 0,
         autoConfirmed: result.shouldAutoConfirm,
+        competitionStarted: result.updated.competition_started_at,
         message: 'Successfully joined competition!',
       });
       
-      console.log(`✅ Rider ${user.raider.id} successfully joined competition`);
-      
     } catch (err) {
-      console.error('❌ Error joining competition:', err.message);
-      
-      // Notify rider of error
+      console.error('❌ Join error:', err.message);
       client.emit('rider:competition_error', {
         orderId: payload.orderId,
         message: err.message || 'Failed to join competition',
@@ -169,28 +162,35 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // }
 
   // BROADCAST NEW COMPETITION: To all riders in service zone
-  async broadcastNewCompetitionToZone(
-    competitionData: OrderCompetitionData,
-  ) {
-    try {
-      // Get all online riders in the zone with matching vehicle
-      const riders = await this.raiderService.getOnlineRidersInZone(competitionData.competitorIds);
-      
-      console.log(`📣 Broadcasting NEW COMPETITION to ${riders.length} riders in zone ${competitionData.serviceZoneId}`);
-      console.log(`   Order: ${competitionData.orderId}`);
-      console.log(`   Duration: ${competitionData.timeRemaining}s`);
-      
-      // Send to each rider's room
-      for (const rider of riders) {
-        this.server.to(`rider:${rider.id}`).emit('rider:new_competition', competitionData);
+ 
+ 
+  async broadcastCompetitionUpdateToCompetitors(
+      competitionData: OrderCompetitionData,
+    ) {
+      try {
+        const competitorIds = competitionData.competitorIds || [];
+        
+        if (competitorIds.length === 0) {
+          console.log('⚠️ No competitors to notify');
+          return;
+        }
+        
+        console.log(`📊 Broadcasting update to ${competitorIds.length} competitors`);
+        console.log(`   Order: ${competitionData.orderId}`);
+        console.log(`   Competitor count: ${competitionData.competitorCount}`);
+        
+        // Send ONLY to riders who joined
+        for (const riderId of competitorIds) {
+          this.server.to(`rider:${riderId}`).emit('rider:competition_update', competitionData);
+        }
+        
+        console.log(`✅ Update sent to ${competitorIds.length} competitors`);
+        
+      } catch (err) {
+        console.error('❌ Error broadcasting update:', err);
       }
-      
-      console.log(`✅ Competition broadcast sent to ${riders.length} riders`);
-      
-    } catch (err) {
-      console.error('❌ Error broadcasting competition:', err);
     }
-  }
+
 
   // NOTIFY RIDER ASSIGNMENT: Winner notification
   async notifyRiderAssignment(riderId: number, orderId: number, score?: number) {
@@ -205,38 +205,37 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // NOTIFY COMPETITION WON: Detailed winner notification
   async notifyCompetitionWon(
-    riderId: number, 
-    orderId: number, 
-    score: number, 
-    competitorCount: number
-  ) {
-    console.log(`🏆 Notifying rider ${riderId} - WON competition for order ${orderId}`);
-    console.log(`   Score: ${score}`);
-    console.log(`   Beat ${competitorCount - 1} competitors`);
-    
-    await this.server.to(`rider:${riderId}`).emit('rider:competition_won', {
-      orderId,
-      score,
-      competitorCount,
-      message: `🎉 Congratulations! You won the competition with score ${score.toFixed(2)}!`,
-    });
+      riderId: number, 
+      orderId: number, 
+      score: number, 
+      competitorCount: number
+    ) {
+      console.log(`🏆 Notifying rider ${riderId} - WON competition for order ${orderId}`);
+      console.log(`   Score: ${score}`);
+      console.log(`   Beat ${competitorCount - 1} competitors`);
+      
+      await this.server.to(`rider:${riderId}`).emit('rider:competition_won', {
+        orderId,
+        score,
+        competitorCount,
+        message: `🎉 Congratulations! You won the competition with score ${score.toFixed(2)}!`,
+      });
   }
 
   // NOTIFY COMPETITION LOST: Loser notification
   async notifyCompetitionLost(
-    riderId: number, 
-    orderId: number, 
-    winnerName: string
-  ) {
-    console.log(`😔 Notifying rider ${riderId} - LOST competition for order ${orderId}`);
-    
-   await this.server.to(`rider:${riderId}`).emit('rider:competition_lost', {
-      orderId,
-      winnerName,
-      message: `Order was assigned to ${winnerName}. Better luck next time!`,
-    });
-  }
- 
-
+      riderId: number, 
+      orderId: number, 
+      winnerName: string
+    ) {
+      console.log(`😔 Notifying rider ${riderId} - LOST competition for order ${orderId}`);
+      
+    await this.server.to(`rider:${riderId}`).emit('rider:competition_lost', {
+        orderId,
+        winnerName,
+        message: `Order was assigned to ${winnerName}. Better luck next time!`,
+      });
+    }
+  
 
 }

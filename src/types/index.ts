@@ -175,8 +175,8 @@ export interface ReceiverWithPricing extends Receiver {
 // compitions
 export interface OrderCompetitionData {
   orderId: number;
-  serviceZoneId: number;
-  vehicleTypeId: number;
+  serviceZoneId?: number | null;
+  vehicleTypeId?: number | null;
   totalCost: number;
   pickupLocation: {
     lat: number;
@@ -188,9 +188,49 @@ export interface OrderCompetitionData {
     lng: number;
     address: string;
   };
-  competitionStartedAt: Date;
-  competitionEndsAt: Date;
+  competitionStartedAt: string;
+  competitionEndsAt: string;
   timeRemaining: number; // in seconds (8-10)
   competitorIds: number[];
   competitorCount: number;
+}
+
+
+
+export interface UserRaiderMapping {
+  id: number;
+  userId: number;
+  raider: Raider;
+}
+
+export interface Raider {
+  id: number;
+  userId: number;
+
+  is_online: boolean;
+  is_available: boolean;
+
+  raider_status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  LoginType: 'DIRECT_SIGNIN' | 'SOCIAL_LOGIN';
+
+  raider_verificationFromAdmin: 'PENDING' | 'APPROVED' | 'REJECTED';
+
+  isSuspended: boolean;
+  suspendedDuration: number | null;
+  suspensionReason: string | null;
+
+  hasBranding: boolean;
+  hasAdDecal: boolean;
+  isPremium: boolean;
+
+  rank: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
+  rankScore: number;
+
+  reviews_count: number;
+  completed_orders: number;
+  active_days: number;
+  cancellation_rate: number;
+
+  created_at: Date;
+  updated_at: Date;
 }

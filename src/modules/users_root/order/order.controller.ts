@@ -550,21 +550,21 @@ export class OrderController {
   }
 
   //
-  @Post('driver/compitition/:order_id')
-  @Auth()
-  @ApiBearerAuth()
-  @RequirePermission(Module.ORDER, Permission.ORDER_COMPITITION)
-  @ApiOperation({ summary: 'driver compitition on order by raider ID (raider only)' })
-  async driverCompitition(@Param('order_id') order_id: string, @CurrentUser() user: IUser) {
-    console.log(user, order_id);
-    // 
-    try {
-      const order = await this.orderService.driverCompitition(user, +order_id);
-      return ApiResponses.success(order, 'Raider join as compitition driver');
-    } catch (err) {
-      return ApiResponses.error(err, 'Failed to join as compitition driver');
-    }
-  }
+  // @Post('driver/compitition/:order_id')
+  // @Auth()
+  // @ApiBearerAuth()
+  // @RequirePermission(Module.ORDER, Permission.ORDER_COMPITITION)
+  // @ApiOperation({ summary: 'driver compitition on order by raider ID (raider only)' })
+  // async driverCompitition(@Param('order_id') order_id: string, @CurrentUser() user: IUser) {
+  //   console.log(user, order_id);
+  //   // 
+  //   try {
+  //     const order = await this.orderService.driverCompitition(user, +order_id);
+  //     return ApiResponses.success(order, 'Raider join as compitition driver');
+  //   } catch (err) {
+  //     return ApiResponses.error(err, 'Failed to join as compitition driver');
+  //   }
+  // }
 
 
 
@@ -583,8 +583,6 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to update order');
     }
   }
-
-
 
   //  
   @Patch('bulk/status/pending')
