@@ -14,7 +14,7 @@ import { RaiderService } from './raider.service';
 import { OrderService } from 'src/modules/users_root/order/order.service';
 import { JwtService } from '@nestjs/jwt';
 import { SocketIOAdapter } from 'src/adapters/socket-io.adapter'; // Import the adapter
-import { forwardRef, Inject } from '@nestjs/common';
+import { forwardRef, Inject,  } from '@nestjs/common';
 import { OrderCompetitionData } from 'src/types';
 
 @WebSocketGateway({ namespace: '/raider', cors: true })
@@ -29,32 +29,34 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private jwtService: JwtService,
   ) {}
 
-  async handleConnection(client: Socket) {
+    //  connect to room
+    async handleConnection(client: Socket) {
     const token = client.handshake.auth?.token;
     if (!token) return client.disconnect();
     
     try {
       const payload = this.jwtService.verify(token, { secret: process.env.JWT_SECRET });
       const userId = Number(payload.sub);
-      console.log("user id", userId);
       
       const raider = await this.raiderService.getRaiderByUserId(userId);
-      console.log("raider result:", raider);
-      
       if (!raider) {
-        console.log('Raider not found for user:', userId);
+        console.log('❌ Raider not found:', userId);
         return client.disconnect();
       }
+       
+       client.data.user = { id: raider.id, userId: userId, raider };
+        console.log('Rider connected - userId:', userId, 'raiderId:', raider.id);
+        client.join(`rider_${raider.id}`);
       
-      client.data.user = { id: raider.id, userId: userId, raider };
-      console.log('Rider connected - userId:', userId, 'raiderId:', raider.id);
-      
+      console.log(`✅ Rider connected: ${raider.id}`);
       await this.raiderService.setOnline(raider.id);
+      
     } catch (err) {
-      console.log('Invalid token', err.message);
+      console.log('❌ Invalid token:', err.message);
       client.disconnect();
     }
   }
+
 
   async handleDisconnect(client: Socket) {
     try {
@@ -117,53 +119,59 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
    
   // raider join throw socket to compition
-  @SubscribeMessage('rider:join_competition')
+  
+ @SubscribeMessage('rider:join_competition')
   async handleJoinCompetition(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { orderId: number },
-  ) {
-    const user = client.data.user;
-    if (!user) return;
-    //
-    try {
-      console.log(`🏁 Rider ${user.raider.id} joining competition ${payload.orderId}`);
-      
-      const result = await this.orderService.driverCompitition(user, payload.orderId);
-      
-      client.emit('rider:competition_joined', {
-        orderId: payload.orderId,
-        success: true,
-        competitorCount: result.updated?.compititor_id?.length || 0,
-        autoConfirmed: result.shouldAutoConfirm,
-        competitionStarted: result.updated.competition_started_at,
-        message: 'Successfully joined competition!',
-      });
-      
-    } catch (err) {
-      console.error('❌ Join error:', err.message);
-      client.emit('rider:competition_error', {
-        orderId: payload.orderId,
-        message: err.message || 'Failed to join competition',
-      });
-    }
-  }
+   @ConnectedSocket() client: Socket,
+   @MessageBody() payload: { orderId: number },
+ ) {
+  const user = client.data.user;
+  if (!user) return;
+  
+  try {
+    console.log(`🏁 Rider ${user.raider.id} joining competition ${payload.orderId}`);
+    
+    const result = await this.orderService.driverCompitition(user, payload.orderId);
+    
+    // Send success response to the rider who joined
+    client.emit('rider:competition_joined', {
+      orderId: payload.orderId,
+      success: true,
+      competitorCount: result.updated?.compititor_id?.length || 0,
+      autoConfirmed: result.shouldAutoConfirm,
+      competitionStarted: !!result.updated.competition_started_at,
+      timeRemaining: result.timeRemaining || 10,
+      message: 'Successfully joined competition!',
+    });
 
-  // SEND ACTIVE COMPETITIONS: When rider connects
-  // private async sendActiveCompetitions(client: Socket, riderId: number) {
-  //   try {
-  //     const competitions = await this.orderService.getActiveCompetitionsForRider(riderId);
+    // ⭐ BROADCAST TO ALL COMPETITORS (including the new joiner)
+    if (!result.alreadyJoined && result.updated?.compititor_id) {
+      const competitorIds = result.updated.compititor_id;
       
-  //     console.log(`📤 Sending ${competitions.length} active competitions to rider ${riderId}`);
+      console.log(`📣 Broadcasting competitor count update to ${competitorIds.length} riders`);
       
-  //     client.emit('rider:active_competitions', competitions);
-  //   } catch (err) {
-  //     console.error('❌ Error sending active competitions:', err);
-  //   }
-  // }
+      // Send update to ALL riders in the competition
+      for (const riderId of competitorIds) {
+        this.server.to(`rider_${riderId}`).emit('rider:competitor_joined', {
+          orderId: payload.orderId,
+          competitorCount: competitorIds.length,
+          newRiderId: user.raider.id,
+          message: `${competitorIds.length} riders competing now!`,
+        });
+      }
+    }
+    
+  } catch (err) {
+    console.error('❌ Join error:', err.message);
+    client.emit('rider:competition_error', {
+      orderId: payload.orderId,
+      message: err.message || 'Failed to join competition',
+    });
+  }
+}
+
 
   // BROADCAST NEW COMPETITION: To all riders in service zone
- 
- 
   async broadcastCompetitionUpdateToCompetitors(
       competitionData: OrderCompetitionData,
     ) {
@@ -181,7 +189,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
         
         // Send ONLY to riders who joined
         for (const riderId of competitorIds) {
-          this.server.to(`rider:${riderId}`).emit('rider:competition_update', competitionData);
+          this.server.to(`rider_${riderId}`).emit('rider:competition_update', competitionData);
         }
         
         console.log(`✅ Update sent to ${competitorIds.length} competitors`);
@@ -192,50 +200,56 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
 
-  // NOTIFY RIDER ASSIGNMENT: Winner notification
-  async notifyRiderAssignment(riderId: number, orderId: number, score?: number) {
-    console.log(`📢 Notifying rider ${riderId} of ASSIGNMENT to order ${orderId}`);
-    
-   await this.server.to(`rider:${riderId}`).emit('rider:order_assigned', {
-      orderId,
-      message: '🎉 You have been assigned to this order!',
-      score,
-    });
-  }
-
-  // NOTIFY COMPETITION WON: Detailed winner notification
-  async notifyCompetitionWon(
-      riderId: number, 
-      orderId: number, 
-      score: number, 
-      competitorCount: number
-    ) {
-      console.log(`🏆 Notifying rider ${riderId} - WON competition for order ${orderId}`);
-      console.log(`   Score: ${score}`);
-      console.log(`   Beat ${competitorCount - 1} competitors`);
+    // NOTIFY RIDER ASSIGNMENT: Winner notification
+    async notifyRiderAssignment(riderId: number, orderId: number, score?: number) {
+      console.log(`📢 Notifying rider ${riderId} of ASSIGNMENT to order ${orderId}`); // ✅ Fixed
       
-      await this.server.to(`rider:${riderId}`).emit('rider:competition_won', {
+      this.server.to(`rider_${riderId}`).emit('rider:order_assigned', { // ✅ Fixed
         orderId,
+        message: '🎉 You have been assigned to this order!',
         score,
-        competitorCount,
-        message: `🎉 Congratulations! You won the competition with score ${score.toFixed(2)}!`,
-      });
-  }
-
-  // NOTIFY COMPETITION LOST: Loser notification
-  async notifyCompetitionLost(
-      riderId: number, 
-      orderId: number, 
-      winnerName: string
-    ) {
-      console.log(`😔 Notifying rider ${riderId} - LOST competition for order ${orderId}`);
-      
-    await this.server.to(`rider:${riderId}`).emit('rider:competition_lost', {
-        orderId,
-        winnerName,
-        message: `Order was assigned to ${winnerName}. Better luck next time!`,
       });
     }
+
+ // NOTIFY COMPETITION WON: Detailed winner notification
+  async notifyCompetitionWon(
+    riderId: number, 
+    orderId: number, 
+    score: number, 
+    competitorCount: number
+  ) {
+    console.log(`From won 🏆 Notifying rider ${riderId} - WON competition for order ${orderId}`); // ✅ Fixed
+    console.log(`   Score: ${score}`); 
+    console.log(`   Beat ${competitorCount - 1} competitors`);
+    
+    await this.server.to(`rider_${riderId}`).emit('rider:competition_won', {
+      orderId,
+      score,
+      competitorCount,
+      message: `🎉 Congratulations! You won the competition with score ${score.toFixed(2)}!`,
+    });
+
+  }
+
+ // NOTIFY COMPETITION LOST: Loser notification
+  async notifyCompetitionLost(
+    riderId: number, 
+    orderId: number, 
+    winnerName: string
+  ) {
+    console.log(`😔 Notifying rider ${riderId} - LOST competition for order ${orderId}`); // ✅ Fixed
+    
+    this.server.to(`rider_${riderId}`).emit('rider:competition_lost', { // ✅ Fixed
+      orderId,
+      winnerName,
+      message: `Order was assigned to ${winnerName}. Better luck next time!`,
+    });
+  }
   
+  // user join to socket after oder is placed
+    
+
+
+
 
 }

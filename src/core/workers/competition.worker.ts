@@ -1,257 +1,3 @@
-/* eslint-disable @typescript-eslint/await-thenable */
-// import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
-// import { Injectable, OnModuleInit } from '@nestjs/common';
-// import { Worker } from 'bullmq';
-// import { PrismaService } from 'src/core/database/prisma.service';
-// import { connection } from '../queues/competition.queue';
-// import { OrderStatus, Rank } from '@prisma/client';
-
-// @Injectable()
-
-// export class CompetitionWorker implements OnModuleInit {
-//   constructor(
-//     private readonly prisma: PrismaService,
-//     private readonly emailQueueService: EmailQueueService, // Fixed: Use correct casing
-//   ) {}
-
-//   onModuleInit() {
-//     new Worker(
-//       'order-competition',
-//       async job => {
-//         const { orderId } = job.data;
-//         console.log('🚀 Worker running for order:', orderId);
-
-//         // 1. VALIDATE ORDER
-//         const order = await this.prisma.order.findUnique({
-//           where: { id: orderId },
-//         });
-
-//         if (!order || order.competition_closed) {
-//           console.log(`⚠️ Order ${orderId} is invalid or already closed`);
-//           return;
-//         }
-
-//         const drivers = order.compititor_id || [];
-//         if (drivers.length === 0) {
-//           console.log(`⚠️ No competitors for order ${orderId}`);
-//           return;
-//         }
-
-//         // 2. GET COMPETITION CONFIG
-//         const config = await this.prisma.driver_order_competition.findFirst();
-//         if (!config) {
-//           console.log(`⚠️ No competition config found`);
-//           return;
-//         }
-
-//         // 3. FETCH & SCORE DRIVERS
-//         const driverDetails = await Promise.all(
-//           drivers.map(async driverId => {
-//             const driver = await this.prisma.raider.findUnique({
-//               where: { id: driverId },
-//               include: {
-//                 followers: { where: { is_fav: true } },
-//               },
-//             });
-
-//             return driver
-//               ? {
-//                   driverId,
-//                   rank: driver.rank,
-//                   rankScore: driver.rankScore || 0,
-//                   rating: driver.reviews_count || 0,
-//                   followers: driver.followers.length || 0,
-//                 }
-//               : null;
-//           }),
-//         );
-
-//         const validDrivers = driverDetails.filter(d => d !== null);
-
-//         if (validDrivers.length === 0) {
-//           console.log(`⚠️ No valid drivers for order ${orderId}`);
-//           return;
-//         }
-
-//         // Prioritize PLATINUM drivers
-//         const platinumDrivers = validDrivers.filter(d => d.rank === Rank.PLATINUM);
-//         const candidates = platinumDrivers.length > 0 ? platinumDrivers : validDrivers;
-
-//         // Calculate weighted scores
-//         const scores = candidates.map(d => ({
-//           driverId: d.driverId,
-//           score:
-//             d.rankScore * config.rank_weight +
-//             d.rating * config.rating_weight +
-//             d.followers * config.followers_weight,
-//         }));
-
-//         const winner = scores.sort((a, b) => b.score - a.score)[0];
-        
-//         if (!winner) {
-//           console.log(`⚠️ No winner determined for order ${orderId}`);
-//           return;
-//         }
-
-//         // 4. UPDATE ORDER WITH WINNER
-//         await this.prisma.order.update({
-//           where: { id: orderId },
-//           data: {
-//             assign_rider_id: winner.driverId,
-//             competition_closed: true,
-//             order_status: OrderStatus.ONGOING,
-//           },
-//         });
-
-//         console.log(`✅ Order ${orderId} assigned to driver ${winner.driverId}`);
-
-//         // 5. SEND NOTIFICATIONS (NON-BLOCKING)
-        
-//           // Get winner details
-//           const winnerRaider = await this.prisma.raider.findUnique({
-//             where: { id: winner.driverId },
-//             include: {
-//               user: {
-//                 select: {
-//                   id: true,
-//                   email: true,
-//                   username: true,
-//                   fcmToken: true,
-//                 },
-//               },
-//               registrations: {
-//                 select: {
-//                   raider_name: true,
-//                   email_address: true,
-//                   contact_number: true,
-//                 },
-//               },
-//             },
-//           });
-            
-
-//         // Get order creator
-//         const orderCreator = await this.prisma.user.findUnique({
-//           where: { id: order.userId as number },
-//           select: { id: true, email: true, username: true, fcmToken: true },
-//         });
-//          //
-//           if (!winnerRaider) {
-//             return;
-//           }
-
-//           // Safely extract registration info
-//           const registration = winnerRaider.registrations?.[0];
-//           const raiderName =
-//             registration?.raider_name ??
-//             winnerRaider.user?.username ??
-//             'Raider';
-
-//           // 📧 EMAIL NOTIFICATION (Winner)
-//           if (registration?.email_address) {
-//             await this.emailQueueService.queueOrderAssignedDriverEmail({
-//               driverId: winnerRaider.id,
-//               name:registration.raider_name,
-//               email: registration.email_address,
-//               orderId,
-//               raiderRank: winnerRaider.rank ?? undefined,
-//             });
-
-//             console.log(`📧 Email queued for raider ${registration.email_address}`);
-//           }
-
-//           // 📱 PUSH NOTIFICATION (Winner)
-//           if (winnerRaider.user?.fcmToken) {
-//             await this.emailQueueService.queueOrderAssignedNotificationRaider({
-//               userId: winnerRaider.id,
-//               fcmToken: winnerRaider.user.fcmToken,
-//               orderId,
-//               raiderName,
-//             });
-
-//             console.log(`📱 Push notification queued for raider ${winnerRaider.id}`);
-//           }
-
-//         // QUEUE NOTIFICATIONS FOR ORDER CREATOR
-//         if (orderCreator) {
-//           const raiderName = winnerRaider?.registrations[0]?.raider_name ?? 'a rider';
-
-//           // Queue push notification
-//           if (orderCreator.fcmToken) {
-//             await this.emailQueueService.queueOrderAssignedNotification({
-//               userId: orderCreator.id,
-//               fcmToken: orderCreator.fcmToken,
-//               orderId,
-//               raiderName,
-//             });
-//             console.log(`📧 Push notification queued for user ${orderCreator.id}`);
-//           }
-
-//           // Queue email
-//           if (orderCreator.email) {
-//             await this.emailQueueService.queueOrderAssignedUserEmail({
-//               userId: orderCreator.id,
-//               email: orderCreator.email,
-//               username: orderCreator.username ?? undefined,
-//               orderId,
-//               raiderName,
-//               raiderRank: winnerRaider?.rank,
-//             });
-//             console.log(`📧 Email queued for user ${orderCreator.email}`);
-//           }
-//         }
-
-//         // QUEUE BATCH NOTIFICATIONS FOR LOSER RAIDERS
-//         const losers = drivers.filter(id => id !== winner.driverId);
-
-//         if (losers.length > 0) {
-//           // Fetch all loser raiders with fcmTokens in one query (OPTIMIZED)
-//           const loserRaiders = await this.prisma.raider.findMany({
-//             where: {
-//               id: { in: losers },
-//               user: {
-//                 fcmToken: { not: null },
-//               },
-//             },
-//             select: {
-//               id: true,
-//               user: {
-//                 select: {
-//                   fcmToken: true,
-//                 },
-//               },
-//             },
-//           });
-
-//           // Prepare batch notifications
-//           const lostNotifications = loserRaiders
-//             .filter(raider => raider.user?.fcmToken)
-//             .map(raider => ({
-//               raiderId: raider.id,
-//               fcmToken: raider.user.fcmToken!,
-//               orderId,
-//             }));
-
-//           // Queue all lost notifications in batch (OPTIMIZED)
-//           if (lostNotifications.length > 0) {
-//             const result = await this.emailQueueService.queueBatchOrderLostNotifications(
-//               lostNotifications
-//             );
-//             console.log(
-//               `📧 Queued ${result?.successful ?? 0} loser notifications for order ${orderId}`
-//             );
-//           }
-//         }
-
-//         console.log(`🎉 All notifications queued for order ${orderId}`);
-//       },
-//       { connection },
-//     );
-//   }
-// }
-
-// src/modules/users_root/order/workers/competition.worker.ts
-
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Worker } from 'bullmq';
@@ -272,86 +18,168 @@ export class CompetitionWorker implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    new Worker(
+    const worker = new Worker( 
       'order-competition',
       async job => {
         const { orderId } = job.data;
-        console.log(`⏰ Auto-closing competition for order ${orderId}`);
+        
+        console.log('\n⏰ ========================================');
+        console.log('⏰ COMPETITION TIMER ENDED');
+        console.log(`⏰ Order: ${orderId}`);
+        console.log('⏰ ========================================\n');
 
         try {
-          // Validate order
+          // -------- STEP 1: Validate Order --------
+          console.log('📝 Step 1: Validating order...');
+          
           const order = await this.prisma.order.findUnique({
             where: { id: orderId },
-            include: { user: true },
+            include: { 
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  username: true,
+                  fcmToken: true,
+                }
+              }
+            },
           });
 
-          if (!order || order.competition_closed) {
-            console.log('⚠️ Order already closed or not found');
+          if (!order) {
+            console.error('❌ Order not found');
+            return;
+          }
+
+          if (order.competition_closed) {
+            console.log('⚠️ Competition already closed');
             return;
           }
 
           const drivers = order.compititor_id || [];
+          console.log(`📊 Total competitors: ${drivers.length}`);
 
+          // -------- STEP 2: Handle No Competitors --------
           if (drivers.length === 0) {
-            console.log('⚠️ No competitors');
+            console.log('⚠️ No competitors - closing without winner');
+            
             await this.prisma.order.update({
               where: { id: orderId },
               data: { competition_closed: true },
             });
+            
+            console.log('✅ Competition closed (no participants)\n');
             return;
           }
 
-          // Get config and driver details
+          // -------- STEP 3: Get Competition Config --------
+          console.log('⚙️ Step 2: Getting competition config...');
+          
           const config = await this.prisma.driver_order_competition.findFirst();
-          if (!config) return;
+          if (!config) {
+            console.error('❌ Competition config not found');
+            return;
+          }
+          
+          console.log(`✅ Config loaded - Rank: ${config.rank_weight}, Rating: ${config.rating_weight}`);
 
+          // -------- STEP 4: Fetch Driver Details --------
+          console.log('👥 Step 3: Fetching driver details...');
+          
           const driverDetails = await Promise.all(
             drivers.map(async driverId => {
               const driver = await this.prisma.raider.findUnique({
                 where: { id: driverId },
                 include: {
                   followers: { where: { is_fav: true } },
-                  user: true,
-                  registrations: true,
+                  user: {
+                    select: {
+                      id: true,
+                      username: true,
+                      fcmToken: true,
+                    }
+                  },
+                  registrations: {
+                    select: {
+                      raider_name: true,
+                      email_address: true,
+                    }
+                  },
                 },
               });
 
-              return driver
-                ? {
-                    driverId,
-                    rank: driver.rank,
-                    rankScore: driver.rankScore || 0,
-                    rating: driver.reviews_count || 0,
-                    followers: driver.followers.length || 0,
-                    raider: driver,
-                  }
-                : null;
+              if (!driver) {
+                console.log(`⚠️ Driver ${driverId} not found`);
+                return null;
+              }
+
+              console.log(`   Driver ${driverId}: Rank=${driver.rank}, Score=${driver.rankScore || 0}`);
+
+              return {
+                driverId,
+                rank: driver.rank,
+                rankScore: driver.rankScore || 0,
+                rating: driver.reviews_count || 0,
+                followers: driver.followers.length || 0,
+                raider: driver,
+              };
             }),
           );
 
           const validDrivers = driverDetails.filter(d => d !== null);
-          if (validDrivers.length === 0) return;
+          console.log(`✅ Found ${validDrivers.length} valid drivers`);
+          
+          if (validDrivers.length === 0) {
+            console.error('❌ No valid drivers found');
+            return;
+          }
 
-          // Prioritize PLATINUM
+          // -------- STEP 5: Prioritize PLATINUM --------
+          console.log('🏆 Step 4: Selecting candidates...');
+          
           const platinumDrivers = validDrivers.filter(d => d.rank === Rank.PLATINUM);
           const candidates = platinumDrivers.length > 0 ? platinumDrivers : validDrivers;
+          
+          if (platinumDrivers.length > 0) {
+            console.log(`✅ Found ${platinumDrivers.length} PLATINUM drivers - prioritizing`);
+          } else {
+            console.log(`✅ No PLATINUM drivers - using all ${validDrivers.length}`);
+          }
 
-          // Calculate scores
-          const scores = candidates.map(d => ({
-            driverId: d.driverId,
-            score:
+          // -------- STEP 6: Calculate Scores --------
+          console.log('🎯 Step 5: Calculating scores...');
+          
+          const scores = candidates.map(d => {
+            const score =
               d.rankScore * config.rank_weight +
               d.rating * config.rating_weight +
-              d.followers * config.followers_weight,
-            raider: d.raider,
-          }));
+              d.followers * config.followers_weight;
+            
+            console.log(`   Driver ${d.driverId}: Score = ${score.toFixed(2)}`);
+            
+            return {
+              driverId: d.driverId,
+              score,
+              raider: d.raider,
+            };
+          });
 
+          // -------- STEP 7: Select Winner --------
           const winner = scores.sort((a, b) => b.score - a.score)[0];
-          if (!winner) return;
+          
+          if (!winner) {
+            console.error('❌ No winner determined');
+            return;
+          }
 
-          console.log(`🏆 Winner: Driver ${winner.driverId}, Score: ${winner.score.toFixed(2)}`);
+          console.log('\n🏆 ========================================');
+          console.log(`🏆 WINNER: Driver ${winner.driverId}`);
+          console.log(`🏆 Score: ${winner.score.toFixed(2)}`);
+          console.log('🏆 ========================================\n');
 
-          // Update order
+          // -------- STEP 8: Update Order --------
+          console.log('💾 Step 6: Updating order...');
+          
           await this.prisma.order.update({
             where: { id: orderId },
             data: {
@@ -360,102 +188,163 @@ export class CompetitionWorker implements OnModuleInit {
               order_status: OrderStatus.ONGOING,
             },
           });
+          
+          console.log(`✅ Order updated - Winner: ${winner.driverId}`);
 
-          // Get winner name
+          // -------- STEP 9: Get Winner Info --------
           const winnerRaider = winner.raider;
           const raiderName =
             winnerRaider.registrations?.[0]?.raider_name ??
             winnerRaider.user?.username ??
             'Raider';
 
-          // ONLY NOTIFY ADMIN OF FINAL RESULT (not during competition)
-          await this.orderGateway.broadcastOrderAssigned(orderId, winner.driverId, raiderName);
+          console.log(`📛 Winner name: ${raiderName}`);
 
-          // Notify winner
-          await this.raiderGateway.notifyCompetitionWon(
-            winner.driverId,
-            orderId,
-            winner.score,
-            drivers.length,
-          );
-
-          // Notify losers
-          const losers = drivers.filter(id => id !== winner.driverId);
-          for (const loserId of losers) {
-            await this.raiderGateway.notifyCompetitionLost(loserId, orderId, raiderName);
-          }
-
-          // Queue emails/push notifications
-          const registration = winnerRaider.registrations?.[0];
-
-          if (registration?.email_address) {
-            await this.emailQueueService.queueOrderAssignedDriverEmail({
-              driverId: winnerRaider.id,
-              name: registration.raider_name,
-              email: registration.email_address,
+          // -------- STEP 10: WebSocket Notifications --------
+          console.log('\n📡 Step 7: Sending WebSocket notifications...');
+          
+          try {
+            // Notify admin
+            console.log('   → Notifying admin...');
+            await this.orderGateway.broadcastOrderAssigned(orderId, winner.driverId, raiderName);
+            
+            // Notify winner
+            console.log(`   → Notifying winner (Rider ${winner.driverId})...`);
+            await this.raiderGateway.notifyCompetitionWon(
+              winner.driverId,
               orderId,
-              raiderRank: winnerRaider.rank ?? undefined,
-            });
+              winner.score,
+              drivers.length,
+            );
+
+            // Notify losers
+            const losers = drivers.filter(id => id !== winner.driverId);
+            console.log(`   → Notifying ${losers.length} losers...`);
+            
+            for (const loserId of losers) {
+              await this.raiderGateway.notifyCompetitionLost(loserId, orderId, raiderName);
+            }
+            
+            console.log('✅ All WebSocket notifications sent');
+            
+          } catch (wsError) {
+            console.error('❌ WebSocket notification error:', wsError.message);
+            console.error(wsError.stack);
           }
 
-          if (winnerRaider.user?.fcmToken) {
-            await this.emailQueueService.queueOrderAssignedNotificationRaider({
-              userId: winnerRaider.id,
-              fcmToken: winnerRaider.user.fcmToken,
-              orderId,
-              raiderName,
-            });
-          }
+          // -------- STEP 11: Queue Email/Push Notifications --------
+          console.log('\n📧 Step 8: Queueing email/push notifications...');
+          
+          try {
+            const registration = winnerRaider.registrations?.[0];
 
-          if (order.user) {
-            if (order.user.fcmToken) {
-              await this.emailQueueService.queueOrderAssignedNotification({
-                userId: order.user.id,
-                fcmToken: order.user.fcmToken,
+            // Winner email
+            if (registration?.email_address) {
+              await this.emailQueueService.queueOrderAssignedDriverEmail({
+                driverId: winnerRaider.id,
+                name: registration.raider_name,
+                email: registration.email_address,
+                orderId,
+                raiderRank: winnerRaider.rank ?? undefined,
+              });
+              console.log(`   ✅ Winner email queued: ${registration.email_address}`);
+            }
+
+            // Winner push
+            if (winnerRaider.user?.fcmToken) {
+              await this.emailQueueService.queueOrderAssignedNotificationRaider({
+                userId: winnerRaider.id,
+                fcmToken: winnerRaider.user.fcmToken,
                 orderId,
                 raiderName,
               });
+              console.log('   ✅ Winner push notification queued');
             }
 
-            if (order.user.email) {
-              await this.emailQueueService.queueOrderAssignedUserEmail({
-                userId: order.user.id,
-                email: order.user.email,
-                username: order.user.username ?? undefined,
-                orderId,
-                raiderName,
-                raiderRank: winnerRaider.rank,
+            // Customer notifications
+            if (order.user) {
+              if (order.user.fcmToken) {
+                await this.emailQueueService.queueOrderAssignedNotification({
+                  userId: order.user.id,
+                  fcmToken: order.user.fcmToken,
+                  orderId,
+                  raiderName,
+                });
+                console.log('   ✅ Customer push notification queued');
+              }
+
+              if (order.user.email) {
+                await this.emailQueueService.queueOrderAssignedUserEmail({
+                  userId: order.user.id,
+                  email: order.user.email,
+                  username: order.user.username ?? undefined,
+                  orderId,
+                  raiderName,
+                  raiderRank: winnerRaider.rank,
+                });
+                console.log('   ✅ Customer email queued');
+              }
+            }
+
+            // Loser push notifications
+            const losers = drivers.filter(id => id !== winner.driverId);
+            
+            if (losers.length > 0) {
+              const loserRaiders = await this.prisma.raider.findMany({
+                where: { id: { in: losers }, user: { fcmToken: { not: null } } },
+                select: { id: true, user: { select: { fcmToken: true } } },
               });
+
+              const lostNotifications = loserRaiders
+                .filter(raider => raider.user?.fcmToken)
+                .map(raider => ({
+                  raiderId: raider.id,
+                  fcmToken: raider.user.fcmToken!,
+                  orderId,
+                }));
+
+              if (lostNotifications.length > 0) {
+                await this.emailQueueService.queueBatchOrderLostNotifications(lostNotifications);
+                console.log(`   ✅ Queued ${lostNotifications.length} loser notifications`);
+              }
             }
+
+            console.log('✅ All email/push notifications queued');
+            
+          } catch (emailError) {
+            console.error('❌ Email/push notification error:', emailError.message);
           }
 
-          if (losers.length > 0) {
-            const loserRaiders = await this.prisma.raider.findMany({
-              where: { id: { in: losers }, user: { fcmToken: { not: null } } },
-              select: { id: true, user: { select: { fcmToken: true } } },
-            });
-
-            const lostNotifications = loserRaiders
-              .filter(raider => raider.user?.fcmToken)
-              .map(raider => ({
-                raiderId: raider.id,
-                fcmToken: raider.user.fcmToken!,
-                orderId,
-              }));
-
-            if (lostNotifications.length > 0) {
-              await this.emailQueueService.queueBatchOrderLostNotifications(lostNotifications);
-            }
-          }
-
-          console.log(`✅ Competition closed successfully for order ${orderId}`);
+          console.log('\n🎉 ========================================');
+          console.log('🎉 COMPETITION SUCCESSFULLY CLOSED');
+          console.log(`🎉 Order: ${orderId}`);
+          console.log(`🎉 Winner: ${raiderName} (${winner.driverId})`);
+          console.log(`🎉 Score: ${winner.score.toFixed(2)}`);
+          console.log(`🎉 Competitors: ${drivers.length}`);
+          console.log('🎉 ========================================\n');
 
         } catch (error) {
-          console.error(`❌ Worker error for order ${orderId}:`,
-          error.message);
+          console.error('\n❌ ========================================');
+          console.error('❌ WORKER ERROR');
+          console.error(`❌ Order: ${orderId}`);
+          console.error(`❌ Error: ${error.message}`);
+          console.error('❌ ========================================\n');
+          console.error('Stack trace:', error.stack);
         }
       },
-    { connection },
-   )
- }
+      { connection }, // ✅ Connection options
+    );
+
+    // ✅ Log when worker starts
+    console.log('✅ Competition worker initialized and listening...');
+
+    // ✅ Handle worker errors
+    worker.on('failed', (job, err) => {
+      console.error(`❌ Job ${job?.id} failed for order ${job?.data?.orderId}:`, err.message);
+    });
+
+    worker.on('completed', (job) => {
+      console.log(`✅ Job ${job.id} completed for order ${job.data.orderId}`);
+    });
+  }
 }
