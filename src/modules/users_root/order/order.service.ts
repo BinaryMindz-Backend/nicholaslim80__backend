@@ -3092,6 +3092,13 @@ export class OrderService {
       });
 
       if (!order) throw new NotFoundException('Order not found');
+
+      // check is the order is not placed
+      if(order.order_status !== OrderStatus.PENDING){
+          throw new NotFoundException("Order Is not ready for compitition")
+      }
+
+      // 
       if (order.competition_closed) {
         throw new BadRequestException('Competition already closed');
       }

@@ -56,6 +56,8 @@ import { SnapshotService } from './modules/superadmin_root/cron/snapshot.service
 import { RaiderModule } from './modules/raider_root/raider gateways/raider.module';
 import { PrismaService } from './core/database/prisma.service';
 import { TipModule } from './modules/users_root/tip/tip.module';
+import { DashboardPopupModule } from './modules/superadmin_root/dashboard_popup/dashboard_popup.module';
+import { AdditionalServicesModule } from './modules/superadmin_root/additional_services/additional_services.module';
 
 
 @Module({
@@ -124,6 +126,8 @@ import { TipModule } from './modules/users_root/tip/tip.module';
     QueueModule,
     RaiderModule,
     TipModule,
+    AdditionalServicesModule,
+    DashboardPopupModule,
 
 
   ],

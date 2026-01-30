@@ -1,0 +1,24 @@
+
+
+model AdditionalServices {
+     id    Int     @unique @default(autoincrement())
+     service_name  String  
+     value         Decimal @db.Decimal(10, 2)
+     isActive      Boolean  @default(true)
+     desc          String
+     created_at    DateTime          @default(now())
+     updated_at    DateTime          @updatedAt
+}
+
+
+model DashboardPopup {
+    id    Int     @unique @default(autoincrement())
+    title         String
+    desc          String
+    redirect_link String 
+    image_link    String?
+    isActive      Boolean           @default(true) 
+    created_at    DateTime          @default(now())
+    updated_at    DateTime          @updatedAt
+
+}
