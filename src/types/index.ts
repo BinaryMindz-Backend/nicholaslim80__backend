@@ -1,6 +1,6 @@
 // import {UserRole } from '@prisma/client';
 
-import { CollectTime, DeliveryTypeName, Destination, DestinationType, FeeAppliesType, Order, PayType, RouteType, Transaction } from "@prisma/client";
+import { CollectTime, DeliveryTypeName, Destination, DestinationType, FeeAppliesType, Order, PayType, RouteType, StopPayment, StopStatus, StopType, Transaction } from "@prisma/client";
 
 
 export interface IUserRole {
@@ -125,9 +125,11 @@ export interface LatLng {
 }
 
 export interface Vehicle {
-  base_price: number;
-  per_km_price: number;
+  base_price?: number;
+  per_km_price?: number;
   peak_pricing?: boolean;
+  id?:number,
+  vehicle_type?:string,
 }
 
 export interface DeliveryType {
@@ -233,4 +235,50 @@ export interface Raider {
 
   created_at: Date;
   updated_at: Date;
+}
+// 
+export interface OrderData {
+  orderId: number;
+  totalOrderCost: string;
+  totalFee: string;
+  vehicleType: Vehicle;
+  deliveryType: string;
+  orderStop: OrderStop[];
+}
+
+
+// 
+export interface OrderStop {
+  id: number;
+
+  // Relations (IDs only – safe for transport)
+  orderId: number;
+  destinationId: number;
+
+  // Snapshot data
+  address: string;
+  latitude: number;
+  longitude: number;
+  additionalInfo?: string | null;
+
+  // Stop details
+  type: StopType;
+  sequence: number;
+  status: StopStatus;
+
+  // Delivery proof
+  proofs: string[];
+  notes?: string | null;
+
+  // Timestamps (ISO strings for API / Socket)
+  arrivedAt?: Date | null;
+  completedAt?: Date | null;
+  failedAt?: Date | null;
+  failureReason?: string | null;
+
+  // Payment (optional)
+  payment?: StopPayment | null;
+
+  createdAt: Date;
+  updatedAt: Date;
 }

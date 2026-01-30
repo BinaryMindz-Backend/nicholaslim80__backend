@@ -414,6 +414,12 @@ export class OrderService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
+        vehicle:{
+            select:{
+                vehicle_type:true,
+                id:true,
+            }
+        },
         orderStops: {
           include: { payment: true },
           orderBy: { sequence: 'asc' },
@@ -424,8 +430,6 @@ export class OrderService {
     if (!order || order.userId !== userId) {
       throw new BadRequestException('Order not found or unauthorized');
     }
-    // call the user connect function
-    // await this.raiderGateway.handleConnectionUser()
 
     // 
     if (order.order_status !== OrderStatus.PROGRESS) {
@@ -536,57 +540,132 @@ export class OrderService {
       }
 
       /** ----------------------- UPDATE ORDER ----------------------- */
-      return tx.order.update({
-        where: { id: orderId },
-        data: {
-          order_status: OrderStatus.PENDING,
-          is_placed: true,
-          pay_type: payType,
-        },
-        include: {
-          orderStops: {
-            include: {
-              destination: true,
-              payment: true,
+     const updatedOrder = await tx.order.update({
+            where: { id: orderId },
+            data: {
+              order_status: OrderStatus.PENDING,
+              is_placed: true,
+              pay_type: payType,
             },
-            orderBy: { sequence: 'asc' },
-          },
-        },
-      });
-    });
+            include: {
+              orderStops: {
+                include: {
+                  destination: true,
+                  payment: true,
+                },
+                orderBy: { sequence: 'asc' },
+              },
+            },
+          });
+          // 
+        if(order.notify_favorite_raider === true){
+          //  
+          const favRaiders = await tx.myRaider.findMany({
+            where:{
+               user_id:userId,
+               is_fav:true,
+            },
+            select:{
+                raiderId:true,
+                user_id:true,
+                is_fav:true,
+                user:{
+                    select:{
+                        username:true,
+                        id:true,
+                        email:true
+                    }
+                }
+            }
+        }) 
+        // console.log("fav raider -->", favRaiders);
+        // Send notification to rider
+          if(favRaiders.length > 0){
+              // 
+              for(const rider of favRaiders){
+                // console.log("rraider -->", rider);
+                await this.raiderGateway.notifyUserFavRaider(
+                  rider.raiderId,
+                  orderId,
+                  rider.user.username!,
+                  {
+                      orderId: order.id,
+                      totalOrderCost : String(order.total_cost),
+                      totalFee : String(order.total_fee),
+                      vehicleType:order.vehicle!,
+                      deliveryType:order.delivery_type,
+                      orderStop:order.orderStops
+                  },
+                )  
+              }
+          }
+          
+        }
+        // 
+       return updatedOrder;
 
+    });
+    // 
     return placeRes;
 
   }
-  // notify rider
-  async notifyRider(orderId: number, userId: number, dto: NotifyRaider) {
-    // 
-    const isOrderExist = await this.prisma.order.findFirst({
-      where: {
-        id: orderId,
-        userId: userId
+
+    // notify rider
+    async notifyRider(orderId: number, userId: number) {
+      // 
+      const isOrderExist = await this.prisma.order.findFirst({
+        where: {
+          id: orderId,
+          userId: userId
+        }
+      })
+      //  
+      if (!isOrderExist || (isOrderExist && isOrderExist?.collect_time !== CollectTime.SCHEDULED)) {
+        throw new NotFoundException(`${isOrderExist?.collect_time !== CollectTime.SCHEDULED && "Scheduled"} Order Not found`)
       }
-    })
-    //  
-    if (!isOrderExist || (isOrderExist && isOrderExist?.collect_time !== CollectTime.SCHEDULED)) {
-      throw new NotFoundException(`${isOrderExist?.collect_time !== CollectTime.SCHEDULED && "Scheduled"} Order Not found`)
+      //  
+      const r = await this.prisma.order.update({
+        where: {
+          id: orderId
+        },
+        data: {
+          is_auto_confirmation: false,
+        }
+      })
+
+      // 
+      return r;
+
+
     }
-    //  
-    const r = await this.prisma.order.update({
-      where: {
-        id: orderId
-      },
-      data: {
-        notify_favorite_raider: dto.notify_rider,
-        is_auto_confirmation: false,
+
+    // notify rider
+    async notifyFavRider(orderId: number, userId: number, dto: NotifyRaider) {
+      // 
+      const isOrderExist = await this.prisma.order.findFirst({
+        where: {
+          id: orderId,
+          userId: userId
+        }
+      })
+      //  
+      if (!isOrderExist) {
+        throw new NotFoundException(`Order Not found`)
       }
-    })
+      //  
+      const r = await this.prisma.order.update({
+        where: {
+          id: orderId
+        },
+        data: {
+          notify_favorite_raider:dto.notify_rider
+        }
+      })
+      // 
+      return r;
+    }
 
-    // 
-    return r;
 
-
-  }
 
   // 
   async priorityOrder(
@@ -2909,7 +2988,7 @@ export class OrderService {
     }
   }
 
-  // sent notification to followed rider
+  // sent notification to followed rider **deprecated
   async followedRiderOrder(orderId: number) {
     // find order
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
@@ -2976,44 +3055,6 @@ export class OrderService {
       },
     });
   }
-
-   //
-  // async getActiveCompetitionsForRider(riderId: number) {
-  //   const rider = await this.prisma.raider.findUnique({
-  //     where: { id: riderId },
-  //     // include: { vehicle: true },
-  //   });
-
-  //   if (!rider) return [];
-
-  //   const competitions = await this.prisma.order.findMany({
-  //     where: {
-  //       competition_closed: false,
-  //       competition_started_at: { not: null },
-  //       order_status: OrderStatus.PENDING,
-  //       // vehicle_type_id: rider.vehicle?.id,
-  //     },
-  //     include: { orderStops: true },
-  //   });
-
-  //   return competitions.map((order) => {
-  //     const now = new Date();
-  //     const started = order.competition_started_at && new Date(order.competition_started_at);
-  //     const elapsed = Math.floor((now.getTime() - started.getTime()) / 1000);
-  //     const timeRemaining = Math.max(0, 10 - elapsed);
-
-  //     return {
-  //       orderId: order.id,
-  //       totalCost: Number(order.total_cost),
-  //       timeRemaining,
-  //       competitorCount: order.compititor_id.length,
-  //       isParticipating: order.compititor_id.includes(riderId),
-  //       pickupAddress: order.orderStops[0]?.address,
-  //       deliveryAddress: order.orderStops[order.orderStops.length - 1]?.address,
-  //     };
-  //   });
-  // }
-
    
   // **HOT CAKE: driver compitition algorithom (If you dont understand it then dont touch it)
   // START COMPETITION (First rider triggers this)
@@ -3051,6 +3092,13 @@ export class OrderService {
       });
 
       if (!order) throw new NotFoundException('Order not found');
+
+      // check is the order is not placed
+      if(order.order_status !== OrderStatus.PENDING){
+          throw new NotFoundException("Order Is not ready for compitition")
+      }
+
+      // 
       if (order.competition_closed) {
         throw new BadRequestException('Competition already closed');
       }
@@ -3243,40 +3291,6 @@ export class OrderService {
     }
 
     return { score, shouldAutoConfirm, requiresManualConfirmation: !shouldAutoConfirm };
-    }
-
-   // NOTIFY COMPETITORS (when new rider joins)
-   private async notifyCompetitors(order: any) {
-        const now = new Date();
-        const started = new Date(order.competition_started_at);
-        const elapsed = Math.floor((now.getTime() - started.getTime()) / 1000);
-        const timeRemaining = Math.max(0, 10 - elapsed);
-        const endsAt = new Date(started.getTime() + 10 * 1000);
-
-        const competitionData = {
-          orderId: order.id,
-          serviceZoneId: order.serviceZoneId,
-          vehicleTypeId: order.vehicle_type_id,
-          totalCost: Number(order.total_cost),
-          pickupLocation: {
-            lat: order.orderStops[0]?.latitude || 0,
-            lng: order.orderStops[0]?.longitude || 0,
-            address: order.orderStops[0]?.address || '',
-          },
-          deliveryLocation: {
-            lat: order.orderStops[order.orderStops.length - 1]?.latitude || 0,
-            lng: order.orderStops[order.orderStops.length - 1]?.longitude || 0,
-            address: order.orderStops[order.orderStops.length - 1]?.address || '',
-          },
-          competitionStartedAt: order.competition_started_at.toISOString(),
-          competitionEndsAt: endsAt.toISOString(),
-          timeRemaining,
-          competitorIds: order.compititor_id,
-          competitorCount: order.compititor_id.length,
-        };
-
-        // Send update ONLY to riders who already joined
-        await this.raiderGateway.broadcastCompetitionUpdateToCompetitors(competitionData);
     }
 
 
