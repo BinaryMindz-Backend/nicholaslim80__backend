@@ -2555,6 +2555,13 @@ export class OrderService {
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId, userId },
+      include:{
+          orderStops:{
+              include:{
+                 payment:true
+              }
+          },
+      }
     });
 
     if (!order) throw new NotFoundException('Order not found');
@@ -2665,6 +2672,43 @@ export class OrderService {
           total_cost: finalCost,
         },
       });
+      //Problem: discount need to split if order is COD and multiple drop // solved
+       // if order is cod
+       if (order.pay_type === PayType.COD) {
+           //find sender and reciever
+          const senders = order.orderStops.filter(
+            s => s.type === 'PICKUP' && s.payment?.status === 'UNPAID'
+          );
+
+          const receivers = order.orderStops.filter(
+            r => r.type === 'DROP' && r.payment?.status === 'UNPAID'
+          );
+          // find payers
+          const payers = senders.length > 0 ? senders : receivers;
+          if (payers.length === 0) return;
+
+          const total = Number(totalDiscount);
+          const baseSplit = Math.floor((total / payers.length) * 100) / 100;
+          let remainder = +(total - baseSplit * payers.length).toFixed(2);
+
+          for (const stop of payers) {
+            const discount =
+              remainder > 0 ? +(baseSplit + 0.01).toFixed(2) : baseSplit;
+
+            remainder = +(remainder - 0.01).toFixed(2);
+
+            await tx.stopPayment.update({
+              where: { id: stop.payment?.id },
+              data: {
+                   discount, 
+                   amount:{
+                      decrement:discount
+                   }
+              },
+            });
+          }
+      }
+ 
     });
 
     return this.getOrderDetails(orderId);
@@ -2674,6 +2718,13 @@ export class OrderService {
   async removeDiscount(orderId: number, userId: number, type: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId, userId },
+      include:{
+         orderStops:{
+             include:{
+               payment:true,
+             }
+         }
+      }
     });
 
     if (!order) throw new NotFoundException('Order not found');
@@ -2703,13 +2754,58 @@ export class OrderService {
       await tx.order.update({
         where: { id: orderId },
         data: {
-          total_cost: order.total_cost,
+          total_cost: order.originalCost,
           discountAmount: discountAmount,
           coinsRedeemed: coinsRedeemed,
           promoCode: type === 'promo' && order.promoCode ? null : order.promoCode,
           promoDiscount: promoDiscount,
         },
       });
+
+      //  remove discount from order stop
+      if (order.pay_type === PayType.COD) {
+        //  Find unpaid PICKUP (sender) and DROP (receiver)
+        const senders = order.orderStops.filter(
+          s => s.type === 'PICKUP' && s.payment?.status === 'UNPAID'
+        );
+
+        const receivers = order.orderStops.filter(
+          r => r.type === 'DROP' && r.payment?.status === 'UNPAID'
+        );
+
+        // Decide who gets discount removed
+        const backPayers = senders.length > 0 ? senders : receivers;
+        if (backPayers.length === 0) return;
+
+        //  Re-split discount (same logic used when applying)
+        const total = Number(order.discountAmount);
+        const count = backPayers.length;
+
+        const base = Math.floor((total / count) * 100) / 100;
+        let remainder = +(total - base * count).toFixed(2);
+
+        // Reverse discount (add back)
+        for (const stop of backPayers) {
+          const restore =
+            remainder > 0 ? +(base + 0.01).toFixed(2) : base;
+
+          remainder = +(remainder - 0.01).toFixed(2);
+
+          await tx.stopPayment.update({
+            where: { id: stop.payment?.id},
+            data: {
+              discount: {
+                decrement: restore, // discount removed
+              },
+              amount: {
+                increment: restore, // money added back
+              },
+            },
+          });
+        }
+      }
+
+
     });
 
     return this.getOrderDetails(orderId);

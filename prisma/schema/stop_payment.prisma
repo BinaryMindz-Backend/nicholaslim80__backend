@@ -9,6 +9,7 @@ model StopPayment {
   payType       PayType
   amount        Decimal       @db.Decimal(12, 2)
   status        PaymentStatus @default(UNPAID)
+  discount      Decimal?       @default(0)
   
   // COD Collection
   collectedAt   DateTime?
