@@ -30,7 +30,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
     //  connect to room
-    async handleConnection(client: Socket) {
+   async handleConnection(client: Socket) {
     const token = client.handshake.auth?.token;
     if (!token) return client.disconnect();
     
@@ -56,7 +56,6 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.disconnect();
     }
   }
-
 
   async handleDisconnect(client: Socket) {
     try {
@@ -246,9 +245,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
   
-  // user join to socket after oder is placed
-    
-
+  // user join to socket after oder is place
 
 
 

@@ -13,6 +13,7 @@ import { WalletModule } from 'src/common/wallet/wallet.module';
 import { WalletService } from 'src/common/wallet/wallet.service';
 import { OrderGateway } from './order.gateway';
 import { RaiderModule } from 'src/modules/raider_root/raider gateways/raider.module';
+import { UserGateway } from '../users/user.gateways';
 
 
 @Module({
@@ -24,9 +25,11 @@ import { RaiderModule } from 'src/modules/raider_root/raider gateways/raider.mod
       forwardRef(()=> RaiderModule)
     ],
   controllers: [OrderController],
-  providers: [OrderService, TransactionIdService, CompetitionWorker,SmsService, ServiceZoneService,GeoService, WalletService, OrderGateway],
+  providers: [OrderService, TransactionIdService, CompetitionWorker,SmsService, ServiceZoneService,GeoService, WalletService, OrderGateway, UserGateway],
   exports:[
     OrderService,
-    OrderGateway  ]
+    OrderGateway,
+    UserGateway
+  ]
 })
 export class OrderModule {}

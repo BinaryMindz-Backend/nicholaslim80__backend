@@ -420,15 +420,18 @@ export class OrderService {
         },
       },
     });
-
+     
     if (!order || order.userId !== userId) {
       throw new BadRequestException('Order not found or unauthorized');
     }
+    // call the user connect function
+    // await this.raiderGateway.handleConnectionUser()
 
+    // 
     if (order.order_status !== OrderStatus.PROGRESS) {
       throw new BadRequestException('Order already placed');
     }
-
+    // 
     // Validate order has stops
     const pickupStop = order.orderStops.find(s => s.type === StopType.PICKUP);
     const dropStops = order.orderStops.filter(s => s.type === StopType.DROP);
@@ -439,8 +442,8 @@ export class OrderService {
 
     const payType = dto.paymentMethod ?? order.pay_type ?? PayType.COD;
     const codCollectFrom = dto.codCollectFrom ?? 'RECEIVER';
-
-    return await this.prisma.$transaction(async (tx) => {
+    // 
+    const placeRes = await this.prisma.$transaction(async (tx) => {
       /** ----------------------- UPFRONT PAYMENT ----------------------- */
       if (payType === PayType.WALLET) {
         const user = await tx.user.findUnique({ where: { id: userId } });
@@ -551,8 +554,10 @@ export class OrderService {
         },
       });
     });
-  }
 
+    return placeRes;
+
+  }
   // notify rider
   async notifyRider(orderId: number, userId: number, dto: NotifyRaider) {
     // 

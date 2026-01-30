@@ -6,6 +6,7 @@ import { connection } from '../queues/competition.queue';
 import { OrderStatus, Rank } from '@prisma/client';
 import { OrderGateway } from 'src/modules/users_root/order/order.gateway';
 import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.gateway';
+import { UserGateway } from 'src/modules/users_root/users/user.gateways';
 
 
 @Injectable()
@@ -15,6 +16,7 @@ export class CompetitionWorker implements OnModuleInit {
     private readonly emailQueueService: EmailQueueService,
     private readonly orderGateway: OrderGateway,
     private readonly raiderGateway: RaiderGateway,
+    private readonly userGateway: UserGateway,
   ) {}
 
   onModuleInit() {
@@ -216,7 +218,13 @@ export class CompetitionWorker implements OnModuleInit {
               winner.score,
               drivers.length,
             );
-
+            // Notify user
+            console.log(`   → Notifying order User..${order.userId}`);
+            await this.userGateway.notifyUserRiderAssigned(
+               order.userId!,
+               orderId,
+               winner.driverId
+              )
             // Notify losers
             const losers = drivers.filter(id => id !== winner.driverId);
             console.log(`   → Notifying ${losers.length} losers...`);
