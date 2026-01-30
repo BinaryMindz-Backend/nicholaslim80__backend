@@ -15,7 +15,7 @@ import { OrderService } from 'src/modules/users_root/order/order.service';
 import { JwtService } from '@nestjs/jwt';
 import { SocketIOAdapter } from 'src/adapters/socket-io.adapter'; // Import the adapter
 import { forwardRef, Inject,  } from '@nestjs/common';
-import { OrderCompetitionData } from 'src/types';
+import { OrderCompetitionData, OrderData } from 'src/types';
 
 @WebSocketGateway({ namespace: '/raider', cors: true })
 export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -198,7 +198,6 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     }
 
-
     // NOTIFY RIDER ASSIGNMENT: Winner notification
     async notifyRiderAssignment(riderId: number, orderId: number, score?: number) {
       console.log(`📢 Notifying rider ${riderId} of ASSIGNMENT to order ${orderId}`); // ✅ Fixed
@@ -236,17 +235,31 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     orderId: number, 
     winnerName: string
   ) {
-    console.log(`😔 Notifying rider ${riderId} - LOST competition for order ${orderId}`); // ✅ Fixed
+    console.log(`😔 Notifying rider ${riderId} - LOST competition for order ${orderId}`); 
     
-    this.server.to(`rider_${riderId}`).emit('rider:competition_lost', { // ✅ Fixed
+    this.server.to(`rider_${riderId}`).emit('rider:competition_lost', { 
       orderId,
       winnerName,
       message: `Order was assigned to ${winnerName}. Better luck next time!`,
     });
   }
   
-  // user join to socket after oder is place
-
+  // Notify User fav raider
+  async notifyUserFavRaider(
+      riderId:number,
+      orderId:number,
+      userName:string,
+      order:OrderData
+  ){
+      console.log(` Notifying user fav rider ${riderId} - Ord No - ${orderId}`); 
+      // 
+      this.server.to(`rider_${riderId}`).emit('rider:notify_fav_rider', { 
+        orderId,
+        order,
+        userName,
+        message: `New Order request from ${userName} for ORD-${orderId}.`,
+      });
+  } 
 
 
 }

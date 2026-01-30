@@ -180,8 +180,26 @@ export class OrderController {
     } catch (err) {
       return ApiResponses.error(err, 'Failed to place order');
     }
+   }
+
+
+  // 
+  @Post(':order_id/notify-fav-rider')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER, Permission.CREATE)
+  async notifyFavRider(
+    @Param('order_id', ParseIntPipe) orderId: number,
+    @CurrentUser() user: IUser,
+    @Body() dto: NotifyRaider,
+  ) {
+    const order = await this.orderService.notifyFavRider(orderId, user.id, dto);
+    return ApiResponses.success(order, 'raider will notified you');
   }
 
+
+
+  //  
   @Post(':order_id/notify-rider')
   @Auth()
   @ApiBearerAuth()
@@ -189,9 +207,8 @@ export class OrderController {
   async notifyRider(
     @Param('order_id', ParseIntPipe) orderId: number,
     @CurrentUser() user: IUser,
-    @Body() dto: NotifyRaider,
   ) {
-    const order = await this.orderService.notifyRider(orderId, user.id, dto);
+    const order = await this.orderService.notifyRider(orderId, user.id);
     return ApiResponses.success(order, 'raider will notified you');
   }
 
