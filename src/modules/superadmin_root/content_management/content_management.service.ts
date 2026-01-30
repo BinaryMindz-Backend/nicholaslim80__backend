@@ -20,6 +20,7 @@ export class ContentManagementService {
       const existContentType = await this.prisma.contentManagement.findFirst({
         where: {
           contenttype: createContentManagementDto.contenttype,
+          faq_for:createContentManagementDto.faq_for,
         },
       });
 
