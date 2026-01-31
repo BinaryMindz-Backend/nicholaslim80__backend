@@ -162,6 +162,37 @@ export class OrderController {
     return ApiResponses.success(order, 'Discount removed');
   }
 
+  // 
+  @Post(':order_id/apply-addition/:serviceId')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER, Permission.CREATE)
+  async applyAddition(
+    @Param('order_id', ParseIntPipe) orderId: number,
+    @Param('serviceId', ParseIntPipe) serviceId: number,
+    @CurrentUser() user: IUser,
+  ) {
+    const order = await this.orderService.additionalService(orderId, user.id, serviceId);
+    return ApiResponses.success(order, 'Addition applied to order successfully');
+  }
+
+  @Delete(':order_id/remove-addition/:serviceId')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER, Permission.CREATE)
+  @ApiOperation({ summary: 'Remove addition services from order' })
+  @ApiParam({ name: 'order_id', description: 'Order ID', required: true })
+  async removeAdditionalService(
+    @Param('order_id', ParseIntPipe) orderId: number,
+    @Param('serviceId', ParseIntPipe) serviceId: number,
+    @CurrentUser() user: IUser,
+  ) {
+    const order = await this.orderService.removeAdditionalService(+orderId, +user.id,+serviceId);
+    return ApiResponses.success(order, 'addition services removed');
+  }
+
+
+
 
   // PLACE ORDER (Lock & Configure Payment)
   @Post(':order_id/place')
@@ -565,23 +596,6 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to fetch order');
     }
   }
-
-  //
-  // @Post('driver/compitition/:order_id')
-  // @Auth()
-  // @ApiBearerAuth()
-  // @RequirePermission(Module.ORDER, Permission.ORDER_COMPITITION)
-  // @ApiOperation({ summary: 'driver compitition on order by raider ID (raider only)' })
-  // async driverCompitition(@Param('order_id') order_id: string, @CurrentUser() user: IUser) {
-  //   console.log(user, order_id);
-  //   // 
-  //   try {
-  //     const order = await this.orderService.driverCompitition(user, +order_id);
-  //     return ApiResponses.success(order, 'Raider join as compitition driver');
-  //   } catch (err) {
-  //     return ApiResponses.error(err, 'Failed to join as compitition driver');
-  //   }
-  // }
 
 
 

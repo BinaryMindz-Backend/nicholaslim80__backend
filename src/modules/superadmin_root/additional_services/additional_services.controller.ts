@@ -12,6 +12,9 @@ import { AdditionalServicesService } from './additional_services.service';
 import { CreateAdditionalServiceDto } from './dto/create-additional_service.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { UpdateAdditionalServiceDto } from './dto/update-additional_service.dto';
+import { Auth } from 'src/decorators/auth.decorator';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 
 @ApiTags('Additional Services')
@@ -21,6 +24,9 @@ export class AdditionalServicesController {
   constructor(private readonly service: AdditionalServicesService) {}
 
   @Post()
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.CREATE)
   @ApiOperation({ summary: 'Create additional service' })
   async create(@Body() dto: CreateAdditionalServiceDto) {
     try {
@@ -32,6 +38,9 @@ export class AdditionalServicesController {
   }
 
   @Get()
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.READ)
   @ApiOperation({ summary: 'Get all additional services' })
   async findAll() {
     try {
@@ -43,6 +52,9 @@ export class AdditionalServicesController {
   }
 
   @Get(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.READ)
   async findOne(@Param('id') id: string) {
     try {
       const data = await this.service.findOne(+id);
@@ -53,6 +65,9 @@ export class AdditionalServicesController {
   }
 
   @Put(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.UPDATE)
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateAdditionalServiceDto,
@@ -66,6 +81,9 @@ export class AdditionalServicesController {
   }
 
   @Delete(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.DELETE)
   async remove(@Param('id') id: string) {
     try {
       const data = await this.service.remove(+id);

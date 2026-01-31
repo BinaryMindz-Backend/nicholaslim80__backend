@@ -41,7 +41,6 @@ export class DeliveryTypeController {
   async create(@CurrentUser() user: IUser,
     @Body() dto: CreateDeliveryTypeDto,
   ) {
-    console.log("user----->", user)
     try {
       const result = await this.service.create(dto, user);
       return ApiResponses.success(result, 'Delivery type created');
