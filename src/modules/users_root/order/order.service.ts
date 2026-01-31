@@ -2810,6 +2810,131 @@ export class OrderService {
 
     return this.getOrderDetails(orderId);
   }
+  // add additional price
+  async additionalService(orderId: number, userId: number, serviceId: number) {
+      return this.prisma.$transaction(async (tx) => {
+        const order = await tx.order.findUnique({
+          where: { id: orderId, userId },
+        });
+
+        if (!order) throw new NotFoundException('Order not found');
+        if (order.order_status !== OrderStatus.PROGRESS) {
+          throw new BadRequestException('Cannot add services to this order');
+        }
+
+        const service = await tx.additionalServices.findUnique({
+          where: { id: serviceId, isActive: true },
+        });
+
+        if (!service) {
+          throw new NotFoundException('Additional service not found');
+        }
+
+        const existingServices: any[] = Array.isArray(order.additional_services)
+          ? order.additional_services
+          : [];
+
+        // ❗ Prevent duplicate service
+        const alreadyAdded = existingServices.some(
+          s => s.id === service.id,
+        );
+        if (alreadyAdded) {
+          throw new BadRequestException('Service already added to this order');
+        }
+
+        const serviceValue = Number(service.value);
+        const prevAdditional = Number(order.additional_cost ?? 0);
+
+        const originalCost =
+          order.originalCost !== null
+            ? Number(order.originalCost)
+            : Number(order.total_cost);
+
+        const updatedOrder = await tx.order.update({
+          where: { id: orderId, userId },
+          data: {
+            originalCost,
+            additional_cost: prevAdditional + serviceValue,
+            total_cost: originalCost + prevAdditional + serviceValue,
+            has_additional_services: true,
+
+            // JSON append
+            additional_services: [
+              ...existingServices,
+              {
+                id: service.id,
+                name: service.service_name,
+                desc:service.desc,
+                price: serviceValue,
+              },
+            ],
+          },
+        });
+
+        return updatedOrder;
+      });
+    }
+
+
+  
+
+  // remove additional services
+   async removeAdditionalService(orderId: number, userId: number, serviceId: number) {
+  return this.prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: orderId, userId },
+    });
+
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.order_status !== OrderStatus.PROGRESS) {
+      throw new BadRequestException('Cannot remove services from this order');
+    }
+
+    const existingServices: any[] = Array.isArray(order.additional_services)
+      ? order.additional_services
+      : [];
+
+    // ❗ Check if service exists in JSON
+    const serviceExists = existingServices.some(
+      s => s.id === serviceId,
+    );
+
+    if (!serviceExists) {
+      throw new BadRequestException('Service not applied to this order');
+    }
+
+    //  Remove service from JSON
+    const filteredServices = existingServices.filter(
+      s => s.id !== serviceId,
+    );
+
+    // Recalculate additional cost from JSON
+    const newAdditional = filteredServices.reduce(
+      (sum: number, s) => sum + Number(s.price),
+      0,
+    );
+
+    const baseCost =
+      order.originalCost !== null
+        ? Number(order.originalCost)
+        : Number(order.total_cost);
+
+    // Update order
+    const updatedOrder = await tx.order.update({
+      where: { id: orderId, userId },
+      data: {
+        additional_services: filteredServices,
+        additional_cost: newAdditional,
+        total_cost: baseCost + newAdditional,
+        has_additional_services: filteredServices.length > 0,
+      },
+    });
+
+    return updatedOrder;
+  });
+}
+
+  
 
 
   // **HOT CAKE: process and create bulk order

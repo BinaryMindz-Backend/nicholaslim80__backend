@@ -12,6 +12,9 @@ import { DashboardPopupService } from './dashboard_popup.service';
 import { CreateDashboardPopupDto } from './dto/create-dashboard_popup.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { UpdateDashboardPopupDto } from './dto/update-dashboard_popup.dto';
+import { Auth } from 'src/decorators/auth.decorator';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 @ApiTags('Dashboard Popup')
 @ApiBearerAuth()
@@ -20,6 +23,9 @@ export class DashboardPopupController {
   constructor(private readonly service: DashboardPopupService) {}
 
   @Post()
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.CREATE)
   @ApiOperation({ summary: 'Create dashboard popup' })
   async create(@Body() dto: CreateDashboardPopupDto) {
     try {
@@ -31,6 +37,9 @@ export class DashboardPopupController {
   }
 
   @Get()
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.READ)  
   @ApiOperation({ summary: 'Get all dashboard popups' })
   async findAll() {
     try {
@@ -42,6 +51,9 @@ export class DashboardPopupController {
   }
 
   @Get(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.READ)  
   async findOne(@Param('id') id: string) {
     try {
       const data = await this.service.findOne(+id);
@@ -52,6 +64,9 @@ export class DashboardPopupController {
   }
 
   @Put(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.UPDATE)
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateDashboardPopupDto,
@@ -65,6 +80,9 @@ export class DashboardPopupController {
   }
 
   @Delete(':id')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.DELETE)
   async remove(@Param('id') id: string) {
     try {
       const data = await this.service.remove(+id);

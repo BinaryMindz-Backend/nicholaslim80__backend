@@ -156,6 +156,30 @@ CREATE TABLE "AboutUs" (
 );
 
 -- CreateTable
+CREATE TABLE "AdditionalServices" (
+    "id" SERIAL NOT NULL,
+    "service_name" TEXT NOT NULL,
+    "value" DECIMAL(10,2) NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "desc" TEXT NOT NULL,
+    "order_id" INTEGER,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "DashboardPopup" (
+    "id" SERIAL NOT NULL,
+    "title" TEXT NOT NULL,
+    "desc" TEXT NOT NULL,
+    "redirect_link" TEXT NOT NULL,
+    "image_link" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL
+);
+
+-- CreateTable
 CREATE TABLE "admins" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
@@ -181,6 +205,7 @@ CREATE TABLE "Advertise" (
     "status" BOOLEAN NOT NULL DEFAULT false,
     "start_date" TIMESTAMP(3) NOT NULL,
     "end_date" TIMESTAMP(3) NOT NULL,
+    "redirect_link" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -1105,6 +1130,7 @@ CREATE TABLE "stop_payments" (
     "payType" "PayType" NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
     "status" "PaymentStatus" NOT NULL DEFAULT 'UNPAID',
+    "discount" DECIMAL(65,30) DEFAULT 0,
     "collectedAt" TIMESTAMP(3),
     "collectedBy" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1217,6 +1243,12 @@ CREATE TABLE "_RoleToUser" (
 
     CONSTRAINT "_RoleToUser_AB_pkey" PRIMARY KEY ("A","B")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AdditionalServices_id_key" ON "AdditionalServices"("id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DashboardPopup_id_key" ON "DashboardPopup"("id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "admins_email_key" ON "admins"("email");
@@ -1379,6 +1411,9 @@ CREATE UNIQUE INDEX "users_referral_link_key" ON "users"("referral_link");
 
 -- CreateIndex
 CREATE INDEX "_RoleToUser_B_index" ON "_RoleToUser"("B");
+
+-- AddForeignKey
+ALTER TABLE "AdditionalServices" ADD CONSTRAINT "AdditionalServices_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "admins" ADD CONSTRAINT "admins_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

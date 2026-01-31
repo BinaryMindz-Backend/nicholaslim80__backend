@@ -1,4 +1,4 @@
-import { LoginType, PrismaClient, UserRole } from '@prisma/client';
+import { DeliveryTypeName, LoginType, PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -35,6 +35,7 @@ export enum Module {
   // referral module
   REFERRAL = "referral",
   FAQ = "faq",
+  ADDITIONAL_SERVICES="additional_services",
 
 }
 
@@ -255,6 +256,12 @@ const ROLE_PERMISSIONS = {
     { module: Module.RBAC, action: Permission.UPDATE_RBAC_ROLE_PERMISSION },
     { module: Module.DESTINATION, action: Permission.ALL },
 
+    // additional services and dashboard popup
+    { module: Module.ADDITIONAL_SERVICES, action: Permission.CREATE },
+    { module: Module.ADDITIONAL_SERVICES, action: Permission.READ },
+    { module: Module.ADDITIONAL_SERVICES, action: Permission.DELETE },
+    { module: Module.ADDITIONAL_SERVICES, action: Permission.UPDATE },
+
 
   ],
 
@@ -292,6 +299,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.FAQ, action: Permission.READ },
     // content management
     { module: Module.CONTENT_MANAGEMENT, action: Permission.READ },
+    // additional servics
+    { module: Module.ADDITIONAL_SERVICES, action: Permission.READ },
 
 
   ],
@@ -350,6 +359,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.COIN, action: Permission.REEDOM_COIN },
     // 
     { module: Module.FAQ, action: Permission.READ },
+    // addtional services
+    { module: Module.ADDITIONAL_SERVICES, action: Permission.READ },
 
   ],
 };
@@ -558,14 +569,44 @@ async function initialSeed() {
       },
     });
     console.log(`✅ Customer Order Confirmation Config seeded: ${customerOrderConfirmationConfig.id}\n`);
-
+    // delivery type seed
+    const deliveryTypes = await tx.deliveryType.createMany({
+        data:[
+              {
+              name: DeliveryTypeName.EXPRESS,
+              percentage: 10,
+              pickup_duration: 75,
+              delivery_duration: 90,
+              is_active: true,
+              admin_id:admin.id
+          },
+                        {
+              name: DeliveryTypeName.STACKED,
+              percentage: 5,
+              pickup_duration: 95,
+              delivery_duration: 130,
+              is_active: true,
+              admin_id:admin.id
+          },
+                        {
+              name: DeliveryTypeName.STANDARD,
+              percentage: 2,
+              pickup_duration: 275,
+              delivery_duration: 290,
+              is_active: true,
+              admin_id:admin.id
+          }
+        ]
+    })
+    console.log(`✅ Delivery type Config seeded: ${deliveryTypes.count}\n`);
     // 
     return {
       roles: [superAdminRole, userRole, raiderRole],
       user,
       admin,
       driverCompititionConfig,
-      customerOrderConfirmationConfig
+      customerOrderConfirmationConfig,
+      deliveryTypes
     };
   });
 
@@ -606,9 +647,6 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
-
-
 
 
 

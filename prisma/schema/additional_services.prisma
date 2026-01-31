@@ -1,5 +1,3 @@
-
-
 model AdditionalServices {
      id    Int     @unique @default(autoincrement())
      service_name  String  

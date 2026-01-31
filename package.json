@@ -24,7 +24,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "docker:prisma_fix_migrate": "docker compose exec app npx prisma migrate resolve --applied 'migration_file'"
+    "docker:prisma_fix_migrate": "docker compose exec app npx prisma migrate resolve --applied 20260130225754_order_relation_with_addtional_services"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
