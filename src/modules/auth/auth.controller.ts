@@ -25,6 +25,8 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from 'src/decorators/public.decorator';
 import type { IUser } from 'src/types';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 
 @ApiTags('Authentication')
@@ -253,6 +255,7 @@ export class AuthController {
   @Post('reset-password')
   @Auth()
   @ApiBearerAuth()
+  @RequirePermission(Module.USER_PROFILE, Permission.UPDATE)
   async resetPassword(@Body() dto: ResetPasswordDto, @CurrentUser() user: IUser) {
     //  
     try {

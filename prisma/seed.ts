@@ -36,6 +36,7 @@ export enum Module {
   REFERRAL = "referral",
   FAQ = "faq",
   ADDITIONAL_SERVICES="additional_services",
+  USER_PROFILE="user_profile",
 
 }
 
@@ -261,6 +262,11 @@ const ROLE_PERMISSIONS = {
     { module: Module.ADDITIONAL_SERVICES, action: Permission.READ },
     { module: Module.ADDITIONAL_SERVICES, action: Permission.DELETE },
     { module: Module.ADDITIONAL_SERVICES, action: Permission.UPDATE },
+    // user profile
+    { module: Module.USER_PROFILE, action: Permission.CREATE },
+    { module: Module.USER_PROFILE, action: Permission.READ },
+    { module: Module.USER_PROFILE, action: Permission.DELETE },
+    { module: Module.USER_PROFILE, action: Permission.UPDATE}
 
 
   ],
@@ -301,6 +307,11 @@ const ROLE_PERMISSIONS = {
     { module: Module.CONTENT_MANAGEMENT, action: Permission.READ },
     // additional servics
     { module: Module.ADDITIONAL_SERVICES, action: Permission.READ },
+    // user profile
+    { module: Module.USER_PROFILE, action: Permission.CREATE },
+    { module: Module.USER_PROFILE, action: Permission.READ },
+    { module: Module.USER_PROFILE, action: Permission.DELETE },
+    { module: Module.USER_PROFILE, action: Permission.UPDATE}
 
 
   ],
@@ -337,7 +348,11 @@ const ROLE_PERMISSIONS = {
     { module: Module.NOTIFICATION, action: Permission.READ },
     // 
     { module: Module.CONTENT_MANAGEMENT, action: Permission.READ },
-
+    // user profile
+    { module: Module.USER_PROFILE, action: Permission.CREATE },
+    { module: Module.USER_PROFILE, action: Permission.READ },
+    { module: Module.USER_PROFILE, action: Permission.DELETE },
+    { module: Module.USER_PROFILE, action: Permission.UPDATE},
 
     //sub module
     // Destination module - basic access
