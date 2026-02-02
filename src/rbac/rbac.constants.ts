@@ -28,7 +28,8 @@ export enum Module {
   PAYMENT_METHOD = "payment_method",
   // referral module
   REFERRAL = "referral",
-  ADDITIONAL_SERVICES="additional_services"
+  ADDITIONAL_SERVICES="additional_services",
+  USER_PROFILE="user_profile",
 
 
 
