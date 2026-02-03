@@ -6,7 +6,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { NotifyRaider, PriorityOrder, UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DeliveryZone, DestinationInput, IUser, Receiver, UserRaiderMapping } from 'src/types';
-import { CollectTime, DeliveryTypeName, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, Raider, RaiderStatus, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType } from '@prisma/client';
+import { CollectTime, DeliveryTypeName, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, Raider, RaiderStatus, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType, VehicleTypeEnum } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -39,9 +39,9 @@ export class OrderService {
     private readonly geoServices: GeoService,
     private readonly emailQueueService: EmailQueueService,
     private readonly walletService: WalletService,
-     private raiderGateway: RaiderGateway,
-  
-  
+    private raiderGateway: RaiderGateway,
+
+
   ) { }
 
   // create 
@@ -414,11 +414,11 @@ export class OrderService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        vehicle:{
-            select:{
-                vehicle_type:true,
-                id:true,
-            }
+        vehicle: {
+          select: {
+            vehicle_type: true,
+            id: true,
+          }
         },
         orderStops: {
           include: { payment: true },
@@ -426,7 +426,7 @@ export class OrderService {
         },
       },
     });
-     
+
     if (!order || order.userId !== userId) {
       throw new BadRequestException('Order not found or unauthorized');
     }
@@ -540,69 +540,69 @@ export class OrderService {
       }
 
       /** ----------------------- UPDATE ORDER ----------------------- */
-     const updatedOrder = await tx.order.update({
-            where: { id: orderId },
-            data: {
-              order_status: OrderStatus.PENDING,
-              is_placed: true,
-              pay_type: payType,
-            },
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          order_status: OrderStatus.PENDING,
+          is_placed: true,
+          pay_type: payType,
+        },
+        include: {
+          orderStops: {
             include: {
-              orderStops: {
-                include: {
-                  destination: true,
-                  payment: true,
-                },
-                orderBy: { sequence: 'asc' },
-              },
+              destination: true,
+              payment: true,
             },
-          });
-          // 
-        if(order.notify_favorite_raider === true){
-          //  
-          const favRaiders = await tx.myRaider.findMany({
-            where:{
-               user_id:userId,
-               is_fav:true,
-            },
-            select:{
-                raiderId:true,
-                user_id:true,
-                is_fav:true,
-                user:{
-                    select:{
-                        username:true,
-                        id:true,
-                        email:true
-                    }
-                }
+            orderBy: { sequence: 'asc' },
+          },
+        },
+      });
+      // 
+      if (order.notify_favorite_raider === true) {
+        //  
+        const favRaiders = await tx.myRaider.findMany({
+          where: {
+            user_id: userId,
+            is_fav: true,
+          },
+          select: {
+            raiderId: true,
+            user_id: true,
+            is_fav: true,
+            user: {
+              select: {
+                username: true,
+                id: true,
+                email: true
+              }
             }
-        }) 
+          }
+        })
         // console.log("fav raider -->", favRaiders);
         // Send notification to rider
-          if(favRaiders.length > 0){
-              // 
-              for(const rider of favRaiders){
-                // console.log("rraider -->", rider);
-                await this.raiderGateway.notifyUserFavRaider(
-                  rider.raiderId,
-                  orderId,
-                  rider.user.username!,
-                  {
-                      orderId: order.id,
-                      totalOrderCost : String(order.total_cost),
-                      totalFee : String(order.total_fee),
-                      vehicleType:order.vehicle!,
-                      deliveryType:order.delivery_type,
-                      orderStop:order.orderStops
-                  },
-                )  
-              }
+        if (favRaiders.length > 0) {
+          // 
+          for (const rider of favRaiders) {
+            // console.log("rraider -->", rider);
+            await this.raiderGateway.notifyUserFavRaider(
+              rider.raiderId,
+              orderId,
+              rider.user.username!,
+              {
+                orderId: order.id,
+                totalOrderCost: String(order.total_cost),
+                totalFee: String(order.total_fee),
+                vehicleType: order.vehicle!,
+                deliveryType: order.delivery_type,
+                orderStop: order.orderStops
+              },
+            )
           }
-          
         }
-        // 
-       return updatedOrder;
+
+      }
+      // 
+      return updatedOrder;
 
     });
     // 
@@ -610,60 +610,60 @@ export class OrderService {
 
   }
 
-    // notify rider
-    async notifyRider(orderId: number, userId: number) {
-      // 
-      const isOrderExist = await this.prisma.order.findFirst({
-        where: {
-          id: orderId,
-          userId: userId
-        }
-      })
-      //  
-      if (!isOrderExist || (isOrderExist && isOrderExist?.collect_time !== CollectTime.SCHEDULED)) {
-        throw new NotFoundException(`${isOrderExist?.collect_time !== CollectTime.SCHEDULED && "Scheduled"} Order Not found`)
+  // notify rider
+  async notifyRider(orderId: number, userId: number) {
+    // 
+    const isOrderExist = await this.prisma.order.findFirst({
+      where: {
+        id: orderId,
+        userId: userId
       }
-      //  
-      const r = await this.prisma.order.update({
-        where: {
-          id: orderId
-        },
-        data: {
-          is_auto_confirmation: false,
-        }
-      })
-
-      // 
-      return r;
-
-
+    })
+    //  
+    if (!isOrderExist || (isOrderExist && isOrderExist?.collect_time !== CollectTime.SCHEDULED)) {
+      throw new NotFoundException(`${isOrderExist?.collect_time !== CollectTime.SCHEDULED && "Scheduled"} Order Not found`)
     }
-
-    // notify rider
-    async notifyFavRider(orderId: number, userId: number, dto: NotifyRaider) {
-      // 
-      const isOrderExist = await this.prisma.order.findFirst({
-        where: {
-          id: orderId,
-          userId: userId
-        }
-      })
-      //  
-      if (!isOrderExist) {
-        throw new NotFoundException(`Order Not found`)
+    //  
+    const r = await this.prisma.order.update({
+      where: {
+        id: orderId
+      },
+      data: {
+        is_auto_confirmation: false,
       }
-      //  
-      const r = await this.prisma.order.update({
-        where: {
-          id: orderId
-        },
-        data: {
-          notify_favorite_raider:dto.notify_rider
-        }
-      })
-      // 
-      return r;
+    })
+
+    // 
+    return r;
+
+
+  }
+
+  // notify rider
+  async notifyFavRider(orderId: number, userId: number, dto: NotifyRaider) {
+    // 
+    const isOrderExist = await this.prisma.order.findFirst({
+      where: {
+        id: orderId,
+        userId: userId
+      }
+    })
+    //  
+    if (!isOrderExist) {
+      throw new NotFoundException(`Order Not found`)
     }
+    //  
+    const r = await this.prisma.order.update({
+      where: {
+        id: orderId
+      },
+      data: {
+        notify_favorite_raider: dto.notify_rider
+      }
+    })
+    // 
+    return r;
+  }
 
 
 
@@ -2555,12 +2555,12 @@ export class OrderService {
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId, userId },
-      include:{
-          orderStops:{
-              include:{
-                 payment:true
-              }
-          },
+      include: {
+        orderStops: {
+          include: {
+            payment: true
+          }
+        },
       }
     });
 
@@ -2673,42 +2673,42 @@ export class OrderService {
         },
       });
       //Problem: discount need to split if order is COD and multiple drop // solved
-       // if order is cod
-       if (order.pay_type === PayType.COD) {
-           //find sender and reciever
-          const senders = order.orderStops.filter(
-            s => s.type === 'PICKUP' && s.payment?.status === 'UNPAID'
-          );
+      // if order is cod
+      if (order.pay_type === PayType.COD) {
+        //find sender and reciever
+        const senders = order.orderStops.filter(
+          s => s.type === 'PICKUP' && s.payment?.status === 'UNPAID'
+        );
 
-          const receivers = order.orderStops.filter(
-            r => r.type === 'DROP' && r.payment?.status === 'UNPAID'
-          );
-          // find payers
-          const payers = senders.length > 0 ? senders : receivers;
-          if (payers.length === 0) return;
+        const receivers = order.orderStops.filter(
+          r => r.type === 'DROP' && r.payment?.status === 'UNPAID'
+        );
+        // find payers
+        const payers = senders.length > 0 ? senders : receivers;
+        if (payers.length === 0) return;
 
-          const total = Number(totalDiscount);
-          const baseSplit = Math.floor((total / payers.length) * 100) / 100;
-          let remainder = +(total - baseSplit * payers.length).toFixed(2);
+        const total = Number(totalDiscount);
+        const baseSplit = Math.floor((total / payers.length) * 100) / 100;
+        let remainder = +(total - baseSplit * payers.length).toFixed(2);
 
-          for (const stop of payers) {
-            const discount =
-              remainder > 0 ? +(baseSplit + 0.01).toFixed(2) : baseSplit;
+        for (const stop of payers) {
+          const discount =
+            remainder > 0 ? +(baseSplit + 0.01).toFixed(2) : baseSplit;
 
-            remainder = +(remainder - 0.01).toFixed(2);
+          remainder = +(remainder - 0.01).toFixed(2);
 
-            await tx.stopPayment.update({
-              where: { id: stop.payment?.id },
-              data: {
-                   discount, 
-                   amount:{
-                      decrement:discount
-                   }
-              },
-            });
-          }
+          await tx.stopPayment.update({
+            where: { id: stop.payment?.id },
+            data: {
+              discount,
+              amount: {
+                decrement: discount
+              }
+            },
+          });
+        }
       }
- 
+
     });
 
     return this.getOrderDetails(orderId);
@@ -2718,12 +2718,12 @@ export class OrderService {
   async removeDiscount(orderId: number, userId: number, type: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId, userId },
-      include:{
-         orderStops:{
-             include:{
-               payment:true,
-             }
-         }
+      include: {
+        orderStops: {
+          include: {
+            payment: true,
+          }
+        }
       }
     });
 
@@ -2792,7 +2792,7 @@ export class OrderService {
           remainder = +(remainder - 0.01).toFixed(2);
 
           await tx.stopPayment.update({
-            where: { id: stop.payment?.id},
+            where: { id: stop.payment?.id },
             data: {
               discount: {
                 decrement: restore, // discount removed
@@ -2812,129 +2812,129 @@ export class OrderService {
   }
   // add additional price
   async additionalService(orderId: number, userId: number, serviceId: number) {
-      return this.prisma.$transaction(async (tx) => {
-        const order = await tx.order.findUnique({
-          where: { id: orderId, userId },
-        });
-
-        if (!order) throw new NotFoundException('Order not found');
-        if (order.order_status !== OrderStatus.PROGRESS) {
-          throw new BadRequestException('Cannot add services to this order');
-        }
-
-        const service = await tx.additionalServices.findUnique({
-          where: { id: serviceId, isActive: true },
-        });
-
-        if (!service) {
-          throw new NotFoundException('Additional service not found');
-        }
-
-        const existingServices: any[] = Array.isArray(order.additional_services)
-          ? order.additional_services
-          : [];
-
-        // ❗ Prevent duplicate service
-        const alreadyAdded = existingServices.some(
-          s => s.id === service.id,
-        );
-        if (alreadyAdded) {
-          throw new BadRequestException('Service already added to this order');
-        }
-
-        const serviceValue = Number(service.value);
-        const prevAdditional = Number(order.additional_cost ?? 0);
-
-        const originalCost =
-          order.originalCost !== null
-            ? Number(order.originalCost)
-            : Number(order.total_cost);
-
-        const updatedOrder = await tx.order.update({
-          where: { id: orderId, userId },
-          data: {
-            originalCost,
-            additional_cost: prevAdditional + serviceValue,
-            total_cost: originalCost + prevAdditional + serviceValue,
-            has_additional_services: true,
-
-            // JSON append
-            additional_services: [
-              ...existingServices,
-              {
-                id: service.id,
-                name: service.service_name,
-                desc:service.desc,
-                price: serviceValue,
-              },
-            ],
-          },
-        });
-
-        return updatedOrder;
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id: orderId, userId },
       });
-    }
+
+      if (!order) throw new NotFoundException('Order not found');
+      if (order.order_status !== OrderStatus.PROGRESS) {
+        throw new BadRequestException('Cannot add services to this order');
+      }
+
+      const service = await tx.additionalServices.findUnique({
+        where: { id: serviceId, isActive: true },
+      });
+
+      if (!service) {
+        throw new NotFoundException('Additional service not found');
+      }
+
+      const existingServices: any[] = Array.isArray(order.additional_services)
+        ? order.additional_services
+        : [];
+
+      // ❗ Prevent duplicate service
+      const alreadyAdded = existingServices.some(
+        s => s.id === service.id,
+      );
+      if (alreadyAdded) {
+        throw new BadRequestException('Service already added to this order');
+      }
+
+      const serviceValue = Number(service.value);
+      const prevAdditional = Number(order.additional_cost ?? 0);
+
+      const originalCost =
+        order.originalCost !== null
+          ? Number(order.originalCost)
+          : Number(order.total_cost);
+
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId, userId },
+        data: {
+          originalCost,
+          additional_cost: prevAdditional + serviceValue,
+          total_cost: originalCost + prevAdditional + serviceValue,
+          has_additional_services: true,
+
+          // JSON append
+          additional_services: [
+            ...existingServices,
+            {
+              id: service.id,
+              name: service.service_name,
+              desc: service.desc,
+              price: serviceValue,
+            },
+          ],
+        },
+      });
+
+      return updatedOrder;
+    });
+  }
 
 
-  
+
 
   // remove additional services
-   async removeAdditionalService(orderId: number, userId: number, serviceId: number) {
-  return this.prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({
-      where: { id: orderId, userId },
+  async removeAdditionalService(orderId: number, userId: number, serviceId: number) {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id: orderId, userId },
+      });
+
+      if (!order) throw new NotFoundException('Order not found');
+      if (order.order_status !== OrderStatus.PROGRESS) {
+        throw new BadRequestException('Cannot remove services from this order');
+      }
+
+      const existingServices: any[] = Array.isArray(order.additional_services)
+        ? order.additional_services
+        : [];
+
+      // ❗ Check if service exists in JSON
+      const serviceExists = existingServices.some(
+        s => s.id === serviceId,
+      );
+
+      if (!serviceExists) {
+        throw new BadRequestException('Service not applied to this order');
+      }
+
+      //  Remove service from JSON
+      const filteredServices = existingServices.filter(
+        s => s.id !== serviceId,
+      );
+
+      // Recalculate additional cost from JSON
+      const newAdditional = filteredServices.reduce(
+        (sum: number, s) => sum + Number(s.price),
+        0,
+      );
+
+      const baseCost =
+        order.originalCost !== null
+          ? Number(order.originalCost)
+          : Number(order.total_cost);
+
+      // Update order
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId, userId },
+        data: {
+          additional_services: filteredServices,
+          additional_cost: newAdditional,
+          total_cost: baseCost + newAdditional,
+          has_additional_services: filteredServices.length > 0,
+        },
+      });
+
+      return updatedOrder;
     });
+  }
 
-    if (!order) throw new NotFoundException('Order not found');
-    if (order.order_status !== OrderStatus.PROGRESS) {
-      throw new BadRequestException('Cannot remove services from this order');
-    }
 
-    const existingServices: any[] = Array.isArray(order.additional_services)
-      ? order.additional_services
-      : [];
-
-    // ❗ Check if service exists in JSON
-    const serviceExists = existingServices.some(
-      s => s.id === serviceId,
-    );
-
-    if (!serviceExists) {
-      throw new BadRequestException('Service not applied to this order');
-    }
-
-    //  Remove service from JSON
-    const filteredServices = existingServices.filter(
-      s => s.id !== serviceId,
-    );
-
-    // Recalculate additional cost from JSON
-    const newAdditional = filteredServices.reduce(
-      (sum: number, s) => sum + Number(s.price),
-      0,
-    );
-
-    const baseCost =
-      order.originalCost !== null
-        ? Number(order.originalCost)
-        : Number(order.total_cost);
-
-    // Update order
-    const updatedOrder = await tx.order.update({
-      where: { id: orderId, userId },
-      data: {
-        additional_services: filteredServices,
-        additional_cost: newAdditional,
-        total_cost: baseCost + newAdditional,
-        has_additional_services: filteredServices.length > 0,
-      },
-    });
-
-    return updatedOrder;
-  });
-}
-
-  
 
 
   // **HOT CAKE: process and create bulk order
@@ -3276,7 +3276,7 @@ export class OrderService {
       },
     });
   }
-   
+
   // **HOT CAKE: driver compitition algorithom (If you dont understand it then dont touch it)
   // START COMPETITION (First rider triggers this)
   async driverCompitition(user: UserRaiderMapping, orderId: number) {
@@ -3298,7 +3298,7 @@ export class OrderService {
 
     const lockKey = `order:competition:${orderId}`;
     const lockAcquired = await this.redisService.acquireLock(lockKey, 3000);
-    
+
     if (!lockAcquired) {
       throw new ConflictException('Competition is processing, please try again');
     }
@@ -3315,8 +3315,8 @@ export class OrderService {
       if (!order) throw new NotFoundException('Order not found');
 
       // check is the order is not placed
-      if(order.order_status !== OrderStatus.PENDING){
-          throw new NotFoundException("Order Is not ready for compitition")
+      if (order.order_status !== OrderStatus.PENDING) {
+        throw new NotFoundException("Order Is not ready for compitition")
       }
 
       // 
@@ -3327,12 +3327,12 @@ export class OrderService {
       // Already joined
       if (order.compititor_id.includes(raider.id)) {
         console.log(`⚠️ Rider ${raider.id} already joined`);
-        
+
         const timeRemaining = this.calculateTimeRemaining(
           order.competition_started_at,
           config.challenges_timeout
         );
-        
+
         return {
           updated: order,
           score: 0,
@@ -3387,63 +3387,63 @@ export class OrderService {
   // Calculate time remaining
   private calculateTimeRemaining(startedAt: Date | null, duration: number): number {
     if (!startedAt) return duration;
-    
+
     const now = new Date();
     const elapsed = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
     return Math.max(0, duration - elapsed);
   }
 
-   // START COMPETITION
-   private async startCompetition(orderId: number, timeoutSeconds: number, broadcastToAll = true) {
-      console.log(`🏁 Starting competition - Order: ${orderId}, Duration: ${timeoutSeconds}s`);
+  // START COMPETITION
+  private async startCompetition(orderId: number, timeoutSeconds: number, broadcastToAll = true) {
+    console.log(`🏁 Starting competition - Order: ${orderId}, Duration: ${timeoutSeconds}s`);
 
-      const order = await this.prisma.order.update({
-        where: { id: orderId },
-        data: { competition_started_at: new Date() },
-        include: { orderStops: true, vehicle: true, serviceZone: true },
-      });
+    const order = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { competition_started_at: new Date() },
+      include: { orderStops: true, vehicle: true, serviceZone: true },
+    });
 
-      // Schedule BullMQ job
-      await competitionQueue.add(
-        'close-competition',
-        { orderId },
-        { delay: timeoutSeconds * 1000 },
-      );
-      console.log(`⏰ Auto-close scheduled in ${timeoutSeconds}s`);
+    // Schedule BullMQ job
+    await competitionQueue.add(
+      'close-competition',
+      { orderId },
+      { delay: timeoutSeconds * 1000 },
+    );
+    console.log(`⏰ Auto-close scheduled in ${timeoutSeconds}s`);
 
-      const now = new Date();
-      const endsAt = new Date(now.getTime() + timeoutSeconds * 1000);
+    const now = new Date();
+    const endsAt = new Date(now.getTime() + timeoutSeconds * 1000);
 
-      const competitionData = {
-        orderId: order.id,
-        serviceZoneId: order.serviceZoneId,
-        vehicleTypeId: order.vehicle_type_id,
-        totalCost: Number(order.total_cost),
-        pickupLocation: {
-          lat: order.orderStops[0]?.latitude || 0,
-          lng: order.orderStops[0]?.longitude || 0,
-          address: order.orderStops[0]?.address || '',
-        },
-        deliveryLocation: {
-          lat: order.orderStops[order.orderStops.length - 1]?.latitude || 0,
-          lng: order.orderStops[order.orderStops.length - 1]?.longitude || 0,
-          address: order.orderStops[order.orderStops.length - 1]?.address || '',
-        },
-        competitionStartedAt: order.competition_started_at?.toISOString()!,
-        competitionEndsAt: endsAt.toISOString(),
-        timeRemaining: timeoutSeconds,
-        competitorIds: order.compititor_id,
-        competitorCount: order.compititor_id.length,
-      };
+    const competitionData = {
+      orderId: order.id,
+      serviceZoneId: order.serviceZoneId,
+      vehicleTypeId: order.vehicle_type_id,
+      totalCost: Number(order.total_cost),
+      pickupLocation: {
+        lat: order.orderStops[0]?.latitude || 0,
+        lng: order.orderStops[0]?.longitude || 0,
+        address: order.orderStops[0]?.address || '',
+      },
+      deliveryLocation: {
+        lat: order.orderStops[order.orderStops.length - 1]?.latitude || 0,
+        lng: order.orderStops[order.orderStops.length - 1]?.longitude || 0,
+        address: order.orderStops[order.orderStops.length - 1]?.address || '',
+      },
+      competitionStartedAt: order.competition_started_at?.toISOString()!,
+      competitionEndsAt: endsAt.toISOString(),
+      timeRemaining: timeoutSeconds,
+      competitorIds: order.compititor_id,
+      competitorCount: order.compititor_id.length,
+    };
 
-        console.log('📣 Broadcasting only to competitors');
-        await this.raiderGateway.broadcastCompetitionUpdateToCompetitors(competitionData);
+    console.log('📣 Broadcasting only to competitors');
+    await this.raiderGateway.broadcastCompetitionUpdateToCompetitors(competitionData);
 
-      console.log('✅ Competition started');
+    console.log('✅ Competition started');
   }
-    
+
   // AUTO-CONFIRMATION CHECK
-   private async checkAutoConfirmation(order: any, user: UserRaiderMapping, raider: any) {
+  private async checkAutoConfirmation(order: any, user: UserRaiderMapping, raider: any) {
     const c = await this.prisma.customer_order_confirmation.findFirst();
     if (!c) return { score: 0, shouldAutoConfirm: false, requiresManualConfirmation: true };
 
@@ -3465,7 +3465,7 @@ export class OrderService {
     const score =
       newCustomerScore * (c.is_new_customer_weight / 100) +
       completedOrdersScore * (c.completed_orders_weight / 100);
-      // also will checked by follower
+    // also will checked by follower
 
     const shouldAutoConfirm = score >= 3.0;
 
@@ -3475,7 +3475,7 @@ export class OrderService {
           where: { id: order.id },
           data: { raider_confirmation: true, is_auto_confirmation: true },
         });
-        
+
         await tx.customer_order_confirmation_ratio_logs.create({
           data: {
             customer_id: user?.id,
@@ -3512,7 +3512,7 @@ export class OrderService {
     }
 
     return { score, shouldAutoConfirm, requiresManualConfirmation: !shouldAutoConfirm };
-    }
+  }
 
 
 
