@@ -1,0 +1,16 @@
+model Profile {
+  id          Int     @id @default(autoincrement())
+  firstName   String?
+  lastName    String?
+  avatarUrl   String?
+  bio         String? @db.Text
+  // Date of Birth
+  dob               DateTime? @db.Date 
+  
+  // Bank Information
+  bank_account_num  String?   @db.VarChar(30)
+  bank_name         String?   @db.VarChar(100)
+  userId      Int     @unique
+  user        User    @relation(fields: [userId], references: [id])
+}
+

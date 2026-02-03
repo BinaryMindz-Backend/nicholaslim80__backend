@@ -94,9 +94,9 @@ export class UsersService {
           referral_link: link,
           is_acc_refered: dto.referral_code ? true : false,
           roles: {
-              connect:{
-                  id:role.id,
-              }
+            connect: {
+              id: role.id,
+            }
           }
         },
       });
@@ -349,7 +349,7 @@ export class UsersService {
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
-    const where: any = {regi_status: LoginType.ADMIN_SIGNIN };
+    const where: any = { regi_status: LoginType.ADMIN_SIGNIN };
 
     // ==========================
     if (status) {
@@ -467,7 +467,7 @@ export class UsersService {
         is_verified: u.is_verified,
         is_deleted: u.is_deleted,
         role: u.roles?.map(r => r.name) ?? [],
-        regi_status:u.regi_status
+        regi_status: u.regi_status
       };
     });
 
@@ -614,7 +614,7 @@ export class UsersService {
         is_verified: u.is_verified,
         is_deleted: u.is_deleted,
         role: u.roles?.map(r => r.name) ?? [],
-        regi_status:u.regi_status,
+        regi_status: u.regi_status,
       };
     });
 
@@ -653,7 +653,7 @@ export class UsersService {
     };
 
     // Check if user has RAIDER role
-    const isRaider = res.roles?.map(r => r.name === 'RAIDER')  || res.roles.map(r=>r.name === 'raider');
+    const isRaider = res.roles?.map(r => r.name === 'RAIDER') || res.roles.map(r => r.name === 'raider');
 
     if (isRaider && res.raiderProfile?.id) {
       // Get follower count for raider
@@ -733,6 +733,7 @@ export class UsersService {
         is_deleted: false
       },
       include: {
+        profile: true,
         raiderProfile: {
           include: {
             registrations: true
@@ -794,7 +795,7 @@ export class UsersService {
     }
 
     // Check if user has CUSTOMER/USER role (or get customer ratings for all users)
-    const isCustomer = res.roles?.map(r => r.name === 'CUSTOMER') || res.roles?.map(r => r.name === 'USER') ||res.roles?.map(r => r.name=== 'customer') || res.roles?.map(r => r.name === 'user');
+    const isCustomer = res.roles?.map(r => r.name === 'CUSTOMER') || res.roles?.map(r => r.name === 'USER') || res.roles?.map(r => r.name === 'customer') || res.roles?.map(r => r.name === 'user');
 
     if (isCustomer || !isRaider) {
       // Get customer rating average
@@ -837,48 +838,119 @@ export class UsersService {
 
 
 
-  // ** Update user
-  async updateUser(id: number, updateUserDto: UpdateUserDto) {
+  // ** Update user deprecated
+  // async updateUser(id: number, updateUserDto: UpdateUserDto) {
+  //   if (!id) {
+  //     throw new NotFoundException('User id not found');
+  //   }
+
+  //   const user = await this.prisma.user.findUnique({
+  //     where: { id },
+  //     include: { raiderProfile: true, profile: true },
+  //   });
+
+  //   if (!user) {
+  //     throw new NotFoundException('User not found');
+  //   }
+
+  //   const { raider, ...userData } = updateUserDto;
+
+  //   return await this.prisma.user.update({
+  //     where: { id },
+  //     data: {
+  //       ...userData,
+
+  //       ...(raider && {
+  //         raiderProfile: user.raiderProfile
+  //           ? {
+  //             update: {
+  //               rank: raider.rank,
+  //             },
+  //           }
+  //           : {
+  //             create: {
+  //               rank: raider.rank,
+  //             },
+  //           },
+  //       }),
+  //     },
+  //     include: {
+  //       profile: true,
+  //       raiderProfile: true
+  //     }
+  //   });
+   // }
+
+
+  //  new
+ async updateUser(id: number, updateUserDto: UpdateUserDto) {
     if (!id) {
       throw new NotFoundException('User id not found');
     }
 
     const user = await this.prisma.user.findUnique({
       where: { id },
-      include: { raiderProfile: true },
+      include: { raiderProfile: true, profile: true },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const { raider, ...userData } = updateUserDto;
+    // 1. Destructure all profile-specific fields
+    const { 
+      raider, 
+      dob, 
+      bank_account_num, 
+      bank_name, 
+      firstName, 
+      lastName, 
+      ...userData 
+    } = updateUserDto;
 
     return await this.prisma.user.update({
       where: { id },
       data: {
-        ...userData,
+        ...userData, // Updates username, email, phone, etc. on the User model
 
+        // 2. Nested Profile Update (Upsert logic)
+        profile: {
+          ...(user.profile 
+            ? {
+                update: {
+                  firstName,
+                  lastName,
+                  bank_account_num,
+                  bank_name,
+                  avatarUrl: updateUserDto.image,
+                  ...(dob && { dob: new Date(dob) }),
+                },
+              }
+            : {
+                create: {
+                  firstName,
+                  lastName,
+                  bank_account_num,
+                  bank_name,
+                  avatarUrl: updateUserDto.image,
+                  ...(dob && { dob: new Date(dob) }),
+                },
+              }),
+        },
+
+        // 3. Nested Raider Profile Update
         ...(raider && {
           raiderProfile: user.raiderProfile
-            ? {
-              update: {
-                rank: raider.rank,
-              },
-            }
-            : {
-              create: {
-                rank: raider.rank,
-              },
-            },
+            ? { update: { rank: raider.rank } }
+            : { create: { rank: raider.rank } },
         }),
       },
       include: {
+        profile: true,
         raiderProfile: true
       }
     });
   }
-
 
 
   // ** Update user active status
@@ -955,36 +1027,36 @@ export class UsersService {
     return this.prisma.$transaction(async (tx) => {
 
       //  Get existing roles
-        let existingRoles = await tx.role.findMany({
-          where: {
-            name: {
-              in: [...new Set(dto.custom_role_name)],
-            },
+      let existingRoles = await tx.role.findMany({
+        where: {
+          name: {
+            in: [...new Set(dto.custom_role_name)],
           },
+        },
+      });
+
+      //  Determine missing role names
+      const existingNames = new Set(existingRoles.map(r => r.name));
+      const missingNames = [...new Set(dto.custom_role_name)].filter(
+        name => !existingNames.has(name),
+      );
+
+      // Create missing roles
+      if (missingNames.length > 0) {
+        await tx.role.createMany({
+          data: missingNames.map(name => ({ name })),
+          skipDuplicates: true, // optional but safe
         });
+      }
 
-        //  Determine missing role names
-        const existingNames = new Set(existingRoles.map(r => r.name));
-        const missingNames = [...new Set(dto.custom_role_name)].filter(
-          name => !existingNames.has(name),
-        );
-
-        // Create missing roles
-        if (missingNames.length > 0) {
-          await tx.role.createMany({
-            data: missingNames.map(name => ({ name })),
-            skipDuplicates: true, // optional but safe
-          });
-        }
-
-        // Re-fetch all roles (so you have Role[] for connecting)
-        existingRoles = await tx.role.findMany({
-          where: {
-            name: {
-              in: [...new Set(dto.custom_role_name)],
-            },
+      // Re-fetch all roles (so you have Role[] for connecting)
+      existingRoles = await tx.role.findMany({
+        where: {
+          name: {
+            in: [...new Set(dto.custom_role_name)],
           },
-        });
+        },
+      });
 
       // Check existing user
       const userExists = await tx.user.findFirst({
@@ -1012,26 +1084,26 @@ export class UsersService {
       });
 
       //  Create user + roles 
-        const user = await tx.user.create({
-          data: {
-            username: dto.username,
-            email: dto.email,
-            phone: dto.phone,
-            password: hashedPass,
-            image: dto.image,
-            is_verified: true,
-            is_active: true,
-            regi_status: LoginType.ADMIN_SIGNIN,
-            total_coin_acc: Number(coin?.coin_amount) || 0,
-            current_coin_balance: Number(coin?.coin_amount) || 0,
-            roles: {
-              connect: existingRoles.map(r => ({ id: r.id })),
-            },
+      const user = await tx.user.create({
+        data: {
+          username: dto.username,
+          email: dto.email,
+          phone: dto.phone,
+          password: hashedPass,
+          image: dto.image,
+          is_verified: true,
+          is_active: true,
+          regi_status: LoginType.ADMIN_SIGNIN,
+          total_coin_acc: Number(coin?.coin_amount) || 0,
+          current_coin_balance: Number(coin?.coin_amount) || 0,
+          roles: {
+            connect: existingRoles.map(r => ({ id: r.id })),
           },
-          include: {
-            roles: true,
-          },
-        });
+        },
+        include: {
+          roles: true,
+        },
+      });
 
       // Coin history
       await tx.coinHistory.create({

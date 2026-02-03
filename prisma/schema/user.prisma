@@ -44,6 +44,7 @@ model User {
   fcmToken       String?
   image          String?
   // Relations
+  profile        Profile?         
   notifications  Notification[]
   places         Place[]
   refers         Refer[]

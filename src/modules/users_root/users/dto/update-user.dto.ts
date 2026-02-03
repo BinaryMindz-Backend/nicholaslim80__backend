@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEmail, IsObject, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, IsEmail, ValidateNested, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Rank } from '@prisma/client';
 
@@ -14,6 +14,18 @@ class UpdateRaiderDto {
 }
 
 export class UpdateUserDto {
+  
+  @ApiPropertyOptional({ example: 'John' })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiPropertyOptional({ example: 'Doe' })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+
   @ApiPropertyOptional({ example: 'john_doe' })
   @IsOptional()
   @IsString()
@@ -34,12 +46,25 @@ export class UpdateUserDto {
   @IsString()
   image?: string;
 
-  @ApiPropertyOptional({
-    description: 'Raider related updates',
-    type: UpdateRaiderDto,
-  })
+  // --- New Fields ---
+
+@ApiPropertyOptional({ example: '1995-12-30' })
   @IsOptional()
-  @IsObject()
+  @IsDateString()
+  dob?: string;
+
+  @ApiPropertyOptional({ example: '1234567890' })
+  @IsOptional()
+  @IsString()
+  bank_account_num?: string;
+
+  @ApiPropertyOptional({ example: 'Chase Bank' })
+  @IsOptional()
+  @IsString()
+  bank_name?: string;
+
+  @ApiPropertyOptional({ type: UpdateRaiderDto })
+  @IsOptional()
   @ValidateNested()
   @Type(() => UpdateRaiderDto)
   raider?: UpdateRaiderDto;
