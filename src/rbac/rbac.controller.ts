@@ -20,15 +20,15 @@ export class RbacController {
   @ApiBearerAuth()
   @RequirePermission(Module.RBAC, Permission.CREATE)
   async createRole(@Body() createRoleDto: CreateRoleDto) {
-       try {
-         const res = await this.rbacService.createCustomRole(
-                createRoleDto.name,
-                createRoleDto.permissions,
-              );
-           return ApiResponses.success(res, 'Role created successfully');
-       } catch (error) {
-            return ApiResponses.error(error, "Failed to create role");
-       }
+    try {
+      const res = await this.rbacService.createCustomRole(
+        createRoleDto.name,
+        createRoleDto.permissions,
+      );
+      return ApiResponses.success(res, 'Role created successfully');
+    } catch (error) {
+      return ApiResponses.error(error, "Failed to create role");
+    }
   }
   // 
   @Get("search")
@@ -48,16 +48,16 @@ export class RbacController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRoleDto: UpdateRoleNameDto,
   ) {
-      
+
     try {
       const res = await this.rbacService.updateRole(id, updateRoleDto.name);
-         return ApiResponses.success(res, 'Role name updated successfully');
+      return ApiResponses.success(res, 'Role name updated successfully');
     } catch (error) {
-          return ApiResponses.error(error, "Failed to update role name");
+      return ApiResponses.error(error, "Failed to update role name");
     }
- 
 
-    }
+
+  }
 
   // 
   @Put(':id/active-status')
@@ -67,12 +67,12 @@ export class RbacController {
   async makeActiveInactive(
     @Param('id', ParseIntPipe) id: number,
   ) {
-     try {
+    try {
       const res = await this.rbacService.makeActiveInactive(id);
-         return ApiResponses.success(res, 'Role status updated successfully');
-     } catch (error) {
-          return ApiResponses.error(error, "Failed to update role status");
-     }
+      return ApiResponses.success(res, 'Role status updated successfully');
+    } catch (error) {
+      return ApiResponses.error(error, "Failed to update role status");
+    }
   }
 
   //  
@@ -86,30 +86,30 @@ export class RbacController {
   ) {
     return this.rbacService.updateRolePermissions(id, updateRoleDto.permissions);
   }
-   
+
   // 
   @Delete(':id')
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.RBAC, Permission.DELETE)
   async deleteRole(@Param('id', ParseIntPipe) id: number) {
-      try {
-        const res = await this.rbacService.deleteRole(id);
-         return ApiResponses.success(res, 'Role deleted successfully');
-      } catch (error) {
-         return ApiResponses.error(error, "Failed to delete role");
-      }
+    try {
+      const res = await this.rbacService.deleteRole(id);
+      return ApiResponses.success(res, 'Role deleted successfully');
+    } catch (error) {
+      return ApiResponses.error(error, "Failed to delete role");
+    }
   }
-  
+
   // 
   @Get()
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.RBAC, Permission.READ)
+  // @RequirePermission(Module.RBAC, Permission.READ)
   async getAllRoles() {
     return await this.rbacService.getAllRoles();
   }
-   
+
   // 
   @Get('available-permissions')
   @Auth()
@@ -151,7 +151,7 @@ export class RbacController {
   //     )
   //   };
   // }
-    // 
+  // 
 
 
 
