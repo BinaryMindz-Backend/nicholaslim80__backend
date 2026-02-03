@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable no-case-declarations */
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { NotificationType, UserRole, NotificationSentRole } from '@prisma/client';
+import { NotificationType, UserRole, NotificationSentRole, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { FirebaseService } from './firebase.service';
 import { MailService } from 'src/common/services/mail.service';
@@ -34,14 +33,32 @@ export class NotificationService {
     }
    
     // FIXED ROLE FILTER
-    const whereRole: any = {};
-    if (dto.target_role === NotificationSentRole.USER) whereRole.role = { name: UserRole.USER };
-    if (dto.target_role === NotificationSentRole.RAIDER) whereRole.role = { name: UserRole.RAIDER };
+    // const whereRole: any = {};
+    // if (dto.target_role === NotificationSentRole.USER) whereRole.roles = { name: UserRole.USER };
+    // if (dto.target_role === NotificationSentRole.RAIDER) whereRole.roles = { name: UserRole.RAIDER };
+      const roleMap = {
+            [NotificationSentRole.USER]: UserRole.USER,
+            [NotificationSentRole.RAIDER]: UserRole.RAIDER,
+          };
+
+      const whereRole: Prisma.UserWhereInput =
+        roleMap[dto.target_role!]
+          ? {
+              roles: {
+                some: { name: roleMap[dto.target_role!] },
+              },
+            }
+          : {};
+
     //  console.log(whereRole);
     const users = await this.prisma.user.findMany({
       where: whereRole,
       select: { email: true, phone: true, fcmToken: true },
     });
+
+    if (users.length === 0) {
+      throw new BadRequestException('No users found for the specified role');
+    }
 
     const notification = await this.prisma.notification.create({
       data: {
