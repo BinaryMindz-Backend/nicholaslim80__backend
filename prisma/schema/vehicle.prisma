@@ -1,6 +1,6 @@
 model VehicleType {
   id           Int             @id @default(autoincrement())
-  vehicle_type VehicleTypeEnum
+  vehicle_type String          
   base_price   Decimal?        @db.Decimal(12, 2)
   per_km_price Decimal?        @db.Decimal(12, 2)
   peak_pricing Boolean         @default(false)

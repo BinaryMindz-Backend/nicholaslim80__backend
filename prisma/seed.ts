@@ -35,8 +35,8 @@ export enum Module {
   // referral module
   REFERRAL = "referral",
   FAQ = "faq",
-  ADDITIONAL_SERVICES="additional_services",
-  USER_PROFILE="user_profile",
+  ADDITIONAL_SERVICES = "additional_services",
+  USER_PROFILE = "user_profile",
 
 }
 
@@ -266,7 +266,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.USER_PROFILE, action: Permission.CREATE },
     { module: Module.USER_PROFILE, action: Permission.READ },
     { module: Module.USER_PROFILE, action: Permission.DELETE },
-    { module: Module.USER_PROFILE, action: Permission.UPDATE}
+    { module: Module.USER_PROFILE, action: Permission.UPDATE }
 
 
   ],
@@ -311,7 +311,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.USER_PROFILE, action: Permission.CREATE },
     { module: Module.USER_PROFILE, action: Permission.READ },
     { module: Module.USER_PROFILE, action: Permission.DELETE },
-    { module: Module.USER_PROFILE, action: Permission.UPDATE}
+    { module: Module.USER_PROFILE, action: Permission.UPDATE }
 
 
   ],
@@ -352,7 +352,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.USER_PROFILE, action: Permission.CREATE },
     { module: Module.USER_PROFILE, action: Permission.READ },
     { module: Module.USER_PROFILE, action: Permission.DELETE },
-    { module: Module.USER_PROFILE, action: Permission.UPDATE},
+    { module: Module.USER_PROFILE, action: Permission.UPDATE },
 
     //sub module
     // Destination module - basic access
@@ -542,8 +542,8 @@ async function initialSeed() {
         password: hashed,
         is_verified: true,
         is_active: true,
-        roles:{
-           connect:{id:superAdminRole.id}
+        roles: {
+          connect: { id: superAdminRole.id }
         },
         regi_status: LoginType.ADMIN_SIGNIN
       },
@@ -586,32 +586,32 @@ async function initialSeed() {
     console.log(`✅ Customer Order Confirmation Config seeded: ${customerOrderConfirmationConfig.id}\n`);
     // delivery type seed
     const deliveryTypes = await tx.deliveryType.createMany({
-        data:[
-              {
-              name: DeliveryTypeName.EXPRESS,
-              percentage: 10,
-              pickup_duration: 75,
-              delivery_duration: 90,
-              is_active: true,
-              admin_id:admin.id
-          },
-                        {
-              name: DeliveryTypeName.STACKED,
-              percentage: 5,
-              pickup_duration: 95,
-              delivery_duration: 130,
-              is_active: true,
-              admin_id:admin.id
-          },
-                        {
-              name: DeliveryTypeName.STANDARD,
-              percentage: 2,
-              pickup_duration: 275,
-              delivery_duration: 290,
-              is_active: true,
-              admin_id:admin.id
-          }
-        ]
+      data: [
+        {
+          name: DeliveryTypeName.EXPRESS,
+          percentage: 10,
+          pickup_duration: 75,
+          delivery_duration: 90,
+          is_active: true,
+          admin_id: admin.id
+        },
+        {
+          name: DeliveryTypeName.STACKED,
+          percentage: 5,
+          pickup_duration: 95,
+          delivery_duration: 130,
+          is_active: true,
+          admin_id: admin.id
+        },
+        {
+          name: DeliveryTypeName.STANDARD,
+          percentage: 2,
+          pickup_duration: 275,
+          delivery_duration: 290,
+          is_active: true,
+          admin_id: admin.id
+        }
+      ]
     })
     console.log(`✅ Delivery type Config seeded: ${deliveryTypes.count}\n`);
     // 

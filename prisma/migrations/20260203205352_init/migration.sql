@@ -162,7 +162,6 @@ CREATE TABLE "AdditionalServices" (
     "value" DECIMAL(10,2) NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "desc" TEXT NOT NULL,
-    "order_id" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL
 );
@@ -625,6 +624,7 @@ CREATE TABLE "orders" (
     "promoDiscount" DECIMAL(12,2) NOT NULL DEFAULT 0,
     "total_cost" DECIMAL(12,2) NOT NULL,
     "total_fee" DECIMAL(12,2),
+    "additional_cost" DECIMAL(12,2),
     "commission" DECIMAL(12,2),
     "refund_amount" DECIMAL(12,2),
     "has_additional_services" BOOLEAN NOT NULL DEFAULT false,
@@ -648,6 +648,7 @@ CREATE TABLE "orders" (
     "isBulk" BOOLEAN NOT NULL DEFAULT false,
     "total_distance" DECIMAL(12,2) NOT NULL DEFAULT 0,
     "pick_up_items" TEXT[],
+    "additional_services" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -1208,7 +1209,7 @@ CREATE TABLE "users" (
 -- CreateTable
 CREATE TABLE "vehicle_types" (
     "id" SERIAL NOT NULL,
-    "vehicle_type" "VehicleTypeEnum" NOT NULL,
+    "vehicle_type" TEXT NOT NULL,
     "base_price" DECIMAL(12,2),
     "per_km_price" DECIMAL(12,2),
     "peak_pricing" BOOLEAN NOT NULL DEFAULT false,
@@ -1411,9 +1412,6 @@ CREATE UNIQUE INDEX "users_referral_link_key" ON "users"("referral_link");
 
 -- CreateIndex
 CREATE INDEX "_RoleToUser_B_index" ON "_RoleToUser"("B");
-
--- AddForeignKey
-ALTER TABLE "AdditionalServices" ADD CONSTRAINT "AdditionalServices_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "admins" ADD CONSTRAINT "admins_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
