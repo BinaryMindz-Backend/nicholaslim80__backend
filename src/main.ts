@@ -9,7 +9,9 @@ import express from 'express';
 import { SocketIOAdapter } from './adapters/socket-io.adapter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule,{
+      rawBody:true,
+  });
 
   app.enableCors({
     origin: ['https://admin.zipbee.sg','http://localhost:5173', 'http://localhost:5174'],

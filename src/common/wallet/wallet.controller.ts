@@ -9,7 +9,7 @@ import type { IUser } from 'src/types';
 import { AddMoneyTestDto } from './dto/add-money-test.dto';
 import { UserWalletQueryDto } from './dto/user-wallet.dto';
 import { UserWalletHistoryQueryDto } from './dto/user-wallet-history-query.dto';
-import { SaveCardDto } from './dto/create-payment-method.dto';
+import { CreatePaymentIntentDto, SaveCardDto } from './dto/create-payment-method.dto';
 
 
 @ApiTags('Wallet')
@@ -17,7 +17,10 @@ import { SaveCardDto } from './dto/create-payment-method.dto';
 @Controller('wallet')
 export class WalletController {
     constructor(private readonly walletService: WalletService) { }
+    
 
+
+    // add money for web portal
     @Post('add-money')
     @Auth()
     @ApiOperation({ summary: 'Add money to user wallet' })
@@ -26,6 +29,18 @@ export class WalletController {
         @CurrentUser() user: IUser
     ) {
         const result = await this.walletService.addMoney(+user.id, dto.amount, dto.paymentMethodId, dto.payType);
+        return ApiResponses.success(result, 'Money added to wallet successfully');
+    }
+
+    // add money for mobile
+    @Post('add-money/mobile')
+    @Auth()
+    @ApiOperation({ summary: 'Add money to user wallet from mobile' })
+    async addMoneyMobile(
+        @Body() dto: CreatePaymentIntentDto,
+        @CurrentUser() user: IUser
+    ) {
+        const result = await this.walletService.createIntent(+user.id, dto.amount, dto.currency);
         return ApiResponses.success(result, 'Money added to wallet successfully');
     }
     
