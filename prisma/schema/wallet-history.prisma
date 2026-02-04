@@ -1,12 +1,12 @@
 model WalletHistory {
   id        Int       @id @default(autoincrement())
-  transactionId String
+  transactionId String @unique  
   transactionType WalletTransactionType
   userId    Int
   user      User      @relation(fields: [userId], references: [id])
   type      String    // "credit" | "debit"
   amount    Decimal
-  status    WalletTransactionStatus    // "pending" | "completed" | "failed"
+  status    WalletTransactionStatus  
   createdAt DateTime  @default(now())
 }
 

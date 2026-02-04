@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import {
   Injectable,
   BadRequestException,
@@ -167,6 +168,118 @@ export class WalletService {
 
     return { message: 'Wallet credited successfully', amount };
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // ---------- Add Money Mobile ----------
+
+  // Create the Intent (Called by Flutter)
+  async createIntent(userId: number, amount: number, currency = 'sgd') {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('User not found');
+
+    // Convert SGD to cents: $10.50 \times 100 = 1050$
+    const stripeAmount = Math.round(amount * 100);
+
+    const intent = await this.stripe.paymentIntents.create({
+      amount: stripeAmount,
+      currency: currency,
+      metadata: { userId: userId.toString(), amount: amount.toString() },
+      automatic_payment_methods: { enabled: true },
+    });
+
+    return { clientSecret: intent.client_secret };
+  }
+
+
+
+
+  // payment status update by webhook
+  async handleWebhook(rawBody: Buffer, signature: string){
+     //  
+    let event: Stripe.Event;
+    try {
+      event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        process.env.STRIPE_WEBHOOK_SECRET!,
+      );
+    }
+    catch (err) {
+       throw new BadRequestException(`Webhook Signature Error: ${err.message}`);
+    }
+    // Handle the event
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        const intent = event.data.object as Stripe.PaymentIntent;
+        await this.fulfillPayment(intent);
+        break;
+      }
+      // ... handle other event types
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+    }
+    // Return a response to acknowledge receipt of the event
+    return { received: true };
+
+
+  }
+
+  // private methods for webhook handling
+  private async fulfillPayment(intent: Stripe.PaymentIntent) {
+    const userId = parseInt(intent.metadata.userId);
+    const amount = parseFloat(intent.metadata.amount);
+
+    // ATOMICITY: Update both or neither
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Idempotency Check: Prevent duplicate processing
+      const existing = await tx.walletHistory.findUnique({
+        where: { transactionId: intent.id },
+      });
+      if (existing) return;
+
+      // 2. Log History
+      await tx.walletHistory.create({
+        data: {
+          userId,
+          amount,
+          transactionId: intent.id,
+          transactionType: WalletTransactionType.PAYMENT, 
+          status: WalletTransactionStatus.SUCCESS,
+          type: 'credit',
+        },
+      });
+
+      // 3. Update Balance
+      await tx.user.update({
+        where: { id: userId },
+        data: { 
+          totalWalletBalance: { increment: amount },
+          currentWalletBalance: { increment: amount } },
+      });
+    });
+    // 
+  }
+
+
+
+
+
+
+
+
 
   //  save card info
   async createSetupIntent(userId: number) {
