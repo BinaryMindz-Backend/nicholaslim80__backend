@@ -28,7 +28,7 @@ export class WalletController {
         @Body() dto: AddMoneyDto,
         @CurrentUser() user: IUser
     ) {
-        const result = await this.walletService.addMoney(+user.id, dto.amount, dto.paymentMethodId, dto.payType);
+        const result = await this.walletService.addMoney(+user.id, dto.amount,  dto.currency, dto.paymentMethodId, dto.payType);
         return ApiResponses.success(result, 'Money added to wallet successfully');
     }
 

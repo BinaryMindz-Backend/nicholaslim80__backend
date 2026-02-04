@@ -7,6 +7,7 @@ model WalletHistory {
   type      String    // "credit" | "debit"
   amount    Decimal
   status    WalletTransactionStatus  
+  currency  String?
   createdAt DateTime  @default(now())
 }
 
