@@ -4,7 +4,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
+import { PaymentType, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
 import Stripe from 'stripe';
 import { UserWalletQueryDto } from './dto/user-wallet.dto';
@@ -95,93 +95,175 @@ export class WalletService {
   }
 
   // ---------- Add Money ----------
+  // async addMoney(
+  //   userId: number,
+  //   amount: number,
+  //   paymentMethodId?: string,
+  //   payType?: string,
+  // ) {
+  //   // console.log("strip-->",paymentMethodId,amount);
+  //   // Fetch user
+  //   const user = await this.prisma.user.findUnique({
+  //     where: { id: userId },
+  //   });
+  //   if (!user) throw new NotFoundException('User not found');
+  //   if (!user.email) throw new BadRequestException('User email is not found');
+
+  //   // Create Stripe Customer if not exist
+  //   let customerId = user.stripeCustomerId;
+  //   if (!customerId) {
+  //     const customer = await this.stripe.customers.create({
+  //       email: user.email,
+  //       name: user.username ?? undefined,
+  //     });
+  //     customerId = customer.id;
+  //     await this.prisma.user.update({
+  //       where: { id: userId },
+  //       data: { stripeCustomerId: customerId },
+  //     });
+  //   }
+
+  //   // Determine payment method
+  //   if (!paymentMethodId) {
+  //     const defaultMethod = await this.prisma.paymentMethod.findFirst({
+  //       where: { userId, isDefault: true },
+  //     });
+  //     if (!defaultMethod)
+  //       throw new BadRequestException('No saved payment method found');
+  //     paymentMethodId = defaultMethod.stripeMethodId;
+  //   }
+
+  //   // Create and confirm PaymentIntent
+  //   const paymentIntent = await this.stripe.paymentIntents.create({
+  //     amount: Math.round(amount * 100), // Stripe expects cents
+  //     currency: 'usd', // adjust to your currency
+  //     customer: customerId,
+  //     payment_method: paymentMethodId,
+  //     off_session: true,
+  //     confirm: true,
+  //   });
+
+  //   if (payType === 'ADD_MONEY') {
+  //     //  Record in wallet history
+  //     await this.prisma.walletHistory.create({
+  //       data: {
+  //         userId,
+  //         type: 'credit',
+  //         amount,
+  //         status: 'SUCCESS',
+  //         transactionType: WalletTransactionType.PAYMENT,
+  //         transactionId: paymentIntent.id,
+  //       },
+  //     });
+
+  //     // Update wallet balance
+  //     await this.prisma.user.update({
+  //       where: { id: userId },
+  //       data: {
+  //         totalWalletBalance: { increment: amount },
+  //         currentWalletBalance: { increment: amount },
+  //       },
+  //     });
+  //   }
+
+  //   return { message: 'Wallet credited successfully', amount };
+  // }
+  
+
+  // 
   async addMoney(
     userId: number,
     amount: number,
+    currency: string = 'sgd', // Default to SGD if not provided
     paymentMethodId?: string,
     payType?: string,
   ) {
-    // console.log("strip-->",paymentMethodId,amount);
-    // Fetch user
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-    if (!user) throw new NotFoundException('User not found');
-    if (!user.email) throw new BadRequestException('User email is not found');
+      // Helper map for zero-decimal currencies
+    const ZERO_DECIMAL_CURRENCIES = ['jpy', 'krw', 'vnd', 'clp'];
+    const lowerCurrency = currency.toLowerCase();
+    
+    // Calculate Stripe Amount (Handle Zero-Decimal Currencies)
+      let stripeAmount: number;
+      
+      if (ZERO_DECIMAL_CURRENCIES.includes(lowerCurrency)) {
+        stripeAmount = Math.round(amount); // JPY 100 is just 100
+      } else {
+        stripeAmount = Math.round(amount * 100); // USD 10.50 becomes 1050 cents
+      }
+      
+      //  Fetch User and Validate
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (!user) throw new NotFoundException('User not found');
+      if (!user.email) throw new BadRequestException('User email not found');
+      // Handle Stripe Customer (Optimized check)
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await this.stripe.customers.create({
+          email: user.email,
+          name: user.username ?? undefined,
+        });
+        customerId = customer.id;
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { stripeCustomerId: customerId },
+        });
+      }
 
-    // Create Stripe Customer if not exist
-    let customerId = user.stripeCustomerId;
-    if (!customerId) {
-      const customer = await this.stripe.customers.create({
-        email: user.email,
-        name: user.username ?? undefined,
+      // Resolve Payment Method
+      if (!paymentMethodId) {
+        const defaultMethod = await this.prisma.paymentMethod.findFirst({
+          where: { userId, isDefault: true },
+        });
+        if (!defaultMethod) throw new BadRequestException('No saved payment method found');
+        paymentMethodId = defaultMethod.stripeMethodId;
+      }
+      
+
+      // 2. Create Payment Intent with Dynamic Currency
+      const paymentIntent = await this.stripe.paymentIntents.create({
+        amount: stripeAmount,
+        currency: lowerCurrency, // Dynamic here
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
+        metadata: {
+          userId: userId.toString(),
+          type: payType || PaymentType.ADD_MONEY,
+          amount: amount.toString(),
+          currency: lowerCurrency, // Store currency in metadata for Webhook
+        },
+        automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
       });
-      customerId = customer.id;
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { stripeCustomerId: customerId },
-      });
-    }
-
-    // Determine payment method
-    if (!paymentMethodId) {
-      const defaultMethod = await this.prisma.paymentMethod.findFirst({
-        where: { userId, isDefault: true },
-      });
-      if (!defaultMethod)
-        throw new BadRequestException('No saved payment method found');
-      paymentMethodId = defaultMethod.stripeMethodId;
-    }
-
-    // Create and confirm PaymentIntent
-    const paymentIntent = await this.stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Stripe expects cents
-      currency: 'usd', // adjust to your currency
-      customer: customerId,
-      payment_method: paymentMethodId,
-      off_session: true,
-      confirm: true,
-    });
-
-    if (payType === 'ADD_MONEY') {
-      //  Record in wallet history
+    // ... (Transaction logic) ...
+    if (payType === PaymentType.ADD_MONEY) {
       await this.prisma.walletHistory.create({
-        data: {
-          userId,
-          type: 'credit',
-          amount,
-          status: 'SUCCESS',
-          transactionType: WalletTransactionType.PAYMENT,
-          transactionId: paymentIntent.id,
-        },
-      });
-
-      // Update wallet balance
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          totalWalletBalance: { increment: amount },
-          currentWalletBalance: { increment: amount },
-        },
-      });
+          data: {
+            userId,
+            type: 'credit',
+            amount,
+            currency: lowerCurrency, // Save to DB
+            status: 'SUCCESS',
+            transactionType: WalletTransactionType.PAYMENT,
+            transactionId: paymentIntent.id,
+          },
+        });
+        
+        // NOTE: Updating User Balance with different currencies is tricky.
+        // Usually, a wallet has a "Base Currency" (e.g., USD).
+        // If the user pays in EUR, you might need to convert it before adding to balance.
+        // For now, we assume 1 unit = 1 unit (Risky if mixing currencies!)
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: {
+            totalWalletBalance: { increment: amount },
+            currentWalletBalance: { increment: amount },
+          },
+        });
     }
 
-    return { message: 'Wallet credited successfully', amount };
+    return { message: 'Success', currency: lowerCurrency, amount };
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   // ---------- Add Money Mobile ----------
 
@@ -202,8 +284,6 @@ export class WalletService {
 
     return { clientSecret: intent.client_secret };
   }
-
-
 
 
   // payment status update by webhook
@@ -228,6 +308,11 @@ export class WalletService {
         break;
       }
       // ... handle other event types
+      case 'payment_intent.payment_failed':
+        console.log('Payment failed:', event.data.object.id);
+        // Optional: Notify user of failure
+        break;
+
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
@@ -241,7 +326,9 @@ export class WalletService {
   private async fulfillPayment(intent: Stripe.PaymentIntent) {
     const userId = parseInt(intent.metadata.userId);
     const amount = parseFloat(intent.metadata.amount);
-
+     
+    // 
+    if (intent.metadata.type !== 'ADD_MONEY' || !userId) return;
     // ATOMICITY: Update both or neither
     await this.prisma.$transaction(async (tx) => {
       // 1. Idempotency Check: Prevent duplicate processing
@@ -272,13 +359,6 @@ export class WalletService {
     });
     // 
   }
-
-
-
-
-
-
-
 
 
   //  save card info
@@ -453,7 +533,7 @@ export class WalletService {
     // Update wallet and history
     await this.prisma.user.update({
       where: { id: userId },
-      data: { totalWalletBalance: { decrement: amount } },
+      data: { currentWalletBalance: { decrement: amount } },
     });
 
     await this.prisma.walletHistory.create({

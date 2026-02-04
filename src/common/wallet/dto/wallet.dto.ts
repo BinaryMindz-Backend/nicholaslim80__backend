@@ -17,6 +17,11 @@ export class AddMoneyDto {
     @IsString()
     paymentMethodId?: string;
 
+    @ApiProperty({ example: 'sgd', default: 'sgd' })
+    @IsString()
+    @IsOptional()
+    currency?: string = 'sgd';
+
     @ApiProperty({ enum:PaymentType, default:PaymentType.PAYMENT })
     @IsEnum(PaymentType)
     payType?:PaymentType
