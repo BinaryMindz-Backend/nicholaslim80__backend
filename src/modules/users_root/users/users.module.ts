@@ -8,6 +8,7 @@ import { NotificationModule } from 'src/modules/superadmin_root/notification/not
 import { MailService } from 'src/common/services/mail.service';
 import { CommonModule } from 'src/common/ common.module';
 import { QueueModule } from 'src/modules/queue/queue.module';
+import { UserGateway } from './user.gateways';
 
 
 @Module({
@@ -18,7 +19,8 @@ import { QueueModule } from 'src/modules/queue/queue.module';
       QueueModule
   ],
   controllers: [UsersController],
-  providers: [UsersService, OtpService, NotificationService, MailService],
+  providers: [UsersService, OtpService, NotificationService, MailService, UserGateway],
+  exports:[UserGateway]
 
 })
 export class UsersModule {}
