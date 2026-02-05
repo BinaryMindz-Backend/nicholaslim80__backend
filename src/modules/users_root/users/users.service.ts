@@ -837,53 +837,7 @@ export class UsersService {
   }
 
 
-
-  // ** Update user deprecated
-  // async updateUser(id: number, updateUserDto: UpdateUserDto) {
-  //   if (!id) {
-  //     throw new NotFoundException('User id not found');
-  //   }
-
-  //   const user = await this.prisma.user.findUnique({
-  //     where: { id },
-  //     include: { raiderProfile: true, profile: true },
-  //   });
-
-  //   if (!user) {
-  //     throw new NotFoundException('User not found');
-  //   }
-
-  //   const { raider, ...userData } = updateUserDto;
-
-  //   return await this.prisma.user.update({
-  //     where: { id },
-  //     data: {
-  //       ...userData,
-
-  //       ...(raider && {
-  //         raiderProfile: user.raiderProfile
-  //           ? {
-  //             update: {
-  //               rank: raider.rank,
-  //             },
-  //           }
-  //           : {
-  //             create: {
-  //               rank: raider.rank,
-  //             },
-  //           },
-  //       }),
-  //     },
-  //     include: {
-  //       profile: true,
-  //       raiderProfile: true
-  //     }
-  //   });
-   // }
-
-
-  //  new
- async updateUser(id: number, updateUserDto: UpdateUserDto) {
+  async updateUser(id: number, updateUserDto: UpdateUserDto) {
     if (!id) {
       throw new NotFoundException('User id not found');
     }
@@ -898,14 +852,14 @@ export class UsersService {
     }
 
     // 1. Destructure all profile-specific fields
-    const { 
-      raider, 
-      dob, 
-      bank_account_num, 
-      bank_name, 
-      firstName, 
-      lastName, 
-      ...userData 
+    const {
+      raider,
+      dob,
+      bank_account_num,
+      bank_name,
+      firstName,
+      lastName,
+      ...userData
     } = updateUserDto;
 
     return await this.prisma.user.update({
@@ -915,27 +869,27 @@ export class UsersService {
 
         // 2. Nested Profile Update (Upsert logic)
         profile: {
-          ...(user.profile 
+          ...(user.profile
             ? {
-                update: {
-                  firstName,
-                  lastName,
-                  bank_account_num,
-                  bank_name,
-                  avatarUrl: updateUserDto.image,
-                  ...(dob && { dob: new Date(dob) }),
-                },
-              }
+              update: {
+                firstName,
+                lastName,
+                bank_account_num,
+                bank_name,
+                avatarUrl: updateUserDto.image,
+                ...(dob && { dob: new Date(dob) }),
+              },
+            }
             : {
-                create: {
-                  firstName,
-                  lastName,
-                  bank_account_num,
-                  bank_name,
-                  avatarUrl: updateUserDto.image,
-                  ...(dob && { dob: new Date(dob) }),
-                },
-              }),
+              create: {
+                firstName,
+                lastName,
+                bank_account_num,
+                bank_name,
+                avatarUrl: updateUserDto.image,
+                ...(dob && { dob: new Date(dob) }),
+              },
+            }),
         },
 
         // 3. Nested Raider Profile Update

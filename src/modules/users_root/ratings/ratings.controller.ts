@@ -17,66 +17,75 @@ import { ApiResponses } from 'src/common/apiResponse';
 
 
 
-
 @ApiTags('Ratings')
 @Controller('ratings')
 @Auth()
 @ApiBearerAuth()
 export class RatingController {
-  constructor(private readonly service: RatingService) {}
+  constructor(private readonly service: RatingService) { }
 
   @Post()
-  @Auth()
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create rating (raider or customer)' })
   async create(@Body() dto: CreateRatingDto) {
-    const res = await this.service.create(dto);
-    return ApiResponses.success(res, 'Rating created successfully');
+    try {
+      const res = await this.service.create(dto);
+      return ApiResponses.success(res, 'Rating created successfully');
+    } catch (error) {
+      return ApiResponses.error(error.message ?? error);
+    }
   }
 
   @Get()
-  @Auth()
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all ratings by type' })
   async findAll(@Query('type') type: RatingType) {
-    const res = await this.service.findAll(type);
-    return ApiResponses.success(res, 'Ratings fetched successfully');
+    try {
+      const res = await this.service.findAll(type);
+      return ApiResponses.success(res, 'Ratings fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error.message ?? error);
+    }
   }
 
   @Get(':type/:id')
-  @Auth()
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get rating by ID and type' })
   async findOne(
     @Param('type') type: RatingType,
     @Param('id') id: string,
   ) {
-    const res = await this.service.findOne(type, +id);
-    return ApiResponses.success(res, 'Rating fetched successfully');
+    try {
+      const res = await this.service.findOne(type, +id);
+      return ApiResponses.success(res, 'Rating fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error.message ?? error);
+    }
   }
 
   @Patch(':type/:id')
-  @Auth()
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update rating' })
   async update(
     @Param('type') type: RatingType,
     @Param('id') id: string,
     @Body() dto: UpdateRatingDto,
   ) {
-    const res = await this.service.update(type, +id, dto);
-    return ApiResponses.success(res, 'Rating updated successfully');
+    try {
+      const res = await this.service.update(type, +id, dto);
+      return ApiResponses.success(res, 'Rating updated successfully');
+    } catch (error) {
+      return ApiResponses.error(error.message ?? error);
+    }
   }
 
   @Delete(':type/:id')
-  @Auth()
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete rating' })
   async remove(
     @Param('type') type: RatingType,
     @Param('id') id: string,
   ) {
-    const res = await this.service.remove(type, +id);
-    return ApiResponses.success(res, 'Rating deleted successfully');
+    try {
+      const res = await this.service.remove(type, +id);
+      return ApiResponses.success(res, 'Rating deleted successfully');
+    } catch (error) {
+      return ApiResponses.error(error.message ?? error);
+    }
   }
 }
