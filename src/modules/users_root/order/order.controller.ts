@@ -38,6 +38,7 @@ import { CancelOrderDto, CompleteStopDto, FailStopDto, PlaceOrderDto } from './d
 import type { Response } from 'express';
 import { UpdateOrderDetailsDto } from './dto/update-order-details.dto';
 import { ApplyDiscountDto } from './dto/apply-discount.dto';
+import { Cron } from '@nestjs/schedule';
 
 @ApiTags('Order (User and admin)')
 @Controller('order')
@@ -520,6 +521,7 @@ export class OrderController {
 
   // GET FOR FEED
   @Get('feed')
+  @Cron('*/5 * * * *') // Every 5 minutes 
   @Auth()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get Order feed' })
