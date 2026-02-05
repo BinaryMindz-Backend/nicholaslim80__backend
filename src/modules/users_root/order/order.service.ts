@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { NotifyRaider, PriorityOrder, UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -2362,6 +2362,10 @@ export class OrderService {
       where: { userId, is_online: true, isSuspended: false, raider_status: RaiderStatus.ACTIVE },
       select: { id: true },
     });
+    // 
+    if (!raider) {
+      throw new ForbiddenException('Raider is offline or inactive');
+    }
 
     const declineFilter = raider
       ? {
