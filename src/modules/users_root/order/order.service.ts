@@ -2376,7 +2376,7 @@ export class OrderService {
             raiderProfile: {
               is_online: true,
               isSuspended: false,
-              raider_status: RaiderStatus.ACTIVE
+              // raider_status: RaiderStatus.ACTIVE
             }
           },
 

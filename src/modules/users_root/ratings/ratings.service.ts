@@ -8,54 +8,53 @@ import { UpdateRatingDto } from "./dto/update-rating.dto";
 
 @Injectable()
 export class RatingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(dto: CreateRatingDto) {
-     const review = await this.prisma.rateRaider.findFirst({
-         where:{
-            orderId: dto.orderId,
-            raiderId: dto.raiderId,
-            user_id: dto.user_id,
-         }
-     })
-     if(review){
-         throw new ConflictException("Review already exist in this order")
-     }
-      // 
-     const order = await this.prisma.order.findUnique({
-            where:{
-                id:dto.orderId
-            }
-     })
-
-    if(!order){
-        throw new NotFoundException("Order Not Found")
+    const review = await this.prisma.rateRaider.findFirst({
+      where: {
+        orderId: dto.orderId,
+        raiderId: dto.raiderId,
+        user_id: dto.user_id,
+      }
+    })
+    if (review) {
+      throw new ConflictException("Review already exist in this order")
     }
-          
+    // 
+    const order = await this.prisma.order.findUnique({
+      where: {
+        id: dto.orderId
+      }
+    })
+
+    if (!order) {
+      throw new NotFoundException("Order Not Found")
+    }
+
     if (dto.type === RatingType.RAIDER) {
-     const res = await this.prisma.rateRaider.create({
-          data: {
-            orderId: dto.orderId,
-            raiderId: dto.raiderId,
-            user_id: dto.user_id,
-            rating_star: dto.rating_star,
-            notes: dto.notes,
-            delivery_quality:dto.delivery_quality!,
-            delivery_status:dto.delivery_status!,
+      const res = await this.prisma.rateRaider.create({
+        data: {
+          orderId: dto.orderId,
+          raiderId: dto.raiderId,
+          user_id: dto.user_id,
+          rating_star: dto.rating_star,
+          notes: dto.notes,
+          delivery_quality: dto.delivery_quality!,
+          delivery_status: dto.delivery_status!,
+        },
+      });
+      if (res) {
+        await this.prisma.raider.update({
+          where: {
+            id: dto.raiderId
           },
-        });
-      if(res){
-          await this.prisma.raider.update({
-             where:{
-                id:dto.raiderId
-             },
-             data:{
-                reviews_count:{increment:1}
-             }
-          })
+          data: {
+            reviews_count: { increment: 1 }
+          }
+        })
       }
 
-      return 
     }
 
     if (dto.type === RatingType.CUSTOMER) {
@@ -65,13 +64,13 @@ export class RatingService {
           raiderId: dto.raiderId,
           user_id: dto.user_id,
           rating_star: dto.rating_star,
-          notes:dto.notes
+          notes: dto.notes
         },
       });
       return res
     }
-
-    throw new BadRequestException('Invalid rating type');
+    return
+    // throw new BadRequestException('Invalid rating type');
   }
 
   async findAll(type: RatingType) {
@@ -138,13 +137,13 @@ export class RatingService {
     const rating =
       type === RatingType.RAIDER
         ? await this.prisma.rateRaider.findUnique({
-            where: { id },
-            include: { order: true, raider: true, user: true },
-          })
+          where: { id },
+          include: { order: true, raider: true, user: true },
+        })
         : await this.prisma.rateCustomer.findUnique({
-            where: { id },
-            include: { order: true, raider: true, user: true },
-          });
+          where: { id },
+          include: { order: true, raider: true, user: true },
+        });
 
     if (!rating) {
       throw new NotFoundException('Rating not found');
