@@ -56,5 +56,62 @@ export class UserGateway implements OnGatewayConnection {
         riderId,
         message: '🚴 Your order has been assigned to a rider!',
         });
-    }   
-}
+    }
+    // notify payment success
+   async notifyPaymentSuccess(
+    userId: number,
+    orderId: number,
+    message: string,
+    ) {
+    console.log(`📢 Notifying USER ${userId} that payment was successful for order ${orderId}`);
+
+    this.server.to(`user_${userId}`)
+        .emit('user:payment_success', {
+        status:true,
+        orderId,
+        message,
+        });
+    } 
+    // notify payment success
+   async notifyPaymentFailed(
+    userId: number,
+    orderId: number,
+    message: string,
+    ) {
+    console.log(`📢 Notifying USER ${userId} that payment failed for order ${orderId}`);
+
+    this.server.to(`user_${userId}`)
+        .emit('user:payment_failed', {
+        status:false,
+        orderId,
+        message,
+        });
+    }
+    // notify add money to wallet
+    async notifyAddMoney(
+        userId: number,
+        message: string,
+        ) {
+        console.log(`📢 Notifying USER ${userId} that money was added to wallet`);
+
+        this.server.to(`user_${userId}`)
+            .emit('user:add_money', {
+            status:true,
+            message,
+            });
+    }
+    // notify add money failed to wallet
+    async notifyAddMoneyFailed(
+        userId: number,
+        message: string,
+        ) {
+        console.log(`📢 Notifying USER ${userId} that adding money failed`);
+        this.server.to(`user_${userId}`)
+            .emit('user:add_money_failed', {
+            status:false,
+            message
+            });
+
+          }
+    
+    }

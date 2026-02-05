@@ -1,15 +1,17 @@
+import { UserGateway } from 'src/modules/users_root/users/user.gateways';
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import {
   Injectable,
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, PaymentStatus, PaymentType, PayType, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
+import { OrderStatus, PaymentStatus, PaymentType, PayType, TransactionStatus, TransactionType, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
 import Stripe from 'stripe';
 import { UserWalletQueryDto } from './dto/user-wallet.dto';
 import { UserWalletHistoryQueryDto } from './dto/user-wallet-history-query.dto';
 import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.gateway';
+import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 
 
 @Injectable()
@@ -19,6 +21,8 @@ export class WalletService {
   constructor(
     private prisma: PrismaService,
     private raiderGateway: RaiderGateway,
+    private readonly userGateway: UserGateway,
+    private readonly emailQueueService: EmailQueueService,
   ) {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
       apiVersion: '2025-12-15.clover',
@@ -355,7 +359,7 @@ export class WalletService {
       console.log("- Amount:", intent.amount / 100, intent.currency.toUpperCase());
       console.log("- Status:", intent.status);
       console.log("- Metadata:", JSON.stringify(intent.metadata, null, 2));
-      
+      // Call fulfillment logic
       try {
         await this.fulfillPayment(intent);
         console.log("✅ Payment fulfilled successfully!");
@@ -375,18 +379,129 @@ export class WalletService {
         currency: intent.currency,
         last_payment_error: intent.last_payment_error,
       });
-      // Optional: Notify user of failure
+      if(intent.last_payment_error) {
+        console.error("Payment error details:", intent.last_payment_error);
+         const userId = parseInt(intent.metadata.userId);
+         const paymentType = intent.metadata.type as PaymentType;
+         const orderId = parseInt(intent.metadata.orderId) || 0;
+           //add wallet history for failed payment
+          if (paymentType === PaymentType.ADD_MONEY) {  
+            const r = await this.prisma.walletHistory.findFirst({
+              where: { transactionId: `TX-${intent.id}` },
+            });
+            if (!r) {
+              console.log("Failed to find transaction for webhook event:", intent.id);
+            }
+            // 
+            await this.prisma.walletHistory.create({
+              data: {
+                userId,
+                type: 'credit',
+                amount: parseFloat(intent.metadata.amount),
+                currency: intent.metadata.currency,
+                status: WalletTransactionStatus.FAILED,
+                transactionType: WalletTransactionType.PAYMENT,
+                transactionId: `TX-${intent.id}`,
+              },
+            });
+            // notify user about failed payment
+            await this.userGateway.notifyAddMoneyFailed(
+              userId,
+              `Your add money of ${intent.amount / 100} ${intent.currency.toUpperCase()} failed. Please try again.`
+            );
+            const user = await this.prisma.user.findUnique({ where: { id: userId } });
+            // notify user by push notification
+            await this.emailQueueService.queuePushNotification({
+              userId,
+              fcmToken: user?.fcmToken || '',
+              title: "Add Money Failed",
+              body: `Your add money of ${intent.amount / 100} ${intent.currency.toUpperCase()} failed. Please try again.`,
+            });
+          }
+
+
+            // 
+          else if (paymentType === PaymentType.PAYMENT) {
+            const r = await this.prisma.transaction.findFirst({
+              where: { transaction_code: `TX-${intent.id}` },
+            });
+            if (!r) {
+              console.log("Failed to find transaction for webhook event:", intent.id);
+            }
+            // Record failed transaction in DB
+            await this.prisma.transaction.create({
+              data:{
+                userId,
+                orderId: orderId,
+                payment_method_id: null,
+                payment_status: PaymentStatus.FAILED,
+                type: TransactionType.BOOK_ORDER,
+                pay_type: intent.metadata.payType,
+                tx_status: TransactionStatus.FAILED,
+                transaction_code: `TX-${intent.id}`,
+              }
+            })
+            // notify user about failed payment
+            await this.userGateway.notifyPaymentFailed(
+              userId,
+              orderId,
+              `Your payment of ${intent.amount / 100} ${intent.currency.toUpperCase()} failed. Please try again.`
+            );
+            // 
+            const user = await this.prisma.user.findUnique({ where: { id: userId } });
+            // notify user by push notification
+            await this.emailQueueService.queuePushNotification({
+              userId,
+              fcmToken: user?.fcmToken || '',
+              title: "Order Payment Failed",
+              body: `Your order payment of ${intent.amount / 100} ${intent.currency.toUpperCase()} failed. Please try again.`,
+            });
+          }
+      }
       break;
     }
 
     case 'payment_intent.created': {
       console.log('📝 Payment intent created:', event.data.object.id);
+      // You can add additional logging or processing here if needed
+      console.log('💵 Payment intent amount capturable updated:', event.data.object.id);
+      const intent = event.data.object as Stripe.PaymentIntent;
+      const userId = parseInt(intent.metadata.userId);  
+      const orderId = parseInt(intent.metadata.orderId);
+      //  
+      if (!orderId) return;
+          if(intent.metadata.type === PaymentType.PAYMENT){
+          // Fetch order details first
+          const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+          });
+          if (!order) return;
+          // Record successful transaction in DB
+          await this.prisma.transaction.create({
+              data:{
+                userId,
+                orderId: orderId,
+                total_fee: order.total_cost,
+                redeemed_coin: order.coinsRedeemed,
+                additional_fee:order.additional_cost,
+                delivery_fee: order.total_fee,
+                payment_status: PaymentStatus.UNPAID,
+                type: TransactionType.BOOK_ORDER,
+                pay_type: intent.metadata.payType,
+                tx_status: TransactionStatus.PENDING,
+                transaction_code: `TX-${intent.id}`,
+              }
+            })
+             break;
+
+          }
+
       break;
     }
-
     default:
-      console.log(`ℹ️ Unhandled event type: ${event.type}`);
-  }
+      console.log(`⚠️ Unhandled event type: ${event.type}`);
+      break;
+    }
 
   console.log("=== WEBHOOK PROCESSING COMPLETE ===");
   
@@ -428,7 +543,7 @@ export class WalletService {
         await this.prisma.$transaction(async (tx) => {
           // 1. Idempotency Check: Prevent duplicate processing
           const existing = await tx.walletHistory.findUnique({
-            where: { transactionId: intent.id },
+            where: { transactionId: `TX-${intent.id}` },
           });
           if (existing) return;
 
@@ -437,7 +552,7 @@ export class WalletService {
             data: {
               userId,
               amount,
-              transactionId: intent.id,
+              transactionId: `TX-${intent.id}`,
               transactionType: WalletTransactionType.PAYMENT,
               status: WalletTransactionStatus.SUCCESS,
               type: 'credit',
@@ -445,14 +560,29 @@ export class WalletService {
           });
 
           // 3. Update Balance
-          await tx.user.update({
+         const updatedUser = await tx.user.update({
             where: { id: userId },
             data: {
               totalWalletBalance: { increment: amount },
               currentWalletBalance: { increment: amount },
             },
           });
+          // 4. Notify User
+            if(updatedUser){
+              await this.userGateway.notifyAddMoney(
+                userId,
+                `Your wallet has been credited with ${amount} ${intent.metadata.currency.toUpperCase()} successfully!`
+              );
+            // notify user by push notification
+            await this.emailQueueService.queuePushNotification({
+              userId,
+              fcmToken: user?.fcmToken || '',
+              title: "Add Money Successful",
+              body: `Your add money of ${intent.amount / 100} ${intent.currency.toUpperCase()} was successful.`,
+            });
+            }
         });
+         
         return;
     }
   //  porocess order payment by webhook
@@ -460,13 +590,18 @@ export class WalletService {
         const payType = intent.metadata.payType as PayType;
         const userId = parseInt(intent.metadata.userId);  
         const orderId = parseInt(intent.metadata.orderId);
-        console.log('From process order payment-->', payType, userId, orderId,);
         //  
         if (!orderId) return;
             // Fetch order details first
             const order = await this.prisma.order.findUnique({
               where: { id: orderId },
               include: {
+                user:{
+                  select:{
+                     id:true,
+                    fcmToken:true
+                  }
+                },
                 vehicle:{
                     select:{
                         vehicle_type:true,
@@ -559,9 +694,44 @@ export class WalletService {
                 }
               }
 
+              // 4. Notify User
+              if(updatedOrder){
+                // create transaction record
+                 await this.prisma.transaction.create({
+                      data:{
+                        userId,
+                        orderId: orderId,
+                        total_fee: order.total_cost,
+                        redeemed_coin: order.coinsRedeemed,
+                        additional_fee:order.additional_cost,
+                        delivery_fee: order.total_fee,
+                        payment_status: PaymentStatus.PAID,
+                        type: TransactionType.BOOK_ORDER,
+                        pay_type: intent.metadata.payType,
+                        tx_status: TransactionStatus.COMPLETED,
+                        transaction_code: `TX-${intent.id}`,
+                      }
+                    })
+
+                // notify user about successful payment 
+                await this.userGateway.notifyPaymentSuccess(
+                  userId,
+                  orderId,
+                  `Your order #${orderId} has been placed for ${intent.amount / 100} ${intent.metadata.currency.toUpperCase()} successfully!`
+                );
+
+              // notify user by push notification
+              await this.emailQueueService.queuePushNotification({
+                userId,
+                fcmToken: order.user?.fcmToken || '',
+                title: "Order Placed Successfully",
+                body: `Your order #${orderId} of ${intent.amount / 100} ${intent.currency.toUpperCase()} was placed successfully.`,
+              });
+              }            
+ 
               return updatedOrder;
             });
-             console.log(placeRes);
+            //  console.log(placeRes);
             return placeRes;
     }
 
