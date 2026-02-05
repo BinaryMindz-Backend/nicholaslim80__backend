@@ -1,6 +1,6 @@
 model Transaction {
   id                Int             @id @default(autoincrement())
-  transaction_code  String?         @db.VarChar(100)
+  transaction_code  String?         @db.VarChar(300)
   payment_status    PaymentStatus?  @default(PENDING)
   payment_method    PaymentMethod?     @relation(fields: [payment_method_id], references: [id], onDelete: SetNull)
   payment_method_id Int?               
