@@ -41,7 +41,6 @@ export class WalletController {
         @CurrentUser() user: IUser
     ) {
         const result = await this.walletService.createIntent(+user.id, dto.amount, dto.currency, dto.orderId, dto.payType, dto.type);
-        console.log("result-->",result);
         return ApiResponses.success(result, 'Pay to wallet successfully');
     }
     
