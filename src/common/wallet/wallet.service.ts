@@ -4,17 +4,22 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { PaymentType, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
+import { OrderStatus, PaymentStatus, PaymentType, PayType, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
 import Stripe from 'stripe';
 import { UserWalletQueryDto } from './dto/user-wallet.dto';
 import { UserWalletHistoryQueryDto } from './dto/user-wallet-history-query.dto';
+import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.gateway';
+
 
 @Injectable()
 export class WalletService {
   private stripe: Stripe;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private raiderGateway: RaiderGateway,
+  ) {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
       apiVersion: '2025-12-15.clover',
     });
@@ -268,7 +273,7 @@ export class WalletService {
   // ---------- Add Money Mobile ----------
 
   // Create the Intent (Called by Flutter)
-  async createIntent(userId: number, amount: number, currency = 'sgd') {
+  async createIntent(userId: number, amount: number, currency = 'sgd', orderId?:number, payType?:string, type?:string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new BadRequestException('User not found');
 
@@ -278,87 +283,287 @@ export class WalletService {
     const intent = await this.stripe.paymentIntents.create({
       amount: stripeAmount,
       currency: currency,
-      metadata: { userId: userId.toString(), amount: amount.toString() },
+      metadata: { 
+         userId: userId.toString(),
+         amount: amount.toString(), 
+         orderId:orderId?.toString() ?? "", 
+         payType:payType ?? null,
+         type:type ?? null
+        },
       automatic_payment_methods: { enabled: true },
     });
 
-    return { clientSecret: intent.client_secret };
+    return { clientSecret: intent.client_secret, orderId };
   }
 
 
-  // payment status update by webhook
-  async handleWebhook(rawBody: Buffer, signature: string){
-     //  
-    let event: Stripe.Event;
-    try {
-      event = this.stripe.webhooks.constructEvent(
-        rawBody,
-        signature,
-        process.env.STRIPE_WEBHOOK_SECRET!,
-      );
-    }
-    catch (err) {
-       throw new BadRequestException(`Webhook Signature Error: ${err.message}`);
-    }
-    // Handle the event
-    switch (event.type) {
-      case 'payment_intent.succeeded': {
-        const intent = event.data.object as Stripe.PaymentIntent;
+  // payment status update by webhoo
+  async handleWebhook(rawBody:Buffer, signature: string) {
+  console.log("=== WEBHOOK HANDLER DEBUG ===");
+  console.log("1. Signature:", signature?.substring(0, 20) + '...');
+  console.log("2. Raw Body Type:", typeof rawBody);
+  console.log("3. Raw Body is Buffer?", Buffer.isBuffer(rawBody));
+  console.log("4. Raw Body length:", rawBody?.length || 0);
+  console.log("5. Webhook Secret exists?", !!process.env.STRIPE_WEBHOOK_SECRET);
+  
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    throw new BadRequestException('STRIPE_WEBHOOK_SECRET not configured in environment');
+  }
+
+  let event: Stripe.Event;
+
+  try {
+    // Stripe's constructEvent expects a Buffer or string
+    // When using express.raw(), request.body is already a Buffer
+    console.log("6. Constructing event with Stripe...");
+    
+    event = this.stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET,
+    );
+
+    console.log("7. ✅ Event constructed successfully!");
+    console.log("8. Event Type:", event.type);
+    console.log("9. Event ID:", event.id);
+  } catch (err) {
+    console.error("❌ Webhook Signature Verification Failed!");
+    console.error("Error Type:", err.type);
+    console.error("Error Message:", err.message);
+    console.error("Error Details:", err);
+    
+    // Log additional debug info
+    console.error("Debug Info:");
+    console.error("- Signature length:", signature?.length);
+    console.error("- Body length:", rawBody?.length);
+    console.error("- Secret length:", process.env.STRIPE_WEBHOOK_SECRET?.length);
+    
+    throw new BadRequestException(`Webhook Signature Error: ${err.message}`);
+  }
+
+  console.log("=== PROCESSING EVENT ===");
+  console.log("Event Type:", event.type);
+
+  // Handle the event
+  switch (event.type) {
+    case 'payment_intent.succeeded': {
+      console.log("💰 Processing successful payment...");
+      const intent = event.data.object as Stripe.PaymentIntent;
+      
+      console.log("Payment Details:");
+      console.log("- ID:", intent.id);
+      console.log("- Amount:", intent.amount / 100, intent.currency.toUpperCase());
+      console.log("- Status:", intent.status);
+      console.log("- Metadata:", JSON.stringify(intent.metadata, null, 2));
+      
+      try {
         await this.fulfillPayment(intent);
-        break;
+        console.log("✅ Payment fulfilled successfully!");
+      } catch (error) {
+        console.error("❌ Error fulfilling payment:", error);
+        throw error;
       }
-      // ... handle other event types
-      case 'payment_intent.payment_failed':
-        console.log('Payment failed:', event.data.object.id);
-        // Optional: Notify user of failure
-        break;
-
-      default:
-        console.log(`Unhandled event type ${event.type}`);
+      break;
     }
-    // Return a response to acknowledge receipt of the event
-    return { received: true };
 
+    case 'payment_intent.payment_failed': {
+      console.log('❌ Payment failed:', event.data.object.id);
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.log("Failed payment details:", {
+        id: intent.id,
+        amount: intent.amount / 100,
+        currency: intent.currency,
+        last_payment_error: intent.last_payment_error,
+      });
+      // Optional: Notify user of failure
+      break;
+    }
 
+    case 'payment_intent.created': {
+      console.log('📝 Payment intent created:', event.data.object.id);
+      break;
+    }
+
+    default:
+      console.log(`ℹ️ Unhandled event type: ${event.type}`);
   }
+
+  console.log("=== WEBHOOK PROCESSING COMPLETE ===");
+  
+  // Return a response to acknowledge receipt of the event
+  return { received: true };
+}
+
 
   // private methods for webhook handling
   private async fulfillPayment(intent: Stripe.PaymentIntent) {
-    const userId = parseInt(intent.metadata.userId);
-    const amount = parseFloat(intent.metadata.amount);
-     
-    // 
-    if (intent.metadata.type !== 'ADD_MONEY' || !userId) return;
-    // ATOMICITY: Update both or neither
-    await this.prisma.$transaction(async (tx) => {
-      // 1. Idempotency Check: Prevent duplicate processing
-      const existing = await tx.walletHistory.findUnique({
-        where: { transactionId: intent.id },
-      });
-      if (existing) return;
+      const userId = parseInt(intent.metadata.userId);
+      const paymentType = intent.metadata.type as PaymentType;
 
-      // 2. Log History
-      await tx.walletHistory.create({
-        data: {
-          userId,
-          amount,
-          transactionId: intent.id,
-          transactionType: WalletTransactionType.PAYMENT, 
-          status: WalletTransactionStatus.SUCCESS,
-          type: 'credit',
-        },
-      });
 
-      // 3. Update Balance
-      await tx.user.update({
-        where: { id: userId },
-        data: { 
-          totalWalletBalance: { increment: amount },
-          currentWalletBalance: { increment: amount } },
-      });
-    });
-    // 
+      if (!userId) return;
+      // 
+      switch (paymentType) {
+         case PaymentType.ADD_MONEY:
+            await this.addMoneUpdateByWebHook(intent);
+            break;
+         case PaymentType.PAYMENT:   
+            await this.processOrderPayment(intent);
+           break;
+           
+          default:
+            console.log("Unhandled payment type", paymentType);
+     }
   }
+
+  //  add money by webhook
+   private async addMoneUpdateByWebHook(intent: Stripe.PaymentIntent) {
+        const amount = parseFloat(intent.metadata.amount);
+        const userId = parseInt(intent.metadata.userId);
+
+          const user = await this.prisma.user.findUnique({ where: { id: userId } });
+          if (!user) throw new NotFoundException('User not found');
+
+        // ADD_MONEY: Credit user's wallet
+        await this.prisma.$transaction(async (tx) => {
+          // 1. Idempotency Check: Prevent duplicate processing
+          const existing = await tx.walletHistory.findUnique({
+            where: { transactionId: intent.id },
+          });
+          if (existing) return;
+
+          // 2. Log History
+          await tx.walletHistory.create({
+            data: {
+              userId,
+              amount,
+              transactionId: intent.id,
+              transactionType: WalletTransactionType.PAYMENT,
+              status: WalletTransactionStatus.SUCCESS,
+              type: 'credit',
+            },
+          });
+
+          // 3. Update Balance
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              totalWalletBalance: { increment: amount },
+              currentWalletBalance: { increment: amount },
+            },
+          });
+        });
+        return;
+    }
+  //  porocess order payment by webhook
+   private async processOrderPayment(intent: Stripe.PaymentIntent) {
+        const payType = intent.metadata.payType as PayType;
+        const userId = parseInt(intent.metadata.userId);  
+        const orderId = parseInt(intent.metadata.orderId);
+        console.log('From process order payment-->', payType, userId, orderId,);
+        //  
+        if (!orderId) return;
+            // Fetch order details first
+            const order = await this.prisma.order.findUnique({
+              where: { id: orderId },
+              include: {
+                vehicle:{
+                    select:{
+                        vehicle_type:true,
+                        id:true
+                    }
+                },
+                orderStops: {
+                  include: {
+                    destination: true,
+                    payment: true,
+                  },
+                  orderBy: { sequence: 'asc' },
+                },
+              },
+            });
+
+            if (!order) return;
+
+            // Process order placement
+            const placeRes = await this.prisma.$transaction(async (tx) => {
+              /** ----------------------- UPFRONT PAYMENT ----------------------- */
+              if (payType === PayType.ONLINE_PAY) {
+                await tx.stopPayment.updateMany({
+                  where: { orderStopId: { in: order.orderStops.map((s) => s.id) } },
+                  data: {
+                    payType: PayType.ONLINE_PAY,
+                    status: PaymentStatus.PAID,
+                    amount: 0,
+                  },
+                });
+              }
+
+              /** ----------------------- UPDATE ORDER ----------------------- */
+              const updatedOrder = await tx.order.update({
+                where: { id: orderId },
+                data: {
+                  order_status: OrderStatus.PENDING,
+                  is_placed: true,
+                  pay_type: payType,
+                },
+                include: {
+                  orderStops: {
+                    include: {
+                      destination: true,
+                      payment: true,
+                    },
+                    orderBy: { sequence: 'asc' },
+                  },
+                },
+              });
+
+              /** ----------------------- NOTIFY FAVORITE RAIDERS ----------------------- */
+              if (order.notify_favorite_raider === true) {
+                const favRaiders = await tx.myRaider.findMany({
+                  where: {
+                    user_id: userId,
+                    is_fav: true,
+                  },
+                  select: {
+                    raiderId: true,
+                    user_id: true,
+                    is_fav: true,
+                    user: {
+                      select: {
+                        username: true,
+                        id: true,
+                        email: true,
+                      },
+                    },
+                  },
+                });
+
+                // Send notification to favorite raiders
+                if (favRaiders.length > 0) {
+                  for (const rider of favRaiders) {
+                    await this.raiderGateway.notifyUserFavRaider(
+                      rider.raiderId,
+                      orderId,
+                      rider.user.username!,
+                      {
+                        orderId: order.id,
+                        totalOrderCost: String(order.total_cost),
+                        totalFee: String(order.total_fee),
+                        vehicleType: order.vehicle!,
+                        deliveryType: order.delivery_type,
+                        orderStop: order.orderStops,
+                      }
+                    );
+                  }
+                }
+              }
+
+              return updatedOrder;
+            });
+             console.log(placeRes);
+            return placeRes;
+    }
 
 
   //  save card info

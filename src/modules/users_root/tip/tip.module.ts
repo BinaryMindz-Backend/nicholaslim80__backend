@@ -1,12 +1,13 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TipService } from './tip.service';
 import { TipController } from './tip.controller';
 import { WalletService } from 'src/common/wallet/wallet.service';
 import { QueueModule } from 'src/modules/queue/queue.module';
+import { RaiderModule } from 'src/modules/raider_root/raider gateways/raider.module';
 
 @Module({
-  imports: [QueueModule],
-  controllers: [TipController,],
+  imports: [QueueModule, forwardRef(() => RaiderModule)],
+  controllers: [TipController],
   providers: [TipService, WalletService],
   exports: [TipService]
 })

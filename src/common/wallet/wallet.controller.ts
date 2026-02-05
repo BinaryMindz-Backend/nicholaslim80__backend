@@ -40,8 +40,9 @@ export class WalletController {
         @Body() dto: CreatePaymentIntentDto,
         @CurrentUser() user: IUser
     ) {
-        const result = await this.walletService.createIntent(+user.id, dto.amount, dto.currency);
-        return ApiResponses.success(result, 'Money added to wallet successfully');
+        const result = await this.walletService.createIntent(+user.id, dto.amount, dto.currency, dto.orderId, dto.payType, dto.type);
+        console.log("result-->",result);
+        return ApiResponses.success(result, 'Pay to wallet successfully');
     }
     
     // 
