@@ -2355,40 +2355,35 @@ export class OrderService {
   }
 
   // feed only order
-  async orderForFeed(
-    userId: number,
-    page = 1,
-    limit = 100,
-  ) {
+  async orderForFeed(userId: number, page = 1, limit = 100) {
     const skip = (page - 1) * limit;
+
     const raider = await this.prisma.raider.findFirst({
-      where: {
-        userId
-      }
-    })
+      where: { userId, is_online: true, isSuspended: false, raider_status: RaiderStatus.ACTIVE },
+      select: { id: true },
+    });
 
-    const [orders, total] = await this.prisma.$transaction([
-      this.prisma.order.findMany({
-        where: {
-          order_status: OrderStatus.PENDING,
-          is_placed: true,
-          user: {
-            raiderProfile: {
-              is_online: true,
-              isSuspended: false,
-              // raider_status: RaiderStatus.ACTIVE
-            }
-          },
-
-          // EXCLUDE declined orders for THIS raider only
-          NOT: {
-            declines: {
-              some: {
-                raiderId: raider?.id,
-              },
+    const declineFilter = raider
+      ? {
+        NOT: {
+          declines: {
+            some: {
+              raiderId: raider.id,
             },
           },
         },
+      }
+      : {};
+
+    const whereClause = {
+      order_status: OrderStatus.PENDING,
+      is_placed: true,
+      ...declineFilter,
+    };
+
+    const [orders, total] = await this.prisma.$transaction([
+      this.prisma.order.findMany({
+        where: whereClause,
         orderBy: { created_at: 'desc' },
         include: {
           user: true,
@@ -2400,17 +2395,7 @@ export class OrderService {
       }),
 
       this.prisma.order.count({
-        where: {
-          order_status: OrderStatus.PENDING,
-          is_placed: true,
-          NOT: {
-            declines: {
-              some: {
-                raiderId: raider?.id,
-              },
-            },
-          },
-        },
+        where: whereClause,
       }),
     ]);
 
@@ -2422,6 +2407,7 @@ export class OrderService {
       totalPages: Math.ceil(total / limit),
     };
   }
+
 
 
   //order decline
