@@ -91,100 +91,7 @@ export class OrderService {
 
   /**
  * ADD DESTINATION TO ORDER (Creates OrderStop snapshot)
- */
-  // async addDestinationToOrder(
-  //   orderId: number,
-  //   destinationId: number,
-  //   userId: number,
-  //   stopType: StopType,
-  // ) {
-  //   // Verify order ownership
-  //   const order = await this.prisma.order.findUnique({
-  //     where: { id: orderId },
-  //     include: { orderStops: true },
-  //   });
-
-  //   if (!order || order.userId !== userId) {
-  //     throw new BadRequestException('Order not found or unauthorized');
-  //   }
-
-  //   if (order.order_status !== OrderStatus.PROGRESS) {
-  //     throw new BadRequestException('Cannot modify placed order');
-  //   }
-
-  //   // Get destination
-  //   const destination = await this.prisma.destination.findUnique({
-  //     where: { id: destinationId },
-  //   });
-
-  //   if (!destination || destination.userId !== userId) {
-  //     throw new BadRequestException('Destination not found or unauthorized');
-  //   }
-
-  //   // Validate destination type
-  //   if (stopType === StopType.PICKUP && destination.type === DestinationType.RECEIVER) {
-  //     throw new BadRequestException('Cannot use RECEIVER-only destination as pickup');
-  //   }
-  //   if (stopType === StopType.DROP && destination.type === DestinationType.SENDER) {
-  //     throw new BadRequestException('Cannot use SENDER-only destination as drop');
-  //   }
-
-  //   // Check if already added
-  //   const existing = await this.prisma.orderStop.findFirst({
-  //     where: { orderId, destinationId, type: stopType },
-  //   });
-
-  //   if (existing) {
-  //     throw new BadRequestException('Destination already added to order');
-  //   }
-
-  //   // Create OrderStop (snapshot)
-  //   const sequence = order.orderStops.length + 1;
-
-  //   // Create OrderStop
-  //   const orderStop = await this.prisma.orderStop.create({
-  //     data: {
-  //       orderId,
-  //       destinationId,
-  //       type: stopType,
-  //       sequence,
-  //       address: destination.address!,
-  //       latitude: destination.latitude!,
-  //       longitude: destination.longitude!,
-  //       additionalInfo: destination.additionalInfo,
-  //       status: 'PENDING',
-  //       payment: {
-  //         create: {
-  //           payType: order.pay_type ?? 'COD',
-  //           amount: 0, // Will be calculated below
-  //           status: 'UNPAID',
-  //         },
-  //       },
-  //     },
-  //     include: {
-  //       destination: true,
-  //       payment: true,
-  //     },
-  //   });
-
-  //   // Update destination usage stats
-  //   await this.prisma.destination.update({
-  //     where: { id: destinationId },
-  //     data: {
-  //       lastUsedAt: new Date(),
-  //       useCount: { increment: 1 },
-  //     },
-  //   });
-
-  //   // Recalculate price with individual pricing
-  //   const pricingResult = await this.recalculateOrderPrice(orderId);
-
-  //   return {
-  //     orderStop,
-  //     pricing: pricingResult,
-  //   };
-  // }
-  // 
+ */ 
   async addDestinationToOrder(
     orderId: number,
     destinationId: number,
@@ -1092,7 +999,7 @@ export class OrderService {
         returnFactor: 0.5,
       },
     );
-    console.log(receiversWithPrice,)
+    // console.log(receiversWithPrice,)
     const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
     const totalFee = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalFee, 0);
     const totalDistance = receiversWithPrice.reduce((sum, r) => sum + r.distanceKm, 0);

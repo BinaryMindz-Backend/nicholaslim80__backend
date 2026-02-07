@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { UserGateway } from 'src/modules/users_root/users/user.gateways';
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import {
@@ -884,8 +885,34 @@ export class WalletService {
     return { message: 'Card deleted successfully' };
   }
 
+
+  // add money for order priority
+  async addMoneyForOrderPriority(userId: number, amount: number, currency: string = 'sgd') {
+    const result = await this.prisma.addMoneyForOrderPriority.create({
+      data:{
+         userId, amount, currency
+      }
+    });
+    if(!result){
+      throw new BadRequestException('Failed to add money for order priority');
+    } 
+    // 
+    return result;
+  }    
+  // 
+  async getAddMoneyForOrderPriority(userId: number) {
+    const record = await this.prisma.addMoneyForOrderPriority.findMany({
+      where: { userId },
+    });
+    if (!record || record.length === 0) {
+      throw new NotFoundException('No priority record found');
+    }
+    return record;
+  }
+
+
   // ---------- Withdraw ----------
-  async withdraw(userId: number, amount: number) {
+  async withdraw(userId: number, amount: number, currency: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -901,7 +928,7 @@ export class WalletService {
     // Transfer from your platform (admin) to user's Stripe connected account
     await this.stripe.transfers.create({
       amount: Math.round(amount * 100), // cents
-      currency: 'usd',
+      currency:currency,
       destination: user.stripeAccountId,
     });
 
@@ -919,6 +946,7 @@ export class WalletService {
         status: WalletTransactionStatus.SUCCESS,
         transactionType: WalletTransactionType.PAYOUT,
         transactionId: 'demo',
+        currency: currency,
       },
     });
 

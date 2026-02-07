@@ -69,6 +69,8 @@ model User {
   roles  Role[]
   // 
   logins                 UserLogin[]
+  // 
+  addMoneyForOrderPriority addMoneyForOrderPriority[]
 
   // 
   created_at         DateTime       @default(now())

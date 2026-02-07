@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Param, Query, Get, Delete, ParseIntPipe, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiBody, ApiParam } from '@nestjs/swagger';
 import { WalletService } from './wallet.service';
-import { AddMoneyDto, PayWithSavedCardDto, WithdrawDto } from './dto/wallet.dto';
+import { AddMoneyDto, addMoneyForOrderPriorityDto, PayWithSavedCardDto, WithdrawDto } from './dto/wallet.dto';
 import { Auth } from 'src/decorators/auth.decorator';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
@@ -93,9 +93,41 @@ export class WalletController {
         @Body() dto: WithdrawDto,
         @CurrentUser() user: IUser
     ) {
-        const result = await this.walletService.withdraw(+user.id, dto.amount);
+        const result = await this.walletService.withdraw(+user.id, dto.amount, dto.currency!);
         return ApiResponses.success(result, 'Withdrawal request processed successfully');
     }
+    // 
+    @Post('add-money-priority')
+    @Auth()
+    @ApiOperation({ summary: 'Add money to wallet using Stripe test token' })
+    @ApiBody({ type: addMoneyForOrderPriorityDto })
+    async addMoneyForOrderPriority(@CurrentUser() user: IUser, @Body() dto: addMoneyForOrderPriorityDto) {
+       try { 
+          const res = await this.walletService.addMoneyForOrderPriority(+user.id, dto.amount, dto.currency);
+          return ApiResponses.success(res, 'Money added to wallet successfully');
+
+       } catch (error) {
+        console.log(error);
+        return ApiResponses.error(error.message || error, 'Failed to add money to wallet');
+       }
+
+    }
+
+    // 
+    @Get('get-add-money-priority')
+    @Auth()
+    @ApiOperation({ summary: 'Get user wallet by role with search and pagination' })
+    async getAddMoneyForOrderPriority(@CurrentUser() user: IUser) {
+        try {
+            const res = await this.walletService.getAddMoneyForOrderPriority(+user.id);
+            return ApiResponses.success(res, 'Data retrieved successfully');
+        } catch (error) {
+            console.log(error);           
+           return ApiResponses.error(error.message || error, 'Failed to get data');
+
+        }
+    }
+
     // 
     @Post('add-money/test/:userId')
     @Auth()

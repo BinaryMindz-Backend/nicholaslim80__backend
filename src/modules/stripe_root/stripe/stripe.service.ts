@@ -82,7 +82,7 @@ export class StripeService {
     }
     const account = await this.stripe.accounts.create({
       country: 'US',
-      email: 'jenny.rosen@example.com',
+      email: userExist.email!,
       controller: {
         fees: {
           payer: 'application',
