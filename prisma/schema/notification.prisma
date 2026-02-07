@@ -11,6 +11,7 @@ model Notification {
   schedule_to_send DateTime?
   target_role      NotificationSentRole? 
   is_from_admin    Boolean          @default(false) 
+  orderId           Int?             // Optional link to an order
   mark_as_read_id  Int[]            
   @@map("notifications")
 }

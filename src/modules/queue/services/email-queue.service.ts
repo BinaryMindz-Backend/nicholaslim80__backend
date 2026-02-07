@@ -161,6 +161,7 @@ export class EmailQueueService {
     orderId?: number | string;
     orderNumber?: string;
     status: string;
+    title: string;
     message: string;
   }) {
     try {

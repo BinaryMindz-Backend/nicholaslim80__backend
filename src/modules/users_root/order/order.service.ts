@@ -85,7 +85,15 @@ export class OrderService {
 
       return order;
     });
-
+     await this.emailQueueService.queueOrderStatusNotification({
+          userId: user.id,
+          fcmToken: isUserExist?.fcmToken ?? '',
+          orderId: res.id,
+          orderNumber: `ORD-${String(res.id).padStart(6, '0')}`,
+          status: 'order_created',
+          title: 'Order Created Successfully',
+          message: `Your order ORD-${String(res.id).padStart(6, '0')} has been created with total cost $${res.total_cost.toFixed(2)}.`,
+        });
     return res;
   }
 
@@ -512,6 +520,19 @@ export class OrderService {
       return updatedOrder;
 
     });
+      const isUserExist = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (isUserExist) {  
+      // Send notification to user
+      await this.emailQueueService.queueOrderStatusNotification({
+          userId: isUserExist.id,
+          fcmToken: isUserExist?.fcmToken ?? '',
+          orderId: placeRes.id,
+          orderNumber: `ORD-${String(placeRes.id).padStart(6, '0')}`,
+          status: 'order_created',
+          title: 'Order Created Successfully',
+          message: `Your order ORD-${String(placeRes.id).padStart(6, '0')} has been created with total cost $${placeRes.total_cost.toFixed(2)}.`,
+        });
+      }
     // 
     return placeRes;
 
@@ -636,6 +657,18 @@ export class OrderService {
         }
       }
 
+      const isUserExist = await this.prisma.user.findUnique({ where: { id: userId } });
+      // Send notification to user
+      await this.emailQueueService.queueOrderStatusNotification({
+          userId: userId,
+          fcmToken: isUserExist?.fcmToken ?? '',
+          orderId:order.id,
+          orderNumber: `ORD-${String(order.id).padStart(6, '0')}`,
+          status: 'order_created',
+          title: 'Order Created Successfully',
+          message: `Your order ORD-${String(order.id).padStart(6, '0')} has been prioritized with total cost $${order.total_cost.toFixed(2)}.`,
+        });
+      
       // ───────────────── UPDATE ORDER PRIORITY ─────────────────
       return tx.order.update({
         where: { id: orderId },
@@ -1145,6 +1178,20 @@ export class OrderService {
         })),
       };
     });
+     const exUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    }); 
+    // send notification to user
+        await this.emailQueueService.queueOrderStatusNotification({
+          userId: user.id,
+          fcmToken: exUser?.fcmToken ?? '',
+          orderId: result.order.id,
+          orderNumber: `ORD-${String(result.order.id).padStart(6, '0')}`,
+          status: 'order_created',
+          title: 'Order Created Successfully',
+          message: `Your order ORD-${String(result.order.id).padStart(6, '0')} has been created with total cost $${result.order.total_cost.toFixed(2)}.`,
+        });
+        
 
     return result;
   }
@@ -1498,6 +1545,7 @@ export class OrderService {
         fcmToken: user.fcmToken,
         orderId: 'BULK',
         status: OrderStatus.PENDING,
+        title: 'Bulk Orders Now Pending',
         message: `Your ${result.totalUpdated} bulk orders are now placed.`,
       });
     }
@@ -2132,6 +2180,7 @@ export class OrderService {
           fcmToken: user.fcmToken,
           orderId: updatedOrder.id,
           status: updatedOrder.order_status,
+          title: `Order ${updatedOrder.order_status}`,
           message: statusMessage,
         });
       }

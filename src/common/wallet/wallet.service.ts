@@ -493,6 +493,7 @@ export class WalletService {
                 transaction_code: `TX-${intent.id}`,
               }
             })
+            
              break;
 
           }
