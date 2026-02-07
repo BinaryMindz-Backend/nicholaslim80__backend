@@ -6,7 +6,7 @@ import admin from 'src/config/firebase-config';
 @Injectable()
 export class FirebaseService {
     async sendPush({ token, title, body }) {
-      console.log("from send push--->", token, title, body);
+      // console.log("from send push--->", token, title, body);
      //    
     const pushMessage = {
         token,

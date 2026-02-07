@@ -102,7 +102,7 @@ export class NotificationService {
       // 
         case NotificationType.PUSH_NOTIFICATION:
           const pushUsers = users.filter(u => !!u.fcmToken);
-          console.log("Users with fcmToken:", pushUsers);
+          // console.log("Users with fcmToken:", pushUsers);
 
           await Promise.all(
             pushUsers.map(u =>
@@ -111,6 +111,8 @@ export class NotificationService {
                 title,
                 body: message ?? "",
               }),
+              // 
+              
             ),
           );
           // console.log("Push sent for type:", type, pushUsers);
