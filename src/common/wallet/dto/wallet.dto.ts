@@ -80,4 +80,30 @@ export class WithdrawDto {
     @IsNumber()
     @Min(1)
     amount: number;
+    
+    @ApiProperty({ example: 'sgd', default: 'sgd' })
+    @IsString()
+    @IsOptional()
+    currency?: string = 'sgd';
+
+
+
+
+}
+
+// 
+export class addMoneyForOrderPriorityDto {
+    @ApiProperty({ example: 50, description: 'Amount to withdraw from wallet' })
+    @IsNumber()
+    @Min(1)
+    amount: number;
+    
+    @ApiProperty({ example: 'sgd', default: 'sgd' })
+    @IsString()
+    @IsOptional()
+    currency?: string = 'sgd';
+
+
+
+
 }

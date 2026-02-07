@@ -1,0 +1,17 @@
+model addMoneyForOrderPriority {
+  id              Int           @id @default(autoincrement())
+  
+  // User Link
+  userId          Int
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Amount and Currency
+  amount          Float
+  currency        String        @default("sgd")
+  
+  // Timestamps
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@map("add_money_for_order_priority")
+}
