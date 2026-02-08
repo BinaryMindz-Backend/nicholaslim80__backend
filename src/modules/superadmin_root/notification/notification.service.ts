@@ -25,30 +25,30 @@ export class NotificationService {
     private fcmService: FirebaseService,
     private mailService: MailService,
     private smsService: SmsService,
-  ) {}
+  ) { }
 
   async broadcast(dto: AdminCreateNotificationDto) {
     if (!this.ADMIN_ALLOWED_TYPES.includes(dto.type)) {
       throw new BadRequestException('Invalid notification type for admin');
     }
-   
+
     // FIXED ROLE FILTER
     // const whereRole: any = {};
     // if (dto.target_role === NotificationSentRole.USER) whereRole.roles = { name: UserRole.USER };
     // if (dto.target_role === NotificationSentRole.RAIDER) whereRole.roles = { name: UserRole.RAIDER };
-      const roleMap = {
-            [NotificationSentRole.USER]: UserRole.USER,
-            [NotificationSentRole.RAIDER]: UserRole.RAIDER,
-          };
+    const roleMap = {
+      [NotificationSentRole.USER]: UserRole.USER,
+      [NotificationSentRole.RAIDER]: UserRole.RAIDER,
+    };
 
-      const whereRole: Prisma.UserWhereInput =
-        roleMap[dto.target_role!]
-          ? {
-              roles: {
-                some: { name: roleMap[dto.target_role!] },
-              },
-            }
-          : {};
+    const whereRole: Prisma.UserWhereInput =
+      roleMap[dto.target_role!]
+        ? {
+          roles: {
+            some: { name: roleMap[dto.target_role!] },
+          },
+        }
+        : {};
 
     //  console.log(whereRole);
     const users = await this.prisma.user.findMany({
@@ -68,7 +68,7 @@ export class NotificationService {
         send_immediately: dto.send_immediately,
         schedule_to_send: dto.schedule_to_send ? new Date(dto.schedule_to_send) : null,
         target_role: dto.target_role,
-        is_from_admin:true,
+        is_from_admin: true,
       },
     });
 
@@ -82,13 +82,13 @@ export class NotificationService {
       await this.sendNotificationByType(dto.type, mappedUsers, dto.title, dto.message);
     }
 
-// Only return simple JSON
-  return {
-    notificationId: notification.id,
-    usersCount: mappedUsers.length,
-    type: dto.type,
-    sendImmediately: dto.send_immediately,
-  };
+    // Only return simple JSON
+    return {
+      notificationId: notification.id,
+      usersCount: mappedUsers.length,
+      type: dto.type,
+      sendImmediately: dto.send_immediately,
+    };
   }
 
   public async sendNotificationByType(
@@ -100,41 +100,41 @@ export class NotificationService {
     switch (type) {
 
       // 
-        case NotificationType.PUSH_NOTIFICATION:
-          const pushUsers = users.filter(u => !!u.fcmToken);
-          // console.log("Users with fcmToken:", pushUsers);
+      case NotificationType.PUSH_NOTIFICATION:
+        const pushUsers = users.filter(u => !!u.fcmToken);
+        // console.log("Users with fcmToken:", pushUsers);
 
-          await Promise.all(
-            pushUsers.map(u =>
-              this.fcmService.sendPush({
-                token: u.fcmToken!,
-                title,
-                body: message ?? "",
-              }),
-              // 
-              
-            ),
-          );
-          // console.log("Push sent for type:", type, pushUsers);
-          break;
-         
+        await Promise.all(
+          pushUsers.map(u =>
+            this.fcmService.sendPush({
+              token: u.fcmToken!,
+              title,
+              body: message ?? "",
+            }),
+            // 
 
-       // case for email type
-        case NotificationType.EMAIL:
-          const emailUsers = users.filter(u => !!u.email);
-          // console.log("Sending email to:", emailUsers.map(u => u.email));
+          ),
+        );
+        // console.log("Push sent for type:", type, pushUsers);
+        break;
 
-          await Promise.all(
-            emailUsers.map(u =>
-               this.mailService.sendTemplateMail(
-                 'plain-text', // the HBS template we just created
-                 u.email!,
-                 title!,
-                 { text: message! } // pass your plain text as `text`
-              )
-            ),
-          );
-          break;
+
+      // case for email type
+      case NotificationType.EMAIL:
+        const emailUsers = users.filter(u => !!u.email);
+        // console.log("Sending email to:", emailUsers.map(u => u.email));
+
+        await Promise.all(
+          emailUsers.map(u =>
+            this.mailService.sendTemplateMail(
+              'plain-text', // the HBS template we just created
+              u.email!,
+              title!,
+              { text: message! } // pass your plain text as `text`
+            )
+          ),
+        );
+        break;
 
       //  
       case NotificationType.SMS:
@@ -151,15 +151,15 @@ export class NotificationService {
       // 
       case NotificationType.WEB_ANNOUNCEMENT:
         // For web announcements, we might just log or store them
-          await this.prisma.notification.create({
-              data: {
-                type,
-                title,
-                message,
-                is_from_admin:true,
-              },
-            });
-          
+        await this.prisma.notification.create({
+          data: {
+            type,
+            title,
+            message,
+            is_from_admin: true,
+          },
+        });
+
         break;
 
     }
@@ -167,38 +167,39 @@ export class NotificationService {
 
 
 
-    // finally working
-     async findAll(dto: FindNotificationsDto, user: IUser) {
-        const { page = '1', limit = '10', type, isRead } = dto;
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-        
-        const where: any = {
-          OR: [
-            { target_role: null },
-            { target_role: user.roles[0].name }
-          ]
-        };
-        
-        if (type) where.type = type;
-        if (isRead !== undefined) where.is_read = isRead === 'true';
-        
-        const [data, total] = await Promise.all([
-          this.prisma.notification.findMany({
-            where,
-            orderBy: { created_at: 'desc' },
-            skip,
-            take: parseInt(limit),
-          }),
-          this.prisma.notification.count({ where }),
-        ]);
-        
-        return {
-          data,
-          total,
-          page: parseInt(page),
-          limit: parseInt(limit),
-        };
-      }
+  // finally working
+  async findAll(dto: FindNotificationsDto, user: IUser) {
+    const { page = '1', limit = '10', type, isRead } = dto;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const where: any = {
+      OR: [
+        { target_role: null },
+        { target_role: user.roles[0].name }
+      ]
+    };
+
+    if (type) where.type = type;
+    if (isRead !== undefined) where.is_read = isRead === 'true';
+    if (user.roles[0].id) where.userId = user.id;
+
+    const [data, total] = await Promise.all([
+      this.prisma.notification.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: parseInt(limit),
+      }),
+      this.prisma.notification.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    };
+  }
 
 
 
@@ -210,9 +211,9 @@ export class NotificationService {
     if (!notification) throw new NotFoundException('Notification not found');
     return notification;
   }
-   
+
   // 
-  async markAsRead(id:number, user:IUser) {
+  async markAsRead(id: number, user: IUser) {
     const notification = await this.prisma.notification.update({
       where: { id },
       data: { is_read: true, mark_as_read_id: [user?.id] },
@@ -226,14 +227,14 @@ export class NotificationService {
     if (!notification) throw new NotFoundException('Notification not found');
     return { message: 'Notification deleted successfully' };
   }
-  
+
   // 
   async deleteMany(dto: DeleteNotificationsDto) {
     const { ids } = dto;
     await this.prisma.notification.deleteMany({ where: { id: { in: ids } } });
     return { message: `${ids.length} notifications deleted successfully` };
   }
- // store fcm token to db
+  // store fcm token to db
   async storeFcmToken(userId: number, fcmToken: string) {
     const user = await this.prisma.user.update({
       where: { id: userId },

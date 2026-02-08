@@ -931,6 +931,7 @@ export class WalletService {
       amount: Math.round(amount * 100), // cents
       currency:currency,
       destination: user.stripeAccountId,
+      metadata: { userId: userId.toString() },
     });
 
     // Update wallet and history

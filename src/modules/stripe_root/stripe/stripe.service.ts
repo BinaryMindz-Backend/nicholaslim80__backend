@@ -72,45 +72,71 @@ export class StripeService {
     return ApiResponses.error('Payment failed');
   }
 
-  async createExpressAccount(userId: number) {
-    const userExist = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+  // async createExpressAccount(userId: number) {
+  //   const userExist = await this.prisma.user.findUnique({
+  //     where: { id: userId },
+  //   });
 
-    if (!userExist) {
-      return ApiResponses.error('User not found');
-    }
+  //   if (!userExist) {
+  //     return ApiResponses.error('User not found');
+  //   }
+  //   const account = await this.stripe.accounts.create({
+  //     country: 'US',
+  //     email: userExist.email!,
+  //     controller: {
+  //       fees: {
+  //         payer: 'application',
+  //       },
+  //       losses: {
+  //         payments: 'application',
+  //       },
+  //       stripe_dashboard: {
+  //         type: 'express',
+  //       },
+  //     },
+  //   });
+
+  //   const accountLink = await this.stripe.accountLinks.create({
+  //     account: account.id,
+  //     refresh_url: 'https://example.com/reauth',
+  //     return_url: 'https://example.com/return',
+  //     type: 'account_onboarding',
+  //   });
+
+
+
+  //   return {
+  //     message: 'Express account created successfully',
+  //     url: accountLink.url,
+  //   };
+  // }
+  // wallet.service.ts
+
+  async createConnectedAccount(userId: number) {
+    // 1. Create the account in Stripe
     const account = await this.stripe.accounts.create({
-      country: 'US',
-      email: userExist.email!,
-      controller: {
-        fees: {
-          payer: 'application',
-        },
-        losses: {
-          payments: 'application',
-        },
-        stripe_dashboard: {
-          type: 'express',
-        },
+      type: 'express',
+      country: 'SG',
+      capabilities: {
+        transfers: { requested: true },
       },
+      metadata: { userId: userId.toString() },
     });
 
-    const accountLink = await this.stripe.accountLinks.create({
+    // 2. Save the acct_ID to your User table in Prisma
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { stripeAccountId: account.id },
+    });
+
+    // 3. Create an Account Link (The URL the user visits to finish setup)
+    return await this.stripe.accountLinks.create({
       account: account.id,
-      refresh_url: 'https://example.com/reauth',
-      return_url: 'https://example.com/return',
+      refresh_url: 'https://your-app.com/reauth',
+      return_url: 'https://your-app.com/success',
       type: 'account_onboarding',
     });
-
-
-
-    return {
-      message: 'Express account created successfully',
-      url: accountLink.url,
-    };
   }
-
 
 
 
