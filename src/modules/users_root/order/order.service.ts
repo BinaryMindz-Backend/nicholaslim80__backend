@@ -529,8 +529,8 @@ export class OrderService {
         orderId: placeRes.id,
         orderNumber: `ORD-${String(placeRes.id).padStart(6, '0')}`,
         status: NotificationType.ORDER_UPDATE,
-        title: 'Order Created Successfully',
-        message: `Your order ORD-${String(placeRes.id).padStart(6, '0')} has been created with total cost $${placeRes.total_cost.toFixed(2)}.`,
+        title: 'Order Placed Successfully',
+        message: `Your order ORD-${String(placeRes.id).padStart(6, '0')} has been placed with total cost $${placeRes.total_cost.toFixed(2)}.`,
       });
     }
     // 
