@@ -19,5 +19,6 @@ export class CreateAdditionalServiceDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
 }
 

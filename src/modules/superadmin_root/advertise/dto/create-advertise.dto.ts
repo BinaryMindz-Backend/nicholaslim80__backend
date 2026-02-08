@@ -25,18 +25,25 @@ export class CreateAdvertiseDto {
   @IsString()
   ad_image: string;
 
-    @ApiProperty({
+  @ApiProperty({
     example: '2025-01-10T00:00:00.000Z',
     description: 'Advertisement visibility start date (ISO 8601 format)',
-    })
-    @IsDateString()
-    start_date: string;
+  })
+  @IsDateString()
+  start_date: string;
 
-    @ApiProperty({
+  @ApiProperty({
     example: '2026-01-10T00:00:00.000Z',
     description: 'Advertisement visibility end date (ISO 8601 format)',
-    })
-    @IsDateString()
-    end_date: string;
+  })
+  @IsDateString()
+  end_date: string;
+
+  @ApiProperty({
+    example: 'https://example.com/redirect',
+    description: 'Redirect link for the advertisement',
+  })
+  @IsString()
+  redirect_link: string;
 
 }
