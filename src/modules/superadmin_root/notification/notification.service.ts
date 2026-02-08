@@ -169,26 +169,60 @@ export class NotificationService {
 
   // finally working
   async findAll(dto: FindNotificationsDto, user: IUser) {
-    const { page = '1', limit = '10', type, isRead } = dto;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const page = Number(dto.page ?? 1);
+    const limit = Number(dto.limit ?? 10);
+    const skip = (page - 1) * limit;
 
+    // Build where filter
     const where: any = {
-      OR: [
-        { target_role: null },
-        { target_role: user.roles[0].name }
-      ]
+      AND: [
+        {
+          OR: [
+            // Global notifications
+            { target_role: null, userId: null },
+
+            // Role-based notifications
+            { target_role: user.roles[0]?.name ?? null, userId: null },
+
+            // User-specific notifications
+            { userId: user.id },
+          ],
+        },
+      ],
     };
 
-    if (type) where.type = type;
-    if (isRead !== undefined) where.is_read = isRead === 'true';
-    if (user.roles[0].id) where.userId = user.id;
+    // Filter by notification type if provided
+    if (dto.type) {
+      where.AND.push({ type: dto.type });
+    }
 
+    // Filter by read status if provided
+    if (dto.isRead !== undefined) {
+      // Check mark_as_read_id for global/role notifications
+      where.AND.push({
+        OR: [
+          // User-specific notification uses is_read
+          { userId: user.id, is_read: dto.isRead === 'true' },
+
+          // Global/role notification uses mark_as_read_id array
+          {
+            userId: null,
+            OR: [
+              { target_role: null, mark_as_read_id: dto.isRead === 'true' ? { has: user.id } : { none: user.id } },
+              { target_role: user.roles[0]?.name ?? null, mark_as_read_id: dto.isRead === 'true' ? { has: user.id } : { none: user.id } },
+            ],
+          },
+        ],
+      });
+    }
+
+    // Fetch notifications + total count
     const [data, total] = await Promise.all([
       this.prisma.notification.findMany({
         where,
         orderBy: { created_at: 'desc' },
         skip,
-        take: parseInt(limit),
+        take: limit,
       }),
       this.prisma.notification.count({ where }),
     ]);
@@ -196,8 +230,8 @@ export class NotificationService {
     return {
       data,
       total,
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page,
+      limit,
     };
   }
 
