@@ -61,9 +61,9 @@ export class StripeController {
   @Post('create-express-account')
   @Auth()
   @ApiBearerAuth()
-  async createExpressAccount(@CurrentUser() user: IUser) {
+  async createConnectedAccount(@CurrentUser() user: IUser) {
     try {
-      return await this.stripeService.createExpressAccount(user.id);
+      return await this.stripeService.createConnectedAccount(user.id);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       return ApiResponses.error(message);

@@ -6,7 +6,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { NotifyRaider, PriorityOrder, UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DeliveryZone, DestinationInput, IUser, Receiver, UserRaiderMapping } from 'src/types';
-import { CollectTime, DeliveryTypeName, DestinationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, Raider, RaiderStatus, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType, VehicleTypeEnum } from '@prisma/client';
+import { CollectTime, DeliveryTypeName, DestinationType, NotificationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, Raider, RaiderStatus, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType, VehicleTypeEnum } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -85,21 +85,21 @@ export class OrderService {
 
       return order;
     });
-     await this.emailQueueService.queueOrderStatusNotification({
-          userId: user.id,
-          fcmToken: isUserExist?.fcmToken ?? '',
-          orderId: res.id,
-          orderNumber: `ORD-${String(res.id).padStart(6, '0')}`,
-          status: 'order_created',
-          title: 'Order Created Successfully',
-          message: `Your order ORD-${String(res.id).padStart(6, '0')} has been created with total cost $${res.total_cost.toFixed(2)}.`,
-        });
+    await this.emailQueueService.queueOrderStatusNotification({
+      userId: user.id,
+      fcmToken: isUserExist?.fcmToken ?? '',
+      orderId: res.id,
+      orderNumber: `ORD-${String(res.id).padStart(6, '0')}`,
+      status: NotificationType.ORDER_UPDATE,
+      title: 'Order Created Successfully',
+      message: `Your order ORD-${String(res.id).padStart(6, '0')} has been created with total cost $${res.total_cost.toFixed(2)}.`,
+    });
     return res;
   }
 
   /**
  * ADD DESTINATION TO ORDER (Creates OrderStop snapshot)
- */ 
+ */
   async addDestinationToOrder(
     orderId: number,
     destinationId: number,
@@ -520,19 +520,19 @@ export class OrderService {
       return updatedOrder;
 
     });
-      const isUserExist = await this.prisma.user.findUnique({ where: { id: userId } });
-      if (isUserExist) {  
+    const isUserExist = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (isUserExist) {
       // Send notification to user
       await this.emailQueueService.queueOrderStatusNotification({
-          userId: isUserExist.id,
-          fcmToken: isUserExist?.fcmToken ?? '',
-          orderId: placeRes.id,
-          orderNumber: `ORD-${String(placeRes.id).padStart(6, '0')}`,
-          status: 'order_created',
-          title: 'Order Created Successfully',
-          message: `Your order ORD-${String(placeRes.id).padStart(6, '0')} has been created with total cost $${placeRes.total_cost.toFixed(2)}.`,
-        });
-      }
+        userId: isUserExist.id,
+        fcmToken: isUserExist?.fcmToken ?? '',
+        orderId: placeRes.id,
+        orderNumber: `ORD-${String(placeRes.id).padStart(6, '0')}`,
+        status: NotificationType.ORDER_UPDATE,
+        title: 'Order Created Successfully',
+        message: `Your order ORD-${String(placeRes.id).padStart(6, '0')} has been created with total cost $${placeRes.total_cost.toFixed(2)}.`,
+      });
+    }
     // 
     return placeRes;
 
@@ -660,15 +660,15 @@ export class OrderService {
       const isUserExist = await this.prisma.user.findUnique({ where: { id: userId } });
       // Send notification to user
       await this.emailQueueService.queueOrderStatusNotification({
-          userId: userId,
-          fcmToken: isUserExist?.fcmToken ?? '',
-          orderId:order.id,
-          orderNumber: `ORD-${String(order.id).padStart(6, '0')}`,
-          status: 'order_created',
-          title: 'Order Created Successfully',
-          message: `Your order ORD-${String(order.id).padStart(6, '0')} has been prioritized with total cost $${order.total_cost.toFixed(2)}.`,
-        });
-      
+        userId: userId,
+        fcmToken: isUserExist?.fcmToken ?? '',
+        orderId: order.id,
+        orderNumber: `ORD-${String(order.id).padStart(6, '0')}`,
+        status: NotificationType.ORDER_UPDATE,
+        title: 'Order Prioritized Successfully',
+        message: `Your order ORD-${String(order.id).padStart(6, '0')} has been prioritized with total cost $${order.total_cost.toFixed(2)}.`,
+      });
+
       // ───────────────── UPDATE ORDER PRIORITY ─────────────────
       return tx.order.update({
         where: { id: orderId },
@@ -696,6 +696,9 @@ export class OrderService {
     const raider = await this.prisma.raider.findUnique({
       where: {
         userId: raiderId
+      },
+      include: {
+        user: true,
       }
     })
     // 
@@ -810,7 +813,27 @@ export class OrderService {
           orderCompleted: true,
         };
       }
-
+      const isUserExist = await this.prisma.user.findUnique({ where: { id: stop.order.userId! } });
+      // Send notification to user
+      await this.emailQueueService.queueOrderStatusNotification({
+        userId: stop.order.userId!,
+        fcmToken: isUserExist?.fcmToken ?? '',
+        orderId: stop.orderId,
+        orderNumber: `ORD-${String(stop.orderId).padStart(6, '0')}`,
+        status: NotificationType.ORDER_UPDATE,
+        title: 'Order Completed Successfully',
+        message: `Your order ORD-${String(stop.orderId).padStart(6, '0')} has been completed with total cost $${stop.order.total_cost.toFixed(2)}.`,
+      });
+      // Send notification to raider
+      await this.emailQueueService.queueOrderStatusNotification({
+        userId: raider.userId,
+        fcmToken: raider.user.fcmToken ?? '',
+        orderId: stop.orderId,
+        orderNumber: `ORD-${String(stop.orderId).padStart(6, '0')}`,
+        status: NotificationType.ORDER_UPDATE,
+        title: 'Order Completed Successfully',
+        message: `Your order ORD-${String(stop.orderId).padStart(6, '0')} has been completed with total cost $${stop.order.total_cost.toFixed(2)}.`,
+      });
       return {
         message: 'Stop completed successfully',
         orderCompleted: false,
@@ -825,6 +848,17 @@ export class OrderService {
       where: { id: orderId },
       include: {
         orderStops: { include: { payment: true } },
+        user: true,
+        assign_rider: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fcmToken: true
+              }
+            }
+          }
+        },
       },
     });
 
@@ -878,7 +912,32 @@ export class OrderService {
           },
         });
       }
+      if (order.user?.fcmToken) {
+        // Send notification to user
+        await this.emailQueueService.queueOrderStatusNotification({
+          userId: order.userId!,
+          fcmToken: order.user.fcmToken ?? '',
+          orderId: order.id,
+          orderNumber: `ORD-${String(order.id).padStart(6, '0')}`,
+          status: NotificationType.ORDER_UPDATE,
+          title: 'Order Cancelled',
+          message: `Your order ORD-${String(order.id).padStart(6, '0')} has been cancelled.`,
+        });
+      }
+      // Send notification to raider
+      if (order.assign_rider?.user?.fcmToken) {
+        await this.emailQueueService.queueOrderStatusNotification({
+          userId: order.assign_rider_id!,
+          fcmToken: order.assign_rider.user.fcmToken ?? '',
+          orderId: order.id,
+          orderNumber: `ORD-${String(order.id).padStart(6, '0')}`,
+          status: NotificationType.ORDER_UPDATE,
+          title: 'Order Cancelled',
+          message: `Your order ORD-${String(order.id).padStart(6, '0')} has been cancelled.`,
+        });
+      }
 
+      // 
       return {
         message: 'Order cancelled successfully',
         order: cancelledOrder,
@@ -893,7 +952,29 @@ export class OrderService {
   async failStop(stopId: number, reason: string) {
     const stop = await this.prisma.orderStop.findUnique({
       where: { id: stopId },
-      include: { order: true },
+      include: {
+        order: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fcmToken: true
+              }
+            },
+            assign_rider: {
+              select: {
+                id: true,
+                user: {
+                  select: {
+                    id: true,
+                    fcmToken: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
     });
 
     if (!stop) throw new NotFoundException('Stop not found');
@@ -910,7 +991,30 @@ export class OrderService {
         failureReason: reason,
       },
     });
-
+    // Send notification to user
+    if (stop.order.user?.fcmToken) {
+      await this.emailQueueService.queueOrderStatusNotification({
+        userId: stop.order.userId!,
+        fcmToken: stop.order.user.fcmToken ?? '',
+        orderId: stop.order.id,
+        orderNumber: `ORD-${String(stop.order.id).padStart(6, '0')}`,
+        status: NotificationType.ORDER_UPDATE,
+        title: 'Order Failed',
+        message: `Your order ORD-${String(stop.order.id).padStart(6, '0')} has been failed with total cost $${stop.order.total_cost.toFixed(2)}.`,
+      });
+    }
+    // Send notification to raider
+    if (stop.order.assign_rider?.user?.fcmToken) {
+      await this.emailQueueService.queueOrderStatusNotification({
+        userId: stop.order.assign_rider_id!,
+        fcmToken: stop.order.assign_rider.user.fcmToken ?? '',
+        orderId: stop.order.id,
+        orderNumber: `ORD-${String(stop.order.id).padStart(6, '0')}`,
+        status: NotificationType.ORDER_UPDATE,
+        title: 'Order Failed',
+        message: `Your order ORD-${String(stop.order.id).padStart(6, '0')} has been failed with total cost $${stop.order.total_cost.toFixed(2)}.`,
+      });
+    }
     return {
       message: 'Stop marked as FAILED. Order cannot complete until resolved.',
       requiresAdminAction: true,
@@ -924,7 +1028,21 @@ export class OrderService {
    */
   async retryFailedStop(stopId: number) {
     const stop = await this.prisma.orderStop.findUnique({
-      where: { id: stopId },
+      where: {
+        id: stopId,
+      },
+      include: {
+        order: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fcmToken: true
+              }
+            },
+          }
+        }
+      }
     });
 
     if (!stop) throw new NotFoundException('Stop not found');
@@ -941,7 +1059,19 @@ export class OrderService {
         failureReason: null,
       },
     });
-
+    // 
+    // Send notification to user
+    if (stop.order.user?.fcmToken) {
+      await this.emailQueueService.queueOrderStatusNotification({
+        userId: stop.order.userId!,
+        fcmToken: stop.order.user.fcmToken ?? '',
+        orderId: stop.order.id,
+        orderNumber: `ORD-${String(stop.order.id).padStart(6, '0')}`,
+        status: NotificationType.ORDER_UPDATE,
+        title: 'Order retried',
+        message: `Your order ORD-${String(stop.order.id).padStart(6, '0')} has been retried with total cost $${stop.order.total_cost.toFixed(2)}.`,
+      });
+    }
     return {
       message: 'Stop reset to PENDING for retry',
       stopId
@@ -1178,20 +1308,21 @@ export class OrderService {
         })),
       };
     });
-     const exUser = await this.prisma.user.findUnique({
+    const exUser = await this.prisma.user.findUnique({
       where: { id: user.id },
-    }); 
+    });
     // send notification to user
-        await this.emailQueueService.queueOrderStatusNotification({
-          userId: user.id,
-          fcmToken: exUser?.fcmToken ?? '',
-          orderId: result.order.id,
-          orderNumber: `ORD-${String(result.order.id).padStart(6, '0')}`,
-          status: 'order_created',
-          title: 'Order Created Successfully',
-          message: `Your order ORD-${String(result.order.id).padStart(6, '0')} has been created with total cost $${result.order.total_cost.toFixed(2)}.`,
-        });
-        
+    console.log('exUser', exUser, 'is facm token exist-->', exUser?.fcmToken);
+    await this.emailQueueService.queueOrderStatusNotification({
+      userId: user.id,
+      fcmToken: exUser?.fcmToken ?? '',
+      orderId: result.order.id,
+      orderNumber: `ORD-${String(result.order.id).padStart(6, '0')}`,
+      status: NotificationType.ORDER_UPDATE,
+      title: 'Order Created Successfully',
+      message: `Your order ORD-${String(result.order.id).padStart(6, '0')} has been created with total cost $${result.order.total_cost.toFixed(2)}.`,
+    });
+
 
     return result;
   }
