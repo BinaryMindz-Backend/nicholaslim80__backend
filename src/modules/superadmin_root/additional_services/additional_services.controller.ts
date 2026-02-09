@@ -15,13 +15,14 @@ import { UpdateAdditionalServiceDto } from './dto/update-additional_service.dto'
 import { Auth } from 'src/decorators/auth.decorator';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { ServiceEmailNumberDto } from './dto/service-email-number.dto';
 
 
 @ApiTags('Additional Services')
 @ApiBearerAuth()
 @Controller('additional-services')
 export class AdditionalServicesController {
-  constructor(private readonly service: AdditionalServicesService) {}
+  constructor(private readonly service: AdditionalServicesService) { }
 
   @Post()
   @Auth()
@@ -37,6 +38,70 @@ export class AdditionalServicesController {
     }
   }
 
+  // add service email and number
+  @Post('add-service-email-number')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.CREATE)
+  @ApiOperation({ summary: 'Add additional service email and number' })
+  async addServiceEmailNumber(@Body() dto: ServiceEmailNumberDto) {
+    try {
+      const data = await this.service.addServiceEmailNumber(dto);
+      return ApiResponses.success(data, 'Additional service email and number added successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+
+  // get service email and number
+  @Get('service-email-number')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.READ)
+  @ApiOperation({ summary: 'Get additional service email and number' })
+  async getServiceEmailNumber() {
+    try {
+      const data = await this.service.getServiceEmailNumber();
+      return ApiResponses.success(data, 'Additional service email and number fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+
+  // update service email and number
+  @Put('service-email-number')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.UPDATE)
+  @ApiOperation({ summary: 'Update additional service email and number' })
+  async updateServiceEmailNumber(@Body() dto: ServiceEmailNumberDto) {
+    try {
+      const data = await this.service.updateServiceEmailNumber(dto);
+      return ApiResponses.success(data, 'Additional service email and number updated successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+
+
+
+  // delete service email and number
+  @Delete('service-email-number')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.DELETE)
+  @ApiOperation({ summary: 'Delete additional service email and number' })
+  async deleteServiceEmailNumber() {
+    try {
+      const data = await this.service.deleteServiceEmailNumber();
+      return ApiResponses.success(data, 'Additional service email and number deleted successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+
+
+  // 
   @Get()
   @Auth()
   @ApiBearerAuth()

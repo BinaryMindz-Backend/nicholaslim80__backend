@@ -17,7 +17,7 @@ import { CreatePaymentIntentDto, SaveCardDto } from './dto/create-payment-method
 @Controller('wallet')
 export class WalletController {
     constructor(private readonly walletService: WalletService) { }
-    
+
 
 
     // add money for web portal
@@ -28,7 +28,7 @@ export class WalletController {
         @Body() dto: AddMoneyDto,
         @CurrentUser() user: IUser
     ) {
-        const result = await this.walletService.addMoney(+user.id, dto.amount,  dto.currency, dto.paymentMethodId, dto.payType);
+        const result = await this.walletService.addMoney(+user.id, dto.amount, dto.currency, dto.paymentMethodId, dto.payType);
         return ApiResponses.success(result, 'Money added to wallet successfully');
     }
 
@@ -40,10 +40,11 @@ export class WalletController {
         @Body() dto: CreatePaymentIntentDto,
         @CurrentUser() user: IUser
     ) {
+        console.log("dto from--> mobile-->", dto);
         const result = await this.walletService.createIntent(+user.id, dto.amount, dto.currency, dto.orderId, dto.payType, dto.type);
         return ApiResponses.success(result, 'Pay to wallet successfully');
     }
-    
+
     // 
     @Post('create-setup-intent')
     @ApiOperation({ summary: 'Create Stripe SetupIntent to save card' })
@@ -63,16 +64,16 @@ export class WalletController {
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Pay using a saved card' })
     async payWithSavedCard(
-    @Body() dto: PayWithSavedCardDto,
-    @CurrentUser() user: IUser
+        @Body() dto: PayWithSavedCardDto,
+        @CurrentUser() user: IUser
     ) {
-    try {
-        const res = await this.walletService.payWithSavedCard(user.id, dto.amount, dto.paymentMethodId, dto.payType);
-        return ApiResponses.success(res, 'Payment successful');
-    } catch (err) {
-        console.log(err);
-        return ApiResponses.error(err.message || err, 'Payment failed');
-    }
+        try {
+            const res = await this.walletService.payWithSavedCard(user.id, dto.amount, dto.paymentMethodId, dto.payType);
+            return ApiResponses.success(res, 'Payment successful');
+        } catch (err) {
+            console.log(err);
+            return ApiResponses.error(err.message || err, 'Payment failed');
+        }
     }
 
 
@@ -82,7 +83,7 @@ export class WalletController {
     @Get('wallet/cards')
     @Auth()
     async getCards(@CurrentUser() user: IUser) {
-    return this.walletService.getSavedCards(user.id);
+        return this.walletService.getSavedCards(user.id);
     }
 
 
@@ -102,14 +103,14 @@ export class WalletController {
     @ApiOperation({ summary: 'Add money to wallet using Stripe test token' })
     @ApiBody({ type: addMoneyForOrderPriorityDto })
     async addMoneyForOrderPriority(@CurrentUser() user: IUser, @Body() dto: addMoneyForOrderPriorityDto) {
-       try { 
-          const res = await this.walletService.addMoneyForOrderPriority(+user.id, dto.amount, dto.currency);
-          return ApiResponses.success(res, 'Money added to wallet successfully');
+        try {
+            const res = await this.walletService.addMoneyForOrderPriority(+user.id, dto.amount, dto.currency);
+            return ApiResponses.success(res, 'Money added to wallet successfully');
 
-       } catch (error) {
-        console.log(error);
-        return ApiResponses.error(error.message || error, 'Failed to add money to wallet');
-       }
+        } catch (error) {
+            console.log(error);
+            return ApiResponses.error(error.message || error, 'Failed to add money to wallet');
+        }
 
     }
 
@@ -122,8 +123,8 @@ export class WalletController {
             const res = await this.walletService.getAddMoneyForOrderPriority(+user.id);
             return ApiResponses.success(res, 'Data retrieved successfully');
         } catch (error) {
-            console.log(error);           
-           return ApiResponses.error(error.message || error, 'Failed to get data');
+            console.log(error);
+            return ApiResponses.error(error.message || error, 'Failed to get data');
 
         }
     }
@@ -148,7 +149,7 @@ export class WalletController {
     @Delete('wallet/cards/:id')
     @Auth()
     async deleteCard(@Param('id') id: string, @CurrentUser() user: IUser) {
-    return this.walletService.deleteCard(user.id, Number(id));
+        return this.walletService.deleteCard(user.id, Number(id));
     }
 
 
@@ -163,17 +164,17 @@ export class WalletController {
     // 
     @Delete('remove/:id')
     @Auth()
-    @ApiOperation({summary:"Deleted Walllet history"})
-    @ApiParam({name:"id", required:true, type:String, example:1})
-    async remove(@Param("id", new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }))  id: string){
+    @ApiOperation({ summary: "Deleted Walllet history" })
+    @ApiParam({ name: "id", required: true, type: String, example: 1 })
+    async remove(@Param("id", new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE })) id: string) {
         try {
-            await this.walletService.delete(+id) 
-             return ApiResponses.success(null, "wallet history deleted succssfully")
+            await this.walletService.delete(+id)
+            return ApiResponses.success(null, "wallet history deleted succssfully")
         } catch (error) {
             return ApiResponses.error(error, "Feaild to delete")
         }
     }
-   
-    
+
+
 }
 

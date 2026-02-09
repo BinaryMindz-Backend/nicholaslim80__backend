@@ -178,7 +178,7 @@ export class WalletService {
 
   //   return { message: 'Wallet credited successfully', amount };
   // }
-  
+
 
   // 
   async addMoney(
@@ -188,88 +188,88 @@ export class WalletService {
     paymentMethodId?: string,
     payType?: string,
   ) {
-      // Helper map for zero-decimal currencies
+    // Helper map for zero-decimal currencies
     const ZERO_DECIMAL_CURRENCIES = ['jpy', 'krw', 'vnd', 'clp'];
     const lowerCurrency = currency.toLowerCase();
-    
+
     // Calculate Stripe Amount (Handle Zero-Decimal Currencies)
-      let stripeAmount: number;
-      
-      if (ZERO_DECIMAL_CURRENCIES.includes(lowerCurrency)) {
-        stripeAmount = Math.round(amount); // JPY 100 is just 100
-      } else {
-        stripeAmount = Math.round(amount * 100); // USD 10.50 becomes 1050 cents
-      }
-      
-      //  Fetch User and Validate
-      const user = await this.prisma.user.findUnique({ where: { id: userId } });
-      if (!user) throw new NotFoundException('User not found');
-      if (!user.email) throw new BadRequestException('User email not found');
-      // Handle Stripe Customer (Optimized check)
-      let customerId = user.stripeCustomerId;
-      if (!customerId) {
-        const customer = await this.stripe.customers.create({
-          email: user.email,
-          name: user.username ?? undefined,
-        });
-        customerId = customer.id;
-        await this.prisma.user.update({
-          where: { id: userId },
-          data: { stripeCustomerId: customerId },
-        });
-      }
+    let stripeAmount: number;
 
-      // Resolve Payment Method
-      if (!paymentMethodId) {
-        const defaultMethod = await this.prisma.paymentMethod.findFirst({
-          where: { userId, isDefault: true },
-        });
-        if (!defaultMethod) throw new BadRequestException('No saved payment method found');
-        paymentMethodId = defaultMethod.stripeMethodId;
-      }
-      
+    if (ZERO_DECIMAL_CURRENCIES.includes(lowerCurrency)) {
+      stripeAmount = Math.round(amount); // JPY 100 is just 100
+    } else {
+      stripeAmount = Math.round(amount * 100); // USD 10.50 becomes 1050 cents
+    }
 
-      // 2. Create Payment Intent with Dynamic Currency
-      const paymentIntent = await this.stripe.paymentIntents.create({
-        amount: stripeAmount,
-        currency: lowerCurrency, // Dynamic here
-        customer: customerId,
-        payment_method: paymentMethodId,
-        off_session: true,
-        confirm: true,
-        metadata: {
-          userId: userId.toString(),
-          type: payType || PaymentType.ADD_MONEY,
-          amount: amount.toString(),
-          currency: lowerCurrency, // Store currency in metadata for Webhook
-        },
-        automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+    //  Fetch User and Validate
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.email) throw new BadRequestException('User email not found');
+    // Handle Stripe Customer (Optimized check)
+    let customerId = user.stripeCustomerId;
+    if (!customerId) {
+      const customer = await this.stripe.customers.create({
+        email: user.email,
+        name: user.username ?? undefined,
       });
+      customerId = customer.id;
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { stripeCustomerId: customerId },
+      });
+    }
+
+    // Resolve Payment Method
+    if (!paymentMethodId) {
+      const defaultMethod = await this.prisma.paymentMethod.findFirst({
+        where: { userId, isDefault: true },
+      });
+      if (!defaultMethod) throw new BadRequestException('No saved payment method found');
+      paymentMethodId = defaultMethod.stripeMethodId;
+    }
+
+
+    // 2. Create Payment Intent with Dynamic Currency
+    const paymentIntent = await this.stripe.paymentIntents.create({
+      amount: stripeAmount,
+      currency: lowerCurrency, // Dynamic here
+      customer: customerId,
+      payment_method: paymentMethodId,
+      off_session: true,
+      confirm: true,
+      metadata: {
+        userId: userId.toString(),
+        type: payType || PaymentType.ADD_MONEY,
+        amount: amount.toString(),
+        currency: lowerCurrency, // Store currency in metadata for Webhook
+      },
+      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+    });
     // ... (Transaction logic) ...
     if (payType === PaymentType.ADD_MONEY) {
       await this.prisma.walletHistory.create({
-          data: {
-            userId,
-            type: 'credit',
-            amount,
-            currency: lowerCurrency, // Save to DB
-            status: 'SUCCESS',
-            transactionType: WalletTransactionType.PAYMENT,
-            transactionId: paymentIntent.id,
-          },
-        });
-        
-        // NOTE: Updating User Balance with different currencies is tricky.
-        // Usually, a wallet has a "Base Currency" (e.g., USD).
-        // If the user pays in EUR, you might need to convert it before adding to balance.
-        // For now, we assume 1 unit = 1 unit (Risky if mixing currencies!)
-        await this.prisma.user.update({
-          where: { id: userId },
-          data: {
-            totalWalletBalance: { increment: amount },
-            currentWalletBalance: { increment: amount },
-          },
-        });
+        data: {
+          userId,
+          type: 'credit',
+          amount,
+          currency: lowerCurrency, // Save to DB
+          status: 'SUCCESS',
+          transactionType: WalletTransactionType.PAYMENT,
+          transactionId: paymentIntent.id,
+        },
+      });
+
+      // NOTE: Updating User Balance with different currencies is tricky.
+      // Usually, a wallet has a "Base Currency" (e.g., USD).
+      // If the user pays in EUR, you might need to convert it before adding to balance.
+      // For now, we assume 1 unit = 1 unit (Risky if mixing currencies!)
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          totalWalletBalance: { increment: amount },
+          currentWalletBalance: { increment: amount },
+        },
+      });
     }
 
     return { message: 'Success', currency: lowerCurrency, amount };
@@ -278,23 +278,23 @@ export class WalletService {
   // ---------- Add Money Mobile ----------
 
   // Create the Intent (Called by Flutter)
-  async createIntent(userId: number, amount: number, currency = 'sgd', orderId?:number, payType?:string, type?:string) {
+  async createIntent(userId: number, amount: number, currency = 'sgd', orderId?: number, payType?: string, type?: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new BadRequestException('User not found');
 
     // Convert SGD to cents: $10.50 \times 100 = 1050$
     const stripeAmount = Math.round(amount * 100);
-
+    //  
     const intent = await this.stripe.paymentIntents.create({
       amount: stripeAmount,
       currency: currency,
-      metadata: { 
-         userId: userId.toString(),
-         amount: amount.toString(), 
-         orderId:orderId?.toString() ?? "", 
-         payType:payType ?? null,
-         type:type ?? null
-        },
+      metadata: {
+        userId: userId.toString(),
+        amount: amount.toString(),
+        orderId: orderId?.toString() ?? "",
+        payType: payType ?? null,
+        type: type ?? null
+      },
       automatic_payment_methods: { enabled: true },
     });
 
@@ -303,90 +303,90 @@ export class WalletService {
 
 
   // payment status update by webhoo
-  async handleWebhook(rawBody:Buffer, signature: string) {
-  console.log("=== WEBHOOK HANDLER DEBUG ===");
-  console.log("1. Signature:", signature?.substring(0, 20) + '...');
-  console.log("2. Raw Body Type:", typeof rawBody);
-  console.log("3. Raw Body is Buffer?", Buffer.isBuffer(rawBody));
-  console.log("4. Raw Body length:", rawBody?.length || 0);
-  console.log("5. Webhook Secret exists?", !!process.env.STRIPE_WEBHOOK_SECRET);
-  
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    throw new BadRequestException('STRIPE_WEBHOOK_SECRET not configured in environment');
-  }
+  async handleWebhook(rawBody: Buffer, signature: string) {
+    console.log("=== WEBHOOK HANDLER DEBUG ===");
+    console.log("1. Signature:", signature?.substring(0, 20) + '...');
+    console.log("2. Raw Body Type:", typeof rawBody);
+    console.log("3. Raw Body is Buffer?", Buffer.isBuffer(rawBody));
+    console.log("4. Raw Body length:", rawBody?.length || 0);
+    console.log("5. Webhook Secret exists?", !!process.env.STRIPE_WEBHOOK_SECRET);
 
-  let event: Stripe.Event;
-
-  try {
-    // Stripe's constructEvent expects a Buffer or string
-    // When using express.raw(), request.body is already a Buffer
-    console.log("6. Constructing event with Stripe...");
-    
-    event = this.stripe.webhooks.constructEvent(
-      rawBody,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET,
-    );
-
-    console.log("7. ✅ Event constructed successfully!");
-    console.log("8. Event Type:", event.type);
-    console.log("9. Event ID:", event.id);
-  } catch (err) {
-    console.error("❌ Webhook Signature Verification Failed!");
-    console.error("Error Type:", err.type);
-    console.error("Error Message:", err.message);
-    console.error("Error Details:", err);
-    
-    // Log additional debug info
-    console.error("Debug Info:");
-    console.error("- Signature length:", signature?.length);
-    console.error("- Body length:", rawBody?.length);
-    console.error("- Secret length:", process.env.STRIPE_WEBHOOK_SECRET?.length);
-    
-    throw new BadRequestException(`Webhook Signature Error: ${err.message}`);
-  }
-
-  console.log("=== PROCESSING EVENT ===");
-  console.log("Event Type:", event.type);
-
-  // Handle the event
-  switch (event.type) {
-    case 'payment_intent.succeeded': {
-      console.log("💰 Processing successful payment...");
-      const intent = event.data.object as Stripe.PaymentIntent;
-      
-      console.log("Payment Details:");
-      console.log("- ID:", intent.id);
-      console.log("- Amount:", intent.amount / 100, intent.currency.toUpperCase());
-      console.log("- Status:", intent.status);
-      console.log("- Metadata:", JSON.stringify(intent.metadata, null, 2));
-      // Call fulfillment logic
-      try {
-        await this.fulfillPayment(intent);
-        console.log("✅ Payment fulfilled successfully!");
-      } catch (error) {
-        console.error("❌ Error fulfilling payment:", error);
-        throw error;
-      }
-      break;
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      throw new BadRequestException('STRIPE_WEBHOOK_SECRET not configured in environment');
     }
 
-    case 'payment_intent.payment_failed': {
-      console.log('❌ Payment failed:', event.data.object.id);
-      const intent = event.data.object as Stripe.PaymentIntent;
-      console.log("Failed payment details:", {
-        id: intent.id,
-        amount: intent.amount / 100,
-        currency: intent.currency,
-        last_payment_error: intent.last_payment_error,
-      });
-      if(intent.last_payment_error) {
-        console.error("Payment error details:", intent.last_payment_error);
-         const userId = parseInt(intent.metadata.userId);
-         const paymentType = intent.metadata.type as PaymentType;
-         const orderId = parseInt(intent.metadata.orderId) || 0;
-           //add wallet history for failed payment
-          if (paymentType === PaymentType.ADD_MONEY) {  
+    let event: Stripe.Event;
+
+    try {
+      // Stripe's constructEvent expects a Buffer or string
+      // When using express.raw(), request.body is already a Buffer
+      console.log("6. Constructing event with Stripe...");
+
+      event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        process.env.STRIPE_WEBHOOK_SECRET,
+      );
+
+      console.log("7. ✅ Event constructed successfully!");
+      console.log("8. Event Type:", event.type);
+      console.log("9. Event ID:", event.id);
+    } catch (err) {
+      console.error("❌ Webhook Signature Verification Failed!");
+      console.error("Error Type:", err.type);
+      console.error("Error Message:", err.message);
+      console.error("Error Details:", err);
+
+      // Log additional debug info
+      console.error("Debug Info:");
+      console.error("- Signature length:", signature?.length);
+      console.error("- Body length:", rawBody?.length);
+      console.error("- Secret length:", process.env.STRIPE_WEBHOOK_SECRET?.length);
+
+      throw new BadRequestException(`Webhook Signature Error: ${err.message}`);
+    }
+
+    console.log("=== PROCESSING EVENT ===");
+    console.log("Event Type:", event.type);
+
+    // Handle the event
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        console.log("💰 Processing successful payment...");
+        const intent = event.data.object as Stripe.PaymentIntent;
+
+        console.log("Payment Details:");
+        console.log("- ID:", intent.id);
+        console.log("- Amount:", intent.amount / 100, intent.currency.toUpperCase());
+        console.log("- Status:", intent.status);
+        console.log("- Metadata:", JSON.stringify(intent.metadata, null, 2));
+        // Call fulfillment logic
+        try {
+          await this.fulfillPayment(intent);
+          console.log("✅ Payment fulfilled successfully!");
+        } catch (error) {
+          console.error("❌ Error fulfilling payment:", error);
+          throw error;
+        }
+        break;
+      }
+
+      case 'payment_intent.payment_failed': {
+        console.log('❌ Payment failed:', event.data.object.id);
+        const intent = event.data.object as Stripe.PaymentIntent;
+        console.log("Failed payment details:", {
+          id: intent.id,
+          amount: intent.amount / 100,
+          currency: intent.currency,
+          last_payment_error: intent.last_payment_error,
+        });
+        if (intent.last_payment_error) {
+          console.error("Payment error details:", intent.last_payment_error);
+          const userId = parseInt(intent.metadata.userId);
+          const paymentType = intent.metadata.type as PaymentType;
+          const orderId = parseInt(intent.metadata.orderId) || 0;
+          //add wallet history for failed payment
+          if (paymentType === PaymentType.ADD_MONEY) {
             const r = await this.prisma.walletHistory.findFirst({
               where: { transactionId: `TX-${intent.id}` },
             });
@@ -421,7 +421,7 @@ export class WalletService {
           }
 
 
-            // 
+          // 
           else if (paymentType === PaymentType.PAYMENT) {
             const r = await this.prisma.transaction.findFirst({
               where: { transaction_code: `TX-${intent.id}` },
@@ -431,7 +431,7 @@ export class WalletService {
             }
             // Record failed transaction in DB
             await this.prisma.transaction.create({
-              data:{
+              data: {
                 userId,
                 orderId: orderId,
                 payment_method_id: null,
@@ -458,20 +458,20 @@ export class WalletService {
               body: `Your order payment of ${intent.amount / 100} ${intent.currency.toUpperCase()} failed. Please try again.`,
             });
           }
+        }
+        break;
       }
-      break;
-    }
 
-    case 'payment_intent.created': {
-      console.log('📝 Payment intent created:', event.data.object.id);
-      // You can add additional logging or processing here if needed
-      console.log('💵 Payment intent amount capturable updated:', event.data.object.id);
-      const intent = event.data.object as Stripe.PaymentIntent;
-      const userId = parseInt(intent.metadata.userId);  
-      const orderId = parseInt(intent.metadata.orderId);
-      //  
-      if (!orderId) return;
-          if(intent.metadata.type === PaymentType.PAYMENT){
+      case 'payment_intent.created': {
+        console.log('📝 Payment intent created:', event.data.object.id);
+        // You can add additional logging or processing here if needed
+        console.log('💵 Payment intent amount capturable updated:', event.data.object.id);
+        const intent = event.data.object as Stripe.PaymentIntent;
+        const userId = parseInt(intent.metadata.userId);
+        const orderId = parseInt(intent.metadata.orderId);
+        //  
+        if (!orderId) return;
+        if (intent.metadata.type === PaymentType.PAYMENT) {
           // Fetch order details first
           const order = await this.prisma.order.findUnique({
             where: { id: orderId },
@@ -479,263 +479,264 @@ export class WalletService {
           if (!order) return;
           // Record successful transaction in DB
           await this.prisma.transaction.create({
-              data:{
-                userId,
-                orderId: orderId,
-                total_fee: order.total_cost,
-                redeemed_coin: order.coinsRedeemed,
-                additional_fee:order.additional_cost,
-                delivery_fee: order.total_fee,
-                payment_status: PaymentStatus.UNPAID,
-                type: TransactionType.BOOK_ORDER,
-                pay_type: intent.metadata.payType,
-                tx_status: TransactionStatus.PENDING,
-                transaction_code: `TX-${intent.id}`,
-              }
-            })
-            
-             break;
+            data: {
+              userId,
+              orderId: orderId,
+              total_fee: order.total_cost,
+              redeemed_coin: order.coinsRedeemed,
+              additional_fee: order.additional_cost,
+              delivery_fee: order.total_fee,
+              payment_status: PaymentStatus.UNPAID,
+              type: TransactionType.BOOK_ORDER,
+              pay_type: intent.metadata.payType,
+              tx_status: TransactionStatus.PENDING,
+              transaction_code: `TX-${intent.id}`,
+            }
+          })
 
-          }
+          break;
 
-      break;
+        }
+
+        break;
+      }
+      default:
+        console.log(`⚠️ Unhandled event type: ${event.type}`);
+        break;
     }
-    default:
-      console.log(`⚠️ Unhandled event type: ${event.type}`);
-      break;
-    }
 
-  console.log("=== WEBHOOK PROCESSING COMPLETE ===");
-  
-  // Return a response to acknowledge receipt of the event
-  return { received: true };
-}
+    console.log("=== WEBHOOK PROCESSING COMPLETE ===");
+
+    // Return a response to acknowledge receipt of the event
+    return { received: true };
+  }
 
 
   // private methods for webhook handling
   private async fulfillPayment(intent: Stripe.PaymentIntent) {
-      const userId = parseInt(intent.metadata.userId);
-      const paymentType = intent.metadata.type as PaymentType;
+    const userId = parseInt(intent.metadata.userId);
+    const paymentType = intent.metadata.type as PaymentType;
+    console.log("fulfillPayment", paymentType, intent);
 
 
-      if (!userId) return;
-      // 
-      switch (paymentType) {
-         case PaymentType.ADD_MONEY:
-            await this.addMoneUpdateByWebHook(intent);
-            break;
-         case PaymentType.PAYMENT:   
-            await this.processOrderPayment(intent);
-           break;
-           
-          default:
-            console.log("Unhandled payment type", paymentType);
-     }
+    if (!userId) return;
+    // 
+    switch (paymentType) {
+      case PaymentType.ADD_MONEY:
+        await this.addMoneUpdateByWebHook(intent);
+        break;
+      case PaymentType.PAYMENT:
+        await this.processOrderPayment(intent);
+        break;
+
+      default:
+        console.log("Unhandled payment type", paymentType);
+    }
   }
 
   //  add money by webhook
-   private async addMoneUpdateByWebHook(intent: Stripe.PaymentIntent) {
-        const amount = parseFloat(intent.metadata.amount);
-        const userId = parseInt(intent.metadata.userId);
+  private async addMoneUpdateByWebHook(intent: Stripe.PaymentIntent) {
+    const amount = parseFloat(intent.metadata.amount);
+    const userId = parseInt(intent.metadata.userId);
 
-          const user = await this.prisma.user.findUnique({ where: { id: userId } });
-          if (!user) throw new NotFoundException('User not found');
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
 
-        // ADD_MONEY: Credit user's wallet
-        await this.prisma.$transaction(async (tx) => {
-          // 1. Idempotency Check: Prevent duplicate processing
-          const existing = await tx.walletHistory.findUnique({
-            where: { transactionId: `TX-${intent.id}` },
-          });
-          if (existing) return;
+    // ADD_MONEY: Credit user's wallet
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Idempotency Check: Prevent duplicate processing
+      const existing = await tx.walletHistory.findUnique({
+        where: { transactionId: `TX-${intent.id}` },
+      });
+      if (existing) return;
 
-          // 2. Log History
-          await tx.walletHistory.create({
-            data: {
-              userId,
-              amount,
-              transactionId: `TX-${intent.id}`,
-              transactionType: WalletTransactionType.PAYMENT,
-              status: WalletTransactionStatus.SUCCESS,
-              type: 'credit',
-            },
-          });
+      // 2. Log History
+      await tx.walletHistory.create({
+        data: {
+          userId,
+          amount,
+          transactionId: `TX-${intent.id}`,
+          transactionType: WalletTransactionType.PAYMENT,
+          status: WalletTransactionStatus.SUCCESS,
+          type: 'credit',
+        },
+      });
 
-          // 3. Update Balance
-         const updatedUser = await tx.user.update({
-            where: { id: userId },
-            data: {
-              totalWalletBalance: { increment: amount },
-              currentWalletBalance: { increment: amount },
-            },
-          });
-          // 4. Notify User
-            if(updatedUser){
-              await this.userGateway.notifyAddMoney(
-                userId,
-                `Your wallet has been credited with ${amount} ${intent.metadata.currency.toUpperCase()} successfully!`
-              );
-            // notify user by push notification
-            await this.emailQueueService.queuePushNotification({
-              userId,
-              fcmToken: user?.fcmToken || '',
-              title: "Add Money Successful",
-              body: `Your add money of ${intent.amount / 100} ${intent.currency.toUpperCase()} was successful.`,
-            });
-            }
+      // 3. Update Balance
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          totalWalletBalance: { increment: amount },
+          currentWalletBalance: { increment: amount },
+        },
+      });
+      // 4. Notify User
+      if (updatedUser) {
+        await this.userGateway.notifyAddMoney(
+          userId,
+          `Your wallet has been credited with ${amount} ${intent.metadata.currency.toUpperCase()} successfully!`
+        );
+        // notify user by push notification
+        await this.emailQueueService.queuePushNotification({
+          userId,
+          fcmToken: user?.fcmToken || '',
+          title: "Add Money Successful",
+          body: `Your add money of ${intent.amount / 100} ${intent.currency.toUpperCase()} was successful.`,
         });
-         
-        return;
-    }
+      }
+    });
+
+    return;
+  }
   //  porocess order payment by webhook
-   private async processOrderPayment(intent: Stripe.PaymentIntent) {
-        const payType = intent.metadata.payType as PayType;
-        const userId = parseInt(intent.metadata.userId);  
-        const orderId = parseInt(intent.metadata.orderId);
-        //  
-        if (!orderId) return;
-            // Fetch order details first
-            const order = await this.prisma.order.findUnique({
-              where: { id: orderId },
-              include: {
-                user:{
-                  select:{
-                     id:true,
-                    fcmToken:true
-                  }
-                },
-                vehicle:{
-                    select:{
-                        vehicle_type:true,
-                        id:true
-                    }
-                },
-                orderStops: {
-                  include: {
-                    destination: true,
-                    payment: true,
-                  },
-                  orderBy: { sequence: 'asc' },
-                },
+  private async processOrderPayment(intent: Stripe.PaymentIntent) {
+    const payType = intent.metadata.payType as PayType;
+    const userId = parseInt(intent.metadata.userId);
+    const orderId = parseInt(intent.metadata.orderId);
+    //  
+    if (!orderId) return;
+    // Fetch order details first
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fcmToken: true
+          }
+        },
+        vehicle: {
+          select: {
+            vehicle_type: true,
+            id: true
+          }
+        },
+        orderStops: {
+          include: {
+            destination: true,
+            payment: true,
+          },
+          orderBy: { sequence: 'asc' },
+        },
+      },
+    });
+
+    if (!order) return;
+
+    // Process order placement
+    const placeRes = await this.prisma.$transaction(async (tx) => {
+      /** ----------------------- UPFRONT PAYMENT ----------------------- */
+      if (payType === PayType.ONLINE_PAY) {
+        await tx.stopPayment.updateMany({
+          where: { orderStopId: { in: order.orderStops.map((s) => s.id) } },
+          data: {
+            payType: PayType.ONLINE_PAY,
+            status: PaymentStatus.PAID,
+            amount: 0,
+          },
+        });
+      }
+
+      /** ----------------------- UPDATE ORDER ----------------------- */
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          order_status: OrderStatus.PENDING,
+          is_placed: true,
+          pay_type: payType,
+        },
+        include: {
+          orderStops: {
+            include: {
+              destination: true,
+              payment: true,
+            },
+            orderBy: { sequence: 'asc' },
+          },
+        },
+      });
+
+      /** ----------------------- NOTIFY FAVORITE RAIDERS ----------------------- */
+      if (order.notify_favorite_raider === true) {
+        const favRaiders = await tx.myRaider.findMany({
+          where: {
+            user_id: userId,
+            is_fav: true,
+          },
+          select: {
+            raiderId: true,
+            user_id: true,
+            is_fav: true,
+            user: {
+              select: {
+                username: true,
+                id: true,
+                email: true,
               },
-            });
+            },
+          },
+        });
 
-            if (!order) return;
-
-            // Process order placement
-            const placeRes = await this.prisma.$transaction(async (tx) => {
-              /** ----------------------- UPFRONT PAYMENT ----------------------- */
-              if (payType === PayType.ONLINE_PAY) {
-                await tx.stopPayment.updateMany({
-                  where: { orderStopId: { in: order.orderStops.map((s) => s.id) } },
-                  data: {
-                    payType: PayType.ONLINE_PAY,
-                    status: PaymentStatus.PAID,
-                    amount: 0,
-                  },
-                });
+        // Send notification to favorite raiders
+        if (favRaiders.length > 0) {
+          for (const rider of favRaiders) {
+            await this.raiderGateway.notifyUserFavRaider(
+              rider.raiderId,
+              orderId,
+              rider.user.username!,
+              {
+                orderId: order.id,
+                totalOrderCost: String(order.total_cost),
+                totalFee: String(order.total_fee),
+                vehicleType: order.vehicle!,
+                deliveryType: order.delivery_type,
+                orderStop: order.orderStops,
               }
+            );
+          }
+        }
+      }
 
-              /** ----------------------- UPDATE ORDER ----------------------- */
-              const updatedOrder = await tx.order.update({
-                where: { id: orderId },
-                data: {
-                  order_status: OrderStatus.PENDING,
-                  is_placed: true,
-                  pay_type: payType,
-                },
-                include: {
-                  orderStops: {
-                    include: {
-                      destination: true,
-                      payment: true,
-                    },
-                    orderBy: { sequence: 'asc' },
-                  },
-                },
-              });
+      // 4. Notify User
+      if (updatedOrder) {
+        // create transaction record
+        await this.prisma.transaction.create({
+          data: {
+            userId,
+            orderId: orderId,
+            total_fee: order.total_cost,
+            redeemed_coin: order.coinsRedeemed,
+            additional_fee: order.additional_cost,
+            delivery_fee: order.total_fee,
+            payment_status: PaymentStatus.PAID,
+            type: TransactionType.BOOK_ORDER,
+            pay_type: intent.metadata.payType,
+            tx_status: TransactionStatus.COMPLETED,
+            transaction_code: `TX-${intent.id}`,
+          }
+        })
 
-              /** ----------------------- NOTIFY FAVORITE RAIDERS ----------------------- */
-              if (order.notify_favorite_raider === true) {
-                const favRaiders = await tx.myRaider.findMany({
-                  where: {
-                    user_id: userId,
-                    is_fav: true,
-                  },
-                  select: {
-                    raiderId: true,
-                    user_id: true,
-                    is_fav: true,
-                    user: {
-                      select: {
-                        username: true,
-                        id: true,
-                        email: true,
-                      },
-                    },
-                  },
-                });
+        // notify user about successful payment 
+        await this.userGateway.notifyPaymentSuccess(
+          userId,
+          orderId,
+          `Your order #${orderId} has been placed for ${intent.amount / 100} ${intent.metadata.currency.toUpperCase()} successfully!`
+        );
 
-                // Send notification to favorite raiders
-                if (favRaiders.length > 0) {
-                  for (const rider of favRaiders) {
-                    await this.raiderGateway.notifyUserFavRaider(
-                      rider.raiderId,
-                      orderId,
-                      rider.user.username!,
-                      {
-                        orderId: order.id,
-                        totalOrderCost: String(order.total_cost),
-                        totalFee: String(order.total_fee),
-                        vehicleType: order.vehicle!,
-                        deliveryType: order.delivery_type,
-                        orderStop: order.orderStops,
-                      }
-                    );
-                  }
-                }
-              }
+        // notify user by push notification
+        await this.emailQueueService.queuePushNotification({
+          userId,
+          fcmToken: order.user?.fcmToken || '',
+          title: "Order Placed Successfully",
+          body: `Your order #${orderId} of ${intent.amount / 100} ${intent.currency.toUpperCase()} was placed successfully.`,
+        });
+      }
 
-              // 4. Notify User
-              if(updatedOrder){
-                // create transaction record
-                 await this.prisma.transaction.create({
-                      data:{
-                        userId,
-                        orderId: orderId,
-                        total_fee: order.total_cost,
-                        redeemed_coin: order.coinsRedeemed,
-                        additional_fee:order.additional_cost,
-                        delivery_fee: order.total_fee,
-                        payment_status: PaymentStatus.PAID,
-                        type: TransactionType.BOOK_ORDER,
-                        pay_type: intent.metadata.payType,
-                        tx_status: TransactionStatus.COMPLETED,
-                        transaction_code: `TX-${intent.id}`,
-                      }
-                    })
-
-                // notify user about successful payment 
-                await this.userGateway.notifyPaymentSuccess(
-                  userId,
-                  orderId,
-                  `Your order #${orderId} has been placed for ${intent.amount / 100} ${intent.metadata.currency.toUpperCase()} successfully!`
-                );
-
-              // notify user by push notification
-              await this.emailQueueService.queuePushNotification({
-                userId,
-                fcmToken: order.user?.fcmToken || '',
-                title: "Order Placed Successfully",
-                body: `Your order #${orderId} of ${intent.amount / 100} ${intent.currency.toUpperCase()} was placed successfully.`,
-              });
-              }            
- 
-              return updatedOrder;
-            });
-            //  console.log(placeRes);
-            return placeRes;
-    }
+      return updatedOrder;
+    });
+    //  console.log(placeRes);
+    return placeRes;
+  }
 
 
   //  save card info
@@ -890,16 +891,16 @@ export class WalletService {
   // add money for order priority
   async addMoneyForOrderPriority(userId: number, amount: number, currency: string = 'sgd') {
     const result = await this.prisma.addMoneyForOrderPriority.create({
-      data:{
-         userId, amount, currency
+      data: {
+        userId, amount, currency
       }
     });
-    if(!result){
+    if (!result) {
       throw new BadRequestException('Failed to add money for order priority');
-    } 
+    }
     // 
     return result;
-  }    
+  }
   // 
   async getAddMoneyForOrderPriority(userId: number) {
     const record = await this.prisma.addMoneyForOrderPriority.findMany({
@@ -929,7 +930,7 @@ export class WalletService {
     // Transfer from your platform (admin) to user's Stripe connected account
     await this.stripe.transfers.create({
       amount: Math.round(amount * 100), // cents
-      currency:currency,
+      currency: currency,
       destination: user.stripeAccountId,
       metadata: { userId: userId.toString() },
     });
