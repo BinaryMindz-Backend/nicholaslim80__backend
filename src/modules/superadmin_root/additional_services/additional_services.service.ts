@@ -3,10 +3,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateAdditionalServiceDto } from './dto/create-additional_service.dto';
 import { UpdateAdditionalServiceDto } from './dto/update-additional_service.dto';
+import { ServiceEmailNumberDto } from './dto/service-email-number.dto';
 
 @Injectable()
 export class AdditionalServicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(dto: CreateAdditionalServiceDto) {
     return await this.prisma.additionalServices.create({ data: dto });
@@ -36,4 +37,26 @@ export class AdditionalServicesService {
     await this.findOne(id);
     return this.prisma.additionalServices.delete({ where: { id } });
   }
+
+
+  // service email and number
+  async addServiceEmailNumber(dto: ServiceEmailNumberDto) {
+    return this.prisma.serviceConfig.create({ data: dto });
+  }
+
+  async getServiceEmailNumber() {
+    return this.prisma.serviceConfig.findUnique({ where: { id: 1 } });
+  }
+
+  async updateServiceEmailNumber(dto: ServiceEmailNumberDto) {
+    return this.prisma.serviceConfig.update({
+      where: { id: 1 },
+      data: dto,
+    });
+  }
+
+  async deleteServiceEmailNumber() {
+    return this.prisma.serviceConfig.delete({ where: { id: 1 } });
+  }
+
 }
