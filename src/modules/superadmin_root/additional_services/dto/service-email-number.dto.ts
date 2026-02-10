@@ -9,8 +9,8 @@ export class ServiceEmailNumberDto {
     service_email: string;
 
     @ApiProperty({ example: 99.99 })
-    @IsNumber()
+    @IsString()
     @IsNotEmpty()
-    service_number: number;
+    service_number: string;
 
 }

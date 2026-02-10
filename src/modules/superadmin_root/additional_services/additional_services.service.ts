@@ -9,6 +9,13 @@ import { ServiceEmailNumberDto } from './dto/service-email-number.dto';
 export class AdditionalServicesService {
   constructor(private readonly prisma: PrismaService) { }
 
+  // 
+  async onModuleInit() {
+    // Seed default configs if they don't exist
+    await this.prisma.serviceConfig.create({ data: { service_email: 'support@nicholaslim80.com', service_number: '1234567890' } });
+  }
+
+  // 
   async create(dto: CreateAdditionalServiceDto) {
     return await this.prisma.additionalServices.create({ data: dto });
   }
@@ -39,18 +46,15 @@ export class AdditionalServicesService {
   }
 
 
-  // service email and number
-  async addServiceEmailNumber(dto: ServiceEmailNumberDto) {
-    return this.prisma.serviceConfig.create({ data: dto });
-  }
 
+  // service email and number
   async getServiceEmailNumber() {
     return this.prisma.serviceConfig.findUnique({ where: { id: 1 } });
   }
 
-  async updateServiceEmailNumber(dto: ServiceEmailNumberDto) {
+  async updateServiceEmailNumber(id: number, dto: ServiceEmailNumberDto) {
     return this.prisma.serviceConfig.update({
-      where: { id: 1 },
+      where: { id: id },
       data: dto,
     });
   }

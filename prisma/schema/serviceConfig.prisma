@@ -1,5 +1,5 @@
 model ServiceConfig {
     id Int @id @default(autoincrement())
     service_email String
-    service_number Int
+    service_number String
 }
