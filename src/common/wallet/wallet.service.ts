@@ -357,7 +357,7 @@ export class WalletService {
 
         console.log("Payment Details:");
         console.log("- ID:", intent.id);
-        console.log("- Amount:", intent.amount / 100, intent.currency.toUpperCase());
+        console.log("- Amount:", intent.amount / 100, intent?.currency?.toUpperCase());
         console.log("- Status:", intent.status);
         console.log("- Metadata:", JSON.stringify(intent.metadata, null, 2));
         // Call fulfillment logic
@@ -376,8 +376,8 @@ export class WalletService {
         const intent = event.data.object as Stripe.PaymentIntent;
         console.log("Failed payment details:", {
           id: intent.id,
-          amount: intent.amount / 100,
-          currency: intent.currency,
+          amount: Number(intent.metadata.amount) / 100,
+          currency: intent.metadata.currency,
           last_payment_error: intent.last_payment_error,
         });
         if (intent.last_payment_error) {
@@ -408,7 +408,7 @@ export class WalletService {
             // notify user about failed payment
             await this.userGateway.notifyAddMoneyFailed(
               userId,
-              `Your add money of ${intent.amount / 100} ${intent.currency.toUpperCase()} failed. Please try again.`
+              `Your add money of ${Number(intent.metadata.amount) / 100} ${intent.metadata?.currency?.toUpperCase()} failed. Please try again.`
             );
             const user = await this.prisma.user.findUnique({ where: { id: userId } });
             // notify user by push notification
@@ -416,7 +416,7 @@ export class WalletService {
               userId,
               fcmToken: user?.fcmToken || '',
               title: "Add Money Failed",
-              body: `Your add money of ${intent.amount / 100} ${intent.currency.toUpperCase()} failed. Please try again.`,
+              body: `Your add money of ${Number(intent.metadata.amount) / 100} ${intent.metadata?.currency?.toUpperCase()} failed. Please try again.`,
             });
           }
 
@@ -446,7 +446,7 @@ export class WalletService {
             await this.userGateway.notifyPaymentFailed(
               userId,
               orderId,
-              `Your payment of ${intent.amount / 100} ${intent.currency.toUpperCase()} failed. Please try again.`
+              `Your payment of ${Number(intent.metadata.amount) / 100} ${intent.metadata?.currency?.toUpperCase()} failed. Please try again.`
             );
             // 
             const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -455,7 +455,7 @@ export class WalletService {
               userId,
               fcmToken: user?.fcmToken || '',
               title: "Order Payment Failed",
-              body: `Your order payment of ${intent.amount / 100} ${intent.currency.toUpperCase()} failed. Please try again.`,
+              body: `Your order payment of ${Number(intent.metadata?.amount) / 100} ${intent.metadata?.currency?.toUpperCase()} failed. Please try again.`,
             });
           }
         }
@@ -516,9 +516,7 @@ export class WalletService {
   private async fulfillPayment(intent: Stripe.PaymentIntent) {
     const userId = parseInt(intent.metadata.userId);
     const paymentType = intent.metadata.type as PaymentType;
-    console.log("fulfillPayment", paymentType, intent);
-
-
+    // 
     if (!userId) return;
     // 
     switch (paymentType) {
@@ -541,9 +539,17 @@ export class WalletService {
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
-
     // ADD_MONEY: Credit user's wallet
     await this.prisma.$transaction(async (tx) => {
+      // 3. Update Balance
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          totalWalletBalance: { increment: amount },
+          currentWalletBalance: { increment: amount },
+        },
+      });
+
       // 1. Idempotency Check: Prevent duplicate processing
       const existing = await tx.walletHistory.findUnique({
         where: { transactionId: `TX-${intent.id}` },
@@ -561,27 +567,18 @@ export class WalletService {
           type: 'credit',
         },
       });
-
-      // 3. Update Balance
-      const updatedUser = await tx.user.update({
-        where: { id: userId },
-        data: {
-          totalWalletBalance: { increment: amount },
-          currentWalletBalance: { increment: amount },
-        },
-      });
       // 4. Notify User
       if (updatedUser) {
         await this.userGateway.notifyAddMoney(
           userId,
-          `Your wallet has been credited with ${amount} ${intent.metadata.currency.toUpperCase()} successfully!`
+          `Your wallet has been credited with ${amount} ${intent.metadata.currency?.toUpperCase()} successfully!`
         );
         // notify user by push notification
         await this.emailQueueService.queuePushNotification({
           userId,
           fcmToken: user?.fcmToken || '',
           title: "Add Money Successful",
-          body: `Your add money of ${intent.amount / 100} ${intent.currency.toUpperCase()} was successful.`,
+          body: `Your add money of ${amount} ${intent.metadata.currency?.toUpperCase()} was successful.`,
         });
       }
     });
@@ -720,7 +717,7 @@ export class WalletService {
         await this.userGateway.notifyPaymentSuccess(
           userId,
           orderId,
-          `Your order #${orderId} has been placed for ${intent.amount / 100} ${intent.metadata.currency.toUpperCase()} successfully!`
+          `Your order #${orderId} has been placed for ${Number(intent.metadata.amount) / 100} ${intent.metadata?.currency?.toUpperCase()} successfully!`
         );
 
         // notify user by push notification
@@ -728,7 +725,7 @@ export class WalletService {
           userId,
           fcmToken: order.user?.fcmToken || '',
           title: "Order Placed Successfully",
-          body: `Your order #${orderId} of ${intent.amount / 100} ${intent.currency.toUpperCase()} was placed successfully.`,
+          body: `Your order #${orderId} of ${Number(intent.metadata.amount) / 100} ${intent.metadata?.currency?.toUpperCase()} was placed successfully.`,
         });
       }
 

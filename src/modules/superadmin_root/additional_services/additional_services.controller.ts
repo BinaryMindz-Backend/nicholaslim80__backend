@@ -38,21 +38,6 @@ export class AdditionalServicesController {
     }
   }
 
-  // add service email and number
-  @Post('add-service-email-number')
-  @Auth()
-  @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.CREATE)
-  @ApiOperation({ summary: 'Add additional service email and number' })
-  async addServiceEmailNumber(@Body() dto: ServiceEmailNumberDto) {
-    try {
-      const data = await this.service.addServiceEmailNumber(dto);
-      return ApiResponses.success(data, 'Additional service email and number added successfully');
-    } catch (error) {
-      return ApiResponses.error(error);
-    }
-  }
-
   // get service email and number
   @Get('service-email-number')
   @Auth()
@@ -69,14 +54,14 @@ export class AdditionalServicesController {
   }
 
   // update service email and number
-  @Put('service-email-number')
+  @Put('service-email-number/:id')
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.UPDATE)
   @ApiOperation({ summary: 'Update additional service email and number' })
-  async updateServiceEmailNumber(@Body() dto: ServiceEmailNumberDto) {
+  async updateServiceEmailNumber(@Param('id') id: string, @Body() dto: ServiceEmailNumberDto) {
     try {
-      const data = await this.service.updateServiceEmailNumber(dto);
+      const data = await this.service.updateServiceEmailNumber(+id, dto);
       return ApiResponses.success(data, 'Additional service email and number updated successfully');
     } catch (error) {
       return ApiResponses.error(error);
