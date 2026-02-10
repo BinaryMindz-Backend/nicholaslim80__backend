@@ -71,14 +71,14 @@ export class AdditionalServicesController {
 
 
   // delete service email and number
-  @Delete('service-email-number')
+  @Delete('service-email-number/:id')
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.DELETE)
   @ApiOperation({ summary: 'Delete additional service email and number' })
-  async deleteServiceEmailNumber() {
+  async deleteServiceEmailNumber(@Param('id') id: string) {
     try {
-      const data = await this.service.deleteServiceEmailNumber();
+      const data = await this.service.deleteServiceEmailNumber(+id);
       return ApiResponses.success(data, 'Additional service email and number deleted successfully');
     } catch (error) {
       return ApiResponses.error(error);
