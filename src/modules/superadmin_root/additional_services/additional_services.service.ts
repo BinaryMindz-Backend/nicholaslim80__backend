@@ -12,7 +12,7 @@ export class AdditionalServicesService {
   // 
   async onModuleInit() {
     // Seed default configs if they don't exist
-    await this.prisma.serviceConfig.create({ data: { service_email: 'support@nicholaslim80.com', service_number: '1234567890' } });
+    await this.prisma.serviceConfig.upsert({ where: { id: 1 }, create: { service_email: 'support@nicholaslim80.com', service_number: '1234567890' }, update: {} });
   }
 
   // 
