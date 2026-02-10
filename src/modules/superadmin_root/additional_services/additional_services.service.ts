@@ -59,8 +59,8 @@ export class AdditionalServicesService {
     });
   }
 
-  async deleteServiceEmailNumber() {
-    return this.prisma.serviceConfig.delete({ where: { id: 1 } });
+  async deleteServiceEmailNumber(id: number) {
+    return this.prisma.serviceConfig.delete({ where: { id } });
   }
 
 }
