@@ -113,30 +113,36 @@ export class StripeService {
   // wallet.service.ts
 
   async createConnectedAccount(userId: number) {
-    // 1. Create the account in Stripe
-    const account = await this.stripe.accounts.create({
-      type: 'express',
-      country: 'SG',
-      capabilities: {
-        transfers: { requested: true },
-      },
-      metadata: { userId: userId.toString() },
-    });
+  // 1. Create Stripe Connected Account (SG compliant)
+  const account = await this.stripe.accounts.create({
+    type: 'express',
+    country: 'SG',
+    capabilities: {
+      card_payments: { requested: true }, // required for SG
+      transfers: { requested: true },
+    },
+    metadata: {
+      userId: userId.toString(),
+    },
+  });
 
-    // 2. Save the acct_ID to your User table in Prisma
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { stripeAccountId: account.id },
-    });
+  // 2. Save the Stripe Account ID in your database
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: { stripeAccountId: account.id },
+  });
 
-    // 3. Create an Account Link (The URL the user visits to finish setup)
-    return await this.stripe.accountLinks.create({
-      account: account.id,
-      refresh_url: 'https://your-app.com/reauth',
-      return_url: 'https://your-app.com/success',
-      type: 'account_onboarding',
-    });
-  }
+  // 3. Create an onboarding link (deep links for mobile app)
+  const accountLink = await this.stripe.accountLinks.create({
+    account: account.id,
+    refresh_url: 'myapp://stripe/reauth',   // Flutter deep link
+    return_url: 'myapp://stripe/success',  // Flutter deep link
+    type: 'account_onboarding',
+  });
+
+  return accountLink;
+}
+
 
 
 
