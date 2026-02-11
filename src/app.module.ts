@@ -58,6 +58,8 @@ import { PrismaService } from './core/database/prisma.service';
 import { TipModule } from './modules/users_root/tip/tip.module';
 import { DashboardPopupModule } from './modules/superadmin_root/dashboard_popup/dashboard_popup.module';
 import { AdditionalServicesModule } from './modules/superadmin_root/additional_services/additional_services.module';
+import { PromoCodeModule } from './modules/superadmin_root/promo_code/promo_code.module';
+
 
 
 @Module({
@@ -128,6 +130,7 @@ import { AdditionalServicesModule } from './modules/superadmin_root/additional_s
     TipModule,
     AdditionalServicesModule,
     DashboardPopupModule,
+    PromoCodeModule,
 
 
   ],

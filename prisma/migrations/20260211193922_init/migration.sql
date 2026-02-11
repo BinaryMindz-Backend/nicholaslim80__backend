@@ -600,6 +600,7 @@ CREATE TABLE "notifications" (
     "schedule_to_send" TIMESTAMP(3),
     "target_role" "NotificationSentRole",
     "is_from_admin" BOOLEAN NOT NULL DEFAULT false,
+    "orderId" INTEGER,
     "mark_as_read_id" INTEGER[],
 
     CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
@@ -663,6 +664,18 @@ CREATE TABLE "order_declines" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "order_declines_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "add_money_for_order_priority" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'sgd',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "add_money_for_order_priority_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1107,6 +1120,15 @@ CREATE TABLE "role_permissions" (
 );
 
 -- CreateTable
+CREATE TABLE "ServiceConfig" (
+    "id" SERIAL NOT NULL,
+    "service_email" TEXT NOT NULL,
+    "service_number" TEXT NOT NULL,
+
+    CONSTRAINT "ServiceConfig_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "serviceZone" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
@@ -1154,7 +1176,7 @@ CREATE TABLE "tips" (
 -- CreateTable
 CREATE TABLE "transactions" (
     "id" SERIAL NOT NULL,
-    "transaction_code" VARCHAR(100),
+    "transaction_code" VARCHAR(300),
     "payment_status" "PaymentStatus" DEFAULT 'PENDING',
     "payment_method_id" INTEGER,
     "delivery_fee" DECIMAL(12,2),
@@ -1207,6 +1229,21 @@ CREATE TABLE "users" (
 );
 
 -- CreateTable
+CREATE TABLE "Profile" (
+    "id" SERIAL NOT NULL,
+    "firstName" TEXT,
+    "lastName" TEXT,
+    "avatarUrl" TEXT,
+    "bio" TEXT,
+    "dob" DATE,
+    "bank_account_num" VARCHAR(30),
+    "bank_name" VARCHAR(100),
+    "userId" INTEGER NOT NULL,
+
+    CONSTRAINT "Profile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "vehicle_types" (
     "id" SERIAL NOT NULL,
     "vehicle_type" TEXT NOT NULL,
@@ -1232,6 +1269,7 @@ CREATE TABLE "WalletHistory" (
     "type" TEXT NOT NULL,
     "amount" DECIMAL(65,30) NOT NULL,
     "status" "WalletTransactionStatus" NOT NULL,
+    "currency" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "WalletHistory_pkey" PRIMARY KEY ("id")
@@ -1411,6 +1449,12 @@ CREATE UNIQUE INDEX "users_referral_code_key" ON "users"("referral_code");
 CREATE UNIQUE INDEX "users_referral_link_key" ON "users"("referral_link");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Profile_userId_key" ON "Profile"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WalletHistory_transactionId_key" ON "WalletHistory"("transactionId");
+
+-- CreateIndex
 CREATE INDEX "_RoleToUser_B_index" ON "_RoleToUser"("B");
 
 -- AddForeignKey
@@ -1508,6 +1552,9 @@ ALTER TABLE "order_declines" ADD CONSTRAINT "order_declines_orderId_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "order_declines" ADD CONSTRAINT "order_declines_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "add_money_for_order_priority" ADD CONSTRAINT "add_money_for_order_priority_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "order_stops" ADD CONSTRAINT "order_stops_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1619,6 +1666,9 @@ ALTER TABLE "transactions" ADD CONSTRAINT "transactions_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Profile" ADD CONSTRAINT "Profile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "vehicle_types" ADD CONSTRAINT "vehicle_types_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "admins"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
