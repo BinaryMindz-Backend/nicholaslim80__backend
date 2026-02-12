@@ -932,7 +932,7 @@ export class WalletService {
 
     // Transfer from your platform (admin) to user's Stripe connected account
       const transfer = await this.stripe.transfers.create({
-        amount: Math.round(100 * 100),
+        amount: Math.round(amount * 100),
         currency: 'sgd',
         destination: user.stripeAccountId,
         metadata: { userId: user.id.toString() },
@@ -951,7 +951,7 @@ export class WalletService {
         amount,
         status: WalletTransactionStatus.SUCCESS,
         transactionType: WalletTransactionType.PAYOUT,
-        transactionId: 'demo',
+        transactionId: transfer.id,
         currency: currency,
       },
     });
