@@ -62,11 +62,12 @@ export class StripeController {
   @Auth()
   @ApiBearerAuth()
   async createConnectedAccount(@CurrentUser() user: IUser) {
-    try {
-      return await this.stripeService.createConnectedAccount(user.id);
+    try {      
+      const res = await this.stripeService.createConnectedAccount(user.id);
+      return ApiResponses.success(res, "Account Connected success fully")
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      return ApiResponses.error(message);
+      // const message = error instanceof Error ? error.message : 'Unknown error';
+      return ApiResponses.error(error, "Account connection with stripe failed");
     }
 
 

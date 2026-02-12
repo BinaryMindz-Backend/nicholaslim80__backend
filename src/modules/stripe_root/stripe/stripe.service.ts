@@ -71,47 +71,9 @@ export class StripeService {
 
     return ApiResponses.error('Payment failed');
   }
+  
 
-  // async createExpressAccount(userId: number) {
-  //   const userExist = await this.prisma.user.findUnique({
-  //     where: { id: userId },
-  //   });
-
-  //   if (!userExist) {
-  //     return ApiResponses.error('User not found');
-  //   }
-  //   const account = await this.stripe.accounts.create({
-  //     country: 'US',
-  //     email: userExist.email!,
-  //     controller: {
-  //       fees: {
-  //         payer: 'application',
-  //       },
-  //       losses: {
-  //         payments: 'application',
-  //       },
-  //       stripe_dashboard: {
-  //         type: 'express',
-  //       },
-  //     },
-  //   });
-
-  //   const accountLink = await this.stripe.accountLinks.create({
-  //     account: account.id,
-  //     refresh_url: 'https://example.com/reauth',
-  //     return_url: 'https://example.com/return',
-  //     type: 'account_onboarding',
-  //   });
-
-
-
-  //   return {
-  //     message: 'Express account created successfully',
-  //     url: accountLink.url,
-  //   };
-  // }
-  // wallet.service.ts
-
+// 
   async createConnectedAccount(userId: number) {
   // 1. Create Stripe Connected Account (SG compliant)
   const account = await this.stripe.accounts.create({
@@ -131,18 +93,16 @@ export class StripeService {
     where: { id: userId },
     data: { stripeAccountId: account.id },
   });
-
   // 3. Create an onboarding link (deep links for mobile app)
   const accountLink = await this.stripe.accountLinks.create({
     account: account.id,
-    refresh_url: 'myapp://stripe/reauth',   // Flutter deep link
-    return_url: 'myapp://stripe/success',  // Flutter deep link
+    refresh_url: 'https://admin.zipbee.sg/stripe/reauth',
+    return_url: 'https://admin.zipbee.sg/stripe/success',
     type: 'account_onboarding',
   });
 
   return accountLink;
 }
-
 
 
 

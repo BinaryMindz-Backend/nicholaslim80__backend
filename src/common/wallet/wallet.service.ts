@@ -924,13 +924,19 @@ export class WalletService {
         'User does not have a connected Stripe account',
       );
 
+      const account = await this.stripe.accounts.retrieve(user.stripeAccountId);
+
+      if(!account){
+          throw new NotFoundException("Connected account not found")
+      }
+
     // Transfer from your platform (admin) to user's Stripe connected account
-    await this.stripe.transfers.create({
-      amount: Math.round(amount * 100), // cents
-      currency: currency,
-      destination: user.stripeAccountId,
-      metadata: { userId: userId.toString() },
-    });
+      const transfer = await this.stripe.transfers.create({
+        amount: Math.round(100 * 100),
+        currency: 'sgd',
+        destination: user.stripeAccountId,
+        metadata: { userId: user.id.toString() },
+      });
 
     // Update wallet and history
     await this.prisma.user.update({
@@ -950,10 +956,11 @@ export class WalletService {
       },
     });
 
-    return { message: 'Withdrawal successful', amount };
+   return { message: 'Withdrawal requested', transferId: transfer.id };
   }
 
-  // user wallet with search and pagination
+  // 
+ 
   async userWallet(dto: UserWalletQueryDto) {
     const page = dto.page || 1;
     const limit = dto.limit || 10;
