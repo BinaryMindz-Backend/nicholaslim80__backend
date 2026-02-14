@@ -20,7 +20,7 @@ import { MessagesService } from './message.service';
 @Injectable()
 @WebSocketGateway({
   cors: {
-    origin: ['http://localhost:3000'],
+    origin: ['http://localhost:3000','http://localhost:5173','https://admin.zipbee.sg'],
     methods: ['GET', 'POST'],
     credentials: true,
   },
