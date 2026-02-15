@@ -297,6 +297,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.ADVERTISEMENT, action: Permission.READ },
     // notification
     { module: Module.NOTIFICATION, action: Permission.READ },
+    { module: Module.NOTIFICATION, action: Permission.DELETE },
     // qize module
     { module: Module.QUIZ, action: Permission.GET_ONE },
     // wallet module
@@ -333,6 +334,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.ADVERTISEMENT, action: Permission.READ },
     // notification
     { module: Module.NOTIFICATION, action: Permission.READ },
+    { module: Module.NOTIFICATION, action: Permission.DELETE },
     { module: Module.USER, action: Permission.GET_USER_PROFILE },
     { module: Module.USER, action: Permission.UPDATE },
     //  Order module - basic access

@@ -2921,12 +2921,12 @@ export class OrderService {
 
       const serviceValue = Number(service.value);
       const prevAdditional = Number(order.additional_cost ?? 0);
-
+      //  addition fix
       const originalCost =
-        order.originalCost !== null
+        Number(order.originalCost) !== 0
           ? Number(order.originalCost)
           : Number(order.total_cost);
-
+      // console.log(originalCost, prevAdditional, serviceValue);
       const updatedOrder = await tx.order.update({
         where: { id: orderId, userId },
         data: {
@@ -2947,7 +2947,6 @@ export class OrderService {
           ],
         },
       });
-
       return updatedOrder;
     });
   }
@@ -2992,7 +2991,7 @@ export class OrderService {
       );
 
       const baseCost =
-        order.originalCost !== null
+        Number(order.originalCost) !== 0
           ? Number(order.originalCost)
           : Number(order.total_cost);
 
