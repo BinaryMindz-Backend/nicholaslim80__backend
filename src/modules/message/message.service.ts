@@ -44,6 +44,7 @@ export class MessagesService {
       let conversation = await this.prisma.conversation.findUnique({
         where: {
           user1Id_user2Id: { user1Id: Number(user1Id), user2Id: Number(user2Id) },
+          orderId: dto.orderId,
         },
         include: {
           user1: {
@@ -58,7 +59,7 @@ export class MessagesService {
       if (!conversation) {
         this.logger.log(`Creating conversation between ${userId} and ${dto.otherUserId}`);
         conversation = await this.prisma.conversation.create({
-          data: { user1Id: Number(user1Id), user2Id: Number(user2Id) },
+          data: { user1Id: Number(user1Id), user2Id: Number(user2Id), orderId: dto.orderId },
           include: {
             user1: {
               select: { id: true, email: true, },
@@ -78,12 +79,13 @@ export class MessagesService {
     }
   }
 
-  async getConversations(userId: number) {
+  async getConversations(userId: number, orderId?: string) {
     this.logger.log(`Retrieving conversations for user ${userId}`);
 
     const conversations = await this.prisma.conversation.findMany({
       where: {
         OR: [{ user1Id: Number(userId) }, { user2Id: Number(userId) }],
+        orderId: orderId || null,
       },
       include: {
         user1: {
@@ -145,6 +147,7 @@ export class MessagesService {
       // Get or create conversation
       const conversation = await this.getOrCreateConversation(userId, {
         otherUserId: dto.receiverId,
+        orderId: dto.orderId,
       });
 
       // Create message
@@ -195,6 +198,7 @@ export class MessagesService {
       // Get or create conversation
       const conversation = await this.getOrCreateConversation(Number(userId), {
         otherUserId: dto.otherUserId || "",
+        orderId: dto.orderId,
       });
 
       const skip = ((dto.page || 1) - 1) * (dto.limit || 50);
@@ -254,32 +258,32 @@ export class MessagesService {
   }
 
   //  get messages by order id
-  async getMessagesByOrderId(orderId: string, dto: GetMessagesSimpleDto) {
-    this.logger.log(`Retrieving messages for order ${orderId}`);
-    try {
-      const skip = ((dto.page || 1) - 1) * (dto.limit || 50);
-      const take = dto.limit || 50;
-      const messages = await this.prisma.message.findMany({
-        where: { conversation: { orderId } },
-        orderBy: { createdAt: 'asc' },
-        skip,
-        take,
-        include: {
-          sender: {
-            select: { id: true, email: true },
-          },
-          receiver: {
-            select: { id: true, email: true },
-          },
-        },
-      });
-      return messages;
-    } catch (error) {
-      this.logger.error(`Failed to retrieve messages for order ${orderId}`, error instanceof Error ? error.stack : '');
-      const message = error instanceof Error ? error.message : 'An unknown error occurred';
-      throw new InternalServerErrorException('Failed to retrieve messages', message);
-    }
-  }
+  // async getMessagesByOrderId(orderId: string, dto: GetMessagesSimpleDto) {
+  //   this.logger.log(`Retrieving messages for order ${orderId}`);
+  //   try {
+  //     const skip = ((dto.page || 1) - 1) * (dto.limit || 50);
+  //     const take = dto.limit || 50;
+  //     const messages = await this.prisma.message.findMany({
+  //       where: { conversation: { orderId } },
+  //       orderBy: { createdAt: 'asc' },
+  //       skip,
+  //       take,
+  //       include: {
+  //         sender: {
+  //           select: { id: true, email: true },
+  //         },
+  //         receiver: {
+  //           select: { id: true, email: true },
+  //         },
+  //       },
+  //     });
+  //     return messages;
+  //   } catch (error) {
+  //     this.logger.error(`Failed to retrieve messages for order ${orderId}`, error instanceof Error ? error.stack : '');
+  //     const message = error instanceof Error ? error.message : 'An unknown error occurred';
+  //     throw new InternalServerErrorException('Failed to retrieve messages', message);
+  //   }
+  // }
 
 
 

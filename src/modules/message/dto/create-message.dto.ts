@@ -1,12 +1,16 @@
-export class CreateMessageDto { }
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateConversationDto {
   @ApiProperty({ description: 'The other user ID for one-to-one chat' })
   @IsString()
   @IsNotEmpty()
   otherUserId: string;
+
+  @ApiPropertyOptional({ description: 'The order ID for one-to-one chat' })
+  @IsString()
+  @IsOptional()
+  orderId?: string;
 }
 
 
