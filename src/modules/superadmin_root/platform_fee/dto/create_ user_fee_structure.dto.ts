@@ -37,14 +37,13 @@ export class CreateUserFeeStructureDto {
   @IsInt()
   amount?: number;
 
-  @ApiProperty({
-    description: 'Service area name',
-    example: 'Dhaka',
-    maxLength: 100,
+  @ApiPropertyOptional({
+    description: 'Service area id',
+    example: 1,
   })
-  @IsString()
-  @MaxLength(100)
-  service_area: string;
+  @IsOptional()
+  @IsInt()
+  service_area_id?: number;
 
   @ApiProperty({
     description: 'Fee application rule',

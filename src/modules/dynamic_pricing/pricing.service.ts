@@ -45,7 +45,7 @@ export async function calculatePriceWithFee(params: {
   const fees = await prisma.userFeeStructure.findMany({
     where: {
       is_active: true,
-      service_area: zone.zoneName,
+      service_area_id: zone.id,
       OR: [
         { applies_to: FeeAppliesType.ALL_ORDERS },
         {
@@ -87,7 +87,7 @@ export async function calculatePriceWithFee(params: {
   const surges = await prisma.userDynamicSurge.findMany({
     where: { applicable_user: 'USER' },
   });
-   
+
   for (const s of surges) {
     if (!s.time_range || typeof s.time_range !== 'string') continue; // skip if invalid
 

@@ -496,7 +496,7 @@ export class UsersService {
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
-    const where: any = { role: { name: UserRole.USER }, regi_status: LoginType.DIRECT_SIGNIN };
+    const where: any = { roles: { some: { name: UserRole.USER } }, regi_status: LoginType.DIRECT_SIGNIN };
 
     // ==========================
     if (status) {
@@ -627,6 +627,20 @@ export class UsersService {
       data: result
     };
   }
+  //  find admin
+  async findAllAdminUsers() {
+    const user = await this.prisma.user.findFirst({
+      where: { email: process.env.SUPER_ADMIN_EMAIL, roles: { some: { name: UserRole.ADMIN } }, regi_status: LoginType.ADMIN_SIGNIN },
+      select: {
+        id: true,
+        username: true,
+        roles: true
+      }
+    });
+    return user;
+  }
+
+
 
   // ** Get user by ID
   async findOneuser(id: number) {
