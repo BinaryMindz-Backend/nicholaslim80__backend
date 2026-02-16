@@ -44,12 +44,20 @@ export class RaiderCompensationRoleService {
 
   async findAll() {
     return await this.prisma.raiderCompensationRole.findMany({
+      include: {
+        serviceArea: true,
+      },
       orderBy: { created_at: 'desc' },
     });
   }
 
   async findOne(id: number) {
-    const record = await this.prisma.raiderCompensationRole.findUnique({ where: { id } });
+    const record = await this.prisma.raiderCompensationRole.findUnique({
+      where: { id },
+      include: {
+        serviceArea: true,
+      },
+    });
     if (!record) throw new NotFoundException('Raider Compensation Role not found');
     return record;
   }

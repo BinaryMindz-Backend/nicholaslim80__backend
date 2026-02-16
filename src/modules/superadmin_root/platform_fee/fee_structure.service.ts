@@ -45,12 +45,20 @@ export class UserFeeStructureService {
 
   async findAll(): Promise<UserFeeStructure[]> {
     return this.prisma.userFeeStructure.findMany({
+      include: {
+        serviceArea: true,
+      },
       orderBy: { created_at: 'desc' },
     });
   }
 
   async findOne(id: number): Promise<UserFeeStructure> {
-    const record = await this.prisma.userFeeStructure.findUnique({ where: { id } });
+    const record = await this.prisma.userFeeStructure.findUnique({
+      where: { id },
+      include: {
+        serviceArea: true,
+      },
+    });
     if (!record) throw new NotFoundException('User fee structure not found');
     return record;
   }

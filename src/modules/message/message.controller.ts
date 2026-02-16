@@ -63,13 +63,13 @@ export class ChatController {
   }
 
   // 
-  @Post('messages/send')
-  @Auth()
-  @ApiBearerAuth()
-  async sendMessage(@Body() query: GetMessagesSimpleDto) {
-    const result = await this.messagesService.getMessagesByOrderId(query.orderId!, query);
-    return ApiResponses.success(result, 'Messages retrieved');
-  }
+  // @Post('messages/send')
+  // @Auth()
+  // @ApiBearerAuth()
+  // async sendMessage(@Body() query: GetMessagesSimpleDto) {
+  //   const result = await this.messagesService.getMessagesByOrderId(query.orderId!, query);
+  //   return ApiResponses.success(result, 'Messages retrieved');
+  // }
 
 
   // ============ Utility ============

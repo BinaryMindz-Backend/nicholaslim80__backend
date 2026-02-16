@@ -45,13 +45,21 @@ export class StandardCommissionRateService {
   // Get all records
   async findAll() {
     return await this.prisma.standardCommissionRate.findMany({
+      include: {
+        serviceArea: true,
+      },
       orderBy: { created_at: 'desc' }, // optional: latest first
     });
   }
 
   // Get a single record by ID
   async findOne(id: number) {
-    const record = await this.prisma.standardCommissionRate.findUnique({ where: { id } });
+    const record = await this.prisma.standardCommissionRate.findUnique({
+      where: { id },
+      include: {
+        serviceArea: true,
+      },
+    });
     if (!record) throw new NotFoundException('Standard Commission Rate not found');
     return record;
   }

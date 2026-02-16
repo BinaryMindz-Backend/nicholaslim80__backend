@@ -5,6 +5,7 @@ model StandardCommissionRate {
   commission_rate_delivery_fee Int     @default(0)
   service_area_id            Int?    
   serviceArea                serviceZone? @relation(fields: [service_area_id], references: [id])
+  
 
   created_at                 DateTime  @default(now())
   updated_at                 DateTime  @updatedAt
