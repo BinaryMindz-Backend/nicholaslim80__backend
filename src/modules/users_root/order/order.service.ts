@@ -786,15 +786,16 @@ export class OrderService {
           where: { userId: raiderId },
           data: { completed_orders: { increment: 1 } },
         });
+        // need to calculate driver fees
+        const driverFee = await this.calculateDriverFee(stop.orderId);
+        const driverCredit = Number(stop.order.total_cost) - driverFee;
+        // 
+        await tx.user.update({
+          where: { id: raiderId },
+          data: { totalWalletBalance: { increment: driverCredit }, currentWalletBalance: { increment: driverCredit } },
+        });
 
-        //  find order to update transaction payment status
-        await tx.transaction.findFirst({
-          where: {
-            orderId: stop.orderId
-          }
-        })
-
-
+        // 
         await tx.transaction.update({
           where: { id: stop.orderId },
           data: {
@@ -805,8 +806,6 @@ export class OrderService {
             delivery_fee: stop.order.total_cost,
           }
         })
-
-
 
         return {
           message: 'Stop completed. Order fully completed!',
@@ -841,6 +840,36 @@ export class OrderService {
       };
     });
   }
+  // 
+  private async calculateDriverFee(orderId: number) {
+    // 
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        orderStops: true,
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    //  
+    const standardCommisionRate = await this.prisma.standardCommissionRate.findMany({
+    });
+    const standardCommisionFee = standardCommisionRate.reduce((acc, rate) => {
+      return acc + rate.commission_rate_delivery_fee;
+    }, 0);
+    // 
+    const deductionFee = await this.prisma.raiderDeductionFee.findMany({
+    });
+    const deductionFeeAmount = deductionFee.reduce((acc, fee) => {
+      return acc + fee.amount;
+    }, 0);
+    // 
+    const totalFee = standardCommisionFee + deductionFeeAmount;
+    return totalFee;
+
+
+  }
+
+
 
   // cancle order 
   async cancelOrder(orderId: number, userId: number, reason?: string) {

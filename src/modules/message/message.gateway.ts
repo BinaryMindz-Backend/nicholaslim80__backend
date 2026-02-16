@@ -20,7 +20,7 @@ import { MessagesService } from './message.service';
 @Injectable()
 @WebSocketGateway({
   cors: {
-    origin: ['http://localhost:3000','http://localhost:5173','https://admin.zipbee.sg'],
+    origin: ['http://localhost:3000', 'http://localhost:5173', 'https://admin.zipbee.sg'],
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -53,16 +53,17 @@ export class MessagesGateway
 
   async handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
-    const cookie = client.handshake.headers.cookie as string;
-    this.logger.log(`Cookie received: ${cookie}`);
-    if (!cookie) {
+    // const cookie = client.handshake.headers.cookie as string;
+    const token = client.handshake.auth.token as string;
+    this.logger.log(`token received: ${token}`);
+    if (!token) {
       client.emit('error', { message: 'Authentication token is required' });
       client.disconnect();
       return;
     }
 
     try {
-      const decoded = await this.jwtService.verifyAsync(cookie, {
+      const decoded = await this.jwtService.verifyAsync(token, {
         secret: this.configService.get<string>('JWT_SECRET'),
       });
       this.logger.log(`Decoded token: ${JSON.stringify(decoded)}`);
