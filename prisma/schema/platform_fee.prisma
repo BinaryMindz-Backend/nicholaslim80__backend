@@ -3,7 +3,8 @@ model StandardCommissionRate {
   applicable_user            ApplicableTyp
   role_name                  String    @db.VarChar(100)
   commission_rate_delivery_fee Int     @default(0)
-  service_area               String    @db.VarChar(100)
+  service_area_id            Int?    
+  serviceArea                serviceZone? @relation(fields: [service_area_id], references: [id])
 
   created_at                 DateTime  @default(now())
   updated_at                 DateTime  @updatedAt
@@ -14,7 +15,8 @@ model RaiderCompensationRole {
   applicable_user            ApplicableTyp
   scenario                   String    @db.VarChar(100)
   commission_rate_delivery_fee Int     @default(0)
-  service_area               String    @db.VarChar(100)
+  service_area_id            Int?     
+  serviceArea                serviceZone? @relation(fields: [service_area_id], references: [id])
 
   created_at                 DateTime  @default(now())
   updated_at                 DateTime  @updatedAt
@@ -25,7 +27,6 @@ model RaiderDeductionFee {
   applicable_user ApplicableTyp
   deduction_name  String    @db.VarChar(100)
   amount          Int       @default(0)
-  service_area    String    @db.VarChar(100)
 
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
@@ -40,7 +41,8 @@ model UserFeeStructure {
   fee_name         String          @db.VarChar(100)
 
   amount           Int             @default(0) // flat amount for now
-  service_area     String          @db.VarChar(100)
+  service_area_id               Int?     
+  serviceArea                   serviceZone? @relation(fields: [service_area_id], references: [id])
 
   applies_to       FeeAppliesType
 

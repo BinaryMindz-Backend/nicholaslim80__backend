@@ -1,11 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ApplicableTyp } from '@prisma/client';
 import { IsString, IsInt, IsOptional, IsEnum } from 'class-validator';
 
 
 
 export class CreateStandardCommissionRateDto {
- @ApiProperty({ description: 'Applicable user type', enum: ApplicableTyp, example: 'RAIDER' })
+  @ApiProperty({ description: 'Applicable user type', enum: ApplicableTyp, example: 'RAIDER' })
   @IsEnum(ApplicableTyp, { message: 'applicable_user must be a valid ApplicableTyp' })
   applicable_user: ApplicableTyp;
 
@@ -18,7 +18,8 @@ export class CreateStandardCommissionRateDto {
   @IsInt()
   commission_rate_delivery_fee?: number;
 
-  @ApiProperty({ description: 'Service area', example: 'Dhaka' })
-  @IsString()
-  service_area: string;
+  @ApiPropertyOptional({ description: 'Service area id', example: 1 })
+  @IsOptional()
+  @IsInt()
+  service_area_id?: number;
 }

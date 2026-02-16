@@ -14,7 +14,7 @@ type ZoneCoordinate = {
 
 @Injectable()
 export class ServiceZoneService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /* -------------------- Helpers -------------------- */
 
@@ -44,8 +44,24 @@ export class ServiceZoneService {
     }
   }
 
-  async findAll() {
-    const zones = await this.prisma.serviceZone.findMany();
+  async findAll(query: any) {
+    const { page = 1, limit = 10, search, isActive } = query;
+    const skip = (page - 1) * limit;
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { zoneName: { contains: search } },
+      ];
+    }
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
+    const zones = await this.prisma.serviceZone.findMany({
+      where,
+      skip,
+      take: limit,
+    });
 
     return {
       data: {
@@ -104,46 +120,46 @@ export class ServiceZoneService {
 
   /* Geo Logic */
   async findZoneByPoint(lat: number, lng: number) {
-      const rawZones = await this.prisma.serviceZone.findMany({
-        where: { isActive: true },
-        select: {
-          id: true,
-          name: true,
-          zoneName: true,
-          coordinates: true, // JSON
-          deliveryFee: true,
-          priority: true,
-          color: true,
-          minOrderAmmount: true,
-          isActive: true,
-          notes: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
+    const rawZones = await this.prisma.serviceZone.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        zoneName: true,
+        coordinates: true, // JSON
+        deliveryFee: true,
+        priority: true,
+        color: true,
+        minOrderAmmount: true,
+        isActive: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
-      const zones: DeliveryZone[] = rawZones.map(zone => ({
-        id: zone.id,
-        name: zone.name ?? `Zone ${zone.id}`,  // default if null
-        zoneName: zone.zoneName,
-        coordinates: Array.isArray(zone.coordinates)
-          ? (zone.coordinates.map(c => {
-              const obj = c as unknown as { lat?: number; lng?: number };
-              return { lat: obj.lat ?? 0, lng: obj.lng ?? 0 };
-            }) as LatLng[])
-          : [],
-        deliveryFee: zone.deliveryFee,
-        priority: zone.priority ?? 1,
-        color: zone.color ?? '#000000',
-        minOrderAmmount: zone.minOrderAmmount ?? 0,
-        isActive: zone.isActive,
-        notes: zone.notes ?? '',
-        createdAt: zone.createdAt.toISOString(),
-        updatedAt: zone.updatedAt.toISOString(),
-      }));
+    const zones: DeliveryZone[] = rawZones.map(zone => ({
+      id: zone.id,
+      name: zone.name ?? `Zone ${zone.id}`,  // default if null
+      zoneName: zone.zoneName,
+      coordinates: Array.isArray(zone.coordinates)
+        ? (zone.coordinates.map(c => {
+          const obj = c as unknown as { lat?: number; lng?: number };
+          return { lat: obj.lat ?? 0, lng: obj.lng ?? 0 };
+        }) as LatLng[])
+        : [],
+      deliveryFee: zone.deliveryFee,
+      priority: zone.priority ?? 1,
+      color: zone.color ?? '#000000',
+      minOrderAmmount: zone.minOrderAmmount ?? 0,
+      isActive: zone.isActive,
+      notes: zone.notes ?? '',
+      createdAt: zone.createdAt.toISOString(),
+      updatedAt: zone.updatedAt.toISOString(),
+    }));
 
-  //  
-  console.log("from service zone--->", zones);
+    //  
+    console.log("from service zone--->", zones);
     const pt = point([lng, lat]);
 
     for (const zone of zones) {

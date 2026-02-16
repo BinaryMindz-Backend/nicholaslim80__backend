@@ -10,33 +10,35 @@ import { StandardCommissionRateService } from './commision_rate.services';
 @Injectable()
 export class RaiderCompensationRoleService {
   constructor(private readonly prisma: PrismaService,
-          private readonly logServices :StandardCommissionRateService
-     ) {}
+    private readonly logServices: StandardCommissionRateService
+  ) { }
 
-  async create(data: CreateRaiderCompensationRoleDto, changedByRole:string, changedById:number, ){
-      
-        //  
-        const record = await this.prisma.raiderCompensationRole.findFirst({
-             where:{
-                 scenario:data.scenario
-             }
-        })
-          // 
-          if(record){
-               throw new ConflictException("Record all ready exist")
-          }
-      const r = await this.prisma.raiderCompensationRole.create({ data });
-       //
-       await this.logServices.createFeeLog({
-        logType: FeeLogType.RAIDER_COMPENSATION_ROLE,
-        referenceId: r.id,
-        applicableUser: r.applicable_user,
-        serviceArea: r.service_area,
-        snapshot: r,
-        changedByRole,
-        changedById,
-      });
-      // 
+  async create(data: CreateRaiderCompensationRoleDto, changedByRole: string, changedById: number,) {
+
+    //  
+    const record = await this.prisma.raiderCompensationRole.findFirst({
+      where: {
+        scenario: data.scenario,
+        service_area_id: data.service_area_id
+      }
+    })
+    // 
+    if (record) {
+      throw new ConflictException("Record all ready exist")
+    }
+    const zone = await this.prisma.serviceZone.findUnique({ where: { id: data.service_area_id } });
+    const r = await this.prisma.raiderCompensationRole.create({ data });
+    //
+    await this.logServices.createFeeLog({
+      logType: FeeLogType.RAIDER_COMPENSATION_ROLE,
+      referenceId: r.id,
+      applicableUser: r.applicable_user,
+      serviceArea: zone?.name,
+      snapshot: r,
+      changedByRole,
+      changedById,
+    });
+    // 
     return r
   }
 
@@ -46,31 +48,31 @@ export class RaiderCompensationRoleService {
     });
   }
 
-  async findOne(id: number){
+  async findOne(id: number) {
     const record = await this.prisma.raiderCompensationRole.findUnique({ where: { id } });
     if (!record) throw new NotFoundException('Raider Compensation Role not found');
     return record;
   }
 
   async update(id: number, data: UpdateRaiderCompensationRoleDto,
-        changedByRole:string,
-        changedById:number,
+    changedByRole: string,
+    changedById: number,
   ) {
     await this.findOne(id);
-
+    const zone = await this.prisma.serviceZone.findUnique({ where: { id: data.service_area_id } });
     const updated = await this.prisma.raiderCompensationRole.update({ where: { id }, data });
 
-        await this.logServices.createFeeLog({
-        logType: FeeLogType.RAIDER_COMPENSATION_ROLE,
-        referenceId: updated.id,
-        applicableUser: updated.applicable_user,
-        serviceArea: updated.service_area,
-        snapshot: updated,
-        changedByRole,
-        changedById,
-      });
+    await this.logServices.createFeeLog({
+      logType: FeeLogType.RAIDER_COMPENSATION_ROLE,
+      referenceId: updated.id,
+      applicableUser: updated.applicable_user,
+      serviceArea: zone?.name,
+      snapshot: updated,
+      changedByRole,
+      changedById,
+    });
 
-   return updated;
+    return updated;
 
   }
 

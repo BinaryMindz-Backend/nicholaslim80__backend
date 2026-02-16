@@ -852,10 +852,22 @@ export class OrderService {
     if (!order) throw new NotFoundException('Order not found');
     //  
     const standardCommisionRate = await this.prisma.standardCommissionRate.findMany({
+      where: {
+        service_area_id: order.serviceZoneId
+      }
     });
     const standardCommisionFee = standardCommisionRate.reduce((acc, rate) => {
       return acc + rate.commission_rate_delivery_fee;
     }, 0);
+    // 
+    // const driverCompensation = await this.prisma.raiderCompensationRole.findMany({
+    //   where: {
+    //     service_area_id: order.serviceZoneId
+    //   }
+    // });
+    // const driverCompensationAmount = driverCompensation.reduce((acc, compensation) => {
+    //   return acc + compensation.commission_rate_delivery_fee;
+    // }, 0);
     // 
     const deductionFee = await this.prisma.raiderDeductionFee.findMany({
     });

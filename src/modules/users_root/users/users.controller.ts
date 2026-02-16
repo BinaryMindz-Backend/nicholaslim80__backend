@@ -86,6 +86,21 @@ export class UsersController {
       return ApiResponses.error(err, 'Failed to fetch users');
     }
   }
+  // find admin 
+  @Get("admin")
+  @Auth()
+  // @RequirePermission(Module.USER, Permission.READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get admin users for messages' })
+  @ApiResponse({ status: 200, description: 'Admin users retrieved successfully' })
+  async findAllAdminUsers() {
+    try {
+      const users = await this.usersService.findAllAdminUsers();
+      return ApiResponses.success(users, 'Admin users retrieved successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch admin users');
+    }
+  }
 
 
   //  TODO:need to verify by role currently hold

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsInt, IsOptional, IsEnum } from 'class-validator';
 import { ApplicableTyp } from '@prisma/client';
 
@@ -16,7 +16,8 @@ export class CreateRaiderDeductionFeeDto {
   @IsInt()
   amount?: number;
 
-  @ApiProperty({ description: 'Service area', example: 'Dhaka' })
-  @IsString()
-  service_area: string;
+  @ApiPropertyOptional({ description: 'Service area id', example: 1 })
+  @IsOptional()
+  @IsInt()
+  service_area_id?: number;
 }

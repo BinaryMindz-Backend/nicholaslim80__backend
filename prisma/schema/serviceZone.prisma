@@ -14,6 +14,9 @@ model serviceZone {
 
   // 
   orders          Order[]
+  standardCommissionRates StandardCommissionRate[]
+  raiderCompensationRoles RaiderCompensationRole[]
+  userFeeStructures UserFeeStructure[]
 
   destinations    Destination[]
 }

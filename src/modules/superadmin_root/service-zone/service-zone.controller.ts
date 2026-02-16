@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { ServiceZoneService } from './service-zone.service';
 import { CreateServiceZoneDto } from './dto/create-service-zone.dto';
 import { UpdateServiceZoneDto } from './dto/update-service-zone.dto';
 import { Auth } from 'src/decorators/auth.decorator';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ApiResponses } from 'src/common/apiResponse';
 
 @Controller('service-zone')
@@ -22,8 +22,12 @@ export class ServiceZoneController {
   @Get()
   @Auth()
   @ApiBearerAuth()
-  async findAll() {
-    const res = await this.serviceZoneService.findAll();
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
+  async findAll(@Query() query: any) {
+    const res = await this.serviceZoneService.findAll(query);
     return ApiResponses.success(res, 'Service zones fetched successfully');
   }
 

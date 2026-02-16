@@ -6,37 +6,41 @@ import { StandardCommissionRateService } from './commision_rate.services';
 @Injectable()
 export class UserFeeStructureService {
   constructor(private readonly prisma: PrismaService,
-      private readonly logServices :StandardCommissionRateService
-  ) {}
+    private readonly logServices: StandardCommissionRateService
+  ) { }
 
   async create(data: Prisma.UserFeeStructureCreateInput,
-        changedByRole:string,
-        changedById:number,
+    changedByRole: string,
+    changedById: number,
   ): Promise<UserFeeStructure> {
-      // 
-     const record = await this.prisma.userFeeStructure.findFirst({
-         where:{
-          fee_name:data.fee_name
-         }
-    })
-      // 
-      if(record){
-           throw new ConflictException("Record all ready exist")
+    // 
+    const record = await this.prisma.userFeeStructure.findFirst({
+      where: {
+        fee_name: data.fee_name
       }
-      // 
+    })
+    // 
+    if (record) {
+      throw new ConflictException("Record all ready exist")
+    }
+    // 
     const r = await this.prisma.userFeeStructure.create({ data });
-      // 
-      await this.logServices.createFeeLog({
-        logType: FeeLogType.USER_FEE_STRUCTURE,
-        referenceId: r.id,
-        applicableUser: r.applicable_user,
-        serviceArea: r.service_area,
-        snapshot: r,
-        changedByRole,
-        changedById,
-      });
+    if (!r.service_area_id) {
+      throw new NotFoundException('Service area not found');
+    }
+    const zone = await this.prisma.serviceZone.findUnique({ where: { id: r.service_area_id } });
+    // 
+    await this.logServices.createFeeLog({
+      logType: FeeLogType.USER_FEE_STRUCTURE,
+      referenceId: r.id,
+      applicableUser: r.applicable_user,
+      serviceArea: zone?.name,
+      snapshot: r,
+      changedByRole,
+      changedById,
+    });
 
-      return r;
+    return r;
   }
 
   async findAll(): Promise<UserFeeStructure[]> {
@@ -52,24 +56,28 @@ export class UserFeeStructureService {
   }
 
   async update(id: number, data: Prisma.UserFeeStructureUpdateInput,
-        changedByRole:string,
-        changedById:number,
+    changedByRole: string,
+    changedById: number,
   ): Promise<UserFeeStructure> {
-     await this.findOne(id);
-     const updated = await this.prisma.userFeeStructure.update({ where: { id }, data });
-      // 
-      await this.logServices.createFeeLog({
-        logType: FeeLogType.USER_FEE_STRUCTURE,
-        referenceId: updated.id,
-        applicableUser: updated.applicable_user,
-        serviceArea: updated.service_area,
-        snapshot: updated,
-        changedByRole,
-        changedById,
-      });
+    await this.findOne(id);
+    const updated = await this.prisma.userFeeStructure.update({ where: { id }, data });
+    if (!updated.service_area_id) {
+      throw new NotFoundException('Service area not found');
+    }
+    const zone = await this.prisma.serviceZone.findUnique({ where: { id: updated.service_area_id } });
+    // 
+    await this.logServices.createFeeLog({
+      logType: FeeLogType.USER_FEE_STRUCTURE,
+      referenceId: updated.id,
+      applicableUser: updated.applicable_user,
+      serviceArea: zone?.name,
+      snapshot: updated,
+      changedByRole,
+      changedById,
+    });
 
 
-     return updated;
+    return updated;
   }
 
   async remove(id: number): Promise<UserFeeStructure> {
