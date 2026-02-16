@@ -143,7 +143,7 @@ export class MessagesService {
         this.logger.error(`Receiver not found: ${dto.receiverId}`);
         throw new NotFoundException('Receiver not found');
       }
-
+      // console.log("dto-->", dto);
       // Get or create conversation
       const conversation = await this.getOrCreateConversation(userId, {
         otherUserId: dto.receiverId,
@@ -173,7 +173,6 @@ export class MessagesService {
             },
           },
         });
-
         this.logger.log(`Message sent from ${userId} to ${dto.receiverId}`);
         // Update conversation timestamp
         await tx.conversation.update({
@@ -200,7 +199,6 @@ export class MessagesService {
         otherUserId: dto.otherUserId || "",
         orderId: dto.orderId,
       });
-      console.log("conversation-->", conversation);
       const skip = ((dto.page || 1) - 1) * (dto.limit || 50);
       const take = dto.limit || 50;
 
@@ -241,7 +239,6 @@ export class MessagesService {
         }),
         this.prisma.message.count({ where }),
       ]);
-      console.log("messages-->", messages);
       return {
         messages: messages.reverse(), // Reverse to get chronological order
         total,
