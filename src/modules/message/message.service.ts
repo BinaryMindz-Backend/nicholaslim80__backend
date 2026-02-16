@@ -85,7 +85,7 @@ export class MessagesService {
     const conversations = await this.prisma.conversation.findMany({
       where: {
         OR: [{ user1Id: Number(userId) }, { user2Id: Number(userId) }],
-        orderId: orderId || null,
+        orderId: orderId,
       },
       include: {
         user1: {
@@ -200,7 +200,7 @@ export class MessagesService {
         otherUserId: dto.otherUserId || "",
         orderId: dto.orderId,
       });
-
+      console.log("conversation-->", conversation);
       const skip = ((dto.page || 1) - 1) * (dto.limit || 50);
       const take = dto.limit || 50;
 
@@ -241,7 +241,7 @@ export class MessagesService {
         }),
         this.prisma.message.count({ where }),
       ]);
-
+      console.log("messages-->", messages);
       return {
         messages: messages.reverse(), // Reverse to get chronological order
         total,

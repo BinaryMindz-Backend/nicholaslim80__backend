@@ -57,7 +57,7 @@ export class ChatController {
   @Post('messages')
   @Auth()
   @ApiBearerAuth()
-  async getMessages(@Req() req: Request, @Body() query: GetMessagesSimpleDto, @CurrentUser() user: IUser) {
+  async getMessages(@Body() query: GetMessagesSimpleDto, @CurrentUser() user: IUser) {
     const result = await this.messagesService.getMessages(user.id, query);
     return ApiResponses.success(result, 'Messages retrieved');
   }
