@@ -194,7 +194,7 @@ export class MessagesService {
     try {
       // Get or create conversation
       const conversation = await this.getOrCreateConversation(Number(userId), {
-        otherUserId: dto.otherUserId,
+        otherUserId: dto.otherUserId || "",
       });
 
       const skip = ((dto.page || 1) - 1) * (dto.limit || 50);
@@ -252,6 +252,39 @@ export class MessagesService {
       throw new InternalServerErrorException('Failed to retrieve messages', message);
     }
   }
+
+  //  get messages by order id
+  async getMessagesByOrderId(orderId: string, dto: GetMessagesSimpleDto) {
+    this.logger.log(`Retrieving messages for order ${orderId}`);
+    try {
+      const skip = ((dto.page || 1) - 1) * (dto.limit || 50);
+      const take = dto.limit || 50;
+      const messages = await this.prisma.message.findMany({
+        where: { conversation: { orderId } },
+        orderBy: { createdAt: 'asc' },
+        skip,
+        take,
+        include: {
+          sender: {
+            select: { id: true, email: true },
+          },
+          receiver: {
+            select: { id: true, email: true },
+          },
+        },
+      });
+      return messages;
+    } catch (error) {
+      this.logger.error(`Failed to retrieve messages for order ${orderId}`, error instanceof Error ? error.stack : '');
+      const message = error instanceof Error ? error.message : 'An unknown error occurred';
+      throw new InternalServerErrorException('Failed to retrieve messages', message);
+    }
+  }
+
+
+
+
+
 }
 
 
