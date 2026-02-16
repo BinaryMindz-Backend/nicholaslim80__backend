@@ -49,7 +49,7 @@ export class ChatController {
   @Get('conversations')
   @Auth()
   @ApiBearerAuth()
-  async getConversations(@Req() req: Request, @CurrentUser() user: IUser) {
+  async getConversations(@CurrentUser() user: IUser) {
     const conversations = await this.messagesService.getConversations(user.id);
     return ApiResponses.success(conversations, 'Conversations retrieved');
   }
