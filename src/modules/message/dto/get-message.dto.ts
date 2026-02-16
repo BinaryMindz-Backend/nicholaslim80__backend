@@ -1,11 +1,17 @@
 import { IsString, IsOptional, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class GetMessagesSimpleDto {
-  @ApiProperty({ description: 'The other user ID for one-to-one chat' })
+  @ApiPropertyOptional({ description: 'The other user ID for one-to-one chat' })
   @IsString()
-  otherUserId: string;
+  @IsOptional()
+  otherUserId?: string;
+
+  @ApiPropertyOptional({ description: 'The order ID for one-to-one chat' })
+  @IsString()
+  @IsOptional()
+  orderId?: string;
 
   @IsOptional()
   @Type(() => Number)

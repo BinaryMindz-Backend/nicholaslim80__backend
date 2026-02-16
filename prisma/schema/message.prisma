@@ -7,6 +7,7 @@ model Conversation {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   messages  Message[]
+  orderId   String?
 
   @@unique([user1Id, user2Id])
   @@index([user1Id])
