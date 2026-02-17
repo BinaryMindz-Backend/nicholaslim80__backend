@@ -95,10 +95,16 @@ export class StripeService {
       data: { stripeAccountId: account.id },
     });
     // 3. Create an onboarding link (deep links for mobile app)
+    // const accountLink = await this.stripe.accountLinks.create({
+    //   account: account.id,
+    //   refresh_url: 'https://admin.zipbee.sg/stripe/reauth',
+    //   return_url: 'https://admin.zipbee.sg/stripe/success',
+    //   type: 'account_onboarding',
+    // });
     const accountLink = await this.stripe.accountLinks.create({
       account: account.id,
-      refresh_url: 'https://admin.zipbee.sg/stripe/reauth',
-      return_url: 'https://admin.zipbee.sg/stripe/success',
+      refresh_url: 'zipbee://stripe/reauth',  // if onboarding expired/failed
+      return_url: 'zipbee://stripe/success',  // onboarding completed
       type: 'account_onboarding',
     });
 
