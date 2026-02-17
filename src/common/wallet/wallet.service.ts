@@ -1070,26 +1070,29 @@ export class WalletService {
       metadata: { userId: user.id.toString() },
     });
 
-    // Update wallet and history
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { currentWalletBalance: { decrement: amount } },
-    });
+    if (transfer.id) {
+      // Update wallet and history
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { currentWalletBalance: { decrement: amount } },
+      });
 
-    await this.prisma.walletHistory.create({
-      data: {
-        userId,
-        type: 'debit',
-        amount,
-        status: WalletTransactionStatus.SUCCESS,
-        transactionType: WalletTransactionType.PAYOUT,
-        transactionId: transfer.id,
-        currency: currency,
-      },
-    });
+      await this.prisma.walletHistory.create({
+        data: {
+          userId,
+          type: 'debit',
+          amount,
+          status: WalletTransactionStatus.SUCCESS,
+          transactionType: WalletTransactionType.PAYOUT,
+          transactionId: transfer.id,
+          currency: currency,
+        },
+      });
+    }
 
     return { message: 'Withdrawal requested', transferId: transfer.id };
   }
+
 
   // 
 
