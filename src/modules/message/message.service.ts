@@ -11,7 +11,7 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateConversationDto } from './dto/create-message.dto';
 import { SendMessageSimpleDto } from './dto/simple-message.dto';
 import { GetMessagesSimpleDto } from './dto/get-message.dto';
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 
 @Injectable()
 export class MessagesService {
@@ -20,64 +20,121 @@ export class MessagesService {
 
   ) { }
 
-  async getOrCreateConversation(userId: string | number, dto: CreateConversationDto): Promise<any> {
+  // async getOrCreateConversation(userId: string | number, dto: CreateConversationDto): Promise<any> {
+  //   this.logger.log(`Getting or creating conversation between ${userId} and ${dto.otherUserId}`);
+  //   try {
+  //     const otherUser = await this.prisma.user.findUnique({
+  //       where: { id: Number(dto.otherUserId) },
+  //     });
+
+  //     if (!otherUser) {
+  //       this.logger.error(`User not found: ${dto.otherUserId}`);
+  //       throw new NotFoundException('User not found');
+  //     }
+
+  //     if (Number(userId) === Number(dto.otherUserId)) {
+  //       this.logger.error(`User ${userId} attempted to create a conversation with themselves`);
+  //       throw new BadRequestException('Cannot create conversation with yourself');
+  //     }
+
+  //     // Ensure consistent ordering for unique constraint
+  //     const [user1Id, user2Id] = [Number(userId), Number(dto.otherUserId)].sort();
+
+  //     // Check if conversation already exists
+  //     let conversation = await this.prisma.conversation.findUnique({
+  //       where: {
+  //         user1Id_user2Id: { user1Id: Number(user1Id), user2Id: Number(user2Id) },
+  //         orderId: String(dto.orderId),
+  //       },
+  //       include: {
+  //         user1: {
+  //           select: { id: true, email: true, },
+  //         },
+  //         user2: {
+  //           select: { id: true, email: true, },
+  //         },
+  //       },
+  //     });
+
+  //     if (!conversation) {
+  //       this.logger.log(`Creating conversation between ${userId} and ${dto.otherUserId}`);
+  //       if (dto.orderId) {
+  //         conversation = await this.prisma.conversation.update({
+  //           where: { user1Id_user2Id: { user1Id: Number(user1Id), user2Id: Number(user2Id) } },
+  //           data: { orderId: String(dto.orderId) },
+  //         });
+  //       }
+  //       conversation = await this.prisma.conversation.create({
+  //         data: { user1Id: Number(user1Id), user2Id: Number(user2Id), orderId: String(dto.orderId) },
+  //         include: {
+  //           user1: {
+  //             select: { id: true, email: true, },
+  //           },
+  //           user2: {
+  //             select: { id: true, email: true, },
+  //           },
+  //         },
+  //       });
+  //     }
+  //     this.logger.log(`Conversation retrieved/created between ${userId} and ${dto.otherUserId}`);
+  //     return conversation;
+  //   } catch (error) {
+  //     this.logger.error(`Failed to get or create conversation between ${userId} and ${dto.otherUserId}`, error instanceof Error ? error.stack : '');
+  //     const message = error instanceof Error ? error.message : 'An unknown error occurred';
+  //     throw new InternalServerErrorException('Failed to get or create conversation', message);
+  //   }
+  // }
+  async getOrCreateConversation(userId: string | number, dto: CreateConversationDto) {
     this.logger.log(`Getting or creating conversation between ${userId} and ${dto.otherUserId}`);
-    try {
-      const otherUser = await this.prisma.user.findUnique({
-        where: { id: Number(dto.otherUserId) },
-      });
 
-      if (!otherUser) {
-        this.logger.error(`User not found: ${dto.otherUserId}`);
-        throw new NotFoundException('User not found');
-      }
+    const uid = Number(userId);
+    const otherUid = Number(dto.otherUserId);
 
-      if (Number(userId) === Number(dto.otherUserId)) {
-        this.logger.error(`User ${userId} attempted to create a conversation with themselves`);
-        throw new BadRequestException('Cannot create conversation with yourself');
-      }
-
-      // Ensure consistent ordering for unique constraint
-      const [user1Id, user2Id] = [Number(userId), Number(dto.otherUserId)].sort();
-
-      // Check if conversation already exists
-      let conversation = await this.prisma.conversation.findUnique({
-        where: {
-          user1Id_user2Id: { user1Id: Number(user1Id), user2Id: Number(user2Id) },
-          orderId: dto.orderId,
-        },
-        include: {
-          user1: {
-            select: { id: true, email: true, },
-          },
-          user2: {
-            select: { id: true, email: true, },
-          },
-        },
-      });
-
-      if (!conversation) {
-        this.logger.log(`Creating conversation between ${userId} and ${dto.otherUserId}`);
-        conversation = await this.prisma.conversation.create({
-          data: { user1Id: Number(user1Id), user2Id: Number(user2Id), orderId: dto.orderId },
-          include: {
-            user1: {
-              select: { id: true, email: true, },
-            },
-            user2: {
-              select: { id: true, email: true, },
-            },
-          },
-        });
-      }
-      this.logger.log(`Conversation retrieved/created between ${userId} and ${dto.otherUserId}`);
-      return conversation;
-    } catch (error) {
-      this.logger.error(`Failed to get or create conversation between ${userId} and ${dto.otherUserId}`, error instanceof Error ? error.stack : '');
-      const message = error instanceof Error ? error.message : 'An unknown error occurred';
-      throw new InternalServerErrorException('Failed to get or create conversation', message);
+    if (uid === otherUid) {
+      throw new BadRequestException('Cannot create conversation with yourself');
     }
+
+    const otherUser = await this.prisma.user.findUnique({ where: { id: otherUid } });
+    if (!otherUser) throw new NotFoundException('User not found');
+
+    // Sort for consistent ordering
+    const [user1Id, user2Id] = [uid, otherUid].sort();
+
+    // Try to find conversation (optionally include orderId if part of unique constraint)
+    let conversation;
+    try {
+      conversation = await this.prisma.$transaction(async (tx) => {
+        // Build dynamic where
+        const whereCondition = dto.orderId
+          ? { user1Id, user2Id, orderId: String(dto.orderId) }
+          : { user1Id, user2Id };
+
+        let conv = await tx.conversation.findFirst({
+          where: whereCondition,
+        });
+        if (!conv) {
+          conv = await tx.conversation.create({
+            data: { user1Id, user2Id, orderId: dto.orderId ? String(dto.orderId) : undefined },
+          });
+        }
+        return conv;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        // Another request created it first, retry find
+        conversation = await this.prisma.conversation.findFirst({
+          where: { user1Id, user2Id },
+        });
+      } else throw error;
+    }
+
+    this.logger.log(`Conversation retrieved/created between ${user1Id} and ${user2Id}`);
+    return conversation;
   }
+
+
+
+
 
   async getConversations(userId: number, orderId?: string) {
     this.logger.log(`Retrieving conversations for user ${userId}`);
@@ -85,7 +142,7 @@ export class MessagesService {
     const conversations = await this.prisma.conversation.findMany({
       where: {
         OR: [{ user1Id: Number(userId) }, { user2Id: Number(userId) }],
-        orderId: orderId,
+        orderId: String(orderId),
       },
       include: {
         user1: {
@@ -147,7 +204,7 @@ export class MessagesService {
       // Get or create conversation
       const conversation = await this.getOrCreateConversation(userId, {
         otherUserId: dto.receiverId,
-        orderId: dto.orderId,
+        orderId: String(dto.orderId),
       });
 
       // Create message
@@ -197,7 +254,7 @@ export class MessagesService {
       // Get or create conversation
       const conversation = await this.getOrCreateConversation(Number(userId), {
         otherUserId: dto.otherUserId || "",
-        orderId: dto.orderId,
+        orderId: String(dto.orderId),
       });
       const skip = ((dto.page || 1) - 1) * (dto.limit || 50);
       const take = dto.limit || 50;

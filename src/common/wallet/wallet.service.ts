@@ -203,15 +203,6 @@ export class WalletService {
       (total, tx) => total + Number(tx.amount || 0),
       0,
     );
-    // daily earning
-    const dailyEarning = await this.prisma.walletHistory.findMany({
-      where: {
-        userId,
-        type: 'credit',
-        transactionType: WalletTransactionType.EARNING,
-        ...dateFilter,
-      },
-    });
 
     const dailyEarnings = await this.prisma.walletHistory.groupBy({
       by: ['createdAt'],
