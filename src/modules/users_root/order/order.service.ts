@@ -801,7 +801,7 @@ export class OrderService {
             amount: driverCredit,
             type: 'credit',
             transactionId: `TRX-earning-${stop.orderId}`,
-            transactionType: WalletTransactionType.PAYMENT,
+            transactionType: WalletTransactionType.EARNING,
             status: WalletTransactionStatus.SUCCESS,
             currency: 'SGD',
           },

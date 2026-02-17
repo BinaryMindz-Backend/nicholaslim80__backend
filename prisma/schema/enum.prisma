@@ -290,6 +290,7 @@ enum WalletTransactionType {
   PAYMENT
   REFUND
   DEDUCTION
+  EARNING
 }
 
 enum WalletTransactionStatus {

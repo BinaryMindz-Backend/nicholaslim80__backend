@@ -194,7 +194,7 @@ export class WalletService {
       where: {
         userId,
         type: 'credit',
-        transactionType: WalletTransactionType.PAYMENT,
+        transactionType: WalletTransactionType.EARNING,
         ...dateFilter,
       },
     });

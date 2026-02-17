@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/core/database/prisma.service";
 import { CreateTipDto } from "./dto/create-tip.dto";
-import { OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType } from "@prisma/client";
+import { OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType, WalletTransactionStatus, WalletTransactionType } from "@prisma/client";
 import { WalletService } from "src/common/wallet/wallet.service";
 import { EmailQueueService } from "src/modules/queue/services/email-queue.service";
 
@@ -123,10 +123,19 @@ export class TipService {
           },
         },
       });
+      //  
+      const raiderUser = await tx.raider.findUnique({
+        where: { id: order.assign_rider_id },
+      });
 
+      if (!raiderUser) {
+        throw new NotFoundException('Raider not found');
+      }
       // 6. Credit raider wallet
       const raider = await tx.user.update({
-        where: { id: order.assign_rider_id },
+        where: {
+          id: raiderUser.userId
+        },
         data: {
           totalWalletBalance: { increment: Number(dto.amount) },
           currentWalletBalance: { increment: Number(dto.amount) },
@@ -135,6 +144,18 @@ export class TipService {
           id: true,
           currentWalletBalance: true,
           totalWalletBalance: true,
+        },
+      });
+      //
+      await tx.walletHistory.create({
+        data: {
+          userId: raider.id,
+          amount: Number(dto.amount),
+          type: 'credit',
+          transactionId: `TRX-tip-${orderId}`,
+          transactionType: WalletTransactionType.EARNING,
+          status: WalletTransactionStatus.SUCCESS,
+          currency: 'SGD',
         },
       });
 
