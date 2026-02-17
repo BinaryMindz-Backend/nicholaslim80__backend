@@ -788,11 +788,26 @@ export class OrderService {
         });
         // need to calculate driver fees
         const driverFee = await this.calculateDriverFee(stop.orderId);
-        const driverCredit = Number(stop.order.total_cost) - driverFee;
-        // 
+        const orderTotal = Number(stop.order.total_cost);
+
+        let driverCredit: number;
+        let platformLoss: number;
+
+        if (orderTotal >= driverFee) {
+          driverCredit = orderTotal - driverFee;
+          platformLoss = 0;
+        } else {
+          driverCredit = 0;               // driver gets nothing
+          platformLoss = driverFee - orderTotal; // platform absorbs remaining fee
+        }
+
+        // Update driver wallet
         await tx.user.update({
           where: { id: raiderId },
-          data: { totalWalletBalance: { increment: driverCredit }, currentWalletBalance: { increment: driverCredit } },
+          data: {
+            totalWalletBalance: { increment: driverCredit },
+            currentWalletBalance: { increment: driverCredit }
+          },
         });
         // 
         await tx.walletHistory.create({
@@ -855,44 +870,37 @@ export class OrderService {
   }
   // 
   private async calculateDriverFee(orderId: number) {
-    // 
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
         orderStops: true,
+        serviceZone: true,
       },
     });
     if (!order) throw new NotFoundException('Order not found');
-    //  
-    const standardCommisionRate = await this.prisma.standardCommissionRate.findMany({
-      where: {
-        service_area_id: order.serviceZoneId
-      }
+    if (!order.serviceZone) throw new NotFoundException('Service area not found');
+
+    // Sum standard commission fees
+    const standardCommissionRates = await this.prisma.standardCommissionRate.findMany({
+      where: { service_area_id: order.serviceZoneId }
     });
-    const standardCommisionFee = standardCommisionRate.reduce((acc, rate) => {
-      return acc + rate.commission_rate_delivery_fee;
-    }, 0);
-    // 
-    // const driverCompensation = await this.prisma.raiderCompensationRole.findMany({
-    //   where: {
-    //     service_area_id: order.serviceZoneId
-    //   }
-    // });
-    // const driverCompensationAmount = driverCompensation.reduce((acc, compensation) => {
-    //   return acc + compensation.commission_rate_delivery_fee;
-    // }, 0);
-    // 
-    const deductionFee = await this.prisma.raiderDeductionFee.findMany({
-    });
-    const deductionFeeAmount = deductionFee.reduce((acc, fee) => {
-      return acc + fee.amount;
-    }, 0);
-    // 
-    const totalFee = standardCommisionFee + deductionFeeAmount;
+    const standardCommissionFee = standardCommissionRates.reduce(
+      (acc, rate) => acc + rate.commission_rate_delivery_fee,
+      0
+    );
+
+    // Sum deductions
+    const deductionFees = await this.prisma.raiderDeductionFee.findMany();
+    const deductionFeeAmount = deductionFees.reduce(
+      (acc, fee) => acc + fee.amount,
+      0
+    );
+
+    // Calculate total, clamp to zero
+    const totalFee = Math.max(0, standardCommissionFee + deductionFeeAmount);
     return totalFee;
-
-
   }
+
 
 
 

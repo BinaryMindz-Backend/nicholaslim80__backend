@@ -203,8 +203,37 @@ export class WalletService {
       (total, tx) => total + Number(tx.amount || 0),
       0,
     );
+    // daily earning
+    const dailyEarning = await this.prisma.walletHistory.findMany({
+      where: {
+        userId,
+        type: 'credit',
+        transactionType: WalletTransactionType.EARNING,
+        ...dateFilter,
+      },
+    });
+
+    const dailyEarnings = await this.prisma.walletHistory.groupBy({
+      by: ['createdAt'],
+      where: {
+        userId,
+        type: 'credit',
+        transactionType: WalletTransactionType.EARNING,
+      },
+      _sum: {
+        amount: true,
+      },
+    });
+    //  
+    const dailyTotals = dailyEarnings.map((tx) => ({
+      date: tx.createdAt.toISOString().split('T')[0], // YYYY-MM-DD
+      total: tx._sum.amount || 0,
+    }));
+
+    // 
 
     return {
+      dailyTotals,
       earningHistory,
       totalEarning,
       totalTips,
