@@ -62,16 +62,30 @@ export class StripeController {
   @Auth()
   @ApiBearerAuth()
   async createConnectedAccount(@CurrentUser() user: IUser) {
-    try {      
+    try {
       const res = await this.stripeService.createConnectedAccount(user.id);
       return ApiResponses.success(res, "Account Connected success fully")
     } catch (error) {
-      // const message = error instanceof Error ? error.message : 'Unknown error';
       return ApiResponses.error(error, "Account connection with stripe failed");
     }
 
 
   }
 
+
+  @Post('reset-express-account')
+  @Auth()
+  @ApiBearerAuth()
+  async resetConnectedAccount(@CurrentUser() user: IUser) {
+    try {
+      const res = await this.stripeService.resetConnectedAccount(user.id);
+      return ApiResponses.success(res, "Account reset success fully")
+    } catch (error) {
+      return ApiResponses.error(error, "Account reset failed");
+
+
+    }
+
+  }
 
 }
