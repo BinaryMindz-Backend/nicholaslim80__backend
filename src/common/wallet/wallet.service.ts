@@ -6,7 +6,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, PaymentStatus, PaymentType, PayType, TransactionStatus, TransactionType, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
+import { OrderStatus, PaymentStatus, PaymentType, PayType, StopStatus, TransactionStatus, TransactionType, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
 import Stripe from 'stripe';
 import { UserWalletQueryDto } from './dto/user-wallet.dto';
@@ -103,6 +103,118 @@ export class WalletService {
       paymentIntentId: paymentIntent.id,
     };
   }
+  //  earning money
+  async earnMoney(userId: number, date?: Date) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.email) throw new BadRequestException('User email is not found');
+
+    const assignRider = await this.prisma.raider.findFirst({
+      where: { userId },
+    });
+
+    if (!assignRider) {
+      return {
+        earningHistory: [],
+        totalEarning: 0,
+        totalTips: 0,
+        totalDrivingHours: 0,
+      };
+    }
+
+    // Daily Filter
+    let dateFilter = {};
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      dateFilter = {
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      };
+    }
+
+    // Fetch completed orders with stops + tips
+    const completedOrders = await this.prisma.order.findMany({
+      where: {
+        userId,
+        order_status: OrderStatus.COMPLETED,
+        assign_rider_id: assignRider.id,
+        ...dateFilter,
+      },
+      include: {
+        tips: true,
+        orderStops: {
+          where: {
+            status: StopStatus.COMPLETED,
+            arrivedAt: { not: null },
+            completedAt: { not: null },
+          },
+        },
+      },
+    });
+
+    // Total Driving Hours
+    let totalDrivingMilliseconds = 0;
+
+    for (const order of completedOrders) {
+      for (const stop of order.orderStops) {
+        const duration =
+          new Date(stop.completedAt!).getTime() -
+          new Date(stop.arrivedAt!).getTime();
+
+        if (duration > 0) {
+          totalDrivingMilliseconds += duration;
+        }
+      }
+    }
+
+    const totalDrivingHours = totalDrivingMilliseconds / (1000 * 60 * 60);
+
+    // Total Tips
+    const totalTips = completedOrders.reduce((total, order) => {
+      const orderTipTotal = order.tips.reduce(
+        (tipTotal, tip) => tipTotal + Number(tip.amount || 0),
+        0,
+      );
+      return total + orderTipTotal;
+    }, 0);
+
+
+    // Wallet Earnings
+    const earningHistory = await this.prisma.walletHistory.findMany({
+      where: {
+        userId,
+        type: 'credit',
+        transactionType: WalletTransactionType.PAYMENT,
+        ...dateFilter,
+      },
+    });
+
+    const totalEarning = earningHistory.reduce(
+      (total, tx) => total + Number(tx.amount || 0),
+      0,
+    );
+
+    return {
+      earningHistory,
+      totalEarning,
+      totalTips,
+      totalDrivingHours,
+    };
+  }
+
+
+
+
 
   // ---------- Add Money ----------
   // async addMoney(
@@ -924,19 +1036,19 @@ export class WalletService {
         'User does not have a connected Stripe account',
       );
 
-      const account = await this.stripe.accounts.retrieve(user.stripeAccountId);
+    const account = await this.stripe.accounts.retrieve(user.stripeAccountId);
 
-      if(!account){
-          throw new NotFoundException("Connected account not found")
-      }
+    if (!account) {
+      throw new NotFoundException("Connected account not found")
+    }
 
     // Transfer from your platform (admin) to user's Stripe connected account
-      const transfer = await this.stripe.transfers.create({
-        amount: Math.round(amount * 100),
-        currency: 'sgd',
-        destination: user.stripeAccountId,
-        metadata: { userId: user.id.toString() },
-      });
+    const transfer = await this.stripe.transfers.create({
+      amount: Math.round(amount * 100),
+      currency: 'sgd',
+      destination: user.stripeAccountId,
+      metadata: { userId: user.id.toString() },
+    });
 
     // Update wallet and history
     await this.prisma.user.update({
@@ -956,11 +1068,11 @@ export class WalletService {
       },
     });
 
-   return { message: 'Withdrawal requested', transferId: transfer.id };
+    return { message: 'Withdrawal requested', transferId: transfer.id };
   }
 
   // 
- 
+
   async userWallet(dto: UserWalletQueryDto) {
     const page = dto.page || 1;
     const limit = dto.limit || 10;
