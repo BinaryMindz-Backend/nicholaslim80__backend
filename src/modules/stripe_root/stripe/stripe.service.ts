@@ -71,39 +71,51 @@ export class StripeService {
 
     return ApiResponses.error('Payment failed');
   }
-  
 
-// 
+
+  // 
   async createConnectedAccount(userId: number) {
-  // 1. Create Stripe Connected Account (SG compliant)
-  const account = await this.stripe.accounts.create({
-    type: 'express',
-    country: 'SG',
-    capabilities: {
-      card_payments: { requested: true }, // required for SG
-      transfers: { requested: true },
-    },
-    metadata: {
-      userId: userId.toString(),
-    },
-  });
+    // 1. Create Stripe Connected Account (SG compliant)
+    const account = await this.stripe.accounts.create({
+      type: 'express',
+      country: 'SG',
+      tos_acceptance: {
+        service_agreement: 'recipient',
+      },
+      capabilities: {
+        transfers: { requested: true },
+      },
+      metadata: {
+        userId: userId.toString(),
+      },
+    });
+    // 2. Save the Stripe Account ID in your database
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { stripeAccountId: account.id },
+    });
+    // 3. Create an onboarding link (deep links for mobile app)
+    const accountLink = await this.stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: 'https://admin.zipbee.sg/stripe/reauth',
+      return_url: 'https://admin.zipbee.sg/stripe/success',
+      type: 'account_onboarding',
+    });
 
-  // 2. Save the Stripe Account ID in your database
-  await this.prisma.user.update({
-    where: { id: userId },
-    data: { stripeAccountId: account.id },
-  });
-  // 3. Create an onboarding link (deep links for mobile app)
-  const accountLink = await this.stripe.accountLinks.create({
-    account: account.id,
-    refresh_url: 'https://admin.zipbee.sg/stripe/reauth',
-    return_url: 'https://admin.zipbee.sg/stripe/success',
-    type: 'account_onboarding',
-  });
+    return accountLink;
+  }
 
-  return accountLink;
-}
+  async resetConnectedAccount(userId: number) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
+    // Delete old Stripe account
+    if (user?.stripeAccountId) {
+      await this.stripe.accounts.del(user.stripeAccountId);
+    }
+
+    // Recreate with recipient agreement
+    return this.createConnectedAccount(userId);
+  }
 
 
 }

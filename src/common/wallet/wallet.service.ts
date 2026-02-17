@@ -1048,7 +1048,7 @@ export class WalletService {
       where: { id: userId },
     });
     if (!user) throw new NotFoundException('User not found');
-    if (user.totalWalletBalance < amount)
+    if (user.currentWalletBalance < amount)
       throw new BadRequestException('Insufficient balance');
 
     if (!user.stripeAccountId)
@@ -1065,7 +1065,7 @@ export class WalletService {
     // Transfer from your platform (admin) to user's Stripe connected account
     const transfer = await this.stripe.transfers.create({
       amount: Math.round(amount * 100),
-      currency: 'sgd',
+      currency: currency,
       destination: user.stripeAccountId,
       metadata: { userId: user.id.toString() },
     });
