@@ -131,13 +131,13 @@ export class MessagesGateway
 
     const senderId = await this.redis.get(`socket:${client.id}`);
     const receiverSocketId = await this.redis.get(`user:${dto.receiverId}`);
-    // console.log('receiverSocketId', receiverSocketId, senderId, dto);
+    console.log('receiverSocketId', receiverSocketId, senderId, dto);
     if (!receiverSocketId) {
       this.logger.warn(`Receiver ${dto.receiverId} not online`);
 
     }
     const result = await this.messagesService.sendMessage(String(senderId), dto);
-    // console.log('result', result, dto);
+    console.log('result', result, dto);
     this.server.to(receiverSocketId as string).emit('receive_message', {
       ...dto,
       senderId,
