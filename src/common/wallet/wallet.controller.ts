@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Param, Query, Get, Delete, ParseIntPipe, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiBody, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { WalletService } from './wallet.service';
 import { AddMoneyDto, addMoneyForOrderPriorityDto, PayWithSavedCardDto, WithdrawDto } from './dto/wallet.dto';
 import { Auth } from 'src/decorators/auth.decorator';
@@ -20,9 +20,36 @@ export class WalletController {
 
 
 
+    // 
+    @Post('earn-money')
+    @Auth()
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get rider earning summary' })
+    @ApiQuery({ name: 'date', required: false, type: String })
+    async earnMoney(
+        @CurrentUser() user: IUser,
+        @Query('date') date?: string,
+    ) {
+        const parsedDate = date ? new Date(date) : undefined;
+
+        const result = await this.walletService.earnMoney(
+            +user.id,
+            parsedDate,
+        );
+
+        return ApiResponses.success(
+            result,
+            'Earning summary fetched successfully',
+        );
+    }
+
+
+
+
     // add money for web portal
     @Post('add-money')
     @Auth()
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Add money to user wallet' })
     async addMoney(
         @Body() dto: AddMoneyDto,

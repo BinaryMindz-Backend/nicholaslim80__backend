@@ -6,7 +6,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { NotifyRaider, PriorityOrder, UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { DeliveryZone, DestinationInput, IUser, Receiver, UserRaiderMapping } from 'src/types';
-import { CollectTime, DeliveryTypeName, DestinationType, NotificationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, Raider, RaiderStatus, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType, VehicleTypeEnum } from '@prisma/client';
+import { CollectTime, DeliveryTypeName, DestinationType, NotificationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, Raider, RaiderStatus, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType, VehicleTypeEnum, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
@@ -794,6 +794,18 @@ export class OrderService {
           where: { id: raiderId },
           data: { totalWalletBalance: { increment: driverCredit }, currentWalletBalance: { increment: driverCredit } },
         });
+        // 
+        await tx.walletHistory.create({
+          data: {
+            userId: raiderId,
+            amount: driverCredit,
+            type: 'credit',
+            transactionId: `TRX-earning-${stop.orderId}`,
+            transactionType: WalletTransactionType.PAYMENT,
+            status: WalletTransactionStatus.SUCCESS,
+            currency: 'SGD',
+          },
+        });
 
         // 
         await tx.transaction.update({
@@ -804,6 +816,7 @@ export class OrderService {
             pay_type: stop.order.pay_type,
             total_fee: stop.order.total_cost,
             delivery_fee: stop.order.total_cost,
+
           }
         })
 
