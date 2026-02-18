@@ -1103,7 +1103,7 @@ export class WalletService {
     const skip = (page - 1) * limit;
     const take = limit;
 
-    const where: any = { role: { name: dto.role } };
+    const where: any = { roles: { some: { name: dto.role } } };
 
     if (dto.search) {
       where.OR = [
