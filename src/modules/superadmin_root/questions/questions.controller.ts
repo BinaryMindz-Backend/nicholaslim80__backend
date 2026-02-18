@@ -28,7 +28,7 @@ import { Module, Permission } from 'src/rbac/rbac.constants';
 @ApiTags('questions')
 @Controller('questions')
 export class QuestionsController {
-  constructor(private readonly questionsService: QuestionsService) {}
+  constructor(private readonly questionsService: QuestionsService) { }
 
   // CREATE QUESTION
   @Post()
@@ -130,13 +130,13 @@ export class QuestionsController {
   // Raider quiz result
   @Post(':quizId')
   @Auth()
-  @Roles(UserRole.RAIDER)
+  // @Roles(UserRole.RAIDER)
   @RequirePermission(Module.QUIZ, Permission.GET_ONE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Post raider quiz result by ID (raider only)' })
   @ApiResponse({ status: 200, description: 'Question Result Saved' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async raiderResult(@Param('quizId') id: string, @Body() dto:QuizResultdto, @CurrentUser() user:IUser) {
+  async raiderResult(@Param('quizId') id: string, @Body() dto: QuizResultdto, @CurrentUser() user: IUser) {
     try {
       const res = await this.questionsService.raiderResult(+id, dto, user);
       return ApiResponses.success(res, 'Question Result added successfully');
@@ -144,64 +144,64 @@ export class QuestionsController {
       return ApiResponses.error(error, 'Failed to post quiz result');
     }
   }
-  
-@Get('quiz/ans/all')
-@Auth()
-// @Roles(UserRole.SUPER_ADMIN)
-@RequirePermission(Module.QUIZ, Permission.READ)
-@ApiBearerAuth()
-@ApiOperation({ summary: 'Get all quiz results (Admin only)' })
-@ApiResponse({ status: 200, description: 'All results fetched successfully' })
-@ApiResponse({ status: 404, description: 'No results found' })
-async getAllRaiderResults(
-  @CurrentUser() user: IUser,
-  @Query() query: RaiderQuizFilterDto,
-) {
-  try {
-    const res = await this.questionsService.getAllRaiderResults(user, query);
-    return ApiResponses.success(res, 'All quiz results fetched successfully');
-  } catch (error) {
-    return ApiResponses.error(error, 'Failed to fetch quiz results');
-  }
-}
 
- 
-  
+  @Get('quiz/ans/all')
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.QUIZ, Permission.READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all quiz results (Admin only)' })
+  @ApiResponse({ status: 200, description: 'All results fetched successfully' })
+  @ApiResponse({ status: 404, description: 'No results found' })
+  async getAllRaiderResults(
+    @CurrentUser() user: IUser,
+    @Query() query: RaiderQuizFilterDto,
+  ) {
+    try {
+      const res = await this.questionsService.getAllRaiderResults(user, query);
+      return ApiResponses.success(res, 'All quiz results fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to fetch quiz results');
+    }
+  }
+
+
+
   //indivitual Raider quiz result
-@Get('quiz/ans/:raiderId')
-@Auth()
-// @Roles(UserRole.RAIDER, UserRole.SUPER_ADMIN)
-@RequirePermission(Module.QUIZ, Permission.GET_ONE)
-@ApiBearerAuth()
-@ApiOperation({ summary: 'Get quiz results details for the logged-in raider(admin only)' })
-@ApiResponse({ status: 200, description: ' results fetched successfully' })
-@ApiResponse({ status: 404, description: 'No results found' })
-async deleteIndivitualraiderResults(@Param("raiderId") id:string) {
-  try {
-    const res = await this.questionsService.getIndivitualraiderResult(+id);
-    return ApiResponses.success(res, 'quiz results details fetched successfully');
-  } catch (error) {
-    return ApiResponses.error(error, 'Failed to fetch quiz results');
+  @Get('quiz/ans/:raiderId')
+  @Auth()
+  // @Roles(UserRole.RAIDER, UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.QUIZ, Permission.GET_ONE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get quiz results details for the logged-in raider(admin only)' })
+  @ApiResponse({ status: 200, description: ' results fetched successfully' })
+  @ApiResponse({ status: 404, description: 'No results found' })
+  async deleteIndivitualraiderResults(@Param("raiderId") id: string) {
+    try {
+      const res = await this.questionsService.getIndivitualraiderResult(+id);
+      return ApiResponses.success(res, 'quiz results details fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to fetch quiz results');
+    }
   }
-}
 
-// Raider quiz result
-@Delete('quiz/ans/:id')
-@Auth()
-// @Roles(UserRole.SUPER_ADMIN)
-@RequirePermission(Module.QUIZ, Permission.DELETE)
-@ApiBearerAuth()
-@ApiOperation({ summary: 'Delete quiz results details for the logged-in raider(admin only)' })
-@ApiResponse({ status: 200, description: 'deleted successfully successfully' })
-@ApiResponse({ status: 404, description: 'No results found' })
-async getIndivitualraiderResults(@Param("id") id:string) {
-  try {
-    const res = await this.questionsService.deleteIndivitualraiderResult(+id);
-    return ApiResponses.success(res, 'quiz deleted results fetched successfully');
-  } catch (error) {
-    return ApiResponses.error(error, 'Failed to fetch quiz results');
+  // Raider quiz result
+  @Delete('quiz/ans/:id')
+  @Auth()
+  // @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.QUIZ, Permission.DELETE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete quiz results details for the logged-in raider(admin only)' })
+  @ApiResponse({ status: 200, description: 'deleted successfully successfully' })
+  @ApiResponse({ status: 404, description: 'No results found' })
+  async getIndivitualraiderResults(@Param("id") id: string) {
+    try {
+      const res = await this.questionsService.deleteIndivitualraiderResult(+id);
+      return ApiResponses.success(res, 'quiz deleted results fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error, 'Failed to fetch quiz results');
+    }
   }
-}
 
 
 }
