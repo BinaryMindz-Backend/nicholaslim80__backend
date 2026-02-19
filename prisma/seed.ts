@@ -463,7 +463,7 @@ async function syncPermissionsForExistingRoles() {
 async function initialSeed() {
   const superAdminEmail = process.env.SUPER_ADMIN_EMAIL;
   const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD;
-  const superAdminUsername = process.env.SUPER_ADMIN_USERNAME || "superadmin";
+  const superAdminUsername = "admin";
   const superAdminPhone = process.env.SUPER_ADMIN_PHONE || "+8801000000000";
 
   if (!superAdminEmail || !superAdminPassword) {

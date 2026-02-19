@@ -3,7 +3,7 @@ import {
   Query,
   Post
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Auth } from 'src/decorators/auth.decorator';
@@ -14,6 +14,7 @@ import { UserFilterDto } from './dto/user-filter.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { CheckUsernameDto } from './dto/checkuser_name.dto';
 
 
 
@@ -86,6 +87,24 @@ export class UsersController {
       return ApiResponses.error(err, 'Failed to fetch users');
     }
   }
+  // 
+  @Get("check-username")
+  @Auth()
+  @RequirePermission(Module.USER, Permission.GET_USER_PROFILE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Check username' })
+  @ApiResponse({ status: 200, description: 'Username checked successfully' })
+  @ApiResponse({ status: 404, description: 'Username not found' })
+  async checkUsername(@Query() dto: CheckUsernameDto) {
+    try {
+      const profile = await this.usersService.checkUsername(dto.username);
+      return ApiResponses.success(profile, 'Username checked successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch user');
+    }
+
+  }
+
   // find admin 
   @Get("admin")
   @Auth()
@@ -314,5 +333,6 @@ export class UsersController {
       return ApiResponses.error(error);
     }
   }
+  // 
 
 }
