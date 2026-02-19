@@ -153,13 +153,14 @@ export class UsersService {
   }
 
   // 
-  async findByEmailOrPhone(email?: string, phone?: string) {
+  async findByEmailOrPhone(email?: string, phone?: string, username?: string) {
     // 
     const res = await this.prisma.user.findFirst({
       where: {
         OR: [
           { email },
-          { phone }
+          { phone },
+          { username }
         ]
       },
       include: {
