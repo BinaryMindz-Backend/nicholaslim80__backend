@@ -146,7 +146,6 @@ export class AuthController {
   //** REFRESH TOKEN endpoint for new token generation
   @Post('refresh')
   @Auth()
-  @Public()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
   @ApiBody({
@@ -163,7 +162,6 @@ export class AuthController {
   @Post('logout')
   @ApiOperation({ summary: 'Logout user' })
   @Auth()
-  // @Public()
   @ApiBearerAuth()
   async logout(@CurrentUser() user: IUser) {
     // console.log(req.user);

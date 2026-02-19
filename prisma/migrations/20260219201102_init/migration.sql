@@ -113,7 +113,7 @@ CREATE TYPE "Advertisementfor" AS ENUM ('USER', 'RAIDER');
 CREATE TYPE "OrderConfirmationRatioType" AS ENUM ('GENIUNE', 'MANUAL_CHECK', 'SUSPICIOUS');
 
 -- CreateEnum
-CREATE TYPE "WalletTransactionType" AS ENUM ('PAYOUT', 'PAYMENT', 'REFUND', 'DEDUCTION');
+CREATE TYPE "WalletTransactionType" AS ENUM ('PAYOUT', 'PAYMENT', 'REFUND', 'DEDUCTION', 'EARNING');
 
 -- CreateEnum
 CREATE TYPE "WalletTransactionStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED');
@@ -550,6 +550,7 @@ CREATE TABLE "Conversation" (
     "user2Id" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "orderId" TEXT,
 
     CONSTRAINT "Conversation_pkey" PRIMARY KEY ("id")
 );
@@ -748,7 +749,7 @@ CREATE TABLE "StandardCommissionRate" (
     "applicable_user" "ApplicableTyp" NOT NULL,
     "role_name" VARCHAR(100) NOT NULL,
     "commission_rate_delivery_fee" INTEGER NOT NULL DEFAULT 0,
-    "service_area" VARCHAR(100) NOT NULL,
+    "service_area_id" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -761,7 +762,7 @@ CREATE TABLE "RaiderCompensationRole" (
     "applicable_user" "ApplicableTyp" NOT NULL,
     "scenario" VARCHAR(100) NOT NULL,
     "commission_rate_delivery_fee" INTEGER NOT NULL DEFAULT 0,
-    "service_area" VARCHAR(100) NOT NULL,
+    "service_area_id" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -774,7 +775,6 @@ CREATE TABLE "RaiderDeductionFee" (
     "applicable_user" "ApplicableTyp" NOT NULL,
     "deduction_name" VARCHAR(100) NOT NULL,
     "amount" INTEGER NOT NULL DEFAULT 0,
-    "service_area" VARCHAR(100) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -787,7 +787,7 @@ CREATE TABLE "UserFeeStructure" (
     "applicable_user" "ApplicableTyp" NOT NULL,
     "fee_name" VARCHAR(100) NOT NULL,
     "amount" INTEGER NOT NULL DEFAULT 0,
-    "service_area" VARCHAR(100) NOT NULL,
+    "service_area_id" INTEGER,
     "applies_to" "FeeAppliesType" NOT NULL,
     "condition_value" DOUBLE PRECISION,
     "condition_unit" VARCHAR(20),
@@ -1199,6 +1199,7 @@ CREATE TABLE "users" (
     "id" SERIAL NOT NULL,
     "username" VARCHAR(50),
     "email" VARCHAR(200),
+    "login_id" VARCHAR(20),
     "phone" VARCHAR(20) NOT NULL,
     "password" VARCHAR(255),
     "reward_points" INTEGER NOT NULL DEFAULT 0,
@@ -1443,6 +1444,9 @@ CREATE UNIQUE INDEX "stop_payments_orderStopId_key" ON "stop_payments"("orderSto
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "users_login_id_key" ON "users"("login_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "users_referral_code_key" ON "users"("referral_code");
 
 -- CreateIndex
@@ -1567,6 +1571,15 @@ ALTER TABLE "payment_methods" ADD CONSTRAINT "payment_methods_userId_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "places" ADD CONSTRAINT "places_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StandardCommissionRate" ADD CONSTRAINT "StandardCommissionRate_service_area_id_fkey" FOREIGN KEY ("service_area_id") REFERENCES "serviceZone"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RaiderCompensationRole" ADD CONSTRAINT "RaiderCompensationRole_service_area_id_fkey" FOREIGN KEY ("service_area_id") REFERENCES "serviceZone"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserFeeStructure" ADD CONSTRAINT "UserFeeStructure_service_area_id_fkey" FOREIGN KEY ("service_area_id") REFERENCES "serviceZone"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PromaCodeUses" ADD CONSTRAINT "PromaCodeUses_promoCodeId_fkey" FOREIGN KEY ("promoCodeId") REFERENCES "PromoCode"("id") ON DELETE SET NULL ON UPDATE CASCADE;

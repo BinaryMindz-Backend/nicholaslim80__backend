@@ -9,7 +9,7 @@ import { DeliveryTypeName, OrderStatus } from '@prisma/client';
 
 @Injectable()
 export class RbacService implements OnModuleInit {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async onModuleInit() {
     await this.initializeStaticRoles();
@@ -27,7 +27,7 @@ export class RbacService implements OnModuleInit {
           { module: Module.USER, action: Permission.UPDATE_USER_ROLE },
           { module: Module.USER, action: Permission.UPDATE_USER_STATUS },
           { module: Module.USER, action: Permission.DELETE },
-          
+
           { module: Module.ORDER, action: Permission.CREATE },
           { module: Module.ORDER, action: Permission.READ },
           { module: Module.ORDER, action: Permission.UPDATE_ORDER_STATUS },
@@ -38,22 +38,22 @@ export class RbacService implements OnModuleInit {
       {
         name: STATIC_ROLES.RAIDER,
         permissions: [
-            { module: Module.USER, action: Permission.GET_USER_PROFILE },
-            { module: Module.USER, action: Permission.UPDATE },
+          { module: Module.USER, action: Permission.GET_USER_PROFILE },
+          { module: Module.USER, action: Permission.UPDATE },
         ],
       },
       {
         name: STATIC_ROLES.USER,
         permissions: [
-                { module: Module.USER, action: Permission.READ },
-                { module: Module.USER, action: Permission.UPDATE },
-                { module: Module.USER, action: Permission.GET_USER_PROFILE },
+          { module: Module.USER, action: Permission.READ },
+          { module: Module.USER, action: Permission.UPDATE },
+          { module: Module.USER, action: Permission.GET_USER_PROFILE },
 
-          
+
         ],
       },
     ];
-    
+
     // Creating Dynamic role
     for (const role of staticRoles) {
       const existingRole = await this.prisma.role.findUnique({
@@ -141,8 +141,8 @@ export class RbacService implements OnModuleInit {
           select: { users: true },
         },
       },
-      orderBy:{
-          createdAt:"asc"
+      orderBy: {
+        createdAt: "asc"
       }
     });
   }
@@ -161,6 +161,30 @@ export class RbacService implements OnModuleInit {
 
     return role;
   }
+  //  
+  async getUsersByRole(roleId: number) {
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      include: {
+        users: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            phone: true,
+          }
+        },
+      },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    return role;
+  }
+
+
   //
   async updateRole(roleId: number, name: string) {
     const role = await this.prisma.role.findUnique({
@@ -169,7 +193,7 @@ export class RbacService implements OnModuleInit {
 
     if (!role) {
       throw new NotFoundException('Role not found');
-    } 
+    }
     if (role.isStatic) {
       throw new BadRequestException('Cannot modify static roles');
     }
@@ -178,7 +202,7 @@ export class RbacService implements OnModuleInit {
       where: { id: roleId },
       data: { name },
     });
-  
+
     return updatedRole;
   }
   // 
@@ -189,7 +213,7 @@ export class RbacService implements OnModuleInit {
 
     if (!role) {
       throw new NotFoundException('Role not found');
-    } 
+    }
     if (role.isStatic) {
       throw new BadRequestException('Cannot modify static roles');
     }
@@ -198,7 +222,7 @@ export class RbacService implements OnModuleInit {
       where: { id: roleId },
       data: { isActive: !role.isActive },
     });
-  
+
     return updatedRole;
   }
 
@@ -217,13 +241,13 @@ export class RbacService implements OnModuleInit {
     }
     // 
     const usersWithRole = await this.prisma.user.count({
-      where: { 
-          roles:{
-              some:{
-                  id:roleId
-              }
+      where: {
+        roles: {
+          some: {
+            id: roleId
           }
-       },
+        }
+      },
     });
 
     if (usersWithRole > 0) {
@@ -251,7 +275,7 @@ export class RbacService implements OnModuleInit {
         action,
       },
     });
-    console.log("permission--->",permission, userId, module, action);
+    console.log("permission--->", permission, userId, module, action);
     return !!permission;
   }
 
@@ -289,19 +313,19 @@ export class RbacService implements OnModuleInit {
 
     // Group permissions by module
     const permissionsByModule: Record<string, string[]> = {};
-        user.roles.map(r=>(
-              r.permissions.forEach((perm) => {
-              if (!permissionsByModule[perm.module]) {
-              permissionsByModule[perm.module] = [];
-            }
-            permissionsByModule[perm.module].push(perm.action);
-          })
-        ))
+    user.roles.map(r => (
+      r.permissions.forEach((perm) => {
+        if (!permissionsByModule[perm.module]) {
+          permissionsByModule[perm.module] = [];
+        }
+        permissionsByModule[perm.module].push(perm.action);
+      })
+    ))
 
     return {
       roleName: user.roles?.map(r => r.name) ?? [],
       permissions: permissionsByModule,
-      detailedPermissions: user.roles.map(r=>r.permissions) ?? [],
+      detailedPermissions: user.roles.map(r => r.permissions) ?? [],
     };
   }
 
@@ -328,83 +352,110 @@ export class RbacService implements OnModuleInit {
   }
   // 
   // Service
-async findAllBySearch(dto: SearchDto) {
+  async findAllBySearch(dto: SearchDto) {
 
-  const searchTerm = dto.search.trim();
-  const isNumeric = !isNaN(Number(searchTerm));
+    const searchTerm = dto.search.trim();
+    const isNumeric = !isNaN(Number(searchTerm));
 
-  // Search in 3 tables parallelly
-  const [orderResults, userResults, raiderResults] = await Promise.all([
-    // 1. Search in ORDER table
-    this.prisma.order.findMany({
-      where: {
-        OR: [
-          // Order ID
-          ...(isNumeric ? [{ id: Number(searchTerm) }] : []),
-          
-          // Order status (enum exact match)
-          ...(Object.values(OrderStatus).includes(searchTerm.toUpperCase() as OrderStatus)
-            ? [{ order_status: searchTerm.toUpperCase() as OrderStatus }]
-            : []),
+    // Search in 3 tables parallelly
+    const [orderResults, userResults, raiderResults] = await Promise.all([
+      // 1. Search in ORDER table
+      this.prisma.order.findMany({
+        where: {
+          OR: [
+            // Order ID
+            ...(isNumeric ? [{ id: Number(searchTerm) }] : []),
 
-          
-          // Delivery type (enum exact match)
-          ...(Object.values(DeliveryTypeName).includes(searchTerm.toUpperCase() as DeliveryTypeName)
-            ? [{ delivery_type: searchTerm.toUpperCase() as DeliveryTypeName }]
-            : []),
-        ],
-      },
-    }),
+            // Order status (enum exact match)
+            ...(Object.values(OrderStatus).includes(searchTerm.toUpperCase() as OrderStatus)
+              ? [{ order_status: searchTerm.toUpperCase() as OrderStatus }]
+              : []),
 
-    // 2. Search in USER table
-    this.prisma.user.findMany({
-      where: {
-        OR: [
-          { username: { contains: searchTerm, mode: 'insensitive' } },
-          { phone: { contains: searchTerm, mode: 'insensitive' } },
-          { email: { contains: searchTerm, mode: 'insensitive' } },
-        ],
-      },
-      include:{
-          roles:true,
-      }
-    }),
 
-    // 3. Search in RAIDER table
-    this.prisma.raider.findMany({
-      where: {
-        registrations: {
-          some: {
-            OR: [
-              { raider_name: { contains: searchTerm, mode: 'insensitive' } },
-              { current_address: { contains: searchTerm, mode: 'insensitive' } },
-              { contact_number : { contains: searchTerm, mode: 'insensitive' } },
-              { email_address : { contains: searchTerm, mode: 'insensitive' } },
-              { permanent_city : { contains: searchTerm, mode: 'insensitive' } },
-            ],
+            // Delivery type (enum exact match)
+            ...(Object.values(DeliveryTypeName).includes(searchTerm.toUpperCase() as DeliveryTypeName)
+              ? [{ delivery_type: searchTerm.toUpperCase() as DeliveryTypeName }]
+              : []),
+          ],
+        },
+      }),
+
+      // 2. Search in USER table
+      this.prisma.user.findMany({
+        where: {
+          OR: [
+            { username: { contains: searchTerm, mode: 'insensitive' } },
+            { phone: { contains: searchTerm, mode: 'insensitive' } },
+            { email: { contains: searchTerm, mode: 'insensitive' } },
+          ],
+        },
+        include: {
+          roles: true,
+        }
+      }),
+
+      // 3. Search in RAIDER table
+      this.prisma.raider.findMany({
+        where: {
+          registrations: {
+            some: {
+              OR: [
+                { raider_name: { contains: searchTerm, mode: 'insensitive' } },
+                { current_address: { contains: searchTerm, mode: 'insensitive' } },
+                { contact_number: { contains: searchTerm, mode: 'insensitive' } },
+                { email_address: { contains: searchTerm, mode: 'insensitive' } },
+                { permanent_city: { contains: searchTerm, mode: 'insensitive' } },
+              ],
+            },
           },
         },
+        include: {
+          registrations: true
+        }
+      }),
+    ]);
+
+    return {
+      orders: orderResults,
+      users: userResults,
+      raiders: raiderResults
+    }
+
+
+  }
+
+  //
+  async removeUserFromRole(roleId: number, userId: number) {
+    const role = await this.prisma.role.update({
+      where: { id: roleId },
+      data: {
+        users: {
+          disconnect: { id: userId }, // this removes the relation
+        },
       },
-      include:{
-          registrations:true
-      }
-    }),
-  ]);
+    });
 
-   return{
-    orders: orderResults,
-    users: userResults,
-    raiders: raiderResults
-   }
+    return {
+      message: `User ${userId} removed from role ${roleId}`,
+      role,
+    };
+  }
+  //add user to role
+  async addUserToRole(roleId: number, userId: number) {
+    const role = await this.prisma.role.update({
+      where: { id: roleId },
+      data: {
+        users: {
+          connect: { id: userId }, // this adds the relation
+        },
+      },
+    });
 
-
-}
-
-
-
-
-
-
+    return {
+      message: `User ${userId} added to role ${roleId}`,
+      role,
+    };
+  }
 
 
 }

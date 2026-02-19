@@ -87,7 +87,7 @@ export class UsersService {
       const user = await tx.user.create({
         data: {
           email: dto.email,
-          username: dto.username,
+          username: dto.username!,
           phone: dto.phone,
           password: hashed,
           referral_code: code,
@@ -153,13 +153,14 @@ export class UsersService {
   }
 
   // 
-  async findByEmailOrPhone(email?: string, phone?: string) {
+  async findByEmailOrPhone(email?: string, phone?: string, username?: string) {
     // 
     const res = await this.prisma.user.findFirst({
       where: {
         OR: [
           { email },
-          { phone }
+          { phone },
+          { username }
         ]
       },
       include: {
@@ -1054,7 +1055,7 @@ export class UsersService {
       //  Create user + roles 
       const user = await tx.user.create({
         data: {
-          username: dto.username,
+          username: dto.username!,
           email: dto.email,
           phone: dto.phone,
           password: hashedPass,
@@ -1099,8 +1100,90 @@ export class UsersService {
     });
   }
 
-  // 
+  async checkUsername(username: string) {
+    const normalized = username.toLowerCase();
 
+    const exactUser = await this.prisma.user.findUnique({
+      where: { username: normalized },
+    });
+
+    // If exact username does NOT exist
+    if (!exactUser) {
+      return {
+        available: true,
+        suggestions: [],
+      };
+    }
+
+    // Only generate suggestions if base exists
+    const suggestions = await this.generateSequentialSuggestions(normalized);
+
+    return {
+      available: false,
+      message: 'Username already exists',
+      suggestions,
+    };
+  }
+
+  //  generate username 
+  private async generateSequentialSuggestions(base: string): Promise<string[]> {
+    const MAX_SUGGESTIONS = 5;
+
+    //  Fetch all similar usernames
+    const similarUsers = await this.prisma.user.findMany({
+      where: {
+        username: {
+          startsWith: base,
+        },
+      },
+      select: { username: true },
+    });
+
+    /*
+      Example DB result:
+      [
+        { username: "admin" },
+        { username: "admin1" },
+        { username: "admin2" },
+        { username: "admin5" }
+      ]
+    */
+
+    // Extract numeric suffixes
+    const suffixNumbers: number[] = [];
+
+    for (const user of similarUsers) {
+      const match = user.username.match(
+        new RegExp(`^${base}(\\d+)$`)
+      );
+
+      if (match) {
+        suffixNumbers.push(parseInt(match[1], 10));
+      }
+    }
+
+    /*
+      suffixNumbers = [1, 2, 5]
+    */
+
+    // Determine next available numbers
+    const suggestions: string[] = [];
+    let counter = 1;
+
+    while (suggestions.length < MAX_SUGGESTIONS) {
+      if (!suffixNumbers.includes(counter)) {
+        suggestions.push(`${base}${counter}`);
+      }
+      counter++;
+    }
+
+    /*
+      Result:
+      ["admin3", "admin4", "admin6", "admin7", "admin8"]
+    */
+
+    return suggestions;
+  }
 
 
 }

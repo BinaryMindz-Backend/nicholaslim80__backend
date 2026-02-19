@@ -3,10 +3,11 @@ import { RbacService } from './rbac.service';
 import { RequirePermission } from './decorators/require-permission.decorator';
 import { Module, Permission } from './rbac.constants';
 import { Auth } from 'src/decorators/auth.decorator';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { CreateRoleDto, SearchDto, UpdateRoleDto, UpdateRoleNameDto } from './dto/role.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
+import { Public } from 'src/decorators/public.decorator';
 
 
 
@@ -127,6 +128,14 @@ export class RbacController {
     return this.rbacService.getRoleById(id);
   }
 
+  @Get(':id/users')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.RBAC, Permission.READ)
+  async getUserByRole(@Param('id', ParseIntPipe) id: number) {
+    return this.rbacService.getUsersByRole(id);
+  }
+
 
   // find all available role
   @Get('user/permissions')
@@ -153,6 +162,39 @@ export class RbacController {
   // }
   // 
 
+  // roles.controller.ts
+  @Delete(':roleId/users/:userId')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.RBAC, Permission.DELETE)
+  @ApiOperation({ summary: 'Remove a user from a role' })
+  async removeUserFromRole(
+    @Param('roleId', ParseIntPipe) roleId: number,
+    @Param('userId', ParseIntPipe) userId: number
+  ) {
+    try {
+      const res = await this.rbacService.removeUserFromRole(roleId, userId);
+      return ApiResponses.success(res, 'User removed from role successfully');
+    } catch (error) {
+      return ApiResponses.error(error, "Failed to remove user from role");
+    }
+  }
+
+  // 
+  @Post(':roleId/users/:userId')
+  @Public()
+  @ApiOperation({ summary: 'Add a user to a role' })
+  async addUserToRole(
+    @Param('roleId', ParseIntPipe) roleId: number,
+    @Param('userId', ParseIntPipe) userId: number
+  ) {
+    try {
+      const res = await this.rbacService.addUserToRole(roleId, userId);
+      return ApiResponses.success(res, 'User added to role successfully');
+    } catch (error) {
+      return ApiResponses.error(error, "Failed to add user to role");
+    }
+  }
 
 
 }
