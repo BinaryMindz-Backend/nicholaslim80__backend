@@ -19,17 +19,19 @@ import { UserRole } from '@prisma/client';
 import { CreatePolicyDto } from './dto/create-policy_management.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { UpdatePolicyDto } from './dto/update-policy_management.dto';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 
 @ApiTags('Policy management')
 @Controller('policy')
 export class PolicyController {
-  constructor(private policyService: PolicyService) {}
+  constructor(private policyService: PolicyService) { }
 
   // CREATE
   @Post()
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new policy (Admin only)' })
   async create(@Body() dto: CreatePolicyDto) {
@@ -43,6 +45,8 @@ export class PolicyController {
 
   // GET ALL
   @Get()
+  @Auth()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all policies (Public)' })
   async findAll() {
     try {
@@ -55,6 +59,8 @@ export class PolicyController {
 
   // GET BY ID
   @Get(':id')
+  @Auth()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get one policy by ID' })
   async findOne(@Param('id') id: string) {
     try {
@@ -68,7 +74,7 @@ export class PolicyController {
   // UPDATE
   @Patch(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update policy (Admin only)' })
   async update(@Param('id') id: string, @Body() dto: UpdatePolicyDto) {
@@ -83,11 +89,11 @@ export class PolicyController {
   // PATCH: Update only Publish Status
   @Patch(':id/publish')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update publish status (Admin only)' })
   async updatePublish(
-    @Param('id') id: string 
+    @Param('id') id: string
   ) {
     try {
       const res = await this.policyService.updateStatus(Number(id));
@@ -100,7 +106,7 @@ export class PolicyController {
   // DELETE
   @Delete(':id')
   @Auth()
-  @Roles(UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete policy (Admin only)' })
   async remove(@Param('id') id: string) {
@@ -111,5 +117,5 @@ export class PolicyController {
       return ApiResponses.error(err);
     }
   }
-  
+
 }
