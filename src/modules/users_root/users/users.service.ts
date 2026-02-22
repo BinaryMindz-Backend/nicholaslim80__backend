@@ -979,6 +979,16 @@ export class UsersService {
     const users = await this.prisma.user.findMany({
       where: { id: { in: ids } }
     })
+    // admin check 
+    const admin = await this.prisma.user.findFirst({
+      where: {
+        id: { in: ids },
+        roles: { some: { name: UserRole.ADMIN } }
+      }
+    })
+    if (admin) {
+      throw new BadRequestException("Admin cannot be deleted");
+    }
 
     if (users.length === 0) {
       throw new NotFoundException("No users found for given IDs");

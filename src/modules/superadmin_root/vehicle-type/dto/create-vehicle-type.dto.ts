@@ -1,6 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { VehicleTypeEnum } from '@prisma/client';
 import {
   IsBoolean,
+  IsEnum,
   IsNumber,
   IsOptional,
   IsString,
@@ -11,10 +13,18 @@ export class CreateVehicleTypeDto {
 
   @ApiProperty({
     required: true,
+    example: VehicleTypeEnum.CAR,
+  })
+  @IsEnum(VehicleTypeEnum)
+  vehicle_type: VehicleTypeEnum;
+
+  @ApiPropertyOptional({
+    required: false,
     example: 'SUV',
   })
   @IsString()
-  vehicle_type: string;
+  @IsOptional()
+  vehicle_name?: string;
 
   @ApiProperty({ required: false, example: 50.0 })
   @IsOptional()
