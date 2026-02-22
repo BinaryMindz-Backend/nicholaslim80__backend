@@ -85,15 +85,15 @@ export class OrderService {
 
       return order;
     });
-    await this.emailQueueService.queueOrderStatusNotification({
-      userId: user.id,
-      fcmToken: isUserExist?.fcmToken ?? '',
-      orderId: res.id,
-      orderNumber: `ORD-${String(res.id).padStart(6, '0')}`,
-      status: NotificationType.ORDER_UPDATE,
-      title: 'Order Created Successfully',
-      message: `Your order ORD-${String(res.id).padStart(6, '0')} has been created with total cost $${res.total_cost.toFixed(2)}.`,
-    });
+    // await this.emailQueueService.queueOrderStatusNotification({
+    //   userId: user.id,
+    //   fcmToken: isUserExist?.fcmToken ?? '',
+    //   orderId: res.id,
+    //   orderNumber: `ORD-${String(res.id).padStart(6, '0')}`,
+    //   status: NotificationType.ORDER_UPDATE,
+    //   title: 'Order Created Successfully',
+    //   message: `Your order ORD-${String(res.id).padStart(6, '0')} has been created with total cost $${res.total_cost.toFixed(2)}.`,
+    // });
     return res;
   }
 
@@ -1374,7 +1374,6 @@ export class OrderService {
       where: { id: user.id },
     });
     // send notification to user
-    console.log('exUser', exUser, 'is facm token exist-->', exUser?.fcmToken);
     await this.emailQueueService.queueOrderStatusNotification({
       userId: user.id,
       fcmToken: exUser?.fcmToken ?? '',
