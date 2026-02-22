@@ -34,7 +34,7 @@ export class UsersService {
     role_name: string
   }) {
     // Pre-transaction validations (same as before)
-    if (dto.role_name === UserRole.SUPER_ADMIN) {
+    if (dto.role_name === UserRole.ADMIN) {
       throw new NotAcceptableException("You can't create superadmin or admin by general login");
     }
 

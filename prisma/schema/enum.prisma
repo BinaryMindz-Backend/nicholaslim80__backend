@@ -9,7 +9,6 @@ enum UserRole {
 enum AdminRole {
   ADMIN
   MODERATOR
-  SUPER_ADMIN
 }
 // 
 enum Rank {
