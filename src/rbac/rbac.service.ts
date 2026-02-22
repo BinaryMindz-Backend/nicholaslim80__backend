@@ -18,7 +18,7 @@ export class RbacService implements OnModuleInit {
   private async initializeStaticRoles() {
     const staticRoles = [
       {
-        name: STATIC_ROLES.SUPER_ADMIN,
+        name: STATIC_ROLES.ADMIN,
         permissions: [
           // Full access to all modules
           { module: Module.USER, action: Permission.CREATE },
@@ -135,6 +135,11 @@ export class RbacService implements OnModuleInit {
 
   async getAllRoles() {
     return await this.prisma.role.findMany({
+      where: {
+        isStatic: {
+          not: true
+        }
+      },
       include: {
         permissions: true,
         _count: {
@@ -426,6 +431,25 @@ export class RbacService implements OnModuleInit {
 
   //
   async removeUserFromRole(roleId: number, userId: number) {
+
+    const existingRole = await this.prisma.role.findUnique({
+      where: { id: roleId },
+    });
+
+    if (!existingRole) {
+      throw new NotFoundException('Role not found');
+    }
+
+    if (existingRole.isStatic) {
+      throw new BadRequestException('Cannot remove user from static role like admin, user, raider');
+    }
+    // check user is exist in role
+    const existingUser = await this.prisma.role.findUnique({
+      where: { id: roleId },
+    });
+    if (!existingUser) {
+      throw new NotFoundException('User not found');
+    }
     const role = await this.prisma.role.update({
       where: { id: roleId },
       data: {

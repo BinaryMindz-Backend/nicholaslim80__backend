@@ -28,8 +28,8 @@ export enum Module {
   PAYMENT_METHOD = "payment_method",
   // referral module
   REFERRAL = "referral",
-  ADDITIONAL_SERVICES="additional_services",
-  USER_PROFILE="user_profile",
+  ADDITIONAL_SERVICES = "additional_services",
+  USER_PROFILE = "user_profile",
 
 
 
@@ -88,8 +88,7 @@ export enum Permission {
 
 // statc role
 export const STATIC_ROLES = {
-  SUPER_ADMIN: 'SUPER_ADMIN',
-  ADMIN:'ADMIN',
+  ADMIN: 'ADMIN',
   RAIDER: 'RAIDER',
   USER: 'USER',
 };

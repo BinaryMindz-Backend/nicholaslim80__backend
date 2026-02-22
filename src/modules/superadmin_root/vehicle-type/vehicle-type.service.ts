@@ -12,10 +12,10 @@ export class VehicleTypeService {
   async create(dto: CreateVehicleTypeDto, user: IUser) {
     // 
     const exists = await this.prisma.vehicleType.findFirst({
-      where: { vehicle_type: dto.vehicle_type, dimension: dto.dimension },
+      where: { vehicle_type: dto.vehicle_type, dimension: dto.dimension, vehicle_name: dto.vehicle_name },
     });
 
-    if (exists?.vehicle_type && exists?.dimension) {
+    if (exists?.vehicle_type && exists?.dimension && exists?.vehicle_name) {
       throw new ConflictException('Vehicle type by same dimention already exists');
     }
 
@@ -25,19 +25,20 @@ export class VehicleTypeService {
     if (!r) {
       throw new NotFoundException('Admin not found');
     }
-    
+
     // 
     return await this.prisma.vehicleType.create({
       data: {
         vehicle_type: dto.vehicle_type,
+        vehicle_name: dto.vehicle_name,
         base_price: dto.base_price,
         per_km_price: dto.per_km_price,
         peak_pricing: dto.peak_pricing,
         dimension: dto.dimension,
         max_load: dto.max_load,
         isActive: dto.isActive,
-        admin:{
-           connect: { id: r.id}
+        admin: {
+          connect: { id: r.id }
         }
       },
     });

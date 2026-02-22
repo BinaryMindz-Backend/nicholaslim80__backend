@@ -1,7 +1,6 @@
 
 enum UserRole {
   USER
-  SUPER_ADMIN
   RAIDER
   ADMIN
 }
