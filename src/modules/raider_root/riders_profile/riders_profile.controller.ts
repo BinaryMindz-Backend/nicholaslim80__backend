@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, Delete, BadRequestException, } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, Delete} from '@nestjs/common';
 import { RidersProfileService } from './riders_profile.service';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
