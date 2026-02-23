@@ -3,7 +3,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { LoginType, RaiderStatus, RaiderVerification, UserRole } from '@prisma/client';
+import { LoginType, RaiderStatus, RaiderVerification, UserRole, VehicleTypeEnum } from '@prisma/client';
 import { ApiResponses } from 'src/common/apiResponse';
 import { GetRidersQueryDto } from './dto/query-riders.dto';
 import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
@@ -19,6 +19,11 @@ export class RidersProfileService {
 
   async create(userId: number, createRidersProfileDto: CreateRidersProfileDto) {
 
+     const keys = Object.values(VehicleTypeEnum).filter(value=> typeof value === 'string')
+     const isAvailable  = keys.includes(createRidersProfileDto.vehicle_type) 
+     if(!isAvailable){
+        throw new NotFoundException("Vechicle type not found")
+     }
     // 
     const riderExists = await this.prisma.raider.findFirst({
       where: {

@@ -67,9 +67,20 @@ export class UsersService {
     });
 
     if (existing) {
-      throw new ConflictException('User already exists');
+      throw new ConflictException('User already exists by this email or phone');
     }
+    // 
+    const existingUsername = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: dto.username }
+        ]
+      }
+    });
 
+    if (existingUsername) {
+      throw new ConflictException('User name already taken');
+    }
     let hashed: string | undefined = undefined;
     if (dto.password) {
       const salt = Number(process.env.SALT_ROUNDS ?? 10);
