@@ -73,7 +73,7 @@ export class UsersService {
     const existingUsername = await this.prisma.user.findFirst({
       where: {
         OR: [
-          { email: dto.username }
+          { username: dto.username }
         ]
       }
     });
