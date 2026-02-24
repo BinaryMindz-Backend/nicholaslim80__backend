@@ -1016,37 +1016,50 @@ export class UsersService {
   async adminCreateUser(dto: CreateUserDto) {
     return this.prisma.$transaction(async (tx) => {
 
+     // Normalize input to string[]
+      const roleNames = dto.custom_role_name?.length
+        ? dto.custom_role_name
+        : dto.role_name
+        ? [dto.role_name]
+        : [];
+
+      if (!roleNames.length) return [];
+
+      // Remove duplicates once
+      const uniqueRoleNames = [...new Set(roleNames)];
+
       //  Get existing roles
       let existingRoles = await tx.role.findMany({
         where: {
           name: {
-            in: [...new Set(dto.custom_role_name)],
+            in: uniqueRoleNames,
           },
         },
       });
 
-      //  Determine missing role names
+      // Determine missing role names
       const existingNames = new Set(existingRoles.map(r => r.name));
-      const missingNames = [...new Set(dto.custom_role_name)].filter(
+      const missingNames = uniqueRoleNames.filter(
         name => !existingNames.has(name),
       );
 
-      // Create missing roles
+      //  Create missing roles
       if (missingNames.length > 0) {
         await tx.role.createMany({
           data: missingNames.map(name => ({ name })),
-          skipDuplicates: true, // optional but safe
+          skipDuplicates: true,
+        });
+
+        // Re-fetch all roles
+        existingRoles = await tx.role.findMany({
+          where: {
+            name: {
+              in: uniqueRoleNames,
+            },
+          },
         });
       }
 
-      // Re-fetch all roles (so you have Role[] for connecting)
-      existingRoles = await tx.role.findMany({
-        where: {
-          name: {
-            in: [...new Set(dto.custom_role_name)],
-          },
-        },
-      });
 
       // Check existing user
       const userExists = await tx.user.findFirst({
@@ -1104,20 +1117,27 @@ export class UsersService {
           coin_acc_amount: Number(coin?.coin_amount) || 0,
         },
       });
+    const keys = roleNames.filter(
+          r => r !== UserRole.USER && r !== UserRole.RAIDER
+        );
 
-      // Admin profile
-      const adminProfile = await tx.admin.create({
-        data: {
-          userId: user.id,
-          first_name: dto.username,
-          email: dto.email,
-          phone_number: dto.phone,
-          password: hashedPass,
-          role_id: user.roles[0].id,
-        },
-      });
+      if(keys.length > 0){
+            // Admin profile
+            const adminProfile = await tx.admin.create({
+              data: {
+                userId: user.id,
+                first_name: dto.username,
+                email: dto.email,
+                phone_number: dto.phone,
+                password: hashedPass,
+                role_id: user.roles[0].id,
+              },
+            });
 
-      return { user, adminProfile };
+            return adminProfile
+      }
+
+      return { user };
     });
   }
 
