@@ -128,7 +128,7 @@ export class ContentManagementService {
       if (!exitContent) {
        throw new NotFoundException(`You have not content at the content Number: (${id})`)
       }
-   const res =    await this.prisma.contentManagement.delete({
+   const res = await this.prisma.contentManagement.delete({
         where:{
           id
         }
@@ -136,12 +136,12 @@ export class ContentManagementService {
       // 
       await this.prisma.contentManagementLog.create({
           data: {
-            contentId: res.id,
-            contentType: res.contenttype,
-            faqFor: res.faq_for,
-            description: res.description,
-            isPublished: res.isPublished,
-            version: res.version,
+            contentId: exitContent.id,
+            contentType: exitContent.contenttype,
+            faqFor: exitContent.faq_for,
+            description: exitContent.description,
+            isPublished: exitContent.isPublished,
+            version: exitContent.version,
             changedByRole,
             changedByUserId,
           },
