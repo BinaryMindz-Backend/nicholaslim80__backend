@@ -121,7 +121,7 @@ export class ContentManagementService {
     }
 
 
-  async remove(id: number) {
+  async remove(id: number,changedByRole:string,changedByUserId:number ) {
       const exitContent = await this.prisma.contentManagement.findFirst({
         where:{id}
       })
@@ -133,6 +133,19 @@ export class ContentManagementService {
           id
         }
       })
+      // 
+      await this.prisma.contentManagementLog.create({
+          data: {
+            contentId: res.id,
+            contentType: res.contenttype,
+            faqFor: res.faq_for,
+            description: res.description,
+            isPublished: res.isPublished,
+            version: res.version,
+            changedByRole,
+            changedByUserId,
+          },
+        });
       return res
   }
   //  
