@@ -502,7 +502,7 @@ export class OrderService {
             await this.raiderGateway.notifyUserFavRaider(
               rider.raiderId,
               orderId,
-              rider.user.username!,
+              rider.user.username,
               {
                 orderId: order.id,
                 totalOrderCost: String(order.total_cost),
