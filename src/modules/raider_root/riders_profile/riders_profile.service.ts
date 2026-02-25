@@ -52,51 +52,6 @@ export class RidersProfileService {
     });
     return res;
   }
-  
-  // is online riders // TODO:
-  // async updateOnlineRiderStatus(userId:number) {
-
-  //       const riderExists = await this.prisma.raider.findFirst({
-  //         where: {
-  //           userId: userId,
-  //         },
-  //       });
-  //       //  
-  //       if (!riderExists) {
-  //         throw new NotFoundException('Rider not found for the given user ID');
-  //       }
-
-  //       //  
-  //       const res = await this.prisma.raider.update({
-  //         where: {
-  //           is_online:riderExists.is_online,
-  //           id:riderExists.id,
-  //         },
-  //         data: {
-  //           is_online:!riderExists.is_online,
-  //         },
-  //       });
-  //       return res;    
-  // }
-
-
-
-
-
-
-
-
-
-
-
-
-  // async findAll() {
-  //   const res = await this.prisma.raider.findMany({
-  //         include:{
-  //             registrations:true
-  //         }
-  //   });
-
 
   async findAll(query: GetRidersQueryDto) {
     const filter: any = {};
@@ -371,7 +326,7 @@ export class RidersProfileService {
 
       // Transaction
       const createdRaider = await this.prisma.$transaction(async (tx) => {
-        const defaultPassword = process.env.RAIDER_DEFAULT_PASSWORD;
+        const defaultPassword = dto.password;
 
         if (!defaultPassword) {
           throw new NotFoundException(
@@ -433,7 +388,7 @@ export class RidersProfileService {
         id: Number(id)
       },
     });
-    console.log({ raiderExists });
+    // console.log({ raiderExists });
     if (!raiderExists) {
       return ApiResponses.error('Rider not found');
     }

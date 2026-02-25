@@ -1,5 +1,6 @@
 
-import { ApiProperty } from '@nestjs/swagger';
+import { Optional } from '@nestjs/common';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Gender, VehicleTypeEnum } from '@prisma/client';
 import { IsNotEmpty } from 'class-validator';
 
@@ -194,6 +195,11 @@ export class CreateRidersProfileDto {
   @ApiProperty({ example: "01123456789" })
   @IsNotEmpty()
   account_number: string;
+
+  // password just for rider
+  @ApiPropertyOptional({example : "12345678"})
+  @Optional()
+  password?:string
 }
 
 
