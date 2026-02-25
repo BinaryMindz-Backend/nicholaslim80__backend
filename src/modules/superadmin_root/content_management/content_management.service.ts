@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateContentManagementDto } from './dto/create-content_management.dto';
 import { UpdateContentManagementDto } from './dto/update-content_management.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -122,12 +122,11 @@ export class ContentManagementService {
 
 
   async remove(id: number) {
-     try {
       const exitContent = await this.prisma.contentManagement.findFirst({
         where:{id}
       })
-      if (! exitContent) {
-        return ApiResponses.error(`You have not content at the content Number: (${id})`)
+      if (!exitContent) {
+       throw new NotFoundException(`You have not content at the content Number: (${id})`)
       }
    const res =    await this.prisma.contentManagement.delete({
         where:{
@@ -135,9 +134,6 @@ export class ContentManagementService {
         }
       })
       return res
-     } catch (error) {
-      return error
-     }
   }
   //  
   async findAllLogs(fromDate?: string, toDate?: string) {
