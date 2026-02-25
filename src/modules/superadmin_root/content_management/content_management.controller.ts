@@ -140,9 +140,9 @@ export class ContentManagementController {
   @Auth()
   @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.DELETE)
   @ApiBearerAuth()
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user:IUser) {
     try {
-      await this.contentManagementService.remove(+id);
+      await this.contentManagementService.remove(+id, user.roles[0].name, user.id );
       return ApiResponses.success(null, `${id} content deleted successfully`);
     } catch (error) {
       return ApiResponses.error(error);
