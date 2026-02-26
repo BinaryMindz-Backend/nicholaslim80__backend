@@ -1,6 +1,6 @@
 model IncentiveLog {
   id            Int      @id @default(autoincrement())
-  incentiveId   Int
+  incentiveId   Int?
 
   incentiveName String?
   type          IncentiveType
@@ -14,7 +14,7 @@ model IncentiveLog {
 
   createdAt     DateTime @default(now())
 
-  incentive Incentive @relation(fields: [incentiveId], references: [id])
+  incentive Incentive? @relation(fields: [incentiveId], references: [id], onDelete: SetNull)
 
   @@index([incentiveId])
   @@index([createdAt])

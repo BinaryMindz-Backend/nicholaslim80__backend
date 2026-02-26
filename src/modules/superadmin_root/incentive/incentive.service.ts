@@ -227,8 +227,6 @@ export class IncentiveService {
     })
     // 
     if (!rec) throw new NotFoundException("Incentive not found");
-
-
     return await this.prisma.incentive.delete({
       where: {
         id
