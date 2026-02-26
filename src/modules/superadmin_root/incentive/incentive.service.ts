@@ -4,6 +4,7 @@ import { UpdateIncentiveDto } from './dto/update-incentive.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { IncentiveStatus, RaiderStatus, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
+import { IncentiveQueryDto } from './dto/incentive-query.dto';
 
 @Injectable()
 export class IncentiveService {
@@ -50,10 +51,56 @@ export class IncentiveService {
 
 
   // 
-  async findAll() {
-    const res = await this.prisma.incentive.findMany({})
-    return res;
+  async findAll(query: IncentiveQueryDto) {
+    const {
+      page = 1,
+      limit = 10,
+      startDate,
+      endDate,
+    } = query;
+
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    // Date filtering
+    if (startDate || endDate) {
+      where.created_at = {};
+
+      if (startDate) {
+        where.created_at.gte = new Date(startDate);
+      }
+
+      if (endDate) {
+        where.created_at.lte = new Date(endDate);
+      }
+    }
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.incentive.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+
+      this.prisma.incentive.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
+
+
   // 
   async findAllIncentive() {
 

@@ -29,6 +29,7 @@ import { Module, Permission } from 'src/rbac/rbac.constants';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
 import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
+import { IncentiveQueryDto } from './dto/incentive-query.dto';
 
 @ApiTags('incentives (admin)') // Group endpoints under the "incentives" tag in Swagger UI
 @ApiBearerAuth() // Indicates that the endpoints require a Bearer token
@@ -63,24 +64,28 @@ export class IncentiveController {
   }
    
   // 
-  @Get()
-  @ApiOperation({ summary: 'Get all incentives(admin and raider only)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Incentives fetched successfully',
-  })
+  @Get('admin')
+  @ApiOperation({ summary: 'Get all incentives (admin and raider only)' })
   @Auth()
-  // @Roles(UserRole.SUPER_ADMIN)
   @RequirePermission(Module.WALLET, Permission.READ)
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  async findAll() {
+  async findAll(
+    @Query() query: IncentiveQueryDto,
+  ) {
     try {
-      const res = await this.incentiveService.findAll();
-      return ApiResponses.success(res, 'Incentives fetched successfully');
+      const res = await this.incentiveService.findAll(query);
+
+      return ApiResponses.success(
+        res,
+        'Incentives fetched successfully',
+      );
     } catch (error) {
-      return ApiResponses.error(error, 'Failed to fetch incentives');
+      return ApiResponses.error(
+        error,
+        'Failed to fetch incentives',
+      );
     }
   }
+
   // 
   @Get()
   @ApiOperation({ summary: 'Get all incentives(raider only)' })
