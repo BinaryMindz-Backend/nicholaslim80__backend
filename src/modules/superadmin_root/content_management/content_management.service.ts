@@ -121,34 +121,42 @@ export class ContentManagementService {
     }
 
 
-  async remove(id: number,changedByRole:string,changedByUserId:number ) {
-      const exitContent = await this.prisma.contentManagement.findFirst({
-        where:{id}
-      })
-      if (!exitContent) {
-       throw new NotFoundException(`You have not content at the content Number: (${id})`)
-      }
-      // 
-      await this.prisma.contentManagementLog.create({
-          data: {
-            contentId: exitContent.id,
-            contentType: exitContent.contenttype,
-            faqFor: exitContent.faq_for,
-            description: exitContent.description,
-            isPublished: exitContent.isPublished,
-            version: exitContent.version,
-            changedByRole,
-            changedByUserId,
-          },
-        });
+ async remove(
+  id: number,
+  changedByRole: string,
+  changedByUserId: number,
+) {
+  return this.prisma.$transaction(async (tx) => {
 
-           const res = await this.prisma.contentManagement.delete({
-        where:{
-          id
-        }
-      })
-      return res
-  }
+    const existing = await tx.contentManagement.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(
+        `Content not found (${id})`,
+      );
+    }
+
+    await tx.contentManagementLog.create({
+      data: {
+        contentId: existing.id,
+        contentType: existing.contenttype,
+        faqFor: existing.faq_for,
+        description: existing.description,
+        isPublished: existing.isPublished,
+        version: existing.version,
+        changedByRole,
+        changedByUserId,
+      },
+    });
+
+    return tx.contentManagement.delete({
+      where: { id },
+    });
+  });
+}
+
   //  
   async findAllLogs(fromDate?: string, toDate?: string) {
     return await this.prisma.contentManagementLog.findMany({
