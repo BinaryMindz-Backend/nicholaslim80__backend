@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable prefer-const */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
@@ -361,11 +362,13 @@ export class RidersProfileService {
             raider_status: RaiderStatus.ACTIVE,
           },
         });
-
+        
+        // 
+        const {password , ...registrationData } = dto;
         // Create raider registration
         const registration = await tx.raiderRegistration.create({
           data: {
-            ...dto,
+            ...registrationData,
             raiderId: raider.id,
           },
         });

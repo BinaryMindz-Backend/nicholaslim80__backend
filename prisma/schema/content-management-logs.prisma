@@ -1,19 +1,20 @@
 model ContentManagementLog {
-  id             Int      @id @default(autoincrement())
-  contentId      Int
+  id              Int      @id @default(autoincrement())
 
-  contentType    ContentManagementType
-  faqFor         UserRole
-  description    String
-  isPublished    Boolean
-  version        Int?
+  contentId       Int?    
 
-  changedByRole  String
+  contentType     ContentManagementType
+  faqFor          UserRole
+  description     String
+  isPublished     Boolean
+  version         Int?
+
+  changedByRole   String
   changedByUserId Int?
 
-  createdAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
 
-  contentManagement ContentManagement @relation(fields: [contentId], references: [id])
+  contentManagement ContentManagement? @relation(fields: [contentId], references: [id], onDelete: SetNull)
 
   @@index([contentId])
   @@index([createdAt])
