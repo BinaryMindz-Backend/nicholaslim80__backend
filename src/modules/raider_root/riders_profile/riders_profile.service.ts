@@ -129,101 +129,91 @@ export class RidersProfileService {
 
 
   // 
- 
-   async findAll(query: GetRidersQueryDto) {
+  async findAll(query: GetRidersQueryDto) {
+      const {
+        raiderId,
+        loginType,
+        raider_verificationFromAdmin,
+        type = 'desc',
+        page = 1,
+        limit = 10,
+        search,
+      } = query;
 
-        const {
-          raiderId,
-          loginType,
-          raider_verificationFromAdmin,
-          type = 'desc',
-          page = 1,
-          limit = 10,
-          search,
-        } = query;
+      const skip = (page - 1) * limit;
 
-        const skip = (page - 1) * limit;
+      const where: Prisma.RaiderWhereInput = {};
 
-        const where: any = {};
+      // ========= ID =========
+      if (raiderId) {
+        where.id = raiderId;
+      }
 
-        // ================= ID =================
-        if (raiderId) {
-          where.id = raiderId;
-        }
+      // ========= LOGIN TYPE =========
+      if (loginType) {
+        where.LoginType = loginType;
+      }
 
-        // ================= LOGIN TYPE =================
-        if (loginType) {
-          where.LoginType = loginType;
-        }
+      // ========= VERIFICATION =========
+      if (raider_verificationFromAdmin) {
+        where.raider_verificationFromAdmin =
+          raider_verificationFromAdmin;
+      }
 
-        // ================= VERIFICATION =================
-        if (raider_verificationFromAdmin) {
-          where.raider_verificationFromAdmin =
-            raider_verificationFromAdmin;
-        }
-
-        // ================= NAME + EMAIL SEARCH =================
-        if (search) {
-          where.OR = [
-            // Raider email (main table)
-            {
-              email: {
-                contains: search,
-                mode: 'insensitive',
-              },
-            },
-
-            // Raider name (registration relation)
-            {
-              registrations: {
-                some: {
-                  raider_name: {
-                    contains: search,
-                    mode: 'insensitive',
-                  },
-                  email_address:{
-                      contains:search,
-                      mode:'insensitive'
-                  }
+      // ========= SEARCH (NAME + EMAIL) =========
+      if (search) {
+        where.registrations = {
+          some: {
+            OR: [
+              {
+                raider_name: {
+                  contains: search,
+                  mode: 'insensitive',
                 },
               },
-            },
-          ];
-        }
-
-        // ================= SORT =================
-        const orderBy: Prisma.RaiderOrderByWithRelationInput = {
-          created_at: query.type ?? 'desc',
-        };
-
-
-        // ================= QUERY =================
-        const [total, data] = await Promise.all([
-          this.prisma.raider.count({ where }),
-
-          this.prisma.raider.findMany({
-            where,
-            orderBy,
-            skip,
-            take: limit,
-            include: {
-              registrations: true,
-            },
-          }),
-        ]);
-
-        return {
-          data,
-          pagination: {
-            total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
-            hasNextPage: page * limit < total,
-            hasPrevPage: page > 1,
+              {
+                email_address: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+            ],
           },
         };
       }
+
+      // ========= SORT =========
+      const orderBy: Prisma.RaiderOrderByWithRelationInput = {
+        created_at: type,
+      };
+
+      // ========= QUERY =========
+      const [total, data] = await Promise.all([
+        this.prisma.raider.count({ where }),
+
+        this.prisma.raider.findMany({
+          where,
+          orderBy,
+          skip,
+          take: limit,
+          include: {
+            registrations: true,
+          },
+        }),
+      ]);
+
+      return {
+        data,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: page * limit < total,
+          hasPrevPage: page > 1,
+        },
+      };
+    }
 
  
  

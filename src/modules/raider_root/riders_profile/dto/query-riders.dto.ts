@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {ApiPropertyOptional } from '@nestjs/swagger';
 import { RaiderVerification } from '@prisma/client';
-import { IsOptional, IsString, IsEnum, IsNumberString } from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsNumber, Min } from 'class-validator';
 
 
 export enum loginTypeDto {
@@ -12,51 +12,90 @@ export enum SortType {
   ASC = 'asc',
   DESC = 'desc',
 }
+;
+
+import { Type } from 'class-transformer';
 
 export class GetRidersQueryDto {
-  @ApiProperty({ required: false })
+
+  @ApiPropertyOptional({
+    description: 'Filter by raider name',
+    example: 'Rahim',
+  })
   @IsOptional()
   @IsString()
   raider_name?: string;
 
-  @ApiProperty({ required: false })
+
+  @ApiPropertyOptional({
+    description: 'Raider ID',
+    example: 12,
+  })
   @IsOptional()
-  @IsNumberString()
+  @Type(() => Number)
+  @IsNumber()
   raiderId?: number;
 
-  @ApiProperty({ required: false, enum : loginTypeDto })
+
+  @ApiPropertyOptional({
+    enum: loginTypeDto,
+    description: 'Login type filter',
+  })
   @IsOptional()
   @IsEnum(loginTypeDto)
   loginType?: loginTypeDto;
 
-  @ApiProperty({ required: false, enum: RaiderVerification })
+
+  @ApiPropertyOptional({
+    enum: RaiderVerification,
+    description: 'Admin verification status',
+  })
   @IsOptional()
   @IsEnum(RaiderVerification)
   raider_verificationFromAdmin?: RaiderVerification;
-   
-  @ApiPropertyOptional({required:false, enum: SortType})
-  @IsEnum(SortType)
-  @IsOptional()
-  type?: SortType;
 
-
-  // NEW PAGINATION ↓↓↓
-  @ApiProperty({ required: false, default: 1 })
-  @IsOptional()
-  @IsNumberString()
-  page?: number;
-
-  @ApiProperty({ required: false, default: 10 })
-  @IsOptional()
-  @IsNumberString()
-  limit?: number;
 
   @ApiPropertyOptional({
-  description: 'Search by rider name or email',
-  example: 'rahim',
+    enum: SortType,
+    description: 'Sorting order',
+    example: SortType.DESC,
+  })
+  @IsOptional()
+  @IsEnum(SortType)
+  type?: SortType = SortType.DESC;
+
+
+  // ================= PAGINATION =================
+
+  @ApiPropertyOptional({
+    example: 1,
+    default: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  page?: number = 1;
+
+
+  @ApiPropertyOptional({
+    example: 10,
+    default: 10,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  limit?: number = 10;
+
+
+  // ================= GLOBAL SEARCH =================
+
+  @ApiPropertyOptional({
+    description: 'Search by rider name or email',
+    example: 'rahim',
   })
   @IsOptional()
   @IsString()
   search?: string;
-
 }
