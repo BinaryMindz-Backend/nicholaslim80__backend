@@ -47,16 +47,16 @@ model RaiderRegistration {
   // Address
   current_address             String
   current_apartment           String
-  current_state_province     String
+  current_state_province     String?
   current_city                String
-  current_country             String
+  current_country             String?
   current_zip_post_code       String
 
   permanent_address           String
   permanent_apartment         String
-  permanent_state_province    String
+  permanent_state_province    String?
   permanent_city              String
-  permanent_country           String
+  permanent_country           String?
   permanent_zip_post_code     String
 
   bank_name                   String
