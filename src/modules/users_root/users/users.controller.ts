@@ -122,37 +122,6 @@ export class UsersController {
   }
 
 
-  //  TODO:need to verify by role currently hold
-  // add money to wallet 
-  // @Patch('add-money')
-  // @Auth()
-  // @ApiBearerAuth()
-  // @ApiOperation({ summary: 'Add money to user wallet' })
-  // @ApiQuery({
-  //   name: 'amount',
-  //   type: Number,
-  //   required: true,
-  //   description: 'Amount to add to the user wallet',
-  // })
-  // @ApiResponse({ status: 200, description: 'Money added to wallet successfully' })
-  // @ApiResponse({ status: 404, description: 'User not found' })
-  // @ApiResponse({ status: 400, description: 'Invalid amount provided' })
-  // async addMoney(
-  //   @CurrentUser() user: IUser,
-  //   @Query() dto: AddMoneyDto,
-  // ) {
-
-  //   try {
-  //     const updatedWallet = await this.usersService.addMoneyToWallet(
-  //       user.id,
-  //       Number(dto.amount),
-  //     );
-  //     return ApiResponses.success(updatedWallet, 'Money added to wallet successfully');
-  //   } catch (err) {
-  //     return ApiResponses.error(err, 'Failed to update user wallet');
-  //   }
-  // }
-
 
   // find me
   @Get("me")

@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable prefer-const */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { LoginType, RaiderStatus, RaiderVerification, UserRole, VehicleTypeEnum } from '@prisma/client';
+import { LoginType, Prisma, RaiderStatus, RaiderVerification, UserRole, VehicleTypeEnum } from '@prisma/client';
 import { ApiResponses } from 'src/common/apiResponse';
 import { GetRidersQueryDto } from './dto/query-riders.dto';
 import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
 import bcrypt from "bcrypt"
+import { contains } from 'class-validator';
 
 
 // 
@@ -56,77 +56,178 @@ export class RidersProfileService {
     return res;
   }
 
-  async findAll(query: GetRidersQueryDto) {
-    const filter: any = {};
+  // async findAll(query: GetRidersQueryDto) {
+  //   const filter: any = {};
 
-    if (query.raider_name) {
-      filter.registrations = {
-        some: {
-          raider_name: {
-            contains: query.raider_name,
-            mode: 'insensitive',
+  //   if (query.raider_name) {
+  //     filter.registrations = {
+  //       some: {
+  //         raider_name: {
+  //           contains: query.raider_name,
+  //           mode: 'insensitive',
+  //         },
+  //       },
+  //     };
+  //   }
+
+
+  //   if (query.raiderId) {
+  //     filter.id = Number(query.raiderId);
+  //   }
+
+  //   if (query.raider_verificationFromAdmin) {
+  //     filter.raider_verificationFromAdmin = query.raider_verificationFromAdmin;
+  //   }
+  //   // 
+  //   if (query.loginType) {
+  //     filter.LoginType = query.loginType;
+  //   }
+  //   // sorting
+  //   let orderBy: any = {};
+  //   if (query.type) {
+  //     const orderType = String(query.type).toLowerCase();
+  //     if (orderType === 'asc' || orderType === 'first') {
+  //       orderBy.createdAt = 'asc';
+  //     } else if (orderType === 'desc' || orderType === 'last') {
+  //       orderBy.createdAt = 'desc';
+  //     }
+  //   }
+
+  //   // PAGINATION
+  //   const page = Number(query.page) || 1;
+  //   const limit = Number(query.limit) || 10;
+  //   const skip = (page - 1) * limit;
+
+  //   // Total count
+  //   const total = await this.prisma.raider.count({ where: filter });
+
+  //   // Main data
+  //   const data = await this.prisma.raider.findMany({
+  //     where: filter,
+  //     orderBy,
+  //     skip,
+  //     take: limit,
+  //     include: {
+  //       registrations: true,
+  //     },
+  //   });
+
+  //   return {
+  //     data,
+  //     pagination: {
+  //       total,
+  //       page,
+  //       limit,
+  //       totalPages: Math.ceil(total / limit),
+  //       hasNextPage: page * limit < total,
+  //       hasPrevPage: page > 1,
+  //     },
+  //   };
+  // }
+
+
+
+  // 
+ 
+   async findAll(query: GetRidersQueryDto) {
+
+        const {
+          raiderId,
+          loginType,
+          raider_verificationFromAdmin,
+          type = 'desc',
+          page = 1,
+          limit = 10,
+          search,
+        } = query;
+
+        const skip = (page - 1) * limit;
+
+        const where: any = {};
+
+        // ================= ID =================
+        if (raiderId) {
+          where.id = raiderId;
+        }
+
+        // ================= LOGIN TYPE =================
+        if (loginType) {
+          where.LoginType = loginType;
+        }
+
+        // ================= VERIFICATION =================
+        if (raider_verificationFromAdmin) {
+          where.raider_verificationFromAdmin =
+            raider_verificationFromAdmin;
+        }
+
+        // ================= NAME + EMAIL SEARCH =================
+        if (search) {
+          where.OR = [
+            // Raider email (main table)
+            {
+              email: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
+
+            // Raider name (registration relation)
+            {
+              registrations: {
+                some: {
+                  raider_name: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                  email_address:{
+                      contains:search,
+                      mode:'insensitive'
+                  }
+                },
+              },
+            },
+          ];
+        }
+
+        // ================= SORT =================
+        const orderBy: Prisma.RaiderOrderByWithRelationInput = {
+          created_at: query.type ?? 'desc',
+        };
+
+
+        // ================= QUERY =================
+        const [total, data] = await Promise.all([
+          this.prisma.raider.count({ where }),
+
+          this.prisma.raider.findMany({
+            where,
+            orderBy,
+            skip,
+            take: limit,
+            include: {
+              registrations: true,
+            },
+          }),
+        ]);
+
+        return {
+          data,
+          pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+            hasNextPage: page * limit < total,
+            hasPrevPage: page > 1,
           },
-        },
-      };
-    }
-
-
-    if (query.raiderId) {
-      filter.id = Number(query.raiderId);
-    }
-
-    if (query.raider_verificationFromAdmin) {
-      filter.raider_verificationFromAdmin = query.raider_verificationFromAdmin;
-    }
-    // 
-    if (query.loginType) {
-      filter.LoginType = query.loginType;
-    }
-    // sorting
-    let orderBy: any = {};
-    if (query.type) {
-      const orderType = String(query.type).toLowerCase();
-      if (orderType === 'asc' || orderType === 'first') {
-        orderBy.createdAt = 'asc';
-      } else if (orderType === 'desc' || orderType === 'last') {
-        orderBy.createdAt = 'desc';
+        };
       }
-    }
 
-    // PAGINATION
-    const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    // Total count
-    const total = await this.prisma.raider.count({ where: filter });
-
-    // Main data
-    const data = await this.prisma.raider.findMany({
-      where: filter,
-      orderBy,
-      skip,
-      take: limit,
-      include: {
-        registrations: true,
-      },
-    });
-
-    return {
-      data,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-        hasNextPage: page * limit < total,
-        hasPrevPage: page > 1,
-      },
-    };
-  }
-
-
-
+ 
+ 
+ 
+ 
   // 
   async findOne(id: string) {
     const res = await this.prisma.raider.findUnique({
