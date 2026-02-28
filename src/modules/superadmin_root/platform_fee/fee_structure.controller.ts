@@ -19,7 +19,7 @@ export class UserFeeStructureController {
   @Post()
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a user fee structure' })
   async create(@Body() dto: CreateUserFeeStructureDto, @CurrentUser() user:IUser) {
@@ -34,7 +34,7 @@ export class UserFeeStructureController {
   @Get()
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all user fee structures' })
   async findAll() {
@@ -49,7 +49,7 @@ export class UserFeeStructureController {
   @Get(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single user fee structure by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
@@ -64,7 +64,7 @@ export class UserFeeStructureController {
   @Patch(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a user fee structure by ID' })
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserFeeStructureDto, @CurrentUser() user:IUser) {
@@ -79,7 +79,7 @@ export class UserFeeStructureController {
   @Delete(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.DELETE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a user fee structure by ID' })
   async remove(@Param('id', ParseIntPipe) id: number) {

@@ -22,7 +22,7 @@ export class StandardCommissionRateController {
   @Post()
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a standard commission rate)' })
   @ApiResponse({ status: 200, description: 'Record created successfully' })
@@ -40,7 +40,7 @@ export class StandardCommissionRateController {
   @Get()
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all standard commission rates' })
   @ApiResponse({ status: 200, description: 'Records fetched successfully' })
@@ -58,7 +58,7 @@ export class StandardCommissionRateController {
   @Get('logs')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
   @ApiOperation({
     summary: 'Get all fee configuration change logs (Admin only)',
   })
@@ -90,7 +90,7 @@ export class StandardCommissionRateController {
   @Get(':logType/:referenceId')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
   @ApiOperation({
     summary: 'Get logs for a specific fee configuration record',
   })
@@ -125,7 +125,7 @@ export class StandardCommissionRateController {
   @Get(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single standard commission rate by ID' })
   @ApiResponse({ status: 200, description: 'Record fetched successfully' })
@@ -141,7 +141,6 @@ export class StandardCommissionRateController {
 
   @Patch(':id')
   @Auth()
-  // @Roles(UserRole.SUPER_ADMIN)
   @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a standard commission rate by ID' })
@@ -162,8 +161,7 @@ export class StandardCommissionRateController {
 
   @Delete(':id')
   @Auth()
-  // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.DELETE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a standard commission rate by ID' })
   @ApiResponse({ status: 200, description: 'Record deleted successfully' })

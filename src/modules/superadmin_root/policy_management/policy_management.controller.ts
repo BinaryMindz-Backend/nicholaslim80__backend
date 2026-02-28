@@ -29,7 +29,7 @@ export class PolicyController {
   // CREATE
   @Post()
   @Auth()
-  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.CREATE)
+  @RequirePermission(Module.POLICIES, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new policy (Admin only)' })
   async create(@Body() dto: CreatePolicyDto) {
@@ -72,7 +72,7 @@ export class PolicyController {
   // UPDATE
   @Patch(':id')
   @Auth()
-  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.UPDATE)
+  @RequirePermission(Module.POLICIES, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update policy (Admin only)' })
   async update(@Param('id') id: string, @Body() dto: UpdatePolicyDto) {
@@ -87,7 +87,7 @@ export class PolicyController {
   // PATCH: Update only Publish Status
   @Patch(':id/publish')
   @Auth()
-  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.UPDATE)
+  @RequirePermission(Module.POLICIES, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update publish status (Admin only)' })
   async updatePublish(
@@ -104,7 +104,7 @@ export class PolicyController {
   // DELETE
   @Delete(':id')
   @Auth()
-  @RequirePermission(Module.CONTENT_MANAGEMENT, Permission.DELETE)
+  @RequirePermission(Module.POLICIES, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete policy (Admin only)' })
   async remove(@Param('id') id: string) {

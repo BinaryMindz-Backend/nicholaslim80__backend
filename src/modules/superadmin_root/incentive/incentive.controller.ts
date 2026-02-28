@@ -41,7 +41,7 @@ export class IncentiveController {
   @UsePipes(new ValidationPipe())
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.WALLET, Permission.CREATE)
+  @RequirePermission(Module.DRIVER_INCENTIVE, Permission.CREATE)
   @ApiOperation({ summary: 'Create a new incentive(admin only)' })
   @ApiBody({ type: CreateIncentiveDto })
   @ApiResponse({
@@ -67,7 +67,7 @@ export class IncentiveController {
   @Get('admin')
   @ApiOperation({ summary: 'Get all incentives (admin and raider only)' })
   @Auth()
-  @RequirePermission(Module.WALLET, Permission.READ)
+  @RequirePermission(Module.DRIVER_INCENTIVE, Permission.READ)
   async findAll(
     @Query() query: IncentiveQueryDto,
   ) {
@@ -95,7 +95,7 @@ export class IncentiveController {
   })
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.WALLET, Permission.READ)
+  @RequirePermission(Module.DRIVER_INCENTIVE, Permission.READ)
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async findAllIncentive() {
     try {
@@ -114,7 +114,7 @@ export class IncentiveController {
   })
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.WALLET, Permission.READ)
+  @RequirePermission(Module.DRIVER_INCENTIVE, Permission.READ)
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async stats() {
     try {
@@ -128,7 +128,7 @@ export class IncentiveController {
   @Get('logs')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.WALLET, Permission.READ)
+  @RequirePermission(Module.DRIVER_INCENTIVE, Permission.READ)
   @ApiOperation({ summary: 'Get all incentive configuration change logs (Admin only)' })
   @ApiResponse({
     status: 200,
@@ -158,7 +158,7 @@ export class IncentiveController {
   @Get(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.WALLET, Permission.READ)
+  @RequirePermission(Module.DRIVER_INCENTIVE, Permission.READ)
   @ApiOperation({ summary: 'Get an incentive by ID (admin only)' })
   @ApiParam({ name: 'id', type: 'string', description: 'Incentive ID' })
   @ApiResponse({
@@ -182,7 +182,7 @@ export class IncentiveController {
   @Patch(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.WALLET, Permission.UPDATE)
+  @RequirePermission(Module.DRIVER_INCENTIVE, Permission.UPDATE)
   @UsePipes(new ValidationPipe())
   @ApiOperation({ summary: 'Update an incentive by ID (admin only)' })
   @ApiParam({ name: 'id', type: 'string', description: 'Incentive ID' })
@@ -213,7 +213,7 @@ export class IncentiveController {
   @Patch(':id/status')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.WALLET, Permission.UPDATE)
+  @RequirePermission(Module.DRIVER_INCENTIVE, Permission.UPDATE)
   @UsePipes(new ValidationPipe())
   @ApiOperation({ summary: 'Update an Incentive status by ID (admin only)' })
   @ApiParam({ name: 'id', type: 'string', description: 'Incentive ID' })
@@ -244,7 +244,7 @@ export class IncentiveController {
   @Delete(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.WALLET, Permission.DELETE)
+  @RequirePermission(Module.DRIVER_INCENTIVE, Permission.DELETE)
   @ApiOperation({ summary: 'Delete an incentive by ID (admin only)' })
   @ApiParam({ name: 'id', type: 'string', description: 'Incentive ID' })
   @ApiResponse({
@@ -268,7 +268,7 @@ export class IncentiveController {
   @Post(':id/collect')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.WALLET, Permission.READ)
+  @RequirePermission(Module.DRIVER_INCENTIVE, Permission.READ)
   @ApiOperation({ summary: 'Collect an incentive by ID (Raider only)' })
   @ApiParam({ name: 'id', type: 'string', description: 'Incentive ID' })
   @ApiResponse({
