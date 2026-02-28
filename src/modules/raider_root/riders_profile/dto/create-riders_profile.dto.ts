@@ -2,7 +2,7 @@
 import { Optional } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Gender, VehicleTypeEnum } from '@prisma/client';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateRidersProfileDto {
   // --- Personal ---
@@ -146,17 +146,17 @@ export class CreateRidersProfileDto {
   @IsNotEmpty()
   current_apartment: string;
 
-  @ApiProperty({ example: "Dhaka Division" })
-  @IsNotEmpty()
-  current_state_province: string;
+  @ApiPropertyOptional({ example: "Dhaka Division" })
+  @IsOptional()
+  current_state_province?: string;
 
   @ApiProperty({ example: "Dhaka" })
   @IsNotEmpty()
   current_city: string;
 
-  @ApiProperty({ example: "Bangladesh" })
-  @IsNotEmpty()
-  current_country: string;
+  @ApiPropertyOptional({ example: "Singapur" })
+  @IsOptional()
+  current_country?: string;
 
   @ApiProperty({ example: "1205" })
   @IsNotEmpty()
@@ -171,17 +171,17 @@ export class CreateRidersProfileDto {
   @IsNotEmpty()
   permanent_apartment: string;
 
-  @ApiProperty({ example: "Rajshahi Division" })
-  @IsNotEmpty()
-  permanent_state_province: string;
+  @ApiPropertyOptional({ example: "Write Your Division" })
+  @IsOptional()
+  permanent_state_province?: string;
 
-  @ApiProperty({ example: "Rajshahi" })
-  @IsNotEmpty()
-  permanent_city: string;
+  @ApiPropertyOptional({ example: "Hebek" })
+  @IsOptional()
+  permanent_city?: string;
 
-  @ApiProperty({ example: "Bangladesh" })
-  @IsNotEmpty()
-  permanent_country: string;
+  @ApiPropertyOptional({ example: "Singapur" })
+  @IsOptional()
+  permanent_country?: string;
 
   @ApiProperty({ example: "6201" })
   @IsNotEmpty()
@@ -199,7 +199,6 @@ export class CreateRidersProfileDto {
   // password just for rider
   @ApiPropertyOptional({example : "12345678"})
   @Optional()
-  @IsString()
   password?:string
 }
 
