@@ -18,6 +18,7 @@ export class RidersProfileService {
     private readonly prisma: PrismaService,
   ) { }
 
+  // create
   async create(userId: number, createRidersProfileDto: CreateRidersProfileDto) {
 
      const keys = Object.values(VehicleTypeEnum).filter(value=> typeof value === 'string')
