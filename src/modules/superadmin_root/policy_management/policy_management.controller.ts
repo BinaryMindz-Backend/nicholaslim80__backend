@@ -14,8 +14,6 @@ import {
 } from '@nestjs/swagger';
 import { PolicyService } from './policy_management.service';
 import { Auth } from 'src/decorators/auth.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
 import { CreatePolicyDto } from './dto/create-policy_management.dto';
 import { ApiResponses } from 'src/common/apiResponse';
 import { UpdatePolicyDto } from './dto/update-policy_management.dto';

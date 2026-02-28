@@ -33,8 +33,10 @@ export class GetRidersQueryDto {
   @IsOptional()
   @IsEnum(RaiderVerification)
   raider_verificationFromAdmin?: RaiderVerification;
-
+   
+  @ApiPropertyOptional({required:false, enum: SortType})
   @IsEnum(SortType)
+  @IsOptional()
   type?: SortType;
 
 

@@ -14,7 +14,7 @@ export enum Module {
   LIVE_MAP = "live_map",
   NOTIFICATION = "notification",
   REPORT_ANALYTICS = "report_analytics",
-  VECHICLE_PRICING = "vechicle_pricing",
+  SERVICE_CONFIGURATION = "service_configuration",
   WALLET = "wallet",
   COIN = "coin",
   QUIZ = "quiz",
@@ -209,11 +209,11 @@ const ROLE_PERMISSIONS = {
     { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.UPDATE },
 
     //  vehicle pricing module
-    { module: Module.VECHICLE_PRICING, action: Permission.CREATE },
-    { module: Module.VECHICLE_PRICING, action: Permission.READ },
-    { module: Module.VECHICLE_PRICING, action: Permission.DELETE },
-    { module: Module.VECHICLE_PRICING, action: Permission.UPDATE },
-    { module: Module.VECHICLE_PRICING, action: Permission.JUST_ADMIN },
+    { module: Module.SERVICE_CONFIGURATION, action: Permission.CREATE },
+    { module: Module.SERVICE_CONFIGURATION, action: Permission.READ },
+    { module: Module.SERVICE_CONFIGURATION, action: Permission.DELETE },
+    { module: Module.SERVICE_CONFIGURATION, action: Permission.UPDATE },
+    { module: Module.SERVICE_CONFIGURATION, action: Permission.JUST_ADMIN },
 
     // Destination module - full access
     { module: Module.DESTINATION, action: Permission.CREATE },
