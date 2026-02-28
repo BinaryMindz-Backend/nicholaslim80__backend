@@ -35,8 +35,7 @@ export class VehicleTypeController {
   // CREATE
   @Post('create')
   @Auth()
-  // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.VECHICLE_PRICING, Permission.CREATE)
+  @RequirePermission(Module.SERVICE_CONFIGURATION, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create Vehicle Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
@@ -93,7 +92,7 @@ export class VehicleTypeController {
   @Patch('update/:id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.VECHICLE_PRICING, Permission.UPDATE)
+  @RequirePermission(Module.SERVICE_CONFIGURATION, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update Vehicle Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
@@ -115,8 +114,7 @@ export class VehicleTypeController {
   //DELETE
   @Delete('delete/:id')
   @Auth()
-  // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.VECHICLE_PRICING, Permission.DELETE)
+  @RequirePermission(Module.SERVICE_CONFIGURATION, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'delete Vehicle Type' })
   @ApiParam({ name: 'id', description: 'Vehicle Type ID' })

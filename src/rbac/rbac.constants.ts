@@ -8,7 +8,7 @@ export enum Module {
   LIVE_MAP = "live_map",
   NOTIFICATION = "notification",
   REPORT_ANALYTICS = "report_analytics",
-  VECHICLE_PRICING = "vechicle_pricing",
+  SERVICE_CONFIGURATION = "service_configuration",
   WALLET = "wallet",
   COIN = "coin",
   QUIZ = "quiz",

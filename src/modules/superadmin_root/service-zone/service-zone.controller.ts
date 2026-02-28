@@ -5,6 +5,8 @@ import { UpdateServiceZoneDto } from './dto/update-service-zone.dto';
 import { Auth } from 'src/decorators/auth.decorator';
 import { ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ApiResponses } from 'src/common/apiResponse';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 @Controller('service-zone')
 export class ServiceZoneController {
@@ -13,6 +15,7 @@ export class ServiceZoneController {
   @Post('create')
   @Auth()
   @ApiBearerAuth()
+  @RequirePermission(Module.SERVICE_CONFIGURATION, Permission.CREATE)
   async create(@Body() createServiceZoneDto: CreateServiceZoneDto) {
 
     const rest = await this.serviceZoneService.create(createServiceZoneDto);
@@ -34,6 +37,7 @@ export class ServiceZoneController {
   @Patch('update-status:id')
   @Auth()
   @ApiBearerAuth()
+  @RequirePermission(Module.SERVICE_CONFIGURATION, Permission.UPDATE)
   async updateActiveStatus(@Param('id') id: string) {
     const res = await this.serviceZoneService.updateActiveStatus(+id);
     return ApiResponses.success(res, 'Service zone status updated successfully');
@@ -41,8 +45,8 @@ export class ServiceZoneController {
 
   @Patch(':id')
   @Auth()
-
   @ApiBearerAuth()
+  @RequirePermission(Module.SERVICE_CONFIGURATION, Permission.UPDATE)
   async update(@Param('id') id: string, @Body() updateServiceZoneDto: UpdateServiceZoneDto) {
 
     const res = await this.serviceZoneService.update(+id, updateServiceZoneDto);
@@ -52,7 +56,7 @@ export class ServiceZoneController {
   @Delete(':id')
   @Auth()
   @ApiBearerAuth()
-
+  @RequirePermission(Module.SERVICE_CONFIGURATION, Permission.DELETE)
   async remove(@Param('id') id: string) {
     const res = await this.serviceZoneService.remove(+id);
     return ApiResponses.success(res, 'Service zone deleted successfully');
