@@ -1,10 +1,16 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { RaiderVerification } from '@prisma/client';
 import { IsOptional, IsString, IsEnum, IsNumberString } from 'class-validator';
 
 
 export enum loginTypeDto {
     DIRECT_SIGNIN = "DIRECT_SIGNIN"
+}
+
+
+export enum SortType {
+  ASC = 'asc',
+  DESC = 'desc',
 }
 
 export class GetRidersQueryDto {
@@ -28,10 +34,9 @@ export class GetRidersQueryDto {
   @IsEnum(RaiderVerification)
   raider_verificationFromAdmin?: RaiderVerification;
 
-  @ApiProperty({ required: false, description: 'asc or desc' })
-  @IsOptional()
-  @IsString()
-  type?: 'asc' | 'desc';
+  @IsEnum(SortType)
+  type?: SortType;
+
 
   // NEW PAGINATION ↓↓↓
   @ApiProperty({ required: false, default: 1 })
@@ -43,4 +48,13 @@ export class GetRidersQueryDto {
   @IsOptional()
   @IsNumberString()
   limit?: number;
+
+  @ApiPropertyOptional({
+  description: 'Search by rider name or email',
+  example: 'rahim',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
 }

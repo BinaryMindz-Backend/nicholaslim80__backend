@@ -27,6 +27,7 @@ export enum DateFilter {
 
 // 
 export class UserFilterDto {
+
   @ApiPropertyOptional({
     example: 'active',
     enum: UserStatusFilter,
@@ -36,9 +37,19 @@ export class UserFilterDto {
   @IsEnum(UserStatusFilter)
   status?: UserStatusFilter;
 
+
+  @ApiPropertyOptional({
+    example: 'john',
+    description: 'Search by username, email or phone',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+
   @ApiPropertyOptional({
     example: 1,
-    description: 'Page number for pagination',
+    description: 'Page number',
     type: Number,
   })
   @IsOptional()
@@ -46,9 +57,10 @@ export class UserFilterDto {
   @IsNumber()
   page?: number;
 
+
   @ApiPropertyOptional({
     example: 10,
-    description: 'Number of items per page',
+    description: 'Items per page',
     type: Number,
   })
   @IsOptional()
@@ -56,30 +68,33 @@ export class UserFilterDto {
   @IsNumber()
   limit?: number;
 
+
   @ApiPropertyOptional({
-    example: 'createdAt',
-    description: 'Which field to sort by',
+    example: 'created_at',
+    description: 'Field used for sorting',
   })
   @IsOptional()
   @IsString()
   sortBy?: string;
 
+
   @ApiPropertyOptional({
-    example: 'asc',
+    example: 'desc',
     enum: SortOrder,
-    description: 'Sort order (asc or desc)',
+    description: 'Sorting direction',
   })
   @IsOptional()
   @IsEnum(SortOrder)
   sortOrder?: SortOrder;
 
+
   @ApiPropertyOptional({
     example: 'today',
     enum: DateFilter,
-    description: 'Date-based filtering for users'
+    description: 'Date filtering',
   })
   @IsOptional()
   @IsEnum(DateFilter)
   dateFilter?: DateFilter;
-
 }
+
