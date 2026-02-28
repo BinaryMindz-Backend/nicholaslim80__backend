@@ -45,10 +45,12 @@ export class RidersProfileService {
     if(r){
         throw new ConflictException("Raider profile already exist")
     }
+    const {password, ...dto} = createRidersProfileDto;
+
     const res = await this.prisma.raiderRegistration.create({
       data: {
         raiderId: riderExists.id,
-        ...createRidersProfileDto,
+        ...dto,
       },
     });
     return res;
