@@ -15,7 +15,7 @@ export class ServiceZoneController {
   @Post('create')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.SERVICE_CONFIGURATION, Permission.CREATE)
+  @RequirePermission(Module.VEHICLE_TYPE, Permission.CREATE)
   async create(@Body() createServiceZoneDto: CreateServiceZoneDto) {
 
     const rest = await this.serviceZoneService.create(createServiceZoneDto);
@@ -25,6 +25,7 @@ export class ServiceZoneController {
   @Get()
   @Auth()
   @ApiBearerAuth()
+  @RequirePermission(Module.VEHICLE_TYPE, Permission.READ)
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
@@ -37,7 +38,7 @@ export class ServiceZoneController {
   @Patch('update-status:id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.SERVICE_CONFIGURATION, Permission.UPDATE)
+  @RequirePermission(Module.VEHICLE_TYPE, Permission.UPDATE)
   async updateActiveStatus(@Param('id') id: string) {
     const res = await this.serviceZoneService.updateActiveStatus(+id);
     return ApiResponses.success(res, 'Service zone status updated successfully');
@@ -46,7 +47,7 @@ export class ServiceZoneController {
   @Patch(':id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.SERVICE_CONFIGURATION, Permission.UPDATE)
+  @RequirePermission(Module.VEHICLE_TYPE, Permission.UPDATE)
   async update(@Param('id') id: string, @Body() updateServiceZoneDto: UpdateServiceZoneDto) {
 
     const res = await this.serviceZoneService.update(+id, updateServiceZoneDto);
@@ -56,7 +57,7 @@ export class ServiceZoneController {
   @Delete(':id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.SERVICE_CONFIGURATION, Permission.DELETE)
+  @RequirePermission(Module.VEHICLE_TYPE, Permission.DELETE)
   async remove(@Param('id') id: string) {
     const res = await this.serviceZoneService.remove(+id);
     return ApiResponses.success(res, 'Service zone deleted successfully');

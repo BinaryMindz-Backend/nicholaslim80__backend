@@ -19,7 +19,7 @@ export class UserDynamicSurgeController {
   @Post()
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new dynamic surge rule' })
   async create(@Body() dto: CreateUserDynamicSurgeDto, @CurrentUser() user:IUser) {
@@ -34,7 +34,7 @@ export class UserDynamicSurgeController {
   @Get()
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all dynamic surge rules' })
   async findAll() {
@@ -49,7 +49,7 @@ export class UserDynamicSurgeController {
   @Get(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get dynamic surge rule by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
@@ -64,7 +64,7 @@ export class UserDynamicSurgeController {
   @Patch(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a dynamic surge rule' })
   async update(
@@ -83,7 +83,7 @@ export class UserDynamicSurgeController {
   @Patch('status/:id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update active status a dynamic surge rule' })
   async updateStaus(
@@ -102,7 +102,7 @@ export class UserDynamicSurgeController {
   @Delete(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.DELETE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a dynamic surge rule' })
   async remove(@Param('id', ParseIntPipe) id: number) {

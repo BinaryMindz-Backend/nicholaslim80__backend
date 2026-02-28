@@ -14,14 +14,12 @@ export enum Module {
   LIVE_MAP = "live_map",
   NOTIFICATION = "notification",
   REPORT_ANALYTICS = "report_analytics",
-  SERVICE_CONFIGURATION = "service_configuration",
+  VECHICLE_PRICING = "vechicle_pricing",
   WALLET = "wallet",
   COIN = "coin",
   QUIZ = "quiz",
   ADVERTISEMENT = "advertisement",
-  PLATFORM_FEE = "platform_fee",
   CONTENT_MANAGEMENT = "content_management",
-  DRIVER_ORDER_COMPETITION = "driver_order_competition",
   CUSTOMER_ORDER_CONFIRMATION = "customer_order_confirmation",
   ORDER_PLACEMENT = "order_placement",
   RBAC = "rbac",
@@ -37,6 +35,25 @@ export enum Module {
   FAQ = "faq",
   ADDITIONAL_SERVICES = "additional_services",
   USER_PROFILE = "user_profile",
+  // services configuaration
+  SERVICE_AREAS = "service_areas",
+  VEHICLE_TYPE='vehicle_type',
+  DELIVERY_TYPE='delivery_type',
+  POLICIES='policies',
+  // revenue configuaration
+  REVENUE_CONFIGURATION = "revenue_order_config",
+  // customer configuaration
+  ADDITIONAL_ORDER_SERVICE='additionl_order_service',
+  ORDER_CONFIRMATION='order_confirmation',
+  //driver configuaration
+  DRIVER_ORDER_COMPETITION='driver_order_compitition',
+  QUIZZES='quizzes',
+  // incentive rewards configurations
+  DRIVER_INCENTIVE='driver_incentive',
+  CUSTOMER_REWARDS='customer_rewards',
+  PROMO_CODE='promo_code',
+
+
 
 }
 
@@ -173,11 +190,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.NOTIFICATION, action: Permission.CREATE },
     { module: Module.NOTIFICATION, action: Permission.DELETE },
     { module: Module.NOTIFICATION, action: Permission.UPDATE },
-    //Platform fee module
-    { module: Module.PLATFORM_FEE, action: Permission.CREATE },
-    { module: Module.PLATFORM_FEE, action: Permission.DELETE },
-    { module: Module.PLATFORM_FEE, action: Permission.UPDATE },
-    { module: Module.PLATFORM_FEE, action: Permission.READ },
+
     //Quiz module
     { module: Module.QUIZ, action: Permission.CREATE },
     { module: Module.QUIZ, action: Permission.DELETE },
@@ -208,12 +221,73 @@ const ROLE_PERMISSIONS = {
     { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.DELETE },
     { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.UPDATE },
 
-    //  vehicle pricing module
-    { module: Module.SERVICE_CONFIGURATION, action: Permission.CREATE },
-    { module: Module.SERVICE_CONFIGURATION, action: Permission.READ },
-    { module: Module.SERVICE_CONFIGURATION, action: Permission.DELETE },
-    { module: Module.SERVICE_CONFIGURATION, action: Permission.UPDATE },
-    { module: Module.SERVICE_CONFIGURATION, action: Permission.JUST_ADMIN },
+    // SERVICE_AREAS module
+    { module: Module.SERVICE_AREAS, action: Permission.CREATE },
+    { module: Module.SERVICE_AREAS, action: Permission.READ },
+    { module: Module.SERVICE_AREAS, action: Permission.DELETE },
+    { module: Module.SERVICE_AREAS, action: Permission.UPDATE },
+    { module: Module.SERVICE_AREAS, action: Permission.JUST_ADMIN },
+
+    { module: Module.VEHICLE_TYPE, action: Permission.CREATE },
+    { module: Module.VEHICLE_TYPE, action: Permission.READ },
+    { module: Module.VEHICLE_TYPE, action: Permission.DELETE },
+    { module: Module.VEHICLE_TYPE, action: Permission.UPDATE },
+    { module: Module.VEHICLE_TYPE, action: Permission.JUST_ADMIN },
+
+    { module: Module.DELIVERY_TYPE, action: Permission.CREATE },
+    { module: Module.DELIVERY_TYPE, action: Permission.READ },
+    { module: Module.DELIVERY_TYPE, action: Permission.DELETE },
+    { module: Module.DELIVERY_TYPE, action: Permission.UPDATE },
+    { module: Module.DELIVERY_TYPE, action: Permission.JUST_ADMIN },
+
+    { module: Module.POLICIES, action: Permission.CREATE },
+    { module: Module.POLICIES, action: Permission.READ },
+    { module: Module.POLICIES, action: Permission.DELETE },
+    { module: Module.POLICIES, action: Permission.UPDATE },
+    { module: Module.POLICIES, action: Permission.JUST_ADMIN },
+
+    //REVENUE_CONFIGURATION module
+    { module: Module.REVENUE_CONFIGURATION, action: Permission.CREATE },
+    { module: Module.REVENUE_CONFIGURATION, action: Permission.DELETE },
+    { module: Module.REVENUE_CONFIGURATION, action: Permission.UPDATE },
+    { module: Module.REVENUE_CONFIGURATION, action: Permission.READ },
+
+
+    // driver configuration
+    { module: Module.DRIVER_ORDER_COMPETITION, action: Permission.CREATE },
+    { module: Module.DRIVER_ORDER_COMPETITION, action: Permission.DELETE },
+    { module: Module.DRIVER_ORDER_COMPETITION, action: Permission.UPDATE },
+    { module: Module.DRIVER_ORDER_COMPETITION, action: Permission.READ },
+    // quiezz
+    { module: Module.QUIZZES, action: Permission.CREATE },
+    { module: Module.QUIZZES, action: Permission.DELETE },
+    { module: Module.QUIZZES, action: Permission.UPDATE },
+    { module: Module.QUIZZES, action: Permission.READ },
+    // customer configuaration
+    { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.CREATE },
+    { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.DELETE },
+    { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.UPDATE },
+    { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.READ }, 
+    // additional order services
+    { module: Module.ADDITIONAL_ORDER_SERVICE, action: Permission.CREATE },
+    { module: Module.ADDITIONAL_ORDER_SERVICE, action: Permission.DELETE },
+    { module: Module.ADDITIONAL_ORDER_SERVICE, action: Permission.UPDATE },
+    { module: Module.ADDITIONAL_ORDER_SERVICE, action: Permission.READ },  
+    // incentive
+    { module: Module.DRIVER_INCENTIVE, action: Permission.CREATE },
+    { module: Module.DRIVER_INCENTIVE, action: Permission.DELETE },
+    { module: Module.DRIVER_INCENTIVE, action: Permission.UPDATE },
+    { module: Module.DRIVER_INCENTIVE, action: Permission.READ }, 
+    // CUSTOMER_REWARDS
+    { module: Module.CUSTOMER_REWARDS, action: Permission.CREATE },
+    { module: Module.CUSTOMER_REWARDS, action: Permission.DELETE },
+    { module: Module.CUSTOMER_REWARDS, action: Permission.UPDATE },
+    { module: Module.CUSTOMER_REWARDS, action: Permission.READ }, 
+    //
+    { module: Module.PROMO_CODE, action: Permission.CREATE },
+    { module: Module.PROMO_CODE, action: Permission.DELETE },
+    { module: Module.PROMO_CODE, action: Permission.UPDATE },
+    { module: Module.PROMO_CODE, action: Permission.READ }, 
 
     // Destination module - full access
     { module: Module.DESTINATION, action: Permission.CREATE },
@@ -299,15 +373,19 @@ const ROLE_PERMISSIONS = {
     { module: Module.NOTIFICATION, action: Permission.READ },
     { module: Module.NOTIFICATION, action: Permission.DELETE },
     // qize module
-    { module: Module.QUIZ, action: Permission.GET_ONE },
+    { module: Module.QUIZZES, action: Permission.GET_ONE },
     // wallet module
     { module: Module.WALLET, action: Permission.READ },
     // faq
     { module: Module.FAQ, action: Permission.READ },
     // content management
     { module: Module.CONTENT_MANAGEMENT, action: Permission.READ },
+    // policies
+    { module: Module.POLICIES, action: Permission.READ },
+    // 
+    { module: Module.DRIVER_INCENTIVE, action: Permission.READ },
     // additional servics
-    { module: Module.ADDITIONAL_SERVICES, action: Permission.READ },
+    { module: Module.ADDITIONAL_ORDER_SERVICE, action: Permission.READ },
     // user profile
     { module: Module.USER_PROFILE, action: Permission.CREATE },
     { module: Module.USER_PROFILE, action: Permission.READ },
@@ -373,11 +451,13 @@ const ROLE_PERMISSIONS = {
     { module: Module.REFERRAL, action: Permission.DELETE },
     { module: Module.REFERRAL, action: Permission.UPDATE },
     // coin module
-    { module: Module.COIN, action: Permission.REEDOM_COIN },
+    { module: Module.CUSTOMER_REWARDS, action: Permission.REEDOM_COIN },
+    // additional servics
+    { module: Module.ADDITIONAL_ORDER_SERVICE, action: Permission.READ },
     // 
     { module: Module.FAQ, action: Permission.READ },
     // addtional services
-    { module: Module.ADDITIONAL_SERVICES, action: Permission.READ },
+    { module: Module.PROMO_CODE, action: Permission.READ },
 
   ],
 };

@@ -27,7 +27,7 @@ export class AdditionalServicesController {
   @Post()
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.CREATE)
+  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.CREATE)
   @ApiOperation({ summary: 'Create additional service' })
   async create(@Body() dto: CreateAdditionalServiceDto) {
     try {
@@ -42,7 +42,7 @@ export class AdditionalServicesController {
   @Get('service-email-number')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.READ)
+  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.READ)
   @ApiOperation({ summary: 'Get additional service email and number' })
   async getServiceEmailNumber() {
     try {
@@ -57,7 +57,7 @@ export class AdditionalServicesController {
   @Put('service-email-number/:id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.UPDATE)
+  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.UPDATE)
   @ApiOperation({ summary: 'Update additional service email and number' })
   async updateServiceEmailNumber(@Param('id') id: string, @Body() dto: ServiceEmailNumberDto) {
     try {
@@ -74,7 +74,7 @@ export class AdditionalServicesController {
   @Delete('service-email-number/:id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.DELETE)
+  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.DELETE)
   @ApiOperation({ summary: 'Delete additional service email and number' })
   async deleteServiceEmailNumber(@Param('id') id: string) {
     try {
@@ -90,7 +90,7 @@ export class AdditionalServicesController {
   @Get()
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.READ)
+  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.READ)
   @ApiOperation({ summary: 'Get all additional services' })
   async findAll() {
     try {
@@ -104,7 +104,7 @@ export class AdditionalServicesController {
   @Get(':id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.READ)
+  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.READ)
   async findOne(@Param('id') id: string) {
     try {
       const data = await this.service.findOne(+id);
@@ -117,7 +117,7 @@ export class AdditionalServicesController {
   @Put(':id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.UPDATE)
+  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.UPDATE)
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateAdditionalServiceDto,
@@ -133,7 +133,7 @@ export class AdditionalServicesController {
   @Delete(':id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.DELETE)
+  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.DELETE)
   async remove(@Param('id') id: string) {
     try {
       const data = await this.service.remove(+id);

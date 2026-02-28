@@ -21,7 +21,7 @@ export class RaiderCompensationRoleController {
   @Post()
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a raider compensation role' })
   async create(@Body() dto: CreateRaiderCompensationRoleDto, @CurrentUser() user: IUser) {
@@ -36,7 +36,7 @@ export class RaiderCompensationRoleController {
   @Get()
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all raider compensation roles' })
   async findAll() {
@@ -51,7 +51,7 @@ export class RaiderCompensationRoleController {
   @Get(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single raider compensation role by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
@@ -66,7 +66,7 @@ export class RaiderCompensationRoleController {
   @Patch(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a raider compensation role by ID' })
   async update(
@@ -85,7 +85,7 @@ export class RaiderCompensationRoleController {
   @Delete(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.DELETE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a raider compensation role by ID' })
   async remove(@Param('id', ParseIntPipe) id: number) {

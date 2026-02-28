@@ -19,7 +19,7 @@ export class RaiderDeductionFeeController {
   @Post()
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.CREATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a raider deduction fee' })
   async create(@Body() dto: CreateRaiderDeductionFeeDto, @CurrentUser() user:IUser) {
@@ -34,7 +34,7 @@ export class RaiderDeductionFeeController {
   @Get()
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all raider deduction fees' })
   async findAll() {
@@ -49,7 +49,7 @@ export class RaiderDeductionFeeController {
   @Get(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.READ)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single raider deduction fee by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
@@ -64,7 +64,7 @@ export class RaiderDeductionFeeController {
   @Patch(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a raider deduction fee by ID' })
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRaiderDeductionFeeDto, @CurrentUser() user:IUser) {
@@ -79,7 +79,7 @@ export class RaiderDeductionFeeController {
   @Delete(':id')
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.PLATFORM_FEE, Permission.DELETE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a raider deduction fee by ID' })
   async remove(@Param('id', ParseIntPipe) id: number) {

@@ -8,14 +8,13 @@ export enum Module {
   LIVE_MAP = "live_map",
   NOTIFICATION = "notification",
   REPORT_ANALYTICS = "report_analytics",
-  SERVICE_CONFIGURATION = "service_configuration",
+  VECHICLE_PRICING = "vechicle_pricing",
   WALLET = "wallet",
   COIN = "coin",
   QUIZ = "quiz",
   ADVERTISEMENT = "advertisement",
   PLATFORM_FEE = "platform_fee",
   CONTENT_MANAGEMENT = "content_management",
-  DRIVER_ORDER_COMPETITION = "driver_order_competition",
   CUSTOMER_ORDER_CONFIRMATION = "customer_order_confirmation",
   ORDER_PLACEMENT = "order_placement",
   RBAC = "rbac",
@@ -30,6 +29,24 @@ export enum Module {
   REFERRAL = "referral",
   ADDITIONAL_SERVICES = "additional_services",
   USER_PROFILE = "user_profile",
+  // new
+  // services configuaration
+  SERVICE_AREAS = "service_areas",
+  VEHICLE_TYPE='vehicle_type',
+  DELIVERY_TYPE='delivery_type',
+  POLICIES='policies',
+  // revenue configuaration
+  REVENUE_CONFIGURATION = "revenue_order_config",
+  // customer configuaration
+  ADDITIONAL_ORDER_SERVICE='additionl_order_service',
+  ORDER_CONFIRMATION='order_confirmation',
+  //driver configuaration
+  DRIVER_ORDER_COMPETITION='driver_order_compitition',
+  QUIZZES='quizzes',
+  // incentive rewards configurations
+  DRIVER_INCENTIVE='driver_incentive',
+  CUSTOMER_REWARDS='customer_rewards',
+  PROMO_CODE='promo_code',
 
 
 

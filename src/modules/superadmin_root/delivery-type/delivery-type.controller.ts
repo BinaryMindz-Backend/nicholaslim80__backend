@@ -33,8 +33,7 @@ export class DeliveryTypeController {
   // create delivery type
   @Post('create')
   @Auth()
-  // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.VECHICLE_PRICING, Permission.CREATE)
+  @RequirePermission(Module.DELIVERY_TYPE, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create Delivery Type (Admin only)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
@@ -81,7 +80,7 @@ export class DeliveryTypeController {
   // 
   @Patch(':id')
   @Auth()
-  @RequirePermission(Module.VECHICLE_PRICING, Permission.UPDATE)
+  @RequirePermission(Module.DELIVERY_TYPE, Permission.UPDATE)
   @ApiBearerAuth()
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update Delivery Type (Admin only)' })
@@ -103,8 +102,7 @@ export class DeliveryTypeController {
   @Delete(':id')
   @Auth()
   @ApiBearerAuth()
-  // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.VECHICLE_PRICING, Permission.DELETE)
+  @RequirePermission(Module.DELIVERY_TYPE, Permission.DELETE)
   @ApiOperation({ summary: 'Delete Delivery Type (Admin only)' })
   async remove(
     @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }))

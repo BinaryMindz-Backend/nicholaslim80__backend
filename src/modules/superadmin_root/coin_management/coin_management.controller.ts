@@ -27,7 +27,7 @@ export class CoinManagementController {
   @Post()
   @ApiOperation({ summary: 'Create a new coin (Only SUPER_ADMIN role)' })
   @Auth()
-  @RequirePermission(Module.COIN, Permission.CREATE)
+  @RequirePermission(Module.CUSTOMER_REWARDS, Permission.CREATE)
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   async create(@Body() createCoinManagementDto: CreateCoinDto, @CurrentUser() user:IUser) {
@@ -47,7 +47,7 @@ export class CoinManagementController {
   @Get()
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.COIN, Permission.READ)
+  @RequirePermission(Module.CUSTOMER_REWARDS, Permission.READ)
   @ApiOperation({ summary: 'Get all coins (Only SUPER_ADMIN role)' })
   async findAll() {
     try {
@@ -61,7 +61,7 @@ export class CoinManagementController {
   @Get('logs')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.COIN, Permission.READ)
+  @RequirePermission(Module.CUSTOMER_REWARDS, Permission.READ)
   @ApiOperation({ summary: 'Get all coin configuration change logs (Admin only)' })
   @ApiResponse({
     status: 200,
@@ -147,7 +147,7 @@ export class CoinManagementController {
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @RequirePermission(Module.COIN, Permission.UPDATE)
+  @RequirePermission(Module.CUSTOMER_REWARDS, Permission.UPDATE)
   async update(
     @Param('id') id: string,
     @Body() updateCoinManagementDto: UpdateCoinManagementDto,
@@ -170,7 +170,7 @@ export class CoinManagementController {
   @ApiOperation({ summary: 'Delete coin data (Only SUPER_ADMIN role)' })
   @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
-  @RequirePermission(Module.COIN, Permission.DELETE)
+  @RequirePermission(Module.CUSTOMER_REWARDS, Permission.DELETE)
   @ApiBearerAuth()
   async remove(@Param('id') id: string) {
     try {
@@ -188,9 +188,9 @@ export class CoinManagementController {
   @ApiOperation({ summary: 'User reedom coin (Only USER role)' })
   @Auth()
   // @Roles(UserRole.USER)
-  @RequirePermission(Module.COIN, Permission.REEDOM_COIN)
+  @RequirePermission(Module.CUSTOMER_REWARDS, Permission.REEDOM_COIN)
   @ApiBearerAuth()
-  @RequirePermission(Module.COIN, Permission.READ)
+  @RequirePermission(Module.CUSTOMER_REWARDS, Permission.READ)
   async reedomCoin(@Query('coin') coin: string, @CurrentUser() user: IUser,) {
     try {
       const data = await this.coinManagementService.redeemCoin(user, +coin);
@@ -209,7 +209,7 @@ export class CoinManagementController {
   // @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @RequirePermission(Module.COIN, Permission.READ)
+  @RequirePermission(Module.CUSTOMER_REWARDS, Permission.READ)
   async userWalletHistory(@Param('userId') userId: string) {
     try {
       const data = await this.coinManagementService.coinAccHistory(+userId);
