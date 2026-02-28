@@ -175,9 +175,9 @@ export class CreateRidersProfileDto {
   @IsOptional()
   permanent_state_province?: string;
 
-  @ApiPropertyOptional({ example: "Hebek" })
-  @IsOptional()
-  permanent_city?: string;
+  @ApiProperty({ example: "Hebek" })
+  @IsNotEmpty()
+  permanent_city: string;
 
   @ApiPropertyOptional({ example: "Singapur" })
   @IsOptional()
