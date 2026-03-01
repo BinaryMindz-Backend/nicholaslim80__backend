@@ -8,7 +8,6 @@ import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import type { IUser } from 'src/types';
-import { UserRole } from '@prisma/client';
 
 @Controller('faq')
 export class FaqController {

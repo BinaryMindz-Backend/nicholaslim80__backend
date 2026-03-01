@@ -19,6 +19,8 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 
 import { Role } from '@prisma/client';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 export interface IUser {
   id: number;
@@ -29,6 +31,7 @@ export interface IUser {
 @Controller('chat')
 @Auth()
 @ApiBearerAuth()
+@RequirePermission(Module.SERVICE_CHAT, Permission.ALL)
 export class ChatController {
   constructor(
     private readonly messagesService: MessagesService,

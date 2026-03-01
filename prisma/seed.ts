@@ -9,19 +9,13 @@ export enum Module {
   USER = 'user',
   RAIDER = "raider",
   ORDER = 'order',
-  SUPPORT_DISPUTE = 'support_dispute',
   PAYMENT_TRANSACTION = 'payment_transaction',
-  LIVE_MAP = "live_map",
-  NOTIFICATION = "notification",
-  REPORT_ANALYTICS = "report_analytics",
   VECHICLE_PRICING = "vechicle_pricing",
   WALLET = "wallet",
   COIN = "coin",
   QUIZ = "quiz",
-  ADVERTISEMENT = "advertisement",
-  CONTENT_MANAGEMENT = "content_management",
+
   CUSTOMER_ORDER_CONFIRMATION = "customer_order_confirmation",
-  ORDER_PLACEMENT = "order_placement",
   RBAC = "rbac",
   // ** sub modules
   //DESTINATION
@@ -32,7 +26,6 @@ export enum Module {
   PAYMENT_METHOD = "payment_method",
   // referral module
   REFERRAL = "referral",
-  FAQ = "faq",
   ADDITIONAL_SERVICES = "additional_services",
   USER_PROFILE = "user_profile",
   // services configuaration
@@ -60,7 +53,27 @@ export enum Module {
   COIN_STATS='coin_stats',
   INCENTIVE_ANALYSIS='incentive_analytics',
   KPI_STATS='kpi_stats',
-  TRANSACTION_STATS='transactions_stats'
+  TRANSACTION_STATS='transactions_stats',
+
+  // report and analysis
+  REPORT_ANALYTICS = "report_analytics",
+  REPORT_ANALYTICS_STATS = "report_analytics_stats",
+  // live map fleet tacking
+  LIVE_MAP = "live_map",
+  // support and communication
+  CONTACT_INFO='contact_info',
+  SUPPORT_DISPUTE = 'support_dispute',
+  NOTIFICATION = "notification",
+  SERVICE_CHAT='service_chat',
+
+  // markating engageement
+  ADVERTISEMENT = "advertisement",
+  DASHBOARD_POPUP="dashboard_popup",
+  // content management
+  CONTENT_MANAGEMENT = "content_management",
+  FAQ = "faq",
+  // order management
+  ORDER_PLACEMENT = "order_placement", //order placement
 
 
 
@@ -331,6 +344,22 @@ const ROLE_PERMISSIONS = {
     { module: Module.FAQ, action: Permission.READ },
     { module: Module.FAQ, action: Permission.DELETE },
     { module: Module.FAQ, action: Permission.UPDATE },
+    // dashbard popup
+    { module: Module.DASHBOARD_POPUP, action: Permission.CREATE },
+    { module: Module.DASHBOARD_POPUP, action: Permission.READ },
+    { module: Module.DASHBOARD_POPUP, action: Permission.DELETE },
+    { module: Module.DASHBOARD_POPUP, action: Permission.UPDATE },
+    // service chat
+    { module: Module.SERVICE_CHAT, action: Permission.CREATE },
+    { module: Module.SERVICE_CHAT, action: Permission.READ },
+    { module: Module.SERVICE_CHAT, action: Permission.DELETE },
+    { module: Module.SERVICE_CHAT, action: Permission.UPDATE },
+    { module: Module.SERVICE_CHAT, action: Permission.ALL },
+    // contact info
+    { module: Module.CONTACT_INFO, action: Permission.CREATE },
+    { module: Module.CONTACT_INFO, action: Permission.READ },
+    { module: Module.CONTACT_INFO, action: Permission.DELETE },
+    { module: Module.CONTACT_INFO, action: Permission.UPDATE },
 
     // RBAC MODULE
     { module: Module.RBAC, action: Permission.CREATE },
@@ -399,7 +428,11 @@ const ROLE_PERMISSIONS = {
     { module: Module.USER_PROFILE, action: Permission.CREATE },
     { module: Module.USER_PROFILE, action: Permission.READ },
     { module: Module.USER_PROFILE, action: Permission.DELETE },
-    { module: Module.USER_PROFILE, action: Permission.UPDATE }
+    { module: Module.USER_PROFILE, action: Permission.UPDATE },
+    // 
+    { module: Module.DASHBOARD_POPUP, action: Permission.READ },
+    // 
+    { module: Module.SERVICE_CHAT, action: Permission.ALL },
 
 
   ],
@@ -467,7 +500,10 @@ const ROLE_PERMISSIONS = {
     { module: Module.FAQ, action: Permission.READ },
     // addtional services
     { module: Module.PROMO_CODE, action: Permission.READ },
-
+    // 
+    { module: Module.DASHBOARD_POPUP, action: Permission.READ },
+    //
+    { module: Module.SERVICE_CHAT, action: Permission.ALL },
   ],
 };
 

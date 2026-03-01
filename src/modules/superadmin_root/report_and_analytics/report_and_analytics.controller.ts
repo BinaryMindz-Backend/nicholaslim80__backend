@@ -15,7 +15,7 @@ export class ReportAndAnalyticsController {
     @Get('stats')
     @Auth()
     @ApiBearerAuth()
-    @RequirePermission(Module.REPORT_ANALYTICS, Permission.READ)
+    @RequirePermission(Module.REPORT_ANALYTICS_STATS, Permission.READ)
     @ApiOperation({ summary: 'Get all order statistics with average order rating' })
     @ApiResponse({
       status: 200,
