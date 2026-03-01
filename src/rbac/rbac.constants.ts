@@ -47,6 +47,11 @@ export enum Module {
   DRIVER_INCENTIVE='driver_incentive',
   CUSTOMER_REWARDS='customer_rewards',
   PROMO_CODE='promo_code',
+  // report and alalysis
+  COIN_STATS='coin_stats',
+  INCENTIVE_ANALYSIS='incentive_analytics',
+  KPI_STATS='kpi_stats',
+  TRANSACTION_STATS='transactions_stats'
 
 
 

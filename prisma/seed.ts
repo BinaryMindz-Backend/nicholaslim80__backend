@@ -53,6 +53,15 @@ export enum Module {
   CUSTOMER_REWARDS='customer_rewards',
   PROMO_CODE='promo_code',
 
+  // user wallet 
+  // driver wallet
+
+  // finnace reporting // report-and-analytics/kpi-stats
+  COIN_STATS='coin_stats',
+  INCENTIVE_ANALYSIS='incentive_analytics',
+  KPI_STATS='kpi_stats',
+  TRANSACTION_STATS='transactions_stats'
+
 
 
 }

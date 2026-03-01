@@ -31,7 +31,7 @@ export class TransactionsController {
   @Get('stats')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.PAYMENT_TRANSACTION, Permission.READ)
+  @RequirePermission(Module.TRANSACTION_STATS, Permission.READ)
   @ApiOperation({ summary: 'Get total revenue, commission, and refunds (all-time)' })
   @ApiResponse({ status: 200, description: 'Revenue stats fetched successfully' })
   async getRevenueStats() {
