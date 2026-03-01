@@ -42,7 +42,7 @@ export class AdditionalServicesController {
   @Get('service-email-number')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.READ)
+  @RequirePermission(Module.CONTACT_INFO, Permission.READ)
   @ApiOperation({ summary: 'Get additional service email and number' })
   async getServiceEmailNumber() {
     try {
@@ -57,7 +57,7 @@ export class AdditionalServicesController {
   @Put('service-email-number/:id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.UPDATE)
+  @RequirePermission(Module.CONTACT_INFO, Permission.UPDATE)
   @ApiOperation({ summary: 'Update additional service email and number' })
   async updateServiceEmailNumber(@Param('id') id: string, @Body() dto: ServiceEmailNumberDto) {
     try {
@@ -74,7 +74,7 @@ export class AdditionalServicesController {
   @Delete('service-email-number/:id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.DELETE)
+  @RequirePermission(Module.CONTACT_INFO, Permission.DELETE)
   @ApiOperation({ summary: 'Delete additional service email and number' })
   async deleteServiceEmailNumber(@Param('id') id: string) {
     try {

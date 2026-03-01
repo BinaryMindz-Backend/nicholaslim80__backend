@@ -25,7 +25,7 @@ export class DashboardPopupController {
   @Post()
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.CREATE)
+  @RequirePermission(Module.DASHBOARD_POPUP, Permission.CREATE)
   @ApiOperation({ summary: 'Create dashboard popup' })
   async create(@Body() dto: CreateDashboardPopupDto) {
     try {
@@ -39,7 +39,7 @@ export class DashboardPopupController {
   @Get()
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.READ)  
+  @RequirePermission(Module.DASHBOARD_POPUP, Permission.READ)  
   @ApiOperation({ summary: 'Get all dashboard popups' })
   async findAll() {
     try {
@@ -53,7 +53,7 @@ export class DashboardPopupController {
   @Get(':id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.READ)  
+  @RequirePermission(Module.DASHBOARD_POPUP, Permission.READ)  
   async findOne(@Param('id') id: string) {
     try {
       const data = await this.service.findOne(+id);
@@ -66,7 +66,7 @@ export class DashboardPopupController {
   @Put(':id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.UPDATE)
+  @RequirePermission(Module.DASHBOARD_POPUP, Permission.UPDATE)
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateDashboardPopupDto,
@@ -82,7 +82,7 @@ export class DashboardPopupController {
   @Delete(':id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ADDITIONAL_SERVICES, Permission.DELETE)
+  @RequirePermission(Module.DASHBOARD_POPUP, Permission.DELETE)
   async remove(@Param('id') id: string) {
     try {
       const data = await this.service.remove(+id);

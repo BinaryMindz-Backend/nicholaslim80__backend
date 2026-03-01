@@ -15,7 +15,7 @@ export class ReportAndAnalyticsController {
     @Get('stats')
     @Auth()
     @ApiBearerAuth()
-    @RequirePermission(Module.REPORT_ANALYTICS, Permission.READ)
+    @RequirePermission(Module.REPORT_ANALYTICS_STATS, Permission.READ)
     @ApiOperation({ summary: 'Get all order statistics with average order rating' })
     @ApiResponse({
       status: 200,
@@ -61,7 +61,7 @@ export class ReportAndAnalyticsController {
   @Get('kpi-stats')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.REPORT_ANALYTICS, Permission.READ)
+  @RequirePermission(Module.KPI_STATS, Permission.READ)
   @ApiOperation({ summary: 'Get KPI stats: revenue by day, top drivers, AOV, completion/cancellation rate, avg delivery time' })
   @ApiResponse({
     status: 200,
@@ -101,7 +101,7 @@ export class ReportAndAnalyticsController {
   @Get('coin/stats')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.REPORT_ANALYTICS, Permission.READ)
+  @RequirePermission(Module.INCENTIVE_ANALYSIS, Permission.READ)
   @ApiOperation({ summary: 'Get coin management stats for admin dashboard' })
   @ApiResponse({ status: 200, description: 'Coin stats fetched successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
@@ -121,7 +121,7 @@ export class ReportAndAnalyticsController {
   @Get('incentive/analytics')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.REPORT_ANALYTICS, Permission.READ)
+  @RequirePermission(Module.INCENTIVE_ANALYSIS, Permission.READ)
   @ApiOperation({ summary: 'Get incentive analytics (total given, collected, weekly chart)' })
   @ApiResponse({ status: 200, description: 'Incentive analytics fetched successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })

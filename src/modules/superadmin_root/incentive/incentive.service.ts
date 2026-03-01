@@ -2,7 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { CreateIncentiveDto } from './dto/create-incentive.dto';
 import { UpdateIncentiveDto } from './dto/update-incentive.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { IncentiveStatus, RaiderStatus, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
+import { IncentiveStatus, Prisma, RaiderStatus, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
 import { IncentiveQueryDto } from './dto/incentive-query.dto';
 
@@ -52,60 +52,86 @@ export class IncentiveService {
 
   // 
   async findAll(query: IncentiveQueryDto) {
-    const {
-      page = 1,
-      limit = 10,
-      startDate,
-      endDate,
-    } = query;
 
-    const skip = (page - 1) * limit;
+  const {
+    page = 1,
+    limit = 10,
+    startDate,
+    endDate,
+    search,
+    sort = 'desc',
+    status,
+    type,
+  } = query;
 
-    const where: any = {};
+  const skip = (page - 1) * limit;
 
-    // Date filtering
-    if (startDate || endDate) {
-      where.created_at = {};
+  const where: Prisma.IncentiveWhereInput = {};
 
-      if (startDate) {
-        where.created_at.gte = new Date(startDate);
-      }
+  // ========= DATE FILTER =========
+  if (startDate || endDate) {
+    where.created_at = {};
 
-      if (endDate) {
-        where.created_at.lte = new Date(endDate);
-      }
+    if (startDate) {
+      where.created_at.gte = new Date(startDate);
     }
 
-    const [data, total] = await this.prisma.$transaction([
-      this.prisma.incentive.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: {
-          created_at: 'desc',
-        },
-      }),
-
-      this.prisma.incentive.count({ where }),
-    ]);
-
-    return {
-      data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    if (endDate) {
+      where.created_at.lte = new Date(endDate);
+    }
   }
+
+  // ========= STATUS FILTER =========
+  if (status) {
+    where.status = status;
+  }
+
+  // ========= TYPE FILTER =========
+  if (type) {
+    where.type = type;
+  }
+
+  // ========= SEARCH =========
+  if (search) {
+    where.OR = [
+      {
+        incentive_name: {
+          contains: search,
+          mode: 'insensitive',
+        },
+      }
+    ];
+  }
+
+  // ========= QUERY =========
+  const [data, total] = await this.prisma.$transaction([
+    this.prisma.incentive.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: {
+        created_at: sort,
+      },
+    }),
+    this.prisma.incentive.count({ where }),
+  ]);
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: page * limit < total,
+      hasPrevPage: page > 1,
+    },
+  };
+}
 
 
   // 
   async findAllIncentive() {
-
-
-
     // 
     const res = await this.prisma.incentive.findMany({})
     return res;
