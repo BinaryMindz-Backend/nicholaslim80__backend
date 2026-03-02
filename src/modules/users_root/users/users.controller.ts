@@ -126,7 +126,7 @@ export class UsersController {
   // find me
   @Get("me")
   @Auth()
-  @RequirePermission(Module.USER, Permission.GET_USER_PROFILE)
+  // @RequirePermission(Module.USER, Permission.GET_USER_PROFILE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get Own profile' })
   @ApiResponse({ status: 200, description: 'User Own profile retrieved successfully' })

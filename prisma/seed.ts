@@ -192,6 +192,9 @@ const ROLE_PERMISSIONS = {
     { module: Module.REPORT_ANALYTICS, action: Permission.DELETE },
     { module: Module.REPORT_ANALYTICS, action: Permission.UPDATE },
     { module: Module.REPORT_ANALYTICS, action: Permission.JUST_ADMIN },
+    { module: Module.REPORT_ANALYTICS_STATS, action: Permission.READ },
+    
+
     //Advertise MODULE
     { module: Module.ADVERTISEMENT, action: Permission.CREATE },
     { module: Module.ADVERTISEMENT, action: Permission.READ },
@@ -433,6 +436,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.DASHBOARD_POPUP, action: Permission.READ },
     // 
     { module: Module.SERVICE_CHAT, action: Permission.ALL },
+    // 
+    { module: Module.CONTACT_INFO, action: Permission.READ },
 
 
   ],
@@ -504,6 +509,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.DASHBOARD_POPUP, action: Permission.READ },
     //
     { module: Module.SERVICE_CHAT, action: Permission.ALL },
+    // 
+    { module: Module.CONTACT_INFO, action: Permission.READ },
   ],
 };
 
