@@ -15,7 +15,7 @@ export class ServiceZoneController {
   @Post('create')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.VEHICLE_TYPE, Permission.CREATE)
+  @RequirePermission(Module.SERVICE_AREAS, Permission.CREATE)
   async create(@Body() createServiceZoneDto: CreateServiceZoneDto) {
 
     const rest = await this.serviceZoneService.create(createServiceZoneDto);
@@ -25,7 +25,7 @@ export class ServiceZoneController {
   @Get()
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.VEHICLE_TYPE, Permission.READ)
+  @RequirePermission(Module.SERVICE_AREAS, Permission.READ)
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
@@ -38,7 +38,7 @@ export class ServiceZoneController {
   @Patch('update-status:id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.VEHICLE_TYPE, Permission.UPDATE)
+  @RequirePermission(Module.SERVICE_AREAS, Permission.UPDATE)
   async updateActiveStatus(@Param('id') id: string) {
     const res = await this.serviceZoneService.updateActiveStatus(+id);
     return ApiResponses.success(res, 'Service zone status updated successfully');
@@ -47,7 +47,7 @@ export class ServiceZoneController {
   @Patch(':id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.VEHICLE_TYPE, Permission.UPDATE)
+  @RequirePermission(Module.SERVICE_AREAS, Permission.UPDATE)
   async update(@Param('id') id: string, @Body() updateServiceZoneDto: UpdateServiceZoneDto) {
 
     const res = await this.serviceZoneService.update(+id, updateServiceZoneDto);
@@ -57,7 +57,7 @@ export class ServiceZoneController {
   @Delete(':id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.VEHICLE_TYPE, Permission.DELETE)
+  @RequirePermission(Module.SERVICE_AREAS, Permission.DELETE)
   async remove(@Param('id') id: string) {
     const res = await this.serviceZoneService.remove(+id);
     return ApiResponses.success(res, 'Service zone deleted successfully');
