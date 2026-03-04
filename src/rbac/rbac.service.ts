@@ -4,6 +4,7 @@ import { Module, Permission, STATIC_ROLES } from './rbac.constants';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { PermissionDto, SearchDto } from './dto/role.dto';
 import { DeliveryTypeName, OrderStatus } from '@prisma/client';
+import { RoleQueryDto } from './dto/serach_pagination.dto';
 
 
 
@@ -133,23 +134,50 @@ export class RbacService implements OnModuleInit {
     return updatedRole;
   }
 
-  async getAllRoles() {
-    return await this.prisma.role.findMany({
-      where: {
-        isStatic: {
-          not: true
-        }
-      },
-      include: {
-        permissions: true,
-        _count: {
-          select: { users: true },
+  //  
+  async getAllRoles(query: RoleQueryDto) {
+    const { search, page = 1, limit = 10 } = query;
+    
+    // Calculate how many records to skip
+    const skip = (page - 1) * limit;
+
+    // Define the filter criteria
+    const where: any = {
+      isStatic: { not: true },
+      ...(search && {
+        name: {
+          contains: search,
+          mode: 'insensitive', // Makes search case-insensitive
         },
+      }),
+    };
+
+    // Fetch data and total count in parallel for better performance
+    const [data, total] = await Promise.all([
+      this.prisma.role.findMany({
+        where,
+        include: {
+          permissions: true,
+          _count: {
+            select: { users: true },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.role.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: {
-        createdAt: "asc"
-      }
-    });
+    };
   }
 
   async getRoleById(roleId: number) {

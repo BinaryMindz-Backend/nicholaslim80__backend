@@ -1,6 +1,5 @@
 export enum Module {
   DASHBOARD = "dashboard",
-  USER = 'user',
   RAIDER = "raider",
   ORDER = 'order',
   PAYMENT_TRANSACTION = 'payment_transaction',
@@ -21,7 +20,16 @@ export enum Module {
   REFERRAL = "referral",
   ADDITIONAL_SERVICES = "additional_services",
   USER_PROFILE = "user_profile",
-  // new
+  // new //  user
+  USER_WEB='user_web',
+  USER = 'user',
+  // 
+  USER_MOBILE='user_mobile',
+  // USER = 'user',
+
+  // user wallet 
+  USER_WALLET = "user_wallet",
+  RAIDER_WALLET ="raider_wallet",
   // services configuaration
   SERVICE_AREAS = "service_areas",
   VEHICLE_TYPE='vehicle_type',
