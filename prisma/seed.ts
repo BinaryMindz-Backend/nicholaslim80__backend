@@ -381,8 +381,28 @@ const ROLE_PERMISSIONS = {
     { module: Module.USER_PROFILE, action: Permission.CREATE },
     { module: Module.USER_PROFILE, action: Permission.READ },
     { module: Module.USER_PROFILE, action: Permission.DELETE },
-    { module: Module.USER_PROFILE, action: Permission.UPDATE }
-
+    { module: Module.USER_PROFILE, action: Permission.UPDATE },
+    // coin stats
+    { module: Module.COIN_STATS, action: Permission.CREATE },
+    { module: Module.COIN_STATS, action: Permission.READ },
+    { module: Module.COIN_STATS, action: Permission.UPDATE },
+    { module: Module.COIN_STATS, action: Permission.DELETE },
+    // 
+    { module: Module.INCENTIVE_ANALYSIS, action: Permission.CREATE },
+    { module: Module.INCENTIVE_ANALYSIS, action: Permission.READ },
+    { module: Module.INCENTIVE_ANALYSIS, action: Permission.UPDATE },
+    { module: Module.INCENTIVE_ANALYSIS, action: Permission.DELETE },
+    // 
+    { module: Module.KPI_STATS, action: Permission.CREATE },
+    { module: Module.KPI_STATS, action: Permission.READ },
+    { module: Module.KPI_STATS, action: Permission.UPDATE },
+    { module: Module.KPI_STATS, action: Permission.DELETE },
+    //
+    { module: Module.TRANSACTION_STATS, action: Permission.CREATE },
+    { module: Module.TRANSACTION_STATS, action: Permission.READ },
+    { module: Module.TRANSACTION_STATS, action: Permission.UPDATE },
+    { module: Module.TRANSACTION_STATS, action: Permission.DELETE },
+    
 
   ],
 
