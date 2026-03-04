@@ -10,6 +10,8 @@ import { AddMoneyTestDto } from './dto/add-money-test.dto';
 import { UserWalletQueryDto } from './dto/user-wallet.dto';
 import { UserWalletHistoryQueryDto } from './dto/user-wallet-history-query.dto';
 import { CreatePaymentIntentDto, SaveCardDto } from './dto/create-payment-method.dto';
+import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
+import { Module, Permission } from 'src/rbac/rbac.constants';
 
 
 @ApiTags('Wallet')
@@ -166,10 +168,27 @@ export class WalletController {
     }
 
     // 
-    @Get('user/wallet')
+    // @Get('user/wallet')
+    // @RequirePermission(Module.RAIDER, Permission.JUST_ADMIN)
+    // @Auth()
+    // @ApiOperation({ summary: 'Get user wallet by role with search and pagination' })
+    // async userWallet(@Query() query: UserWalletQueryDto) {
+    //     return this.walletService.userWallet(query);
+    // }
+
+    // Admin Module Access
+    @Get('/user/wallet')
+    @RequirePermission(Module.WALLET, Permission.READ) // Higher permission
     @Auth()
-    @ApiOperation({ summary: 'Get user wallet by role with search and pagination' })
-    async userWallet(@Query() query: UserWalletQueryDto) {
+    async adminUserWallet(@Query() query: UserWalletQueryDto) {
+        return this.walletService.userWallet(query);
+    }
+
+    // Raider Module Access
+    @Get('raider/wallet')
+    @RequirePermission(Module.WALLET, Permission.READ) // Lower permission
+    @Auth()
+    async raiderUserWallet(@Query() query: UserWalletQueryDto) {
         return this.walletService.userWallet(query);
     }
     // remove card
