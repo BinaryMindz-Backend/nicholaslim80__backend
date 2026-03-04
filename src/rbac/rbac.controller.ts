@@ -8,6 +8,7 @@ import { CreateRoleDto, SearchDto, UpdateRoleDto, UpdateRoleNameDto } from './dt
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Public } from 'src/decorators/public.decorator';
+import { RoleQueryDto } from './dto/serach_pagination.dto';
 
 
 
@@ -106,9 +107,10 @@ export class RbacController {
   @Get()
   @Auth()
   @ApiBearerAuth()
-  // @RequirePermission(Module.RBAC, Permission.READ)
-  async getAllRoles() {
-    return await this.rbacService.getAllRoles();
+  @ApiOperation({ summary: 'Get all non-static roles with search and pagination' })
+  @RequirePermission(Module.RBAC, Permission.READ)
+  async getAllRoles(@Query() query: RoleQueryDto) {
+    return await this.rbacService.getAllRoles(query);
   }
 
   // 

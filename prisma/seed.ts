@@ -6,7 +6,6 @@ const prisma = new PrismaClient();
 // DEFINE YOUR MODULES (Add new modules here)
 export enum Module {
   DASHBOARD = "dashboard",
-  USER = 'user',
   RAIDER = "raider",
   ORDER = 'order',
   PAYMENT_TRANSACTION = 'payment_transaction',
@@ -46,7 +45,17 @@ export enum Module {
   CUSTOMER_REWARDS='customer_rewards',
   PROMO_CODE='promo_code',
 
+
+  //  user
+  USER_WEB='user_web',
+  USER = 'user',
+  // 
+  USER_MOBILE='user_mobile',
+  // USER = 'user',
+
   // user wallet 
+  USER_WALLET = "user_wallet",
+  RAIDER_WALLET ="raider_wallet",
   // driver wallet
 
   // finnace reporting // report-and-analytics/kpi-stats
@@ -149,6 +158,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.USER, action: Permission.UPDATE_USER_STATUS },
     { module: Module.USER, action: Permission.DELETE },
     { module: Module.USER, action: Permission.GET_USER_PROFILE },
+    { module: Module.USER_MOBILE, action: Permission.READ },
+    { module: Module.USER_WEB, action: Permission.READ },
     // auth module
     { module: Module.PAYMENT_TRANSACTION, action: Permission.CREATE },
 
@@ -211,6 +222,9 @@ const ROLE_PERMISSIONS = {
     { module: Module.WALLET, action: Permission.READ },
     { module: Module.WALLET, action: Permission.DELETE },
     { module: Module.WALLET, action: Permission.UPDATE },
+    { module: Module.USER_WALLET, action: Permission.READ },
+    { module: Module.RAIDER_WALLET, action: Permission.READ },
+
     //Notification module
     { module: Module.NOTIFICATION, action: Permission.CREATE },
     { module: Module.NOTIFICATION, action: Permission.DELETE },
