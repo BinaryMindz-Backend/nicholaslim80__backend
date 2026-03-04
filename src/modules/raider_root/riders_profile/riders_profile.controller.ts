@@ -58,14 +58,29 @@ export class RidersProfileController {
 
 
 
-
+  //  raider join req
   @Get('rider-profiles')
+  @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
+  @Auth()
+  @RequirePermission(Module.RAIDER_JOIN, Permission.JUST_ADMIN)
+  // @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  async findAll(@Query() query: GetRidersQueryDto) {
+    try {
+      const res = await this.ridersProfileService.findAll(query);
+      return ApiResponses.success(res, 'Rider profiles fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+  // 
+  @Get('rider-profiles/raider')
   @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
   @Auth()
   @RequirePermission(Module.RAIDER, Permission.JUST_ADMIN)
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  async findAll(@Query() query: GetRidersQueryDto) {
+  async findAllRaider(@Query() query: GetRidersQueryDto) {
     try {
       const res = await this.ridersProfileService.findAll(query);
       return ApiResponses.success(res, 'Rider profiles fetched successfully');

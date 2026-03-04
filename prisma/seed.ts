@@ -6,7 +6,6 @@ const prisma = new PrismaClient();
 // DEFINE YOUR MODULES (Add new modules here)
 export enum Module {
   DASHBOARD = "dashboard",
-  RAIDER = "raider",
   ORDER = 'order',
   PAYMENT_TRANSACTION = 'payment_transaction',
   VECHICLE_PRICING = "vechicle_pricing",
@@ -45,14 +44,16 @@ export enum Module {
   CUSTOMER_REWARDS='customer_rewards',
   PROMO_CODE='promo_code',
 
-
+  
   //  user
   USER_WEB='user_web',
   USER = 'user',
   // 
   USER_MOBILE='user_mobile',
   // USER = 'user',
-
+  //
+  RAIDER_JOIN="raider_join", 
+  RAIDER = "raider",
   // user wallet 
   USER_WALLET = "user_wallet",
   RAIDER_WALLET ="raider_wallet",
@@ -183,6 +184,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.RAIDER, action: Permission.UPDATE },
     { module: Module.RAIDER, action: Permission.DELETE },
     { module: Module.RAIDER, action: Permission.JUST_ADMIN },
+    { module: Module.RAIDER_JOIN, action: Permission.JUST_ADMIN },
+    
     // live map fleet track
     { module: Module.LIVE_MAP, action: Permission.READ },
     // 

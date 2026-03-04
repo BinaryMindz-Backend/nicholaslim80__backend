@@ -1,6 +1,5 @@
 export enum Module {
   DASHBOARD = "dashboard",
-  RAIDER = "raider",
   ORDER = 'order',
   PAYMENT_TRANSACTION = 'payment_transaction',
   VECHICLE_PRICING = "vechicle_pricing",
@@ -26,7 +25,8 @@ export enum Module {
   // 
   USER_MOBILE='user_mobile',
   // USER = 'user',
-
+  RAIDER_JOIN="raider_join", 
+  RAIDER = "raider", 
   // user wallet 
   USER_WALLET = "user_wallet",
   RAIDER_WALLET ="raider_wallet",
