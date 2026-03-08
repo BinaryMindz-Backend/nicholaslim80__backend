@@ -56,76 +56,7 @@ export class RidersProfileService {
     });
     return res;
   }
-
-  // async findAll(query: GetRidersQueryDto) {
-  //   const filter: any = {};
-
-  //   if (query.raider_name) {
-  //     filter.registrations = {
-  //       some: {
-  //         raider_name: {
-  //           contains: query.raider_name,
-  //           mode: 'insensitive',
-  //         },
-  //       },
-  //     };
-  //   }
-
-
-  //   if (query.raiderId) {
-  //     filter.id = Number(query.raiderId);
-  //   }
-
-  //   if (query.raider_verificationFromAdmin) {
-  //     filter.raider_verificationFromAdmin = query.raider_verificationFromAdmin;
-  //   }
-  //   // 
-  //   if (query.loginType) {
-  //     filter.LoginType = query.loginType;
-  //   }
-  //   // sorting
-  //   let orderBy: any = {};
-  //   if (query.type) {
-  //     const orderType = String(query.type).toLowerCase();
-  //     if (orderType === 'asc' || orderType === 'first') {
-  //       orderBy.createdAt = 'asc';
-  //     } else if (orderType === 'desc' || orderType === 'last') {
-  //       orderBy.createdAt = 'desc';
-  //     }
-  //   }
-
-  //   // PAGINATION
-  //   const page = Number(query.page) || 1;
-  //   const limit = Number(query.limit) || 10;
-  //   const skip = (page - 1) * limit;
-
-  //   // Total count
-  //   const total = await this.prisma.raider.count({ where: filter });
-
-  //   // Main data
-  //   const data = await this.prisma.raider.findMany({
-  //     where: filter,
-  //     orderBy,
-  //     skip,
-  //     take: limit,
-  //     include: {
-  //       registrations: true,
-  //     },
-  //   });
-
-  //   return {
-  //     data,
-  //     pagination: {
-  //       total,
-  //       page,
-  //       limit,
-  //       totalPages: Math.ceil(total / limit),
-  //       hasNextPage: page * limit < total,
-  //       hasPrevPage: page > 1,
-  //     },
-  //   };
-  // }
-
+  
 
 
   // 
@@ -144,23 +75,18 @@ export class RidersProfileService {
 
       const where: Prisma.RaiderWhereInput = {};
 
-      // ========= ID =========
       if (raiderId) {
         where.id = raiderId;
       }
 
-      // ========= LOGIN TYPE =========
       if (loginType) {
         where.LoginType = loginType;
       }
 
-      // ========= VERIFICATION =========
       if (raider_verificationFromAdmin) {
-        where.raider_verificationFromAdmin =
-          raider_verificationFromAdmin;
+        where.raider_verificationFromAdmin = raider_verificationFromAdmin;
       }
 
-      // ========= SEARCH (NAME + EMAIL) =========
       if (search) {
         where.registrations = {
           some: {
@@ -182,12 +108,10 @@ export class RidersProfileService {
         };
       }
 
-      // ========= SORT =========
       const orderBy: Prisma.RaiderOrderByWithRelationInput = {
         created_at: type,
       };
 
-      // ========= QUERY =========
       const [total, data] = await Promise.all([
         this.prisma.raider.count({ where }),
 
@@ -198,12 +122,38 @@ export class RidersProfileService {
           take: limit,
           include: {
             registrations: true,
+            raider_ratings: true,
           },
         }),
       ]);
 
+      // Add average rating per raider
+      const formattedData = await Promise.all(
+        data.map(async (raider) => {
+          const avgRating = await this.prisma.rateRaider.aggregate({
+            where: {
+              raiderId: raider.id,
+            },
+            _avg: {
+              rating_star: true,
+            },
+            _count: {
+              id: true,
+            },
+          });
+
+          return {
+            ...raider,
+            avgRating: avgRating._avg.rating_star
+              ? Number(avgRating._avg.rating_star.toFixed(2))
+              : 0,
+            totalRatings: avgRating._count.id,
+          };
+        })
+      );
+
       return {
-        data,
+        data: formattedData,
         pagination: {
           total,
           page,
@@ -216,16 +166,38 @@ export class RidersProfileService {
     }
 
  
- 
- 
- 
   // 
   async findOne(id: string) {
     const res = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
-      include: { registrations: true, locations:true },
+      include: { registrations: true, locations:true, raider_ratings:true,  followers: { where: { is_fav: true } }, },
     });
-    return res;
+      // Get raider rating average
+      const avgRating = await this.prisma.rateRaider.aggregate({
+        where: {
+          raiderId: res?.id
+        },
+        _avg: {
+          rating_star: true
+        },
+        _count: {
+          id: true
+        }
+      });
+
+      const formattedAverage = avgRating._avg.rating_star
+        ? Number(avgRating._avg.rating_star.toFixed(2))
+        : 0;
+
+    // 
+    return {
+        ...res,
+        rank: res?.rank,
+        rankScore: res?.rankScore || 0,
+        rating: res?.reviews_count || 0,
+        followers: res?.followers.length || 0,
+        formattedAverage
+      };
   }
 
 
