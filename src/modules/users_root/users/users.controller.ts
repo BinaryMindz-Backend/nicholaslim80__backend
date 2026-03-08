@@ -60,7 +60,7 @@ export class UsersController {
   // 
   @Get("web-portal")
   @Auth()
-  @RequirePermission(Module.USER, Permission.READ)
+  @RequirePermission(Module.USER_WEB, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all web portal users (with filters & pagination)' })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
@@ -75,7 +75,7 @@ export class UsersController {
   // 
   @Get("only-users")
   @Auth()
-  @RequirePermission(Module.USER, Permission.READ)
+  @RequirePermission(Module.USER_MOBILE, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all only users (with filters & pagination)' })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
