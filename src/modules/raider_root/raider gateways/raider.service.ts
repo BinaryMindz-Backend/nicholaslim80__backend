@@ -16,7 +16,6 @@ export class RaiderService {
     });
     
     if (!raider) {
-      console.log('Raider profile not found for user', userId);
       return null;
     }
     
@@ -40,12 +39,11 @@ export class RaiderService {
     });
     
     //
-    console.log(`Rider ${riderId} set online`); 
+    // console.log(`Rider ${riderId} set online`); 
   }
 
   // Set rider offline
   async setOffline(riderId: number) {
-    console.log("offline -->", riderId);
     
     const rider = await this.prisma.raider.findUnique({
       where: { id: riderId },
@@ -62,7 +60,7 @@ export class RaiderService {
     });
     
     // 
-    console.log(`Rider ${riderId} set offline`); 
+    // console.log(`Rider ${riderId} set offline`); 
   }
 
   // Update rider location
@@ -71,12 +69,11 @@ export class RaiderService {
     const value = JSON.stringify({ lat, lng, heading, updatedAt: Date.now() });
     
     await this.redis.set(key, value, 30);
-    
     // 
     console.log(`✅ Rider ${riderId} location updated:`, { lat, lng, heading });
     console.log(`✅ Redis key set: ${key}`);
-  }
-  // 
+    }
+    // 
     async getOnlineRidersInZone(compititiorIds: number[]) {
       const riders = await this.prisma.raider.findMany({
         where: {
@@ -88,6 +85,16 @@ export class RaiderService {
 
       return riders;
     }
+    // find all raider
+    async findAllRaider(){
+      const allRaider = await this.prisma.raider.findMany({
+          where:{
+            is_online:true
+          }
+      })
+      return allRaider
+    }
+    // 
 
   }
 

@@ -134,7 +134,11 @@ export class CoinManagementService {
   }
 
 
-  async remove(id: number) {
+  async remove(
+        id: number,
+        changedByRole :string,
+        changedByUserId: number,
+  ) {
     const exitData = await this.prisma.coin.findFirst({
       where: {
         id
@@ -143,6 +147,22 @@ export class CoinManagementService {
     if (!exitData) {
       return ApiResponses.error("Your Coin data not found")
     }
+    
+    
+    await this.prisma.coinLog.create({
+      data: {
+        coinId: exitData.id,
+        key: exitData.key,
+        description: exitData.description,
+        coinAmount: exitData.coin_amount,
+        condition: exitData.condition!,
+        expireDays: exitData.expire_days,
+        coinValueInCent: exitData.coin_value_in_cent,
+        isActive: exitData.is_active,
+        changedByRole,
+        changedByUserId,
+      },
+    });
     return await this.prisma.coin.delete({
       where: {
         id

@@ -91,6 +91,17 @@ export interface LatLng {
   lng: number;
 }
 
+export interface RaiderWithLocation {
+    riderId: number;
+    locations: {
+      lat: number;
+      lng: number;
+      heading?: number;
+    }
+  };
+
+
+
 export type performanceCountType = WeeklyPerformanceStat[];
 
 export interface DeliveryZone {
@@ -197,7 +208,19 @@ export interface OrderCompetitionData {
   competitorCount: number;
 }
 
-
+// Define the interface at the top
+// interface OrderWithLocation {
+//   orderId: number;
+//   riderId: number;
+//   assign_rider: {
+//     locations: {
+//       lat: number;
+//       lng: number;
+//       heading?: number;
+//     }
+//   };
+//   orderStatus: string;
+// }
 
 export interface UserRaiderMapping {
   id: number;
