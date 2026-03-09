@@ -254,9 +254,9 @@ export class AdvertiseController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Advertise deleted successfully' })
   @ApiResponse({ status: 404, description: 'Advertise not found' })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string,  @CurrentUser() user:IUser) {
     try {
-      const res = await this.advertiseService.remove(+id);
+      const res = await this.advertiseService.remove(+id, user.roles[0].name, user.id);
       if (!res) return ApiResponses.error(null, 'Failed to delete advertise');
 
       return ApiResponses.success(res, 'Advertise deleted successfully');

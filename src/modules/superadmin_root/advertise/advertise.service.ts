@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, NotAcceptableException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateAdvertiseDto } from './dto/create-advertise.dto';
@@ -231,12 +230,38 @@ export class AdvertiseService {
 
 
   // DELETE
-  async remove(id: number) {
-    await this.findOne(id);
-    return this.prisma.advertise.delete({
-      where: { id },
-    });
-  }
+async remove(
+  id: number,
+  changedByRole: string,
+  changedByUserId?: number
+) {
+  const advertise = await this.findOne(id);
+
+  await this.prisma.$transaction([
+    this.prisma.advertiseLog.create({
+      data: {
+        advertiseId: advertise.id,
+        createFor: advertise.create_for,
+        adTitle: advertise.ad_title,
+        adImage: advertise.ad_image,
+        status: advertise.status,
+        startDate: advertise.start_date,
+        endDate: advertise.end_date,
+        changedByRole,
+        changedByUserId,
+      },
+    }),
+
+    this.prisma.advertise.delete({
+      where: { id }
+    }),
+  ]);
+
+  return {
+    message: "Advertise removed successfully",
+  };
+}
+
 
   // ANALYTICS STATS
   async getStats(id: number) {

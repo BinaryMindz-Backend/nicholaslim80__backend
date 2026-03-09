@@ -196,7 +196,7 @@ export class RidersProfileService {
         rankScore: res?.rankScore || 0,
         rating: res?.reviews_count || 0,
         followers: res?.followers.length || 0,
-        formattedAverage
+        formattedAverage 
       };
   }
 
