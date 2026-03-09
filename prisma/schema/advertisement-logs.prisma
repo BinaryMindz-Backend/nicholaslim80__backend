@@ -1,6 +1,6 @@
 model AdvertiseLog {
   id              Int      @id @default(autoincrement())
-  advertiseId     Int
+  advertiseId     Int?
 
   createFor       String
   adTitle         String
@@ -13,8 +13,7 @@ model AdvertiseLog {
   changedByUserId Int?
 
   createdAt       DateTime @default(now())
-
-  advertise Advertise @relation(fields: [advertiseId], references: [id])
+  advertise   Advertise? @relation( fields: [advertiseId], references: [id], onDelete: SetNull)
 
   @@index([advertiseId])
   @@index([createdAt])
