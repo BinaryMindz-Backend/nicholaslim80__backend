@@ -105,7 +105,8 @@ export class QuizService {
 
 
   // 
-  async remove(id: number) {
+  async remove(id: number,  changedByRole :string,
+      changedByAdminId?: number,) {
     //  
     const record = await this.prisma.quiz.findFirst({
       where: {
@@ -115,7 +116,19 @@ export class QuizService {
 
     //  
     if (!record) throw new ConflictException("Quiz Not found")
-
+    
+      await this.prisma.quizLog.create({
+        data: {
+          quizId: record.id,
+          title: record.title,
+          quizOption: record.QuizOption!,
+          description: record.description,
+          category: record.category,
+          isActive: record.is_active,
+          changedByRole,
+          changedByAdminId,
+        },
+      });
     return this.prisma.quiz.delete({
       where: { id },
     });

@@ -177,9 +177,9 @@ export class QuizController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Quiz not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user:IUser) {
     try {
-      const res = await this.quizService.remove(+id);
+      const res = await this.quizService.remove(+id, user.roles[0].name, user.id );
       if (!res) {
         return ApiResponses.error(null, 'Quiz not found');
       }

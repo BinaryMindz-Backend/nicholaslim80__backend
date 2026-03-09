@@ -172,9 +172,10 @@ export class CoinManagementController {
   // @Roles(UserRole.SUPER_ADMIN)
   @RequirePermission(Module.CUSTOMER_REWARDS, Permission.DELETE)
   @ApiBearerAuth()
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user:IUser) {
     try {
-      const data = await this.coinManagementService.remove(+id);
+      const data = await this.coinManagementService.remove(+id,user.roles[0].name,
+        user.id);
       return ApiResponses.success(
         data,
         `${id} coin information is deleted successfully `,
