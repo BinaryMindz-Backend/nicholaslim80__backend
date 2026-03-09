@@ -207,8 +207,8 @@ export class CompetitionWorker implements OnModuleInit {
           
           try {
             // Notify admin
-            console.log('   → Notifying admin...');
-            await this.orderGateway.broadcastOrderAssigned(orderId, winner.driverId, raiderName);
+            // console.log('   → Notifying admin...');
+            // await this.orderGateway.broadcastOrderAssigned(orderId, winner.driverId, raiderName);
             
             // Notify winner
             console.log(`   → Notifying winner (Rider ${winner.driverId})...`);
