@@ -154,7 +154,7 @@ export class OrderGateway implements OnGatewayConnection {
           console.log(`📤 Raider loaction data:`, JSON.stringify(allRaider, null, 2));
           console.log(`📤 Emitting to client ${client.id}`);
 
-          client.emit('admin:all_raider', raidersWithLocation);
+          client.emit('admin:loc_raider', raidersWithLocation);
        
           console.log(`✅ Emitted admin:all_raider event`);
     } catch (error) {
