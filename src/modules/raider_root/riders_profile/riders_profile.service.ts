@@ -146,7 +146,7 @@ export class RidersProfileService {
             ...raider,
             avgRating: avgRating._avg.rating_star
               ? Number(avgRating._avg.rating_star.toFixed(2))
-              : 0,
+              : 5,
             totalRatings: avgRating._count.id,
           };
         })
@@ -187,7 +187,7 @@ export class RidersProfileService {
 
       const formattedAverage = avgRating._avg.rating_star
         ? Number(avgRating._avg.rating_star.toFixed(2))
-        : 0;
+        : 5;
 
     // 
     return {
