@@ -80,7 +80,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     
     console.log(`Received location from riderId ${riderId}:`, payload);
     
-    await this.raiderService.updateLocation(
+     await this.raiderService.updateLocation(
       riderId,
       payload.lat,
       payload.lng,
@@ -88,35 +88,33 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
     
     // Get ALL active orders for this rider
-    const orders = await this.orderService.getAllActiveOrdersByRider(riderId);
+    // const orders = await this.orderService.getAllActiveOrdersByRider(riderId);
     
-    if (!orders || orders.length === 0) {
-      console.log(`No active orders found for rider ${riderId}`);
-      return;
-    }
+    // if (!orders || orders.length === 0) {
+    //   console.log(`No active orders found for rider ${riderId}`);
+    //   return;
+    // }
     
-    console.log(`Found ${orders.length} active order(s) for rider ${riderId}`);
+    // console.log(`Found  active order(s) for rider ${riderId}`);
     
     try {
       const io = SocketIOAdapter.getServer();
       
       // Broadcast location update for EACH active order
-      for (const order of orders) {
-        io.of('/admin').to('admin:live-map').emit('admin:rider_location', {
-          orderId: order.id,
+          io.of('/admin').to('admin:live-map').emit('admin:rider_location', {
           riderId,
           lat: payload.lat,
           lng: payload.lng,
           heading: payload.heading,
         });
-        
-        console.log(`✅ Broadcasted to admin namespace for order ${order.id}`);
-      }
-    } catch (err) {
+       }
+
+     catch (err) {
       console.error('❌ Error broadcasting to admin:', err.message);
     }
   }
-   
+
+  
   // raider join throw socket to compition
   
  @SubscribeMessage('rider:join_competition')
