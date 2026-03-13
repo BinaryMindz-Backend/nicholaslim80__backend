@@ -345,7 +345,7 @@ export class OrderController {
   // create indivitual order
   @Post('indivitual')
   @Auth()
-  @RequirePermission(Module.ORDER, Permission.CREATE)
+  @RequirePermission(Module.ORDER_PLACEMENT, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new order' })
   async createIndivitual(
@@ -564,6 +564,28 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to fetch orders');
     }
   }
+  //  
+    
+  @Get('web/user-history')
+  @Auth()
+  // @Roles( UserRole.SUPER_ADMIN)
+  @RequirePermission(Module.ORDER_HISTORY, Permission.READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get logged-in user orders (admin only)' })
+  @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
+  async findUserOrderHistoy(
+    @CurrentUser() user:IUser, @Query() filterDto: OrderFilterDto) {
+    try {
+      const orders = await this.orderService.findUserOrder(
+        +user.id,
+        filterDto
+      );
+      return ApiResponses.success(orders, 'Orders history retrieved successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch orders');
+    }
+  }
+
 
 
   // GET ALL ORDERS (ADMIN OR SYSTEM USE)
@@ -581,6 +603,22 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to fetch orders');
     }
   }
+
+  // live order tracking
+  @Get('web/live-order-tracking')
+  @Auth()
+  @RequirePermission(Module.LIVE_ORDER_TRACKING, Permission.READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all orders with filters' })
+  async findAllWeb(@Query() filterDto: OrderFilterDto, @CurrentUser() user:IUser) {
+    try {
+      const orders = await this.orderService.findAllLiveTrack(filterDto, +user.id);
+      return ApiResponses.success(orders, 'live Orders retrieved successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch orders');
+    }
+  }
+
 
 
   // GET ONE

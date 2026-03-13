@@ -4,7 +4,7 @@ import {
   IsOptional,
   IsEnum,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   RouteType,
   DeliveryTypeName,
@@ -27,9 +27,10 @@ export class CreateOrderDto {
   @IsEnum(DeliveryTypeName)
   delivery_type: DeliveryTypeName;
 
-  @ApiProperty({ example: 3 })
+  @ApiPropertyOptional({ example: 3 })
   @IsInt()
-  vehicle_type_id: number;
+  @IsOptional()
+  vehicle_type_id?: number;
 
   @ApiProperty({ enum: CollectTime, default: CollectTime.ASAP })
   @IsEnum(CollectTime)

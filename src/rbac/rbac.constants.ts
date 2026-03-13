@@ -75,6 +75,8 @@ export enum Module {
   FAQ = "faq",
   // order management
   ORDER_PLACEMENT = "order_placement", //order placement
+  LIVE_ORDER_TRACKING='live_order_tracking',
+  ORDER_HISTORY='order_history'
 
 
 

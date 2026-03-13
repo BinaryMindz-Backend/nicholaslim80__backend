@@ -84,6 +84,8 @@ export enum Module {
   FAQ = "faq",
   // order management
   ORDER_PLACEMENT = "order_placement", //order placement
+  LIVE_ORDER_TRACKING='live_order_tracking',
+  ORDER_HISTORY='order_history'
 
 
 
@@ -178,6 +180,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.ORDER, action: Permission.DECLINE_ORDER },
     { module: Module.ORDER, action: Permission.CANCEL_ORDER },
     { module: Module.ORDER, action: Permission.DELETE },
+    { module: Module.LIVE_ORDER_TRACKING, action: Permission.READ },
+    { module: Module.ORDER_HISTORY , action:Permission.READ},
     // RAIDER MODULE - FULL ACCESS
     { module: Module.RAIDER, action: Permission.CREATE },
     { module: Module.RAIDER, action: Permission.READ },
