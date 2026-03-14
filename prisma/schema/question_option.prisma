@@ -3,7 +3,7 @@ model Question {
   quiz          Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
   quizId        Int
   quesType      QuesType
-  quesCategory  QuesCategory    
+  quesCategory  String    
   quesDeficulty QuesDeficulty
 
   question_text String    @db.Text
