@@ -8,7 +8,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { CreateOptionDto } from './create-option.dto';
-import { QuesCategory, QuesDeficulty, QuesType } from '@prisma/client/edge';
+import { QuesDeficulty, QuesType } from '@prisma/client/edge';
 
 export class CreateQuestionDto {
   @ApiProperty()
@@ -19,9 +19,9 @@ export class CreateQuestionDto {
   @IsEnum(QuesType)
   quesType: QuesType;
 
-  @ApiProperty({ enum: QuesCategory })
-  @IsEnum(QuesCategory)
-  quesCategory: QuesCategory;
+  @ApiProperty()
+  @IsString()
+  quesCategory: string;
 
   @ApiProperty({ enum: QuesDeficulty })
   @IsEnum(QuesDeficulty)
