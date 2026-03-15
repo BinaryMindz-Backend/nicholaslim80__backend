@@ -4,6 +4,8 @@ model PromoCode {
       promoCode      String @unique
       discountType   DiscountType
       discountValue  Int
+      discountDesc   String 
+      redirectLink   String
 
       isActive       Boolean @default(false)
        
