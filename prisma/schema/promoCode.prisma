@@ -5,7 +5,7 @@ model PromoCode {
       discountType   DiscountType
       discountValue  Int
       discountDesc   String 
-      redirectLink   String
+      redirectLink   String?
 
       isActive       Boolean @default(false)
        
