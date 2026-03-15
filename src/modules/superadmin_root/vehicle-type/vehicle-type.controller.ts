@@ -21,7 +21,7 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { Public } from 'src/decorators/public.decorator';
-import type{ IUser } from 'src/types';
+import type { IUser } from 'src/types';
 
 
 

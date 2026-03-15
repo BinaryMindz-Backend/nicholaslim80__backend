@@ -32,7 +32,7 @@ export class CreateVehicleTypeDto {
   })
   @IsString()
   @IsOptional()
-  vehicle_desc: string;
+  vehicle_desc?: string;
 
   @ApiProperty({ required: false, example: 50.0 })
   @IsOptional()
