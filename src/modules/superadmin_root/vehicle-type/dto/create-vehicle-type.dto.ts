@@ -26,6 +26,14 @@ export class CreateVehicleTypeDto {
   @IsOptional()
   vehicle_name?: string;
 
+  @ApiPropertyOptional({
+    required: false,
+    example: 'Write Vehicle desc',
+  })
+  @IsString()
+  @IsOptional()
+  vehicle_desc: string;
+
   @ApiProperty({ required: false, example: 50.0 })
   @IsOptional()
   @IsNumber()
