@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { DiscountType } from "@prisma/client";
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUrl } from "class-validator";
 
 export class UpdatePromoCodeDto {
   @ApiPropertyOptional({ description: 'Unique promo code string', example: 'NEWYEAR2026' })
@@ -9,7 +9,20 @@ export class UpdatePromoCodeDto {
 
   @ApiPropertyOptional({ description: 'Type of discount', enum: DiscountType, example: DiscountType.PERCENTAGE })
   @IsEnum(DiscountType)
+  @IsOptional()
   discountType: DiscountType;
+
+  @ApiPropertyOptional({ description: 'Desc of promo code', example: "Promo code desc" })
+  @IsString()
+  @IsOptional()
+  discountDesc: string;
+
+
+  @ApiPropertyOptional({ description: 'redirect link', example: "promo code reditect link" })
+  @IsUrl()
+  @IsOptional()
+  redirectLink?: string;
+
 
   @ApiPropertyOptional({ description: 'Discount value', example: 20 })
   @IsInt()
