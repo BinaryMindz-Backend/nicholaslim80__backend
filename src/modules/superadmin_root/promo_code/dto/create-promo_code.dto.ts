@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { DiscountType } from "@prisma/client";
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUrl } from "class-validator";
 
@@ -12,9 +12,10 @@ export class CreatePromoCodeDto {
   discountDesc: string;
   
 
-  @ApiProperty({ description: 'redirect link', example:"promo code reditect link" })
+  @ApiPropertyOptional({ description: 'redirect link', example:"promo code reditect link" })
   @IsUrl()
-  redirectLink: string;
+  @IsOptional()
+  redirectLink?: string;
 
 
 

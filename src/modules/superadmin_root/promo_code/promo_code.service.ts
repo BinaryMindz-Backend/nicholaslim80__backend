@@ -45,6 +45,8 @@ export class PromoCodeService {
           discountValue: dto.discountValue,
           isActive: dto.isActive ?? false,
           expires_at: expiresDate,
+          discountDesc:dto.discountDesc,
+          redirectLink:dto.redirectLink || null,
         },
       });
 
