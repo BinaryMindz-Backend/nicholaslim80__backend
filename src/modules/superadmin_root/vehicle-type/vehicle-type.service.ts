@@ -37,6 +37,7 @@ export class VehicleTypeService {
         dimension: dto.dimension,
         max_load: dto.max_load,
         isActive: dto.isActive,
+        vehicle_desc: dto.vehicle_desc,
         admin: {
           connect: { id: r.id }
         }
