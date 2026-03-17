@@ -1,58 +1,127 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { CreateIncentiveDto } from './dto/create-incentive.dto';
 import { UpdateIncentiveDto } from './dto/update-incentive.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { IncentiveStatus, Prisma, RaiderStatus, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
 import { IncentiveQueryDto } from './dto/incentive-query.dto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class IncentiveService {
+  private readonly logger = new Logger(IncentiveService.name);
 
   constructor(private readonly prisma: PrismaService,
     private txIdService: TransactionIdService,
   ) { }
 
-  // 
-  async create(dto: CreateIncentiveDto, adminId?: number, role? : string) {
-    const record = await this.prisma.incentive.findFirst({
+ // Runs every hour
+  @Cron(CronExpression.EVERY_HOUR)
+  async deactivateExpiredIncentives() {
+    const now = new Date();
+
+    // Update all incentives where end_date < now and status is still ACTIVE
+    const result = await this.prisma.incentive.updateMany({
       where: {
-        OR: [{ start_date: dto.start_date }, { end_date: dto.end_date }],
+        end_date: { lt: now },
+        status: IncentiveStatus.ACTIVE, // only active incentives
+      },
+      data: {
+        status: IncentiveStatus.DISABLED, // mark as inactive/disabled
       },
     });
 
-    if (record) {
-      throw new ConflictException('Incentive record found by same date');
+    if (result.count > 0) {
+      this.logger.log(`Deactivated ${result.count} expired incentives.`);
+    } else {
+      this.logger.log('No expired incentives to deactivate.');
+    }
+  }
+
+  // 
+  async create(dto: CreateIncentiveDto, adminId?: number, role?: string) {
+    const now = new Date();
+
+    //  Validate dates
+    if (new Date(dto.start_date) < now) {
+      throw new BadRequestException('Start date cannot be in the past');
+    }
+    if (new Date(dto.end_date) < new Date(dto.start_date)) {
+      throw new BadRequestException('End date cannot be before start date');
     }
 
-    const res = await this.prisma.incentive.create({
-      data: {
-        ...dto,
-        adminId,
+    // Check overlapping incentives by date and zone
+    const existing = await this.prisma.incentive.findFirst({
+      where: {
+        AND: [
+          { serviceZoneId: dto.serviceZoneId ?? null },
+          {
+            OR: [
+              { start_date: dto.start_date },
+              { end_date: dto.end_date },
+            ],
+          },
+        ],
       },
     });
 
+    if (existing) {
+      throw new ConflictException('Incentive already exists for this date and zone');
+    }
+
+    // Prepare incentive data
+    const incentiveData: any = {
+      adminId,
+      name: dto.name,
+      start_date: dto.start_date,
+      end_date: dto.end_date,
+      driver_type: dto.driver_type,
+      status: dto.status,
+      reward_type: dto.reward_type,
+      reward_value: dto.reward_value,
+      claim_type: dto.claim_type,
+    };
+
+    if (dto.description) incentiveData.description = dto.description;
+    if (dto.priority) incentiveData.priority = dto.priority;
+    if (dto.serviceZoneId) incentiveData.serviceZoneId = dto.serviceZoneId;
+
+    // 4️⃣ Handle rules
+    if (dto.rules && dto.rules.length > 0) {
+      incentiveData.rules = {
+        createMany: {
+          data: dto.rules.map(rule => ({
+            metric: rule.metric,
+            operator: rule.operator,
+            value: rule.value,
+          })),
+        },
+      };
+    }
+
+    // Create incentive
+    const incentive = await this.prisma.incentive.create({
+      data: incentiveData,
+      include: { rules: true },
+    });
+
+    // Log creation
     await this.prisma.incentiveLog.create({
       data: {
-        incentiveId: res.id,
-        incentiveName: res.incentive_name,
-        type: res.type,
-        startDate: res.start_date,
-        endDate: res.end_date,
-        incentiveAmount: res.incentive_amount,
-        status: res.status,
-        changedByRole: role!,
+        incentiveId: incentive.id,
+        incentiveData: {
+          ...incentive,
+          rules: incentive.rules,
+        },
+        changedByRole: role ?? 'ADMIN',
         changedByAdminId: adminId,
       },
     });
 
-    return res;
+    return incentive;
   }
-
-
   // 
   async findAll(query: IncentiveQueryDto) {
-
   const {
     page = 1,
     limit = 10,
@@ -61,57 +130,51 @@ export class IncentiveService {
     search,
     sort = 'desc',
     status,
-    type,
+    reward_type,
+    driver_type,
+    serviceZoneId,
+    serviceZoneName
   } = query;
 
   const skip = (page - 1) * limit;
-
   const where: Prisma.IncentiveWhereInput = {};
 
   // ========= DATE FILTER =========
   if (startDate || endDate) {
-    where.created_at = {};
-
-    if (startDate) {
-      where.created_at.gte = new Date(startDate);
-    }
-
-    if (endDate) {
-      where.created_at.lte = new Date(endDate);
-    }
+    where.AND = [];
+    if (startDate) where.AND.push({ start_date: { gte: new Date(startDate) } });
+    if (endDate) where.AND.push({ end_date: { lte: new Date(endDate) } });
   }
 
-  // ========= STATUS FILTER =========
-  if (status) {
-    where.status = status;
-  }
+  // ========= STATUS =========
+  if (status) where.status = status;
 
-  // ========= TYPE FILTER =========
-  if (type) {
-    where.type = type;
-  }
+  // ========= REWARD TYPE =========
+  if (reward_type) where.reward_type = reward_type;
+
+  // ========= DRIVER TYPE =========
+  if (driver_type) where.driver_type = driver_type;
 
   // ========= SEARCH =========
   if (search) {
-    where.OR = [
-      {
-        incentive_name: {
-          contains: search,
-          mode: 'insensitive',
-        },
-      }
-    ];
+    where.OR = [{ name: { contains: search, mode: 'insensitive' } }];
+  }
+  
+  // Service zone filters
+  if (serviceZoneId || serviceZoneName) {
+    where.serviceZone = {}; // initialize relation filter
+    if (serviceZoneId) where.serviceZone.id = serviceZoneId;
+    if (serviceZoneName) where.serviceZone.name = { contains: serviceZoneName, mode: 'insensitive' };
   }
 
-  // ========= QUERY =========
+  // Example full query
   const [data, total] = await this.prisma.$transaction([
     this.prisma.incentive.findMany({
       where,
       skip,
       take: limit,
-      orderBy: {
-        created_at: sort,
-      },
+      orderBy: { created_at: sort },
+      include: { rules: true, serviceZone: true }, // include zone details
     }),
     this.prisma.incentive.count({ where }),
   ]);
@@ -139,33 +202,34 @@ export class IncentiveService {
 
 
   // 
-  async stats() {
-    const countAll = await this.prisma.incentive.count();
-    // 
-    const countActiveRider = await this.prisma.raider.count({
-      where: {
-        raider_status: RaiderStatus.ACTIVE
-      }
-    })
-    // total amount given
-    const totalAmountGiven = await this.prisma.incentive.aggregate({
-      _avg: {
-        incentive_amount: true
-      }
-    })
-    // 
-    const countOngoing = await this.prisma.incentive.count({
-      where: {
-        status: IncentiveStatus.ONGOING
-      }
-    })
-    return {
-      countAll,
-      countActiveRider,
-      countOngoing,
-      totalAmountGiven: totalAmountGiven._avg.incentive_amount
+ async stats() {
+      // Total number of incentives
+      const countAll = await this.prisma.incentive.count();
+
+      // Total active riders
+      const countActiveRider = await this.prisma.raider.count({
+        where: { raider_status: RaiderStatus.ACTIVE },
+      });
+
+      // Total collected incentives and sum of rewards
+      const totalAmountGivenAgg = await this.prisma.collectedIncentive.aggregate({
+        _sum: { amount: true },
+        _count: { id: true },
+      });
+
+      // Total ongoing incentives
+      const countOngoing = await this.prisma.incentive.count({
+        where: { status: IncentiveStatus.ACTIVE }, // or ONGOING depending on your enum
+      });
+
+      return {
+        countAll,
+        countActiveRider,
+        countOngoing,
+        totalAmountGiven: totalAmountGivenAgg._sum.amount ?? 0,
+        totalCollectedIncentives: totalAmountGivenAgg._count.id,
+      };
     }
-  }
 
   // 
   async findOne(id: number) {
@@ -179,153 +243,222 @@ export class IncentiveService {
   }
 
   //
-  async update(
+   async update(
       id: number,
-      updateIncentiveDto: UpdateIncentiveDto,
+      dto: UpdateIncentiveDto,
       adminId?: number,
-      role? :string
+      role?: string
     ) {
       const rec = await this.prisma.incentive.findUnique({
         where: { id },
+        include: { rules: true },
       });
 
       if (!rec) throw new NotFoundException('Incentive not found');
 
+      // Validate dates
+      if (dto.start_date && new Date(dto.start_date) < new Date()) {
+        throw new BadRequestException('Start date cannot be in the past');
+      }
+      if (dto.start_date && dto.end_date && new Date(dto.end_date) < new Date(dto.start_date)) {
+        throw new BadRequestException('End date cannot be before start date');
+      }
+
+      //  Handle rules separately
+      if (dto.rules && dto.rules.length > 0) {
+        await this.prisma.incentiveRule.deleteMany({ where: { incentiveId: id } });
+        await this.prisma.incentiveRule.createMany({
+          data: dto.rules.map(r => ({
+            incentiveId: id,
+            metric: r.metric,
+            operator: r.operator,
+            value: r.value,
+          })),
+        });
+      }
+
+      // Build update object safely
+      const updateData: any = {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.start_date !== undefined && { start_date: dto.start_date }),
+        ...(dto.end_date !== undefined && { end_date: dto.end_date }),
+        ...(dto.driver_type !== undefined && { driver_type: dto.driver_type }),
+        ...(dto.reward_type !== undefined && { reward_type: dto.reward_type }),
+        ...(dto.reward_value !== undefined && { reward_value: dto.reward_value }),
+        ...(dto.claim_type !== undefined && { claim_type: dto.claim_type }),
+        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.priority !== undefined && { priority: dto.priority }),
+        ...(dto.serviceZoneId !== undefined && { serviceZoneId: dto.serviceZoneId }),
+        ...(adminId !== undefined && { adminId }),
+      };
+
+      //  Update incentive
       const updated = await this.prisma.incentive.update({
         where: { id },
-        data: updateIncentiveDto,
+        data: updateData,
+        include: { rules: true },
       });
 
+      //  Log snapshot
       await this.prisma.incentiveLog.create({
         data: {
           incentiveId: updated.id,
-          incentiveName: updated.incentive_name,
-          type: updated.type,
-          startDate: updated.start_date,
-          endDate: updated.end_date,
-          incentiveAmount: updated.incentive_amount,
-          status: updated.status,
-          changedByRole: role!,
+          incentiveData: { ...updated, rules: updated.rules },
+          changedByRole: role ?? 'ADMIN',
           changedByAdminId: adminId,
         },
       });
 
       return updated;
-    }
-
+}
 
   // ** status update
-  async statusUpdate(id: number, dto: UpdateIncentiveDto) {
-    // 
-    const rec = await this.prisma.incentive.findFirst({
-      where: {
-        id
-      }
-    })
-    // 
-    if (!rec) throw new NotFoundException("Incentive not found")
-    // 
-    if (rec.status === dto.status) throw new NotFoundException("Incentive status is up to date")
+  async statusUpdate(id: number, dto: { status?: IncentiveStatus }, adminId?: number, role?: string) {
+    const rec = await this.prisma.incentive.findUnique({
+      where: { id },
+      include: { rules: true },
+    });
 
+    if (!rec) throw new NotFoundException("Incentive not found");
+    if (rec.status === dto.status) throw new BadRequestException("Incentive status is already up to date");
 
-    // 
-    const updateIncentive = await this.prisma.incentive.update({
-      where: {
-        id
-      },
+    const updated = await this.prisma.incentive.update({
+      where: { id },
+      data: { status: dto.status },
+      include: { rules: true },
+    });
+
+    // Log snapshot
+    await this.prisma.incentiveLog.create({
       data: {
-        status: dto.status
+        incentiveId: updated.id,
+        incentiveData: {
+          ...updated,
+          rules: updated.rules,
+        },
+        changedByRole: role ?? 'ADMIN',
+        changedByAdminId: adminId,
       },
-    })
-    // 
-    return updateIncentive;
+    });
+
+    return updated;
   }
 
 
 
   //
-  async remove(id: number) {
-    // 
-    const rec = await this.prisma.incentive.findFirst({
-      where: {
-        id
-      }
-    })
-    // 
-    if (!rec) throw new NotFoundException("Incentive not found");
-    return await this.prisma.incentive.delete({
-      where: {
-        id
-      }
-    })
+  async remove(id: number, adminId?: number, role?: string) {
+  const rec = await this.prisma.incentive.findUnique({
+    where: { id },
+    include: { rules: true },
+  });
 
+  if (!rec) throw new NotFoundException("Incentive not found");
 
-  }
+  // Log deletion before removing
+  await this.prisma.incentiveLog.create({
+    data: {
+      incentiveId: rec.id,
+      incentiveData: {
+        ...rec,
+        rules: rec.rules,
+      },
+      changedByRole: role ?? 'ADMIN',
+      changedByAdminId: adminId,
+    },
+  });
+
+  return await this.prisma.incentive.delete({
+    where: { id },
+  });
+}
 
   // collect incentive
   async collect(id: number, userId: number) {
-    // 
+    // Find active incentive
     const rec = await this.prisma.incentive.findUnique({
-      where: {
-        id,
-        status: IncentiveStatus.ONGOING
-      }
-    })
-    // 
-    if (!rec) throw new NotFoundException("Incentive not found")
-    // 
-    if (rec.status === IncentiveStatus.ENDED) throw new NotFoundException("Incentive is already ended")
+      where: { id },
+      include: { rules: true, serviceZone: true }, // include rules & zone
+    });
+
+    if (!rec) throw new NotFoundException("Incentive not found");
+
+    if (rec.status === IncentiveStatus.DISABLED)
+      throw new BadRequestException("Incentive is already ended");
+
+    // Check if user already collected it
     const collectedIncentive = await this.prisma.collectedIncentive.findFirst({
       where: {
         userId,
         incentiveId: id,
-        is_collected: true
-      }
-    })
-    // 
-    if (collectedIncentive) throw new NotFoundException("Incentive is already collected")
+        is_collected: true,
+      },
+    });
+
+    if (collectedIncentive)
+      throw new BadRequestException("Incentive is already collected");
+
+    // Check if incentive is manual claim
+    if (rec.claim_type !== "MANUAL") {
+      throw new BadRequestException("This incentive is not manually claimable");
+    }
+
+    // Calculate reward based on reward_type
+    let rewardAmount: number = 0;
+
+    switch (rec.reward_type) {
+      case "FIXED":
+        rewardAmount = Number(rec.reward_value);
+        break;
+
+      case "PERCENTAGE":
+        // For percentage, calculate based on total earnings or metric — placeholder example
+        // You can replace this logic with actual metric calculation
+        rewardAmount = 100 * (Number(rec.reward_value) / 100); 
+        break;
+
+      case "POINTS":
+        rewardAmount = Number(rec.reward_value); // could map to points system
+        break;
+    }
+
     const txId = this.txIdService.generate();
-    // 
+
+    // Transaction to collect incentive and credit wallet
     const res = await this.prisma.$transaction(async (tx) => {
-      const collectedIncentive = await tx.collectedIncentive.create({
+      const collected = await tx.collectedIncentive.create({
         data: {
           userId,
           incentiveId: id,
           is_collected: true,
-          amount:rec.incentive_amount
+          amount: rewardAmount,
         },
-      })
-      //  
+      });
+
       const user = await tx.user.update({
-        where: {
-          id
-        },
+        where: { id: userId },
         data: {
-          totalWalletBalance: {
-            increment: Number(rec?.incentive_amount)
-          }
+          totalWalletBalance: { increment: rewardAmount },
         },
-      })
-      // save to transaction
+      });
+
       const walletHistory = await tx.walletHistory.create({
         data: {
           transactionId: txId,
           userId,
-          amount: Number(rec?.incentive_amount),
+          amount: rewardAmount,
           transactionType: WalletTransactionType.PAYMENT,
           type: "credit",
           status: WalletTransactionStatus.SUCCESS,
         },
-      })
-      return {
-        collectedIncentive,
-        user,
-        walletHistory
-      }
-    })
-    // 
-    return res;
-  }
+      });
+
+      return { collectedIncentive: collected, user, walletHistory };
+    });
+
+  return res;
+}
   // 
   async findAllLogs(fromDate?: string, toDate?: string) {
     return await this.prisma.incentiveLog.findMany({
@@ -340,5 +473,8 @@ export class IncentiveService {
       },
     });
   }
+
+  // 
+
 
 }

@@ -1,78 +1,66 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IncentiveStatus, IncentiveType } from '@prisma/client';
+import { IncentiveStatus, DriverType, IncentiveRewardType } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsOptional, IsInt, Min, IsDateString, IsString, IsIn, IsEnum } from 'class-validator';
+import { IsOptional, IsInt, Min, IsDateString, IsString, IsEnum } from 'class-validator';
 
 export class IncentiveQueryDto {
-
-  @ApiPropertyOptional({
-    example: 1,
-    default: 1,
-  })
+  @ApiPropertyOptional({ example: 1, default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({
-    example: 10,
-    default: 10,
-  })
+  @ApiPropertyOptional({ example: 10, default: 10 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   limit?: number = 10;
 
-  @ApiPropertyOptional({
-    example: '2026-02-01',
-  })
+  @ApiPropertyOptional({ example: '2026-02-01', description: 'Filter incentives starting from this date' })
   @IsOptional()
   @IsDateString()
   startDate?: string;
 
-  @ApiPropertyOptional({
-    example: '2026-02-27',
-  })
+  @ApiPropertyOptional({ example: '2026-02-27', description: 'Filter incentives ending before this date' })
   @IsOptional()
   @IsDateString()
   endDate?: string;
 
-  // ✅ SEARCH
-  @ApiPropertyOptional({
-    example: 'bonus',
-    description: 'Search incentives',
-  })
+  @ApiPropertyOptional({ example: 'bonus', description: 'Search incentives by name' })
   @IsOptional()
   @IsString()
   search?: string;
 
-  // ✅ SORT
-  @ApiPropertyOptional({
-    enum: ['asc', 'desc'],
-    default: 'desc',
-  })
+  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc', description: 'Sort by creation date' })
   @IsOptional()
-  @IsIn(['asc', 'desc'])
+  @IsEnum(['asc', 'desc'])
   sort?: 'asc' | 'desc' = 'desc';
 
-  // ✅ STATUS FILTER
-  @ApiPropertyOptional({
-    enum: IncentiveStatus,
-    description: 'Filter by incentive status',
-  })
+  @ApiPropertyOptional({ enum: IncentiveStatus, description: 'Filter by incentive status' })
   @IsOptional()
   @IsEnum(IncentiveStatus)
   status?: IncentiveStatus;
 
-  // ✅ TYPE FILTER
-  @ApiPropertyOptional({
-    enum: IncentiveType,
-    description: 'Filter by incentive type',
-  })
+  @ApiPropertyOptional({ enum: IncentiveRewardType, description: 'Filter by Incentive Reward Type' })
   @IsOptional()
-  @IsEnum(IncentiveType)
-  type?: IncentiveType;
-}
+  @IsEnum(IncentiveRewardType)
+  reward_type?: IncentiveRewardType;
 
+  @ApiPropertyOptional({ enum: DriverType, description: 'Filter by driver type' })
+  @IsOptional()
+  @IsEnum(DriverType)
+  driver_type?: DriverType;
+
+  @ApiPropertyOptional({ example: 1, description: 'Filter by service zone ID' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  serviceZoneId?: number;
+
+  @ApiPropertyOptional({ example: 'Dhaka Zone', description: 'Filter by service zone name' })
+  @IsOptional()
+  @IsString()
+  serviceZoneName?: string;
+}

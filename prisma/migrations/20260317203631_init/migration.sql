@@ -1,8 +1,8 @@
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('USER', 'SUPER_ADMIN', 'RAIDER', 'ADMIN');
+CREATE TYPE "UserRole" AS ENUM ('USER', 'RAIDER', 'ADMIN');
 
 -- CreateEnum
-CREATE TYPE "AdminRole" AS ENUM ('ADMIN', 'MODERATOR', 'SUPER_ADMIN');
+CREATE TYPE "AdminRole" AS ENUM ('ADMIN', 'MODERATOR');
 
 -- CreateEnum
 CREATE TYPE "Rank" AS ENUM ('BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'PREMIUM');
@@ -71,9 +71,6 @@ CREATE TYPE "PermissionAction" AS ENUM ('CREATE', 'READ', 'UPDATE', 'DELETE');
 CREATE TYPE "IncentiveType" AS ENUM ('PERFORMANCE', 'TIME_BASED', 'REFERRAL');
 
 -- CreateEnum
-CREATE TYPE "IncentiveStatus" AS ENUM ('COMPLETED', 'ONGOING', 'ENDED');
-
--- CreateEnum
 CREATE TYPE "CoinEvent" AS ENUM ('FIRST_SIGNUP', 'DAILY_LOGIN', 'SHARE_ON_SOCIAL', 'REFERRAL', 'COMPLETED_ORDER');
 
 -- CreateEnum
@@ -138,6 +135,24 @@ CREATE TYPE "DiscountType" AS ENUM ('PERCENTAGE', 'FIXED');
 
 -- CreateEnum
 CREATE TYPE "FeeLogType" AS ENUM ('STANDARD_COMMISSION_RATE', 'RAIDER_COMPENSATION_ROLE', 'RAIDER_DEDUCTION_FEE', 'USER_FEE_STRUCTURE', 'USER_DYNAMIC_SURGE');
+
+-- CreateEnum
+CREATE TYPE "IncentiveRewardType" AS ENUM ('FIXED', 'PERCENTAGE', 'POINTS');
+
+-- CreateEnum
+CREATE TYPE "ClaimType" AS ENUM ('AUTO', 'MANUAL');
+
+-- CreateEnum
+CREATE TYPE "Metric" AS ENUM ('COMPLETED_DELIVERIES', 'TOTAL_EARNINGS', 'ONLINE_HOURS', 'ACCEPTED_ORDERS', 'ACCEPTANCE_RATE', 'CONSECUTIVE_TRIPS', 'REFERRAL_COUNT');
+
+-- CreateEnum
+CREATE TYPE "Operator" AS ENUM ('GTE', 'LTE', 'EQ', 'GT', 'LT');
+
+-- CreateEnum
+CREATE TYPE "DriverType" AS ENUM ('BIKE', 'CAR', 'CYCLE');
+
+-- CreateEnum
+CREATE TYPE "IncentiveStatus" AS ENUM ('ACTIVE', 'DISABLED');
 
 -- CreateEnum
 CREATE TYPE "MessageType" AS ENUM ('TEXT', 'IMAGE', 'PDF');
@@ -225,7 +240,7 @@ CREATE TABLE "AdvertiseAnalytics" (
 -- CreateTable
 CREATE TABLE "advertise_logs" (
     "id" SERIAL NOT NULL,
-    "advertiseId" INTEGER NOT NULL,
+    "advertiseId" INTEGER,
     "createFor" TEXT NOT NULL,
     "adTitle" TEXT NOT NULL,
     "adImage" TEXT NOT NULL,
@@ -255,7 +270,7 @@ CREATE TABLE "article" (
 -- CreateTable
 CREATE TABLE "coin_logs" (
     "id" SERIAL NOT NULL,
-    "coinId" INTEGER NOT NULL,
+    "coinId" INTEGER,
     "key" TEXT NOT NULL,
     "description" TEXT,
     "coinAmount" INTEGER NOT NULL,
@@ -328,7 +343,7 @@ CREATE TABLE "collected_incentives" (
 -- CreateTable
 CREATE TABLE "content_management_logs" (
     "id" SERIAL NOT NULL,
-    "contentId" INTEGER NOT NULL,
+    "contentId" INTEGER,
     "contentType" "ContentManagementType" NOT NULL,
     "faqFor" "UserRole" NOT NULL,
     "description" TEXT NOT NULL,
@@ -503,13 +518,8 @@ CREATE TABLE "FAQ" (
 -- CreateTable
 CREATE TABLE "incentive_logs" (
     "id" SERIAL NOT NULL,
-    "incentiveId" INTEGER NOT NULL,
-    "incentiveName" TEXT,
-    "type" "IncentiveType" NOT NULL,
-    "startDate" TIMESTAMP(3),
-    "endDate" TIMESTAMP(3),
-    "incentiveAmount" INTEGER,
-    "status" "IncentiveStatus" NOT NULL,
+    "incentiveId" INTEGER,
+    "incentiveData" JSONB NOT NULL,
     "changedByRole" TEXT NOT NULL,
     "changedByAdminId" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -521,15 +531,32 @@ CREATE TABLE "incentive_logs" (
 CREATE TABLE "incentives" (
     "id" SERIAL NOT NULL,
     "adminId" INTEGER,
-    "incentive_name" TEXT,
-    "type" "IncentiveType" NOT NULL,
-    "start_date" TIMESTAMP(3),
-    "end_date" TIMESTAMP(3),
-    "incentive_amount" INTEGER DEFAULT 0,
+    "incentive_name" TEXT NOT NULL,
+    "description" TEXT,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3) NOT NULL,
+    "driver_type" "DriverType" NOT NULL,
+    "priority" INTEGER NOT NULL DEFAULT 1,
     "status" "IncentiveStatus" NOT NULL,
+    "serviceZoneId" INTEGER,
+    "reward_type" "IncentiveRewardType" NOT NULL,
+    "reward_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "claim_type" "ClaimType" NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "incentives_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "IncentiveRule" (
+    "id" SERIAL NOT NULL,
+    "incentiveId" INTEGER NOT NULL,
+    "metric" "Metric" NOT NULL,
+    "operator" "Operator" NOT NULL,
+    "value" DOUBLE PRECISION NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "IncentiveRule_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -832,6 +859,8 @@ CREATE TABLE "PromoCode" (
     "promoCode" TEXT NOT NULL,
     "discountType" "DiscountType" NOT NULL,
     "discountValue" INTEGER NOT NULL,
+    "discountDesc" TEXT NOT NULL,
+    "redirectLink" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT false,
     "expires_at" TIMESTAMP(3) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -859,7 +888,7 @@ CREATE TABLE "questions" (
     "id" SERIAL NOT NULL,
     "quizId" INTEGER NOT NULL,
     "quesType" "QuesType" NOT NULL,
-    "quesCategory" "QuesCategory" NOT NULL,
+    "quesCategory" TEXT NOT NULL,
     "quesDeficulty" "QuesDeficulty" NOT NULL,
     "question_text" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -880,7 +909,7 @@ CREATE TABLE "options" (
 -- CreateTable
 CREATE TABLE "quiz_logs" (
     "id" SERIAL NOT NULL,
-    "quizId" INTEGER NOT NULL,
+    "quizId" INTEGER,
     "title" TEXT NOT NULL,
     "quizOption" JSONB,
     "description" TEXT,
@@ -1023,15 +1052,15 @@ CREATE TABLE "raider_registrations" (
     "vehicle_policy_images" TEXT NOT NULL,
     "current_address" TEXT NOT NULL,
     "current_apartment" TEXT NOT NULL,
-    "current_state_province" TEXT NOT NULL,
+    "current_state_province" TEXT,
     "current_city" TEXT NOT NULL,
-    "current_country" TEXT NOT NULL,
+    "current_country" TEXT,
     "current_zip_post_code" TEXT NOT NULL,
     "permanent_address" TEXT NOT NULL,
     "permanent_apartment" TEXT NOT NULL,
-    "permanent_state_province" TEXT NOT NULL,
+    "permanent_state_province" TEXT,
     "permanent_city" TEXT NOT NULL,
-    "permanent_country" TEXT NOT NULL,
+    "permanent_country" TEXT,
     "permanent_zip_post_code" TEXT NOT NULL,
     "bank_name" TEXT NOT NULL,
     "account_number" TEXT NOT NULL,
@@ -1197,9 +1226,8 @@ CREATE TABLE "transactions" (
 -- CreateTable
 CREATE TABLE "users" (
     "id" SERIAL NOT NULL,
-    "username" VARCHAR(50),
+    "username" TEXT NOT NULL,
     "email" VARCHAR(200),
-    "login_id" VARCHAR(20),
     "phone" VARCHAR(20) NOT NULL,
     "password" VARCHAR(255),
     "reward_points" INTEGER NOT NULL DEFAULT 0,
@@ -1247,7 +1275,9 @@ CREATE TABLE "Profile" (
 -- CreateTable
 CREATE TABLE "vehicle_types" (
     "id" SERIAL NOT NULL,
-    "vehicle_type" TEXT NOT NULL,
+    "vehicle_type" "VehicleTypeEnum" NOT NULL,
+    "vehicle_name" TEXT,
+    "vehicle_desc" TEXT,
     "base_price" DECIMAL(12,2),
     "per_km_price" DECIMAL(12,2),
     "peak_pricing" BOOLEAN NOT NULL DEFAULT false,
@@ -1441,10 +1471,10 @@ CREATE UNIQUE INDEX "roles_name_key" ON "roles"("name");
 CREATE UNIQUE INDEX "stop_payments_orderStopId_key" ON "stop_payments"("orderStopId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_login_id_key" ON "users"("login_id");
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_referral_code_key" ON "users"("referral_code");
@@ -1468,10 +1498,10 @@ ALTER TABLE "admins" ADD CONSTRAINT "admins_userId_fkey" FOREIGN KEY ("userId") 
 ALTER TABLE "AdvertiseAnalytics" ADD CONSTRAINT "AdvertiseAnalytics_advertiseId_fkey" FOREIGN KEY ("advertiseId") REFERENCES "Advertise"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "advertise_logs" ADD CONSTRAINT "advertise_logs_advertiseId_fkey" FOREIGN KEY ("advertiseId") REFERENCES "Advertise"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "advertise_logs" ADD CONSTRAINT "advertise_logs_advertiseId_fkey" FOREIGN KEY ("advertiseId") REFERENCES "Advertise"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "coin_logs" ADD CONSTRAINT "coin_logs_coinId_fkey" FOREIGN KEY ("coinId") REFERENCES "coins"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "coin_logs" ADD CONSTRAINT "coin_logs_coinId_fkey" FOREIGN KEY ("coinId") REFERENCES "coins"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "coin_history" ADD CONSTRAINT "coin_history_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1483,7 +1513,7 @@ ALTER TABLE "collected_incentives" ADD CONSTRAINT "collected_incentives_userId_f
 ALTER TABLE "collected_incentives" ADD CONSTRAINT "collected_incentives_incentiveId_fkey" FOREIGN KEY ("incentiveId") REFERENCES "incentives"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "content_management_logs" ADD CONSTRAINT "content_management_logs_contentId_fkey" FOREIGN KEY ("contentId") REFERENCES "ContentManagement"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "content_management_logs" ADD CONSTRAINT "content_management_logs_contentId_fkey" FOREIGN KEY ("contentId") REFERENCES "ContentManagement"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CustomerOrderConfirmationLog" ADD CONSTRAINT "CustomerOrderConfirmationLog_customerOrderConfirmationId_fkey" FOREIGN KEY ("customerOrderConfirmationId") REFERENCES "Customer_order_confirmation"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1504,10 +1534,16 @@ ALTER TABLE "disputes" ADD CONSTRAINT "disputes_orderId_fkey" FOREIGN KEY ("orde
 ALTER TABLE "Driver_order_competition_change_logs" ADD CONSTRAINT "Driver_order_competition_change_logs_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "admins"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "incentive_logs" ADD CONSTRAINT "incentive_logs_incentiveId_fkey" FOREIGN KEY ("incentiveId") REFERENCES "incentives"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "incentive_logs" ADD CONSTRAINT "incentive_logs_incentiveId_fkey" FOREIGN KEY ("incentiveId") REFERENCES "incentives"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "incentives" ADD CONSTRAINT "incentives_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "admins"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "incentives" ADD CONSTRAINT "incentives_serviceZoneId_fkey" FOREIGN KEY ("serviceZoneId") REFERENCES "serviceZone"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "IncentiveRule" ADD CONSTRAINT "IncentiveRule_incentiveId_fkey" FOREIGN KEY ("incentiveId") REFERENCES "incentives"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "UserLogin" ADD CONSTRAINT "UserLogin_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1591,7 +1627,7 @@ ALTER TABLE "questions" ADD CONSTRAINT "questions_quizId_fkey" FOREIGN KEY ("qui
 ALTER TABLE "options" ADD CONSTRAINT "options_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "questions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "quiz_logs" ADD CONSTRAINT "quiz_logs_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quizzes"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "quiz_logs" ADD CONSTRAINT "quiz_logs_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quizzes"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "quizzes" ADD CONSTRAINT "quizzes_created_by_id_fkey" FOREIGN KEY ("created_by_id") REFERENCES "admins"("id") ON DELETE SET NULL ON UPDATE CASCADE;

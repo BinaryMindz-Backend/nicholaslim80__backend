@@ -2,18 +2,16 @@ model IncentiveLog {
   id            Int      @id @default(autoincrement())
   incentiveId   Int?
 
-  incentiveName String?
-  type          IncentiveType
-  startDate     DateTime?
-  endDate       DateTime?
-  incentiveAmount Int?
-  status        IncentiveStatus
+  // Store entire incentive snapshot, including rules, reward, claim, etc.
+  incentiveData Json
 
-  changedByRole String
+  // Who made the change
+  changedByRole    String
   changedByAdminId Int?
 
   createdAt     DateTime @default(now())
 
+  // Relation
   incentive Incentive? @relation(fields: [incentiveId], references: [id], onDelete: SetNull)
 
   @@index([incentiveId])

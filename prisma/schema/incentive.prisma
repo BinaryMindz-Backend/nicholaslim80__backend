@@ -1,18 +1,49 @@
-// prisma/models/incentive.prisma
-
 model Incentive {
-  id               Int            @id @default(autoincrement())
-  admin            Admin?         @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  id               Int                 @id @default(autoincrement())
+  admin            Admin?              @relation(fields: [adminId], references: [id], onDelete: SetNull)
   adminId          Int?
-  incentive_name   String?
-  type             IncentiveType
-  start_date       DateTime?
-  end_date         DateTime?
-  incentive_amount Int? @default(0)
+
+  // Basic Info
+  name             String              @map("incentive_name")
+  description      String?
+
+  // Scope
+  start_date       DateTime
+  end_date         DateTime
+  driver_type      DriverType
+  priority         Int                 @default(1)
   status           IncentiveStatus
+
+  // Optional zone relation (one incentive per zone)
+  serviceZoneId    Int?               
+  serviceZone      serviceZone?      @relation(fields: [serviceZoneId], references: [id], onDelete: SetNull)
+
+  // Reward
+  reward_type      IncentiveRewardType
+  reward_value     Float               @default(0)
+
+  // Claim
+  claim_type       ClaimType
+
+  // Relations
+  rules            IncentiveRule[]
   collected_incentives CollectedIncentive[]
-  created_at       DateTime       @default(now())
   incentiveLogs    IncentiveLog[] 
 
+  created_at       DateTime            @default(now())
+
   @@map("incentives")
+}
+
+
+model IncentiveRule {
+  id           Int         @id @default(autoincrement())
+  incentive    Incentive   @relation(fields: [incentiveId], references: [id], onDelete: Cascade)
+  incentiveId  Int
+
+  metric       Metric      // e.g., COMPLETED_DELIVERIES, TOTAL_EARNINGS
+  operator     Operator    // e.g., GTE, LTE, EQ
+  value        Float       // target value
+
+  created_at   DateTime    @default(now())
 }
