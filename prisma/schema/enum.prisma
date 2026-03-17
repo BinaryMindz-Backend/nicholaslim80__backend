@@ -185,11 +185,6 @@ enum IncentiveType {
   REFERRAL
 }
 
-enum IncentiveStatus {
-  COMPLETED
-  ONGOING
-  ENDED
-}
 
 enum CoinEvent {
   FIRST_SIGNUP
@@ -355,3 +350,49 @@ enum FeeLogType {
   USER_FEE_STRUCTURE
   USER_DYNAMIC_SURGE
 }
+
+// Enums for dynamic behavior
+enum IncentiveRewardType {
+  FIXED
+  PERCENTAGE
+  POINTS
+}
+
+enum ClaimType {
+  AUTO
+  MANUAL
+}
+
+enum Metric {
+  COMPLETED_DELIVERIES
+  TOTAL_EARNINGS
+  ONLINE_HOURS
+  ACCEPTED_ORDERS
+  ACCEPTANCE_RATE
+  CONSECUTIVE_TRIPS
+  REFERRAL_COUNT
+}
+
+enum Operator {
+  GTE // >=
+  LTE // <=
+  EQ  // =
+  GT  // >
+  LT  // <
+}
+
+enum DriverType {
+  BIKE
+  CAR
+  CYCLE
+}
+
+enum IncentiveStatus {
+  ACTIVE
+  DISABLED
+}
+// enum IncentiveStatus {
+//   COMPLETED
+//   ONGOING
+//   ENDED
+// }

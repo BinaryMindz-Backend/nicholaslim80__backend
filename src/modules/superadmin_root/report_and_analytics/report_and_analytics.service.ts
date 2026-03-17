@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CoinHistoryType, OrderStatus, Prisma } from '@prisma/client';
@@ -335,10 +334,10 @@ export class ReportAndAnalyticsService {
       }
       // ---------------- Total Incentives Given ----------------
       const totalGivenRaw = await this.prisma.incentive.aggregate({
-        _sum: { incentive_amount: true },
+        _sum: { reward_value: true },
         where: { ...dateFilter },
       });
-      const totalGiven = Number(totalGivenRaw._sum.incentive_amount ?? 0);
+      const totalGiven = Number(totalGivenRaw._sum.reward_value ?? 0);
 
       // ---------------- Total Incentives Collected ----------------
       const totalCollectedRaw = await this.prisma.collectedIncentive.aggregate({
@@ -352,7 +351,7 @@ export class ReportAndAnalyticsService {
               where: from && to ? { created_at: { gte: from, lte: to } } : {},
               select: {
                 created_at: true,
-                incentive_amount: true,
+                reward_value: true,
                 collected_incentives: {
                   select: { amount: true, created_at: true },
                 },
@@ -363,7 +362,7 @@ export class ReportAndAnalyticsService {
 
             weeklyData.forEach(i => {
               const weekNumber = Math.ceil(i.created_at.getDate() / 7); // Week 1-4
-              const given = i.incentive_amount ?? 0;
+              const given = i.reward_value ?? 0;
               const collected = i.collected_incentives.reduce((sum, c) => sum + (c.amount ?? 0), 0);
 
               let weekEntry = weeklyGraph.find(w => w.week === `Week ${weekNumber}`);
@@ -413,7 +412,7 @@ export class ReportAndAnalyticsService {
       const ratings = orders
         .map(o => o.rate_raiders)
         .filter(r => r !== null && r !== undefined)
-        .map(r => r!.rating_star);
+        .map(r => r.rating_star);
 
       const avgRating =
         ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;

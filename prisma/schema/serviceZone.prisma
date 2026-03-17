@@ -17,6 +17,8 @@ model serviceZone {
   standardCommissionRates StandardCommissionRate[]
   raiderCompensationRoles RaiderCompensationRole[]
   userFeeStructures UserFeeStructure[]
+   // Incentives linked to this zone
+  incentives      Incentive[]
 
   destinations    Destination[]
 }
