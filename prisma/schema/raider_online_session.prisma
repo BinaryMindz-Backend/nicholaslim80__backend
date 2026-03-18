@@ -1,0 +1,9 @@
+model RaiderOnlineSession {
+  id        Int      @id @default(autoincrement())
+  raiderId  Int
+  raider    Raider   @relation(fields: [raiderId], references: [id], onDelete: Cascade)
+  startAt   DateTime @default(now())
+  endAt     DateTime?
+  
+  @@index([raiderId, startAt])
+}

@@ -38,6 +38,8 @@ model Raider {
   raider_ratings  RateRaider[]
   assignedOrders  Order[]                 @relation("AssignedRaider")
   declines                OrderDecline[]
+  // 
+  raiderOnlineSession    RaiderOnlineSession[]
 
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt

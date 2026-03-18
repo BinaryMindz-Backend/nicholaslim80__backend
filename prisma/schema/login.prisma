@@ -5,6 +5,8 @@ model UserLogin {
   loginAt   DateTime @default(now())
   ip        String?
   device    String?
+  logoutAt DateTime?
+  durationInMinutes Int?  // optional: store session length
 
   @@index([userId, loginAt])
 }

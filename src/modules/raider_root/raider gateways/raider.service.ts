@@ -23,44 +23,74 @@ export class RaiderService {
   }
 
   // Set rider online
-  async setOnline(riderId: number) {
-    const raider = await this.prisma.raider.findFirst({
+   async setOnline(riderId: number) {
+    const rider = await this.prisma.raider.findUnique({
       where: { id: riderId },
     });
-    
-    if (!raider) throw new Error('Rider profile not found');
-    
-    //
-    await this.redis.set(`rider:${riderId}:status`, 'ONLINE', 60); 
-    
+
+    if (!rider) throw new Error('Rider profile not found');
+
+    // Prevent duplicate sessions (if already online)
+    const activeSession = await this.prisma.raiderOnlineSession.findFirst({
+      where: {
+        raiderId: riderId,
+        endAt: null,
+      },
+    });
+
+    if (!activeSession) {
+      await this.prisma.raiderOnlineSession.create({
+        data: {
+          raiderId: riderId,
+          startAt: new Date(),
+        },
+      });
+    }
+
+    // Redis (short TTL heartbeat)
+    await this.redis.set(`rider:${riderId}:status`, 'ONLINE', 60);
+
+    // Update DB status
     await this.prisma.raider.update({
       where: { id: riderId },
       data: { is_online: true },
     });
-    
-    //
-    // console.log(`Rider ${riderId} set online`); 
   }
 
   // Set rider offline
   async setOffline(riderId: number) {
-    
     const rider = await this.prisma.raider.findUnique({
       where: { id: riderId },
     });
-    
+
     if (!rider) throw new Error('Rider profile not found');
-    
-    // 
+
+    // Close active session
+    const activeSession = await this.prisma.raiderOnlineSession.findFirst({
+      where: {
+        raiderId: riderId,
+        endAt: null,
+      },
+      orderBy: { startAt: 'desc' },
+    });
+
+    if (activeSession) {
+      await this.prisma.raiderOnlineSession.update({
+        where: { id: activeSession.id },
+        data: {
+          endAt: new Date(),
+        },
+      });
+    }
+
+    // Redis update
     await this.redis.set(`rider:${riderId}:status`, 'OFFLINE', 60);
-    
+
+    // Update DB
     await this.prisma.raider.update({
       where: { id: riderId },
       data: { is_online: false },
     });
-    
-    // 
-    // console.log(`Rider ${riderId} set offline`); 
   }
 
   // Update rider location

@@ -130,17 +130,62 @@ export class AuthService {
     }
   }
 
-  //user logout
-  async logout(userId: number) {
-    await this.prisma.user.update({
-      where: {
-        id: userId
-      },
-      data: {
-        refresh_token: null
+    // user logout
+    async logout(userId: number) {
+      // 1️⃣ Clear refresh token
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { refresh_token: null },
+      });
+
+      // 2️⃣ Close active login session
+      const session = await this.prisma.userLogin.findFirst({
+        where: {
+          userId,
+          logoutAt: null,
+        },
+        orderBy: { loginAt: 'desc' },
+      });
+
+      if (session) {
+        await this.prisma.userLogin.update({
+          where: { id: session.id },
+          data: {
+            logoutAt: new Date(),
+          },
+        });
       }
-    })
-  }
+
+      // 3️⃣ (Optional) If user is a rider → set offline
+      const rider = await this.prisma.raider.findFirst({
+        where: { userId },
+      });
+
+      if (rider) {
+        await this.prisma.raider.update({
+          where: { id: rider.id },
+          data: { is_online: false },
+        });
+
+        // close rider session if exists
+        const activeSession = await this.prisma.raiderOnlineSession.findFirst({
+          where: {
+            raiderId: rider.id,
+            endAt: null,
+          },
+          orderBy: { startAt: 'desc' },
+        });
+
+        if (activeSession) {
+          await this.prisma.raiderOnlineSession.update({
+            where: { id: activeSession.id },
+            data: {
+              endAt: new Date(),
+            },
+          });
+        }
+      }
+    }
 
 
   // forgot password
@@ -240,17 +285,28 @@ export class AuthService {
   // 
 
   private async handlePostLogin(user: IUser, req: any) {
-    await this.prisma.userLogin.create({
-      data: {
-        userId: user.id,
-        ip: req.ip,
-        device: req.headers['user-agent'] || 'unknown'
-      }
-    })
+      const existingSession = await this.prisma.userLogin.findFirst({
+          where: {
+            userId: user.id,
+            logoutAt: null,
+          },
+        });
+
+        // If already logged in → do nothing
+        if (existingSession) return;
+
+        // Create new session
+        await this.prisma.userLogin.create({
+          data: {
+            userId: user.id,
+            ip: req.ip,
+            device: req.headers['user-agent'] || 'unknown',
+            loginAt: new Date(),
+          },
+        });
+
     // 
     await this.loginRewardServices.rewardDailyLogin(user.id);
   }
-
-
 
 }
