@@ -234,10 +234,47 @@ export class NotificationService {
       limit,
     };
   }
+  // find all notification for admin
+  async findAllForAdmin(dto: FindNotificationsDto,){
+     const page = Number(dto.page ?? 1);
+    const limit = Number(dto.limit ?? 10);
+    const skip = (page - 1) * limit;
 
+    // Build where filter
+    const where: any = {
+      AND: [
+        {
+          OR: [
+            // Global notifications
+            { target_role: null, userId: null },
+          ],
+        },
+      ],
+    };
 
+    // Filter by notification type if provided
+    if (dto.type) {
+      where.AND.push({ type: dto.type });
+    }
 
+    // Fetch notifications + total count
+    const [data, total] = await Promise.all([
+      this.prisma.notification.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.notification.count({ where }),
+    ]);
 
+    return {
+      data,
+      total,
+      page,
+      limit,
+    };
+  }
 
   // 
   async findOne(id: number) {
