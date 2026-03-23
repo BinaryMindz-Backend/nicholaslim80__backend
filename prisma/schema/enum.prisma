@@ -1,15 +1,14 @@
-
 enum UserRole {
   USER
   RAIDER
   ADMIN
 }
 
-
 enum AdminRole {
   ADMIN
   MODERATOR
 }
+
 // 
 enum Rank {
   BRONZE
@@ -24,6 +23,7 @@ enum NotificationSentRole {
   USER
   RAIDER
 }
+
 // 
 
 enum NotificationType {
@@ -62,8 +62,8 @@ enum DestinationType {
 }
 
 enum RouteType {
-   ONE_WAY
-   ROUND
+  ONE_WAY
+  ROUND
 }
 
 enum CollectTime {
@@ -86,14 +86,12 @@ enum DeliveryStatus {
   CANCELLED
 }
 
-
 enum PaymentStatus {
   UNPAID
   PAID
   PENDING
   FAILED
 }
-
 
 enum StopType {
   PICKUP
@@ -106,7 +104,6 @@ enum StopStatus {
   FAILED
 }
 
- 
 enum TransactionType {
   BOOK_ORDER
   REFUND
@@ -122,19 +119,14 @@ enum TransactionStatus {
   PENDING
   COMPLETED
   FAILED
-  
 }
-
-
 
 // 
 enum PayType {
-   COD
-   WALLET
-   ONLINE_PAY
+  COD
+  WALLET
+  ONLINE_PAY
 }
-
-
 
 enum RaiderVerification {
   PENDING
@@ -147,7 +139,6 @@ enum Gender {
   FEMALE
   OTHER
 }
-
 
 // vehicle type
 enum VehicleTypeEnum {
@@ -163,8 +154,6 @@ enum VehicleTypeEnum {
   OTHER
 }
 
-
-
 enum DeliveryTypeName {
   STANDARD
   EXPRESS
@@ -172,6 +161,13 @@ enum DeliveryTypeName {
   SCHEDULED
 }
 
+//
+enum TimeUnit {
+  MINUTES
+  HOURS
+}
+
+//
 enum PermissionAction {
   CREATE
   READ
@@ -199,29 +195,28 @@ enum CoinHistoryType {
   APPLICATION
 }
 
-
 // 
 enum QuesType {
-     MULTIPLE
-     BOOLEAN
+  MULTIPLE
+  BOOLEAN
 }
 
 enum QuesDeficulty {
-    EASY
-    MEDIUM
-    HARD
+  EASY
+  MEDIUM
+  HARD
 }
 
 enum QuesCategory {
-     SAFETY_PROCUDURE
-     GENERAL
-     IQ
+  SAFETY_PROCUDURE
+  GENERAL
+  IQ
 }
 
 // 
 enum ApplicableTyp {
-      RAIDER
-      USER
+  RAIDER
+  USER
 }
 
 // 
@@ -235,47 +230,45 @@ enum FeeAppliesType {
 }
 
 enum Condition {
-     HIGH_DEMAND
-     VERY_HIGH_DEMAND
-     WEEKEND
+  HIGH_DEMAND
+  VERY_HIGH_DEMAND
+  WEEKEND
 }
-
 
 // 
 
 enum RaiderStatus {
-     ACTIVE
-     IN_ACTIVE
-     SUSPENDED
+  ACTIVE
+  IN_ACTIVE
+  SUSPENDED
 }
 
 enum LoginType {
-    DIRECT_SIGNIN
-    ADMIN_SIGNIN
+  DIRECT_SIGNIN
+  ADMIN_SIGNIN
 }
 
 enum ContentManagementType {
-    TERMSANDCONDITION
-    PRIVANCYPOLICY
-    CANCELLATIONANDWAITINGPOLICY
-    FAQ
-    HELPARTICLES
-    ABOUTUS
+  TERMSANDCONDITION
+  PRIVANCYPOLICY
+  CANCELLATIONANDWAITINGPOLICY
+  FAQ
+  HELPARTICLES
+  ABOUTUS
 }
-
 
 // advertisement for
 enum Advertisementfor {
-      USER
-      RAIDER
-}
-// order confirmation ratio type
-enum OrderConfirmationRatioType {
-      GENIUNE
-      MANUAL_CHECK
-      SUSPICIOUS
+  USER
+  RAIDER
 }
 
+// order confirmation ratio type
+enum OrderConfirmationRatioType {
+  GENIUNE
+  MANUAL_CHECK
+  SUSPICIOUS
+}
 
 //
 enum WalletTransactionType {
@@ -292,10 +285,11 @@ enum WalletTransactionStatus {
   FAILED
 }
 
- enum PaymentType {
-    PAYMENT
-    ADD_MONEY
+enum PaymentType {
+  PAYMENT
+  ADD_MONEY
 }
+
 // 
 
 // 
@@ -338,8 +332,8 @@ enum DisputePriority {
 
 // promo code
 enum DiscountType {
-    PERCENTAGE
-    FIXED
+  PERCENTAGE
+  FIXED
 }
 
 //logs enum

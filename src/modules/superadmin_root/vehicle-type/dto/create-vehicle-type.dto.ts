@@ -49,15 +49,30 @@ export class CreateVehicleTypeDto {
   @IsBoolean()
   peak_pricing?: boolean;
 
-  @ApiProperty({ required: false, example: '6ft x 4ft' })
+  @ApiProperty({ required: false, example: '6' })
   @IsOptional()
-  @IsString()
-  dimension?: string;
+  @IsNumber()
+  dimension_width?: number;
+
+  @ApiProperty({ required: false, example: '6' })
+  @IsOptional()
+  @IsNumber()
+  dimension_height?: number;
+
+  @ApiProperty({ required: false, example: '6' })
+  @IsOptional()
+  @IsNumber()
+  dimension_length?: number;
 
   @ApiProperty({ required: false, example: 300 })
   @IsOptional()
   @IsNumber()
   max_load?: number;
+
+  @ApiProperty({ required: false, example: 10 })
+  @IsOptional()
+  @IsNumber()
+  base_distance?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()

@@ -37,7 +37,7 @@ export async function calculatePriceWithFee(params: {
     Number(vehicle.per_km_price ?? 0) * distanceKm;
 
   const deliveryTypeCharge =
-    (base * Number(deliveryType.percentage ?? 0)) / 100;
+    (base * Number(deliveryType.price_multiplier ?? 0)) / 100;
 
   let price = base + deliveryTypeCharge;
 
