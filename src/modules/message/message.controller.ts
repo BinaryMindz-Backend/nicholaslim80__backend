@@ -5,6 +5,8 @@ import {
   Get,
 
   Req,
+  Patch,
+  Param,
 } from '@nestjs/common';
 
 
@@ -64,8 +66,22 @@ export class ChatController {
     const result = await this.messagesService.getMessages(user.id, query);
     return ApiResponses.success(result, 'Messages retrieved');
   }
+  //
+  @Patch('read/:conversationId')
+  @Auth()
+  @ApiBearerAuth()
+  async markAsRead(
+    @Param('conversationId') conversationId: string,
+    @CurrentUser() user: IUser,
+  ) {
+    const result = await this.messagesService.markAsRead(
+      user.id,
+      conversationId,
+    );
 
-  // 
+    return ApiResponses.success(result, 'Messages marked as read');
+  }
+    // 
   // @Post('messages/send')
   // @Auth()
   // @ApiBearerAuth()

@@ -310,6 +310,36 @@ export class MessagesService {
       throw new InternalServerErrorException('Failed to retrieve messages', message);
     }
   }
+  //  update conversation by admin
+   async markAsRead(userId: number, convrId: string,) {
+      const ex = await this.prisma.conversation.findFirst({
+        where: {
+          id: convrId,
+        },
+      });
+
+      if (!ex) {
+        throw new NotFoundException('Conversation not found');
+      }
+
+      // Mark all messages as read where current user is receiver
+      await this.prisma.message.updateMany({
+        where: {
+          conversationId: convrId,
+          receiverId: userId,   // important
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+        },
+      });
+
+      return { message: 'Messages marked as read' };
+    }
+
+
+
+
 
   //  get messages by order id
   // async getMessagesByOrderId(orderId: string, dto: GetMessagesSimpleDto) {
