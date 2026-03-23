@@ -6,8 +6,9 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AdditionalServicesService } from './additional_services.service';
 import { CreateAdditionalServiceDto } from './dto/create-additional_service.dto';
 import { ApiResponses } from 'src/common/apiResponse';
@@ -16,14 +17,36 @@ import { Auth } from 'src/decorators/auth.decorator';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { ServiceEmailNumberDto } from './dto/service-email-number.dto';
+import { ActivityLogQueryDto } from './dto/activity_logs.dto';
+import { ActivityLogService } from './activity_logs.services';
 
 
 @ApiTags('Additional Services')
 @ApiBearerAuth()
 @Controller('additional-services')
 export class AdditionalServicesController {
-  constructor(private readonly service: AdditionalServicesService) { }
+  constructor(
+    private readonly service: AdditionalServicesService,
+    private readonly activityLogService: ActivityLogService,
+  ) { }
 
+
+  // 
+  @Get('logs')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.READ)
+  @ApiOperation({ summary: 'Get all activity logs' })
+  async findLogs(@Query() query: ActivityLogQueryDto) {
+    try {
+      const data = await this.activityLogService.findAllLogs(query);
+      return ApiResponses.success(data, 'Activity logs fetched successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+
+  // 
   @Post()
   @Auth()
   @ApiBearerAuth()

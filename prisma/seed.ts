@@ -28,42 +28,42 @@ export enum Module {
   USER_PROFILE = "user_profile",
   // services configuaration
   SERVICE_AREAS = "service_areas",
-  VEHICLE_TYPE='vehicle_type',
-  DELIVERY_TYPE='delivery_type',
-  POLICIES='policies',
+  VEHICLE_TYPE = 'vehicle_type',
+  DELIVERY_TYPE = 'delivery_type',
+  POLICIES = 'policies',
   // revenue configuaration
   REVENUE_CONFIGURATION = "revenue_order_config",
   // customer configuaration
-  ADDITIONAL_ORDER_SERVICE='additionl_order_service',
-  ORDER_CONFIRMATION='order_confirmation',
+  ADDITIONAL_ORDER_SERVICE = 'additionl_order_service',
+  ORDER_CONFIRMATION = 'order_confirmation',
   //driver configuaration
-  DRIVER_ORDER_COMPETITION='driver_order_compitition',
-  QUIZZES='quizzes',
+  DRIVER_ORDER_COMPETITION = 'driver_order_compitition',
+  QUIZZES = 'quizzes',
   // incentive rewards configurations
-  DRIVER_INCENTIVE='driver_incentive',
-  CUSTOMER_REWARDS='customer_rewards',
-  PROMO_CODE='promo_code',
+  DRIVER_INCENTIVE = 'driver_incentive',
+  CUSTOMER_REWARDS = 'customer_rewards',
+  PROMO_CODE = 'promo_code',
 
-  
+
   //  user
-  USER_WEB='user_web',
+  USER_WEB = 'user_web',
   USER = 'user',
   // 
-  USER_MOBILE='user_mobile',
+  USER_MOBILE = 'user_mobile',
   // USER = 'user',
   //
-  RAIDER_JOIN="raider_join", 
+  RAIDER_JOIN = "raider_join",
   RAIDER = "raider",
   // user wallet 
   USER_WALLET = "user_wallet",
-  RAIDER_WALLET ="raider_wallet",
+  RAIDER_WALLET = "raider_wallet",
   // driver wallet
 
   // finnace reporting // report-and-analytics/kpi-stats
-  COIN_STATS='coin_stats',
-  INCENTIVE_ANALYSIS='incentive_analytics',
-  KPI_STATS='kpi_stats',
-  TRANSACTION_STATS='transactions_stats',
+  COIN_STATS = 'coin_stats',
+  INCENTIVE_ANALYSIS = 'incentive_analytics',
+  KPI_STATS = 'kpi_stats',
+  TRANSACTION_STATS = 'transactions_stats',
 
   // report and analysis
   REPORT_ANALYTICS = "report_analytics",
@@ -71,21 +71,21 @@ export enum Module {
   // live map fleet tacking
   LIVE_MAP = "live_map",
   // support and communication
-  CONTACT_INFO='contact_info',
+  CONTACT_INFO = 'contact_info',
   SUPPORT_DISPUTE = 'support_dispute',
   NOTIFICATION = "notification",
-  SERVICE_CHAT='service_chat',
+  SERVICE_CHAT = 'service_chat',
 
   // markating engageement
   ADVERTISEMENT = "advertisement",
-  DASHBOARD_POPUP="dashboard_popup",
+  DASHBOARD_POPUP = "dashboard_popup",
   // content management
   CONTENT_MANAGEMENT = "content_management",
   FAQ = "faq",
   // order management
   ORDER_PLACEMENT = "order_placement", //order placement
-  LIVE_ORDER_TRACKING='live_order_tracking',
-  ORDER_HISTORY='order_history'
+  LIVE_ORDER_TRACKING = 'live_order_tracking',
+  ORDER_HISTORY = 'order_history'
 
 
 
@@ -181,7 +181,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.ORDER, action: Permission.CANCEL_ORDER },
     { module: Module.ORDER, action: Permission.DELETE },
     { module: Module.LIVE_ORDER_TRACKING, action: Permission.READ },
-    { module: Module.ORDER_HISTORY , action:Permission.READ},
+    { module: Module.ORDER_HISTORY, action: Permission.READ },
     // RAIDER MODULE - FULL ACCESS
     { module: Module.RAIDER, action: Permission.CREATE },
     { module: Module.RAIDER, action: Permission.READ },
@@ -189,7 +189,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.RAIDER, action: Permission.DELETE },
     { module: Module.RAIDER, action: Permission.JUST_ADMIN },
     { module: Module.RAIDER_JOIN, action: Permission.JUST_ADMIN },
-    
+
     // live map fleet track
     { module: Module.LIVE_MAP, action: Permission.READ },
     // 
@@ -211,7 +211,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.REPORT_ANALYTICS, action: Permission.UPDATE },
     { module: Module.REPORT_ANALYTICS, action: Permission.JUST_ADMIN },
     { module: Module.REPORT_ANALYTICS_STATS, action: Permission.READ },
-    
+
 
     //Advertise MODULE
     { module: Module.ADVERTISEMENT, action: Permission.CREATE },
@@ -313,27 +313,27 @@ const ROLE_PERMISSIONS = {
     { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.CREATE },
     { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.DELETE },
     { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.UPDATE },
-    { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.READ }, 
+    { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.READ },
     // additional order services
     { module: Module.ADDITIONAL_ORDER_SERVICE, action: Permission.CREATE },
     { module: Module.ADDITIONAL_ORDER_SERVICE, action: Permission.DELETE },
     { module: Module.ADDITIONAL_ORDER_SERVICE, action: Permission.UPDATE },
-    { module: Module.ADDITIONAL_ORDER_SERVICE, action: Permission.READ },  
+    { module: Module.ADDITIONAL_ORDER_SERVICE, action: Permission.READ },
     // incentive
     { module: Module.DRIVER_INCENTIVE, action: Permission.CREATE },
     { module: Module.DRIVER_INCENTIVE, action: Permission.DELETE },
     { module: Module.DRIVER_INCENTIVE, action: Permission.UPDATE },
-    { module: Module.DRIVER_INCENTIVE, action: Permission.READ }, 
+    { module: Module.DRIVER_INCENTIVE, action: Permission.READ },
     // CUSTOMER_REWARDS
     { module: Module.CUSTOMER_REWARDS, action: Permission.CREATE },
     { module: Module.CUSTOMER_REWARDS, action: Permission.DELETE },
     { module: Module.CUSTOMER_REWARDS, action: Permission.UPDATE },
-    { module: Module.CUSTOMER_REWARDS, action: Permission.READ }, 
+    { module: Module.CUSTOMER_REWARDS, action: Permission.READ },
     //
     { module: Module.PROMO_CODE, action: Permission.CREATE },
     { module: Module.PROMO_CODE, action: Permission.DELETE },
     { module: Module.PROMO_CODE, action: Permission.UPDATE },
-    { module: Module.PROMO_CODE, action: Permission.READ }, 
+    { module: Module.PROMO_CODE, action: Permission.READ },
 
     // Destination module - full access
     { module: Module.DESTINATION, action: Permission.CREATE },
@@ -423,7 +423,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.TRANSACTION_STATS, action: Permission.READ },
     { module: Module.TRANSACTION_STATS, action: Permission.UPDATE },
     { module: Module.TRANSACTION_STATS, action: Permission.DELETE },
-    
+
 
   ],
 
@@ -760,35 +760,35 @@ async function initialSeed() {
     });
     console.log(`✅ Customer Order Confirmation Config seeded: ${customerOrderConfirmationConfig.id}\n`);
     // delivery type seed
-    const deliveryTypes = await tx.deliveryType.createMany({
-      data: [
-        {
-          name: DeliveryTypeName.EXPRESS,
-          percentage: 10,
-          pickup_duration: 75,
-          delivery_duration: 90,
-          is_active: true,
-          admin_id: admin.id
-        },
-        {
-          name: DeliveryTypeName.STACKED,
-          percentage: 5,
-          pickup_duration: 95,
-          delivery_duration: 130,
-          is_active: true,
-          admin_id: admin.id
-        },
-        {
-          name: DeliveryTypeName.STANDARD,
-          percentage: 2,
-          pickup_duration: 275,
-          delivery_duration: 290,
-          is_active: true,
-          admin_id: admin.id
-        }
-      ]
-    })
-    console.log(`✅ Delivery type Config seeded: ${deliveryTypes.count}\n`);
+    // const deliveryTypes = await tx.deliveryType.createMany({
+    //   data: [
+    //     {
+    //       name: DeliveryTypeName.EXPRESS,
+    //       percentage: 10,
+    //       pickup_duration: 75,
+    //       delivery_duration: 90,
+    //       is_active: true,
+    //       admin_id: admin.id
+    //     },
+    //     {
+    //       name: DeliveryTypeName.STACKED,
+    //       percentage: 5,
+    //       pickup_duration: 95,
+    //       delivery_duration: 130,
+    //       is_active: true,
+    //       admin_id: admin.id
+    //     },
+    //     {
+    //       name: DeliveryTypeName.STANDARD,
+    //       percentage: 2,
+    //       pickup_duration: 275,
+    //       delivery_duration: 290,
+    //       is_active: true,
+    //       admin_id: admin.id
+    //     }
+    //   ]
+    // })
+    // console.log(`✅ Delivery type Config seeded: ${deliveryTypes.count}\n`);
     // 
     return {
       roles: [superAdminRole, userRole, raiderRole],
@@ -796,7 +796,7 @@ async function initialSeed() {
       admin,
       driverCompititionConfig,
       customerOrderConfirmationConfig,
-      deliveryTypes
+      deliveryType: []
     };
   });
 

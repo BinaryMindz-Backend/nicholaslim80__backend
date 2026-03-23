@@ -1,14 +1,34 @@
 model DeliveryType {
-  id                Int              @id @default(autoincrement())
-  name              DeliveryTypeName
-  percentage        Decimal?         @db.Decimal(6, 2)
-  pickup_duration   Int? // duration in minutes
-  delivery_duration Int? // duration in minutes
-  is_active         Boolean          @default(true)
-  created_at        DateTime         @default(now())
-  updated_at        DateTime         @updatedAt
-  admin_id    Int
-  admin       Admin           @relation(fields: [admin_id], references: [id])
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+
+  // Price Multiplier (supports decimal < 1.0)
+  price_multiplier Decimal @db.Decimal(6, 3)
+
+  // Store durations in minutes (normalized), but keep unit for UX reference
+  collection_time Int // stored in minutes
+  collection_unit TimeUnit @default(MINUTES)
+
+  delivery_time Int // stored in minutes
+  delivery_unit TimeUnit @default(MINUTES)
+
+  // Allow stacking orders
+  allow_stack Boolean @default(false)
+
+  // Priority (1–10, higher = higher priority)
+  priority Int
+
+  // relation with vehicle types (many-to-many)
+  vehicle_types DeliveryTypeVehicle[]
+
+  is_active Boolean @default(true)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  admin_id Int
+  admin    Admin @relation(fields: [admin_id], references: [id])
 
   @@map("delivery_types")
 }
