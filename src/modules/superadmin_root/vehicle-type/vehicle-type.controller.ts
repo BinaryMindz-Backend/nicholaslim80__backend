@@ -11,6 +11,7 @@ import {
   HttpStatus,
   UsePipes,
   ValidationPipe,
+  Query,
 } from '@nestjs/common';
 import { VehicleTypeService } from './vehicle-type.service';
 import { CreateVehicleTypeDto } from './dto/create-vehicle-type.dto';
@@ -22,6 +23,7 @@ import { RequirePermission } from 'src/rbac/decorators/require-permission.decora
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { Public } from 'src/decorators/public.decorator';
 import type { IUser } from 'src/types';
+import { VehicleTypeQueryDto } from './dto/vechecle_type.query.dto';
 
 
 
@@ -57,9 +59,9 @@ export class VehicleTypeController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all Vehicle Types' })
   @ApiResponse({ status: 200, description: 'List of Vehicle Types' })
-  async findAll() {
+  async findAll(@Query() query: VehicleTypeQueryDto) {
     try {
-      const result = await this.service.findAll();
+      const result = await this.service.findAll(query);
       return ApiResponses.success(result, 'Vehicle Types fetched successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to fetch Vehicle Types');
@@ -102,9 +104,10 @@ export class VehicleTypeController {
     @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }))
     id: number,
     @Body() dto: UpdateVehicleTypeDto,
+    @CurrentUser() user: IUser,
   ) {
     try {
-      const result = await this.service.update(id, dto);
+      const result = await this.service.update(id, dto, user);
       return ApiResponses.success(result, 'Vehicle Type updated successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to update Vehicle Type');
@@ -122,10 +125,11 @@ export class VehicleTypeController {
   @ApiParam({ name: 'id', description: 'Vehicle Type ID' })
   async softDelete(
     @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }))
-    id: number
+    id: number,
+    @CurrentUser() user: IUser,
   ) {
     try {
-      const result = await this.service.Delete(id);
+      const result = await this.service.delete(id, user);
       return ApiResponses.success(result, 'Vehicle Type deleted successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to delete Vehicle Type');

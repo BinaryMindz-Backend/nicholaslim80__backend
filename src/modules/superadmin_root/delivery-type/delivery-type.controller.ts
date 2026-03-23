@@ -9,7 +9,8 @@ import {
   ParseIntPipe,
   HttpStatus,
   ValidationPipe,
-  UsePipes
+  UsePipes,
+  Query
 } from '@nestjs/common';
 import { DeliveryTypeService } from './delivery-type.service';
 import { CreateDeliveryTypeDto } from './dto/create-delivery-type.dto';
@@ -22,6 +23,7 @@ import { RequirePermission } from 'src/rbac/decorators/require-permission.decora
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { Public } from 'src/decorators/public.decorator';
 import { CurrentUser } from '../../../decorators/current-user.decorator';
+import { DeliveryTypeQueryDto } from './dto/delivery_query.dto';
 
 
 @ApiTags('Delivery Types (admin)')
@@ -52,9 +54,11 @@ export class DeliveryTypeController {
   @Public()
   @Auth()
   @ApiOperation({ summary: 'Get all Delivery Types' })
-  async findAll() {
+  async findAll(
+    @Query(new ValidationPipe({ whitelist: true })) query: DeliveryTypeQueryDto,
+  ) {
     try {
-      const data = await this.service.findAll();
+      const data = await this.service.findAll(query);
       return ApiResponses.success(data, 'Delivery types fetched');
     } catch (err) {
       return ApiResponses.error(err, 'Fetch failed');
