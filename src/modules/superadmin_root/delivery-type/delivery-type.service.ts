@@ -23,97 +23,97 @@ export class DeliveryTypeService {
 
   // create an delivery type
   async create(dto: CreateDeliveryTypeDto, user: IUser) {
-      // 1. Check duplicate delivery type
-      const isExist = await this.prisma.deliveryType.findFirst({
-        where: { name: dto.name },
-      });
+    // 1. Check duplicate delivery type
+    const isExist = await this.prisma.deliveryType.findFirst({
+      where: { name: dto.name },
+    });
 
-      if (isExist) {
-        throw new ConflictException('Delivery type already exists');
-      }
-
-      // 2. Validate vehicle_type_ids
-      if (!dto.vehicle_type_ids || dto.vehicle_type_ids.length === 0) {
-        throw new BadRequestException('Vehicle types are required');
-      }
-
-      const vehicleTypes = await this.prisma.vehicleType.findMany({
-        where: {
-          id: { in: dto.vehicle_type_ids },
-        },
-        select: { id: true },
-      });
-
-      const foundIds = vehicleTypes.map(v => v.id);
-
-      const missingIds = dto.vehicle_type_ids.filter(
-        id => !foundIds.includes(id),
-      );
-
-      if (missingIds.length > 0) {
-        throw new NotFoundException(
-          `Vehicle type not found for IDs: ${missingIds.join(', ')}`,
-        );
-      }
-
-      // 3. Convert time
-      const collectionMinutes =
-        dto.collection_unit === TimeUnit.HOURS
-          ? dto.collection_time * 60
-          : dto.collection_time;
-
-      const deliveryMinutes =
-        dto.delivery_unit === TimeUnit.HOURS
-          ? dto.delivery_time * 60
-          : dto.delivery_time;
-
-      // 4. Create delivery type
-      const deliveryType = await this.prisma.deliveryType.create({
-        data: {
-          name: dto.name,
-          description: dto.description,
-          price_multiplier: dto.price_multiplier,
-
-          collection_time: collectionMinutes,
-          collection_unit: dto.collection_unit,
-
-          delivery_time: deliveryMinutes,
-          delivery_unit: dto.delivery_unit,
-
-          allow_stack: dto.allow_stack ?? false,
-          priority: dto.priority,
-          is_active: dto.is_active ?? true,
-
-          admin: {
-            connect: { id: user.id },
-          },
-
-          vehicle_types: {
-            create: dto.vehicle_type_ids.map((id) => ({
-              vehicle_type: { connect: { id } },
-            })),
-          },
-        },
-        include: {
-          vehicle_types: true,
-        },
-      });
-
-      // 5. Log
-      await this.prisma.activityLog.create({
-        data: {
-          action: 'CREATE',
-          entity_id: deliveryType.id,
-          entity_type: 'DeliveryType',
-          user_id: user.id,
-          meta: {
-            data: deliveryType,
-          },
-        },
-      });
-
-      return deliveryType;
+    if (isExist) {
+      throw new ConflictException('Delivery type already exists');
     }
+
+    // 2. Validate vehicle_type_ids
+    if (!dto.vehicle_type_ids || dto.vehicle_type_ids.length === 0) {
+      throw new BadRequestException('Vehicle types are required');
+    }
+
+    const vehicleTypes = await this.prisma.vehicleType.findMany({
+      where: {
+        id: { in: dto.vehicle_type_ids },
+      },
+      select: { id: true },
+    });
+
+    const foundIds = vehicleTypes.map(v => v.id);
+
+    const missingIds = dto.vehicle_type_ids.filter(
+      id => !foundIds.includes(id),
+    );
+
+    if (missingIds.length > 0) {
+      throw new NotFoundException(
+        `Vehicle type not found for IDs: ${missingIds.join(', ')}`,
+      );
+    }
+
+    // 3. Convert time
+    const collectionMinutes =
+      dto.collection_unit === TimeUnit.HOURS
+        ? dto.collection_time * 60
+        : dto.collection_time;
+
+    const deliveryMinutes =
+      dto.delivery_unit === TimeUnit.HOURS
+        ? dto.delivery_time * 60
+        : dto.delivery_time;
+
+    // 4. Create delivery type
+    const deliveryType = await this.prisma.deliveryType.create({
+      data: {
+        name: dto.name,
+        description: dto.description,
+        price_multiplier: dto.price_multiplier,
+
+        collection_time: collectionMinutes,
+        collection_unit: dto.collection_unit,
+
+        delivery_time: deliveryMinutes,
+        delivery_unit: dto.delivery_unit,
+
+        allow_stack: dto.allow_stack ?? false,
+        priority: dto.priority,
+        is_active: dto.is_active ?? true,
+
+        admin: {
+          connect: { id: user.id },
+        },
+
+        vehicle_types: {
+          create: dto.vehicle_type_ids.map((id) => ({
+            vehicle_type: { connect: { id } },
+          })),
+        },
+      },
+      include: {
+        vehicle_types: true,
+      },
+    });
+
+    // 5. Log
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'CREATE',
+        entity_id: deliveryType.id,
+        entity_type: 'DeliveryType',
+        user_id: user.id,
+        meta: {
+          data: deliveryType,
+        },
+      },
+    });
+
+    return deliveryType;
+  }
   // find all delivery type
   async findAll(query: DeliveryTypeQueryDto) {
     const { page = 1, limit = 10, is_active, priority } = query;
@@ -165,108 +165,59 @@ export class DeliveryTypeService {
   }
 
   // update one delivery type
-   async update(id: number, dto: UpdateDeliveryTypeDto, user: IUser) {
-      this.verifyAdmin(user);
+  async update(id: number, dto: UpdateDeliveryTypeDto, user: IUser) {
+    this.verifyAdmin(user);
 
-      // 1. Get existing
-      const existing = await this.prisma.deliveryType.findUnique({
-        where: { id },
-        include: { vehicle_types: true },
-      });
+    const existing = await this.prisma.deliveryType.findUnique({
+      where: { id },
+      include: { vehicle_types: true },
+    });
 
-      if (!existing) {
-        throw new NotFoundException('Delivery type not found');
-      }
-
-      // 2. Validate vehicle types (if provided)
-      if (dto.vehicle_type_ids) {
-        const vehicleTypes = await this.prisma.vehicleType.findMany({
-          where: { id: { in: dto.vehicle_type_ids } },
-          select: { id: true },
-        });
-
-        const foundIds = vehicleTypes.map(v => v.id);
-        const missingIds = dto.vehicle_type_ids.filter(id => !foundIds.includes(id));
-
-        if (missingIds.length > 0) {
-          throw new NotFoundException(
-            `Vehicle type not found for IDs: ${missingIds.join(', ')}`,
-          );
-        }
-      }
-
-      // 3. Convert time (if provided)
-      const collectionMinutes =
-        dto.collection_time !== undefined
-          ? dto.collection_unit === TimeUnit.HOURS
-            ? dto.collection_time * 60
-            : dto.collection_time
-          : undefined;
-
-      const deliveryMinutes =
-        dto.delivery_time !== undefined
-          ? dto.delivery_unit === TimeUnit.HOURS
-            ? dto.delivery_time * 60
-            : dto.delivery_time
-          : undefined;
-
-      // 4. TRANSACTION (important)
-       await this.prisma.$transaction(async (tx) => {
-        // update main
-        const updatedDeliveryType = await tx.deliveryType.update({
-          where: { id },
-          data: {
-            ...dto,
-            ...(collectionMinutes !== undefined && {
-              collection_time: collectionMinutes,
-            }),
-            ...(deliveryMinutes !== undefined && {
-              delivery_time: deliveryMinutes,
-            }),
-          },
-        });
-
-        // update vehicle mapping safely
-        if (dto.vehicle_type_ids) {
-          // delete only related rows
-          await tx.deliveryTypeVehicle.deleteMany({
-            where: { delivery_type_id: id },
-          });
-
-          await tx.deliveryTypeVehicle.createMany({
-            data: dto.vehicle_type_ids.map((vId) => ({
-              delivery_type_id: id,
-              vehicle_type_id: vId,
-            })),
-          });
-        }
-
-        return updatedDeliveryType;
-      });
-
-      // 5. Fetch updated with relations
-      const finalData = await this.prisma.deliveryType.findUnique({
-        where: { id },
-        include: { vehicle_types: true },
-      });
-
-      // 6. Log
-      await this.prisma.activityLog.create({
-        data: {
-          action: 'UPDATE',
-          entity_type: 'DeliveryType',
-          entity_id: id,
-          user_id: user.id,
-          meta: {
-            before: existing,
-            after: finalData,
-          },
-        },
-      });
-
-      return finalData;
+    if (!existing) {
+      throw new NotFoundException('Delivery type not found');
     }
 
+    // Remove vehicle_type_ids from Prisma payload
+    const { vehicle_type_ids, ...rest } = dto;
+
+    const updated = await this.prisma.deliveryType.update({
+      where: { id },
+      data: {
+        ...rest, // ✅ clean data only
+
+        ...(vehicle_type_ids && {
+          vehicle_types: {
+            deleteMany: {},
+            create: vehicle_type_ids.map((vId) => ({
+              vehicle_type: { connect: { id: vId } },
+            })),
+          },
+        }),
+      },
+      include: {
+        vehicle_types: true,
+      },
+    });
+
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'UPDATE',
+        entity_type: 'DeliveryType',
+        entity_id: id,
+        user_id: user.id,
+        meta: {
+          before: existing,
+          after: updated,
+        },
+      },
+    });
+
+    return updated;
+  }
+
+
+
+  //
   async remove(id: number, user: any) {
     this.verifyAdmin(user);
 

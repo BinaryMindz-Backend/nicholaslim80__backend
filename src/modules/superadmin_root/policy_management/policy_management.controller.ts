@@ -19,6 +19,8 @@ import { ApiResponses } from 'src/common/apiResponse';
 import { UpdatePolicyDto } from './dto/update-policy_management.dto';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 
 @ApiTags('Policy management')
@@ -32,9 +34,9 @@ export class PolicyController {
   @RequirePermission(Module.POLICIES, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new policy (Admin only)' })
-  async create(@Body() dto: CreatePolicyDto) {
+  async create(@Body() dto: CreatePolicyDto, @CurrentUser() user: IUser) {
     try {
-      const res = await this.policyService.create(dto);
+      const res = await this.policyService.create(dto, user.id);
       return ApiResponses.success(res, 'Policy created successfully');
     } catch (err) {
       return ApiResponses.error(err);
@@ -75,9 +77,9 @@ export class PolicyController {
   @RequirePermission(Module.POLICIES, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update policy (Admin only)' })
-  async update(@Param('id') id: string, @Body() dto: UpdatePolicyDto) {
+  async update(@Param('id') id: string, @Body() dto: UpdatePolicyDto, @CurrentUser() user: IUser) {
     try {
-      const res = await this.policyService.update(Number(id), dto);
+      const res = await this.policyService.update(Number(id), dto, user.id);
       return ApiResponses.success(res, 'Policy updated successfully');
     } catch (err) {
       return ApiResponses.error(err);
@@ -91,10 +93,11 @@ export class PolicyController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update publish status (Admin only)' })
   async updatePublish(
-    @Param('id') id: string
+    @Param('id') id: string,
+    @CurrentUser() user: IUser
   ) {
     try {
-      const res = await this.policyService.updateStatus(Number(id));
+      const res = await this.policyService.updateStatus(Number(id), user.id);
       return ApiResponses.success(res, 'Publish status updated');
     } catch (err) {
       return ApiResponses.error(err);
@@ -107,9 +110,9 @@ export class PolicyController {
   @RequirePermission(Module.POLICIES, Permission.DELETE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete policy (Admin only)' })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user: IUser) {
     try {
-      const res = await this.policyService.remove(Number(id));
+      const res = await this.policyService.remove(Number(id), user.id);
       return ApiResponses.success(res, 'Policy deleted successfully');
     } catch (err) {
       return ApiResponses.error(err);
