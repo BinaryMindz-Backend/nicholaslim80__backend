@@ -9,7 +9,7 @@ import {
   IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Gender, LicenseClass } from '@prisma/client';
+import { Gender, LicenseClass, Rank } from '@prisma/client';
 
 
 export class CreateRiderRegistrationDto {
@@ -209,4 +209,12 @@ export class CreateRiderRegistrationDto {
   @IsOptional()
   @IsString()
   password?: string;
+
+
+  @ApiPropertyOptional({ example: Rank.SILVER })
+  @IsOptional()
+  @IsEnum(Rank)
+  driver_rank?: Rank;
+
+
 }
