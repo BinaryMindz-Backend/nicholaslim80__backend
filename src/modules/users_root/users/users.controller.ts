@@ -218,9 +218,9 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async activeStatusChange(
 
-    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE })) id: number) {
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE })) id: number, @CurrentUser() user:IUser) {
     try {
-      const updatedUser = await this.usersService.activeStatusChange(id);
+      const updatedUser = await this.usersService.activeStatusChange(id, user.id);
       return ApiResponses.success(updatedUser, 'User active updated successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to update user');
@@ -241,9 +241,9 @@ export class UsersController {
   })
   @ApiResponse({ status: 200, description: 'User soft-deleted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async softDeleteOne(@Body() dto: { ids: number[] }) {
+  async softDeleteOne(@Body() dto: { ids: number[] }, @CurrentUser() user:IUser) {
     try {
-      await this.usersService.softDeleteMultiple(dto.ids); // pass array if id
+      await this.usersService.softDeleteMultiple(dto.ids, user.id); // pass array if id
       return ApiResponses.success(null, 'User soft-deleted successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to soft-delete user');
@@ -264,9 +264,9 @@ export class UsersController {
       },
     },
   })
-  async permanentDeleteMany(@Body() body: { ids: number[] }) {
+  async permanentDeleteMany(@Body() body: { ids: number[] }, @CurrentUser() user:IUser) {
     try {
-      await this.usersService.deleteMultiple(body.ids);
+      await this.usersService.deleteMultiple(body.ids, user.id);
       return ApiResponses.success(null, 'Users permanently deleted');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to delete users');
@@ -279,9 +279,9 @@ export class UsersController {
   @RequirePermission(Module.USER, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create user by admin (Admin only)' })
-  async adminCreateUser(@Body() dto: CreateUserDto) {
+  async adminCreateUser(@Body() dto: CreateUserDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.usersService.adminCreateUser(dto);
+      const res = await this.usersService.adminCreateUser(dto, user.id);
       return ApiResponses.success(res, 'User created successfully by admin');
     } catch (error) {
       return ApiResponses.error(error);
@@ -294,9 +294,9 @@ export class UsersController {
   @RequirePermission(Module.USER, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create custom by admin (Admin only)' })
-  async adminCreateRole(@Body() dto: CreateUserDto) {
+  async adminCreateRole(@Body() dto: CreateUserDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.usersService.adminCreateUser(dto);
+      const res = await this.usersService.adminCreateUser(dto, user.id);
       return ApiResponses.success(res, `${dto.role_name} created successfully by admin`);
     } catch (error) {
       return ApiResponses.error(error);

@@ -6,6 +6,7 @@ import { CreateServiceZoneDto } from './dto/create-service-zone.dto';
 import { UpdateServiceZoneDto } from './dto/update-service-zone.dto';
 import { booleanPointInPolygon, point, polygon } from '@turf/turf';
 import { DeliveryZone, LatLng } from 'src/types';
+import { ActivityLogService } from '../additional_services/activity_logs.services';
 
 type ZoneCoordinate = {
   lat: number;
@@ -14,7 +15,10 @@ type ZoneCoordinate = {
 
 @Injectable()
 export class ServiceZoneService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+     private readonly activityLogService: ActivityLogService,
+  ) { }
 
   /* -------------------- Helpers -------------------- */
 
@@ -35,14 +39,23 @@ export class ServiceZoneService {
 
   /* -------------------- CRUD -------------------- */
 
-  async create(dto: CreateServiceZoneDto) {
-    try {
-      const res = await this.prisma.serviceZone.create({ data: dto });
-      return ApiResponses.success(res, 'Service zone created successfully');
-    } catch (error) {
-      return ApiResponses.error(error.message);
-    }
+  async create(dto: CreateServiceZoneDto, userId: number) {
+  try {
+    const res = await this.prisma.serviceZone.create({ data: dto });
+
+    await this.activityLogService.log({
+      action: 'CREATE',
+      entityType: 'ServiceZone',
+      entityId: res.id,
+      userId,
+      meta: { data: {...res, coordinates: 'omitted'} },
+    });
+
+    return ApiResponses.success(res, 'Service zone created successfully');
+  } catch (error) {
+    return ApiResponses.error(error.message);
   }
+}
 
   async findAll(query: any) {
     const { page = 1, limit = 10, search, isActive } = query;
@@ -74,49 +87,86 @@ export class ServiceZoneService {
     };
   }
 
-  async updateActiveStatus(id: number) {
-    try {
-      const zone = await this.prisma.serviceZone.findUnique({ where: { id } });
-      if (!zone) throw new Error('Service zone not found');
+    // 
+    async updateActiveStatus(id: number, userId: number) {
+      try {
+        const zone = await this.prisma.serviceZone.findUnique({ where: { id } });
+        if (!zone) throw new Error('Service zone not found');
 
-      const updated = await this.prisma.serviceZone.update({
-        where: { id },
-        data: { isActive: !zone.isActive },
-      });
+        const updated = await this.prisma.serviceZone.update({
+          where: { id },
+          data: { isActive: !zone.isActive },
+        });
 
-      return ApiResponses.success(updated, 'Service zone status updated');
-    } catch (error) {
-      return ApiResponses.error(error.message);
+        await this.activityLogService.log({
+          action: 'UPDATE',
+          entityType: 'ServiceZone',
+          entityId: id,
+          userId,
+          meta: {
+            before: {...zone, coordinates: 'omitted'},
+            after: {...updated, coordinates: 'omitted'},
+            change: 'status_toggle',
+          },
+        });
+
+        return ApiResponses.success(updated, 'Service zone status updated');
+      } catch (error) {
+        return ApiResponses.error(error.message);
+      }
     }
-  }
 
-  async update(id: number, dto: UpdateServiceZoneDto) {
-    try {
-      const zone = await this.prisma.serviceZone.findUnique({ where: { id } });
-      if (!zone) throw new Error('Service zone not found');
+    // 
 
-      const updated = await this.prisma.serviceZone.update({
-        where: { id },
-        data: dto,
-      });
+    async update(id: number, dto: UpdateServiceZoneDto, userId: number) {
+      try {
+        const zone = await this.prisma.serviceZone.findUnique({ where: { id } });
+        if (!zone) throw new Error('Service zone not found');
 
-      return ApiResponses.success(updated, 'Service zone updated successfully');
-    } catch (error) {
-      return ApiResponses.error(error.message);
+        const updated = await this.prisma.serviceZone.update({
+          where: { id },
+          data: dto,
+        });
+
+        await this.activityLogService.log({
+          action: 'UPDATE',
+          entityType: 'ServiceZone',
+          entityId: id,
+          userId,
+          meta: {
+              before: { ...zone, coordinates: 'omitted' },
+              after: { ...updated, coordinates: 'omitted' },
+          },
+        });
+
+        return ApiResponses.success(updated, 'Service zone updated successfully');
+      } catch (error) {
+        return ApiResponses.error(error.message);
+      }
     }
-  }
+  //  
+  async remove(id: number, userId: number) {
+  try {
+    const zone = await this.prisma.serviceZone.findUnique({ where: { id } });
+    if (!zone) throw new Error('Service zone not found');
 
-  async remove(id: number) {
-    try {
-      const zone = await this.prisma.serviceZone.findUnique({ where: { id } });
-      if (!zone) throw new Error('Service zone not found');
+    await this.prisma.serviceZone.delete({ where: { id } });
 
-      await this.prisma.serviceZone.delete({ where: { id } });
-      return ApiResponses.success(null, 'Service zone deleted successfully');
-    } catch (error) {
-      return ApiResponses.error(error.message);
-    }
+    await this.activityLogService.log({
+      action: 'DELETE',
+      entityType: 'ServiceZone',
+      entityId: id,
+      userId,
+      meta: {
+        deletedData: { ...zone, coordinates: 'omitted' },
+      },
+    });
+
+    return ApiResponses.success(null, 'Service zone deleted successfully');
+  } catch (error) {
+    return ApiResponses.error(error.message);
   }
+}
 
   /* Geo Logic */
   async findZoneByPoint(lat: number, lng: number) {
