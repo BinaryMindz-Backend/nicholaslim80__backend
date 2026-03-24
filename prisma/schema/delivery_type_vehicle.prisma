@@ -3,7 +3,7 @@ model DeliveryTypeVehicle {
   delivery_type_id Int
   vehicle_type_id  Int
 
-  delivery_type DeliveryType @relation(fields: [delivery_type_id], references: [id])
+  delivery_type DeliveryType @relation(fields: [delivery_type_id], references: [id], onDelete: Cascade)
   vehicle_type  VehicleType  @relation(fields: [vehicle_type_id], references: [id])
 
   @@unique([delivery_type_id, vehicle_type_id])
