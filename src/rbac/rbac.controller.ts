@@ -9,6 +9,7 @@ import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Public } from 'src/decorators/public.decorator';
 import { RoleQueryDto } from './dto/serach_pagination.dto';
+import type { IUser } from 'src/types';
 
 
 
@@ -21,11 +22,12 @@ export class RbacController {
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.RBAC, Permission.CREATE)
-  async createRole(@Body() createRoleDto: CreateRoleDto) {
+  async createRole(@Body() createRoleDto: CreateRoleDto, @CurrentUser() user: IUser) {
     try {
       const res = await this.rbacService.createCustomRole(
         createRoleDto.name,
         createRoleDto.permissions,
+        user.id
       );
       return ApiResponses.success(res, 'Role created successfully');
     } catch (error) {
@@ -49,10 +51,11 @@ export class RbacController {
   async updateRole(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRoleDto: UpdateRoleNameDto,
+    @CurrentUser() user: IUser
   ) {
 
     try {
-      const res = await this.rbacService.updateRole(id, updateRoleDto.name);
+      const res = await this.rbacService.updateRole(id, updateRoleDto.name, user.id);
       return ApiResponses.success(res, 'Role name updated successfully');
     } catch (error) {
       return ApiResponses.error(error, "Failed to update role name");
@@ -68,9 +71,10 @@ export class RbacController {
   @RequirePermission(Module.RBAC, Permission.UPDATE_RBAC_ROLE_PERMISSION)
   async makeActiveInactive(
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: IUser
   ) {
     try {
-      const res = await this.rbacService.makeActiveInactive(id);
+      const res = await this.rbacService.makeActiveInactive(id, user.id);
       return ApiResponses.success(res, 'Role status updated successfully');
     } catch (error) {
       return ApiResponses.error(error, "Failed to update role status");
@@ -85,8 +89,9 @@ export class RbacController {
   async updateRolePermissions(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRoleDto: UpdateRoleDto,
+    @CurrentUser() user: IUser
   ) {
-    return this.rbacService.updateRolePermissions(id, updateRoleDto.permissions);
+    return this.rbacService.updateRolePermissions(id, updateRoleDto.permissions, user.id);
   }
 
   // 
@@ -94,9 +99,9 @@ export class RbacController {
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.RBAC, Permission.DELETE)
-  async deleteRole(@Param('id', ParseIntPipe) id: number) {
+  async deleteRole(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: IUser) {
     try {
-      const res = await this.rbacService.deleteRole(id);
+      const res = await this.rbacService.deleteRole(id, user.id);
       return ApiResponses.success(res, 'Role deleted successfully');
     } catch (error) {
       return ApiResponses.error(error, "Failed to delete role");

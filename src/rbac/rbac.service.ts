@@ -5,12 +5,16 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { PermissionDto, SearchDto } from './dto/role.dto';
 import { DeliveryTypeName, OrderStatus } from '@prisma/client';
 import { RoleQueryDto } from './dto/serach_pagination.dto';
+import { ActivityLogService } from 'src/modules/superadmin_root/additional_services/activity_logs.services';
 
 
 
 @Injectable()
 export class RbacService implements OnModuleInit {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private readonly activityLogService: ActivityLogService,
+  ) { }
 
   async onModuleInit() {
     await this.initializeStaticRoles();
@@ -75,60 +79,60 @@ export class RbacService implements OnModuleInit {
     }
   }
 
-  async createCustomRole(name: string, permissions: PermissionDto[]) {
-    const existingRole = await this.prisma.role.findUnique({
-      where: { name },
-    });
-
-    if (existingRole) {
-      throw new ConflictException(`Role '${name}' already exists`);
-    }
+  // ---------------- CREATE CUSTOM ROLE ----------------
+  async createCustomRole(name: string, permissions: PermissionDto[], userId: number) {
+    const existingRole = await this.prisma.role.findUnique({ where: { name } });
+    if (existingRole) throw new ConflictException(`Role '${name}' already exists`);
 
     const role = await this.prisma.role.create({
       data: {
         name,
         isStatic: false,
-        permissions: {
-          create: permissions,
-        },
+        permissions: { create: permissions },
       },
-      include: {
-        permissions: true,
-      },
+      include: { permissions: true },
+    });
+
+    // LOG
+    await this.activityLogService.log({
+      action: 'CREATE',
+      entityType: 'Role',
+      entityId: role.id,
+      userId,
+      meta: { data: role },
     });
 
     return role;
   }
 
-  async updateRolePermissions(roleId: number, permissions: PermissionDto[]) {
+
+  // ---------------- UPDATE ROLE PERMISSIONS ----------------
+  async updateRolePermissions(roleId: number, permissions: PermissionDto[], userId: number) {
     const role = await this.prisma.role.findUnique({
       where: { id: roleId },
+      include: { permissions: true },
     });
+    if (!role) throw new NotFoundException('Role not found');
+    if (role.isStatic) throw new BadRequestException('Cannot modify static roles');
 
-    if (!role) {
-      throw new NotFoundException('Role not found');
-    }
+    const oldPermissions = role.permissions;
 
-    if (role.isStatic) {
-      throw new BadRequestException('Cannot modify static roles');
-    }
+    // Delete old permissions
+    await this.prisma.rolePermission.deleteMany({ where: { roleId } });
 
-    // Delete existing permissions
-    await this.prisma.rolePermission.deleteMany({
-      where: { roleId },
-    });
-
-    // Create new permissions
     const updatedRole = await this.prisma.role.update({
       where: { id: roleId },
-      data: {
-        permissions: {
-          create: permissions,
-        },
-      },
-      include: {
-        permissions: true,
-      },
+      data: { permissions: { create: permissions } },
+      include: { permissions: true },
+    });
+
+    // LOG
+    await this.activityLogService.log({
+      action: 'UPDATE',
+      entityType: 'Role',
+      entityId: roleId,
+      userId,
+      meta: { before: oldPermissions, after: updatedRole.permissions },
     });
 
     return updatedRole;
@@ -217,79 +221,75 @@ export class RbacService implements OnModuleInit {
     return role;
   }
 
-
-  //
-  async updateRole(roleId: number, name: string) {
-    const role = await this.prisma.role.findUnique({
-      where: { id: roleId },
-    });
-
-    if (!role) {
-      throw new NotFoundException('Role not found');
-    }
-    if (role.isStatic) {
-      throw new BadRequestException('Cannot modify static roles');
-    }
+  // ---------------- UPDATE ROLE NAME ----------------
+  async updateRole(roleId: number, name: string, userId: number) {
+    const role = await this.prisma.role.findUnique({ where: { id: roleId } });
+    if (!role) throw new NotFoundException('Role not found');
+    if (role.isStatic) throw new BadRequestException('Cannot modify static roles');
 
     const updatedRole = await this.prisma.role.update({
       where: { id: roleId },
       data: { name },
     });
 
-    return updatedRole;
-  }
-  // 
-  async makeActiveInactive(roleId: number) {
-    const role = await this.prisma.role.findUnique({
-      where: { id: roleId },
+    // LOG
+    await this.activityLogService.log({
+      action: 'UPDATE',
+      entityType: 'Role',
+      entityId: roleId,
+      userId,
+      meta: { before: role, after: updatedRole },
     });
 
-    if (!role) {
-      throw new NotFoundException('Role not found');
-    }
-    if (role.isStatic) {
-      throw new BadRequestException('Cannot modify static roles');
-    }
+    return updatedRole;
+  }
+
+  // 
+  // ---------------- ACTIVATE / DEACTIVATE ----------------
+  async makeActiveInactive(roleId: number, userId: number) {
+    const role = await this.prisma.role.findUnique({ where: { id: roleId } });
+    if (!role) throw new NotFoundException('Role not found');
+    if (role.isStatic) throw new BadRequestException('Cannot modify static roles');
 
     const updatedRole = await this.prisma.role.update({
       where: { id: roleId },
       data: { isActive: !role.isActive },
     });
 
+    // LOG
+    await this.activityLogService.log({
+      action: 'UPDATE',
+      entityType: 'Role',
+      entityId: roleId,
+      userId,
+      meta: { before: role, after: updatedRole },
+    });
+
     return updatedRole;
   }
 
   // 
-  async deleteRole(roleId: number) {
-    const role = await this.prisma.role.findUnique({
-      where: { id: roleId },
-    });
+  // ---------------- DELETE ROLE ----------------
+  async deleteRole(roleId: number, userId: number) {
+    const role = await this.prisma.role.findUnique({ where: { id: roleId } });
+    if (!role) throw new NotFoundException('Role not found');
+    if (role.isStatic) throw new BadRequestException('Cannot delete static roles');
 
-    if (!role) {
-      throw new NotFoundException('Role not found');
-    }
-
-    if (role.isStatic) {
-      throw new BadRequestException('Cannot delete static roles');
-    }
-    // 
     const usersWithRole = await this.prisma.user.count({
-      where: {
-        roles: {
-          some: {
-            id: roleId
-          }
-        }
-      },
+      where: { roles: { some: { id: roleId } } },
     });
 
-    if (usersWithRole > 0) {
-      throw new BadRequestException('Cannot delete role assigned to users');
-    }
+    if (usersWithRole > 0) throw new BadRequestException('Cannot delete role assigned to users');
 
-    // 
-    await this.prisma.role.delete({
-      where: { id: roleId },
+    await this.prisma.role.delete({ where: { id: roleId } });
+
+    // LOG
+    await this.activityLogService.log({
+      action: 'DELETE',
+      entityType: 'Role',
+      entityId: roleId,
+      userId,
+      meta: { deletedData: role },
     });
 
     return { message: 'Role deleted successfully' };

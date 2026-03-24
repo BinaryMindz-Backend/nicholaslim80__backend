@@ -416,11 +416,12 @@ export class RidersProfileService {
           userId: user.id,
           raider_status: RaiderStatus.ACTIVE,
           raider_verificationFromAdmin: RaiderVerification.APPROVED,
+          rank:dto.driver_rank,
         },
       });
 
       // Clean DTO
-      const { password, ...registrationData } = dto;
+      const { password, driver_rank, ...registrationData } = dto;
 
       // Create registration
       const registration = await tx.raiderRegistration.create({
