@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, Delete} from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, Delete } from '@nestjs/common';
 import { RidersProfileService } from './riders_profile.service';
-import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
+import { CreateRiderRegistrationDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
@@ -25,10 +25,10 @@ export class RidersProfileController {
   // @Roles(UserRole.SUPER_ADMIN, UserRole.RAIDER)
   @RequirePermission(Module.RAIDER, Permission.CREATE)
   @ApiOperation({ summary: 'Rider profile creation (Rider only)' })
-  @ApiBody({ type: CreateRidersProfileDto })
+  @ApiBody({ type: CreateRiderRegistrationDto })
   @ApiBearerAuth()
   async create(
-    @Body() createRidersProfileDto: CreateRidersProfileDto,
+    @Body() createRidersProfileDto: CreateRiderRegistrationDto,
     @CurrentUser() user: IUser,
   ) {
     try {
@@ -202,7 +202,7 @@ export class RidersProfileController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create rider profile for a user (Admin only)' })
   async adminCreateRiderProfile(
-    @Body() createRidersProfileDto: CreateRidersProfileDto,
+    @Body() createRidersProfileDto: CreateRiderRegistrationDto,
   ) {
     try {
       const res = await this.ridersProfileService.adminCreateRiderProfile(createRidersProfileDto);

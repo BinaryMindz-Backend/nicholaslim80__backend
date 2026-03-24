@@ -1,23 +1,24 @@
 model VehicleType {
-  id               Int                   @id @default(autoincrement())
-  vehicle_type     VehicleTypeEnum
-  vehicle_name     String?
-  vehicle_desc     String?
-  base_price       Decimal?              @db.Decimal(12, 2)
-  per_km_price     Decimal?              @db.Decimal(12, 2)
-  peak_pricing     Boolean               @default(false)
-  dimension_width  Decimal?              @db.Decimal(12, 2)
-  dimension_height Decimal?              @db.Decimal(12, 2)
-  dimension_length Decimal?              @db.Decimal(12, 2)
-  max_load         Decimal?              @db.Decimal(12, 2)
-  base_distance    Decimal?              @db.Decimal(12, 2)
-  isActive         Boolean               @default(true)
-  admin_id         Int
-  admin            Admin                 @relation(fields: [admin_id], references: [id])
-  created_at       DateTime              @default(now())
-  updated_at       DateTime              @updatedAt
-  orders           Order[]
-  delivery_types   DeliveryTypeVehicle[]
+  id                   Int                   @id @default(autoincrement())
+  vehicle_type         VehicleTypeEnum
+  vehicle_name         String?
+  vehicle_desc         String?
+  base_price           Decimal?              @db.Decimal(12, 2)
+  per_km_price         Decimal?              @db.Decimal(12, 2)
+  peak_pricing         Boolean               @default(false)
+  dimension_width      Decimal?              @db.Decimal(12, 2)
+  dimension_height     Decimal?              @db.Decimal(12, 2)
+  dimension_length     Decimal?              @db.Decimal(12, 2)
+  max_load             Decimal?              @db.Decimal(12, 2)
+  base_distance        Decimal?              @db.Decimal(12, 2)
+  isActive             Boolean               @default(true)
+  admin_id             Int
+  admin                Admin                 @relation(fields: [admin_id], references: [id])
+  created_at           DateTime              @default(now())
+  updated_at           DateTime              @updatedAt
+  orders               Order[]
+  delivery_types       DeliveryTypeVehicle[]
+  raider_registrations RaiderRegistration[]
 
   @@index([vehicle_type])
   @@index([isActive])

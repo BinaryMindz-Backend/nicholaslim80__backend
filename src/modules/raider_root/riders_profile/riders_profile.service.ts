@@ -1,14 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { CreateRidersProfileDto } from './dto/create-riders_profile.dto';
+import { CreateRiderRegistrationDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { LoginType, Prisma, RaiderStatus, RaiderVerification, UserRole, VehicleTypeEnum } from '@prisma/client';
-import { ApiResponses } from 'src/common/apiResponse';
 import { GetRidersQueryDto } from './dto/query-riders.dto';
 import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
 import bcrypt from "bcrypt"
-import { contains } from 'class-validator';
 
 
 // 
@@ -19,185 +17,190 @@ export class RidersProfileService {
   ) { }
 
   // create
-  async create(userId: number, createRidersProfileDto: CreateRidersProfileDto) {
+  async create(userId: number, dto: CreateRiderRegistrationDto) {
 
-     const keys = Object.values(VehicleTypeEnum).filter(value=> typeof value === 'string')
-     const isAvailable  = keys.includes(createRidersProfileDto.vehicle_type) 
-     if(!isAvailable){
-        throw new NotFoundException("Vechicle type not found")
-     }
-    // 
-    const riderExists = await this.prisma.raider.findFirst({
+    // 1. Check rider exists
+    const rider = await this.prisma.raider.findUnique({
+      where: { userId },
+    });
+
+    if (!rider) {
+      throw new NotFoundException('Rider not found');
+    }
+
+    // 2. Check vehicle type exists
+    const vehicleType = await this.prisma.vehicleType.findUnique({
+      where: { id: dto.vehicle_type_id },
+    });
+
+    if (!vehicleType) {
+      throw new NotFoundException('Vehicle type not found');
+    }
+
+    // 3. Check duplicate registration
+    const existing = await this.prisma.raiderRegistration.findFirst({
       where: {
-        userId: userId,
+        OR: [
+          { email_address: dto.email_address },
+          { raiderId: rider.id },
+        ],
       },
     });
-    //  
-    if (!riderExists) {
-      throw new NotFoundException('Rider not found for the given user ID');
-    }
-    // 
-    const r = await this.prisma.raiderRegistration.findFirst({
-         where:{
-             email_address:createRidersProfileDto.email_address
-         }
-    })
-    // 
-    if(r){
-        throw new ConflictException("Raider profile already exist")
-    }
-    const {password, ...dto} = createRidersProfileDto;
 
-    const res = await this.prisma.raiderRegistration.create({
+    if (existing) {
+      throw new ConflictException('Rider profile already exists');
+    }
+
+    // 4. Create registration
+    const { vehicle_type_id, ...registrationFields } = dto;
+    return this.prisma.raiderRegistration.create({
       data: {
-        raiderId: riderExists.id,
-        ...dto,
+        ...registrationFields,
+        raiderId: rider.id,
+        vehicle_type_id,
       },
     });
-    return res;
   }
-  
-
 
   // 
   async findAll(query: GetRidersQueryDto) {
-      const {
-        raiderId,
-        loginType,
-        raider_verificationFromAdmin,
-        type = 'desc',
-        page = 1,
-        limit = 10,
-        search,
-      } = query;
+    const {
+      raiderId,
+      loginType,
+      raider_verificationFromAdmin,
+      type = 'desc',
+      page = 1,
+      limit = 10,
+      search,
+    } = query;
 
-      const skip = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-      const where: Prisma.RaiderWhereInput = {};
+    const where: Prisma.RaiderWhereInput = {};
 
-      if (raiderId) {
-        where.id = raiderId;
-      }
+    if (raiderId) {
+      where.id = raiderId;
+    }
 
-      if (loginType) {
-        where.LoginType = loginType;
-      }
+    if (loginType) {
+      where.LoginType = loginType;
+    }
 
-      if (raider_verificationFromAdmin) {
-        where.raider_verificationFromAdmin = raider_verificationFromAdmin;
-      }
+    if (raider_verificationFromAdmin) {
+      where.raider_verificationFromAdmin = raider_verificationFromAdmin;
+    }
 
-      if (search) {
-        where.registrations = {
-          some: {
-            OR: [
-              {
-                raider_name: {
-                  contains: search,
-                  mode: 'insensitive',
-                },
+    if (search) {
+      where.registrations = {
+        some: {
+          OR: [
+            {
+              raider_name: {
+                contains: search,
+                mode: 'insensitive',
               },
-              {
-                email_address: {
-                  contains: search,
-                  mode: 'insensitive',
-                },
+            },
+            {
+              email_address: {
+                contains: search,
+                mode: 'insensitive',
               },
-            ],
-          },
-        };
-      }
-
-      const orderBy: Prisma.RaiderOrderByWithRelationInput = {
-        created_at: type,
-      };
-
-      const [total, data] = await Promise.all([
-        this.prisma.raider.count({ where }),
-
-        this.prisma.raider.findMany({
-          where,
-          orderBy,
-          skip,
-          take: limit,
-          include: {
-            registrations: true,
-            raider_ratings: true,
-          },
-        }),
-      ]);
-
-      // Add average rating per raider
-      const formattedData = await Promise.all(
-        data.map(async (raider) => {
-          const avgRating = await this.prisma.rateRaider.aggregate({
-            where: {
-              raiderId: raider.id,
             },
-            _avg: {
-              rating_star: true,
-            },
-            _count: {
-              id: true,
-            },
-          });
-
-          return {
-            ...raider,
-            avgRating: avgRating._avg.rating_star
-              ? Number(avgRating._avg.rating_star.toFixed(2))
-              : 5,
-            totalRatings: avgRating._count.id,
-          };
-        })
-      );
-
-      return {
-        data: formattedData,
-        pagination: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-          hasNextPage: page * limit < total,
-          hasPrevPage: page > 1,
+          ],
         },
       };
     }
 
- 
+    const orderBy: Prisma.RaiderOrderByWithRelationInput = {
+      created_at: type,
+    };
+
+    const [total, data] = await Promise.all([
+      this.prisma.raider.count({ where }),
+
+      this.prisma.raider.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        include: {
+          registrations: true,
+          raider_ratings: true,
+        },
+      }),
+    ]);
+
+    // Add average rating per raider
+    const formattedData = await Promise.all(
+      data.map(async (raider) => {
+        const avgRating = await this.prisma.rateRaider.aggregate({
+          where: {
+            raiderId: raider.id,
+          },
+          _avg: {
+            rating_star: true,
+          },
+          _count: {
+            id: true,
+          },
+        });
+
+        return {
+          ...raider,
+          avgRating: avgRating._avg.rating_star
+            ? Number(avgRating._avg.rating_star.toFixed(2))
+            : 5,
+          totalRatings: avgRating._count.id,
+        };
+      })
+    );
+
+    return {
+      data: formattedData,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1,
+      },
+    };
+  }
+
+
   // 
   async findOne(id: string) {
     const res = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
-      include: { registrations: true, locations:true, raider_ratings:true,  followers: { where: { is_fav: true } }, },
+      include: { registrations: true, locations: true, raider_ratings: true, followers: { where: { is_fav: true } }, },
     });
-      // Get raider rating average
-      const avgRating = await this.prisma.rateRaider.aggregate({
-        where: {
-          raiderId: res?.id
-        },
-        _avg: {
-          rating_star: true
-        },
-        _count: {
-          id: true
-        }
-      });
+    // Get raider rating average
+    const avgRating = await this.prisma.rateRaider.aggregate({
+      where: {
+        raiderId: res?.id
+      },
+      _avg: {
+        rating_star: true
+      },
+      _count: {
+        id: true
+      }
+    });
 
-      const formattedAverage = avgRating._avg.rating_star
-        ? Number(avgRating._avg.rating_star.toFixed(2))
-        : 5;
+    const formattedAverage = avgRating._avg.rating_star
+      ? Number(avgRating._avg.rating_star.toFixed(2))
+      : 5;
 
     // 
     return {
-        ...res,
-        rank: res?.rank,
-        rankScore: res?.rankScore || 0,
-        rating: res?.reviews_count || 0,
-        followers: res?.followers.length || 0,
-        formattedAverage 
-      };
+      ...res,
+      rank: res?.rank,
+      rankScore: res?.rankScore || 0,
+      rating: res?.reviews_count || 0,
+      followers: res?.followers.length || 0,
+      formattedAverage
+    };
   }
 
 
@@ -318,7 +321,7 @@ export class RidersProfileService {
 
   // 
   async suspendRiderProfile(id: number, dto: SuspendRiderProfileDto) {
-    console.log(dto);
+
     const res = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
       include: { registrations: true },
@@ -326,9 +329,6 @@ export class RidersProfileService {
     if (!res) {
       throw new NotFoundException('Rider profile not found');
     }
-
-
-
     const updatedProfile = await this.prisma.raider.update({
       where: { id: res.id },
       data: {
@@ -352,8 +352,6 @@ export class RidersProfileService {
       throw new NotFoundException('Rider profile not found');
     }
 
-
-
     const updatedProfile = await this.prisma.raider.update({
       where: { id: res.id },
       data: {
@@ -365,116 +363,105 @@ export class RidersProfileService {
 
     return updatedProfile;
   }
-    
-  // 
-    async adminCreateRiderProfile(dto: CreateRidersProfileDto) {
-      // Ensure role exists
-      const role = await this.prisma.role.findUnique({
-        where: { name: UserRole.RAIDER },
-      });
-
-      if (!role) {
-        throw new NotFoundException('Role not found');
-      }
-
-      // Check if user already exists
-      const existingUser = await this.prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: dto.email_address },
-            { phone: dto.contact_number },
-          ],
-        },
-      });
-
-      if (existingUser) {
-        throw new ConflictException('User already exists');
-      }
-
-      // Transaction
-      const createdRaider = await this.prisma.$transaction(async (tx) => {
-        const defaultPassword = dto.password;
-
-        if (!defaultPassword) {
-          throw new NotFoundException(
-            'Default password is not set in environment variables',
-          );
-        }
-
-        const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-
-        // Create user
-        const user = await tx.user.create({
-          data: {
-            username: dto.raider_name,
-            email: dto.email_address,
-            phone: dto.contact_number,
-            roles:{
-              connect:{id:role.id}
-            },
-            regi_status: LoginType.ADMIN_SIGNIN,
-            is_active: true,
-            is_verified: true,
-            password: hashedPassword,
-          },
-        });
-
-        // Create raider
-        const raider = await tx.raider.create({
-          data: {
-            userId: user.id,
-            LoginType: LoginType.ADMIN_SIGNIN,
-            raider_verificationFromAdmin: RaiderVerification.APPROVED,
-            raider_status: RaiderStatus.ACTIVE,
-          },
-        });
-        
-        // 
-        const {password , ...registrationData } = dto;
-        // Create raider registration
-        const registration = await tx.raiderRegistration.create({
-          data: {
-            ...registrationData,
-            raiderId: raider.id,
-          },
-        });
-
-        return {
-          user,
-          raider,
-          registration,
-        };
-      });
-
-      return createdRaider;
-    }
 
 
   //
-  async adminUpdateRiderProfile(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
-    const raiderExists = await this.prisma.raider.findFirst({
+  async adminCreateRiderProfile(dto: CreateRiderRegistrationDto) {
+    // 1. Role check
+    const role = await this.prisma.role.findUnique({
+      where: { name: UserRole.RAIDER },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    // 2. Duplicate user check
+    const existingUser = await this.prisma.user.findFirst({
       where: {
-        id: Number(id)
+        OR: [
+          { email: dto.email_address },
+          { phone: dto.contact_number },
+        ],
       },
     });
-    // console.log({ raiderExists });
-    if (!raiderExists) {
-      return ApiResponses.error('Rider not found');
+
+    if (existingUser) {
+      throw new ConflictException('User already exists');
     }
 
-    // find the registration for this raider
+    // 3. Transaction
+    return this.prisma.$transaction(async (tx) => {
+      const hashedPassword = await bcrypt.hash(dto.password || '12345678', 10);
+
+      // Create user
+      const user = await tx.user.create({
+        data: {
+          username: dto.raider_name,
+          email: dto.email_address,
+          phone: dto.contact_number,
+          password: hashedPassword,
+          regi_status: LoginType.ADMIN_SIGNIN,
+          is_active: true,
+          is_verified: true,
+          roles: {
+            connect: { id: role.id },
+          },
+        },
+      });
+
+      // Create raider
+      const raider = await tx.raider.create({
+        data: {
+          userId: user.id,
+          raider_status: RaiderStatus.ACTIVE,
+          raider_verificationFromAdmin: RaiderVerification.APPROVED,
+        },
+      });
+
+      // Clean DTO
+      const { password, ...registrationData } = dto;
+
+      // Create registration
+      const registration = await tx.raiderRegistration.create({
+        data: {
+          ...registrationData,
+          raiderId: raider.id,
+        },
+      });
+
+      return { user, raider, registration };
+    });
+  }
+
+
+  //
+  async adminUpdateRiderProfile(id: number, dto: UpdateRidersProfileDto) {
+    // 1. Check rider
+    const raider = await this.prisma.raider.findUnique({
+      where: { id },
+    });
+
+    if (!raider) {
+      throw new NotFoundException('Rider not found');
+    }
+
+    // 2. Get registration
     const registration = await this.prisma.raiderRegistration.findFirst({
-      where: { raiderId: Number(raiderExists.id) },
+      where: { raiderId: raider.id },
     });
+
     if (!registration) {
-      return ApiResponses.error('Rider profile not found for this rider');
+      throw new NotFoundException('Rider profile not found');
     }
 
-    const res = await this.prisma.raiderRegistration.update({
+    // 3. Update
+    return this.prisma.raiderRegistration.update({
       where: { id: registration.id },
-      data: { ...updateRidersProfileDto },
+      data: {
+        ...dto,
+      },
     });
-    return res;
   }
 
 }

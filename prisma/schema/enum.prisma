@@ -181,7 +181,6 @@ enum IncentiveType {
   REFERRAL
 }
 
-
 enum CoinEvent {
   FIRST_SIGNUP
   DAILY_LOGIN
@@ -370,9 +369,9 @@ enum Metric {
 enum Operator {
   GTE // >=
   LTE // <=
-  EQ  // =
-  GT  // >
-  LT  // <
+  EQ // =
+  GT // >
+  LT // <
 }
 
 enum DriverType {
@@ -385,8 +384,14 @@ enum IncentiveStatus {
   ACTIVE
   DISABLED
 }
-// enum IncentiveStatus {
-//   COMPLETED
-//   ONGOING
-//   ENDED
-// }
+
+//
+enum LicenseClass {
+  CLASS_2B
+  CLASS_2A
+  CLASS_2
+  CLASS_3
+  CLASS_3A
+  CLASS_4
+  CLASS_5
+}
