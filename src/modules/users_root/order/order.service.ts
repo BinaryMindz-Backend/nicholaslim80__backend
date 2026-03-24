@@ -1912,191 +1912,191 @@ export class OrderService {
   // ** for system use user(admin only)
 
   async findAll(filters: OrderFilterDto) {
-  const {
-    page = 1,
-    limit = 20,
-    startDate,
-    endDate,
-    status,
-    category,
-    search,
-  } = filters;
+    const {
+      page = 1,
+      limit = 20,
+      startDate,
+      endDate,
+      status,
+      category,
+      search,
+    } = filters;
 
-  const skip = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-  const where: any = {};
+    const where: any = {};
 
-  // Search by order ID
-  if (search) {
-    const orderId = parseInt(search.replace(/\D/g, ''), 10);
-    if (!isNaN(orderId)) {
-      where.id = orderId;
+    // Search by order ID
+    if (search) {
+      const orderId = parseInt(search.replace(/\D/g, ''), 10);
+      if (!isNaN(orderId)) {
+        where.id = orderId;
+      }
     }
-  }
 
-  // Filter by status if provided
-  if (status) {
-    where.order_status = status;
-  } else {
-    // Exclude PROGRESS orders if no specific status is provided
-    where.order_status = { not: OrderStatus.PROGRESS };
-  }
-
-  // Filter by category
-  if (category) {
-    where.delivery_type = category;
-  }
-
-  // Filter by date range
-  if (startDate || endDate) {
-    where.created_at = {};
-    if (startDate) where.created_at.gte = new Date(startDate);
-    if (endDate) where.created_at.lte = new Date(endDate);
-  }
-
-  const [orders, total] = await this.prisma.$transaction([
-    this.prisma.order.findMany({
-      where,
-      select: {
-        id: true,
-        userId: true,
-        route_type: true,
-        delivery_type: true,
-        pay_type: true,
-        vehicle_type_id: true,
-        total_cost: true,
-        collect_time: true,
-        scheduled_time: true,
-        has_additional_services: true,
-        notify_favorite_raider: true,
-        payment_method_id: true,
-        assign_rider_id: true,
-        raider_confirmation: true,
-        is_reviewed: true,
-        is_placed: true,
-        is_pickup: true,
-        isBulk: true,
-        order_status: true,
-        is_out_for_delivery: true,
-        created_at: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            phone: true,
-          },
-        },
-        orderStops: true,
-      },
-      orderBy: { created_at: 'desc' },
-      skip,
-      take: limit,
-    }),
-    this.prisma.order.count({ where }),
-  ]);
-
-  return {
-    data: orders,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-  };
-}
-
-  async findAllLiveTrack(filters: OrderFilterDto, userId:number) {
-  const {
-    page = 1,
-    limit = 20,
-    startDate,
-    endDate,
-    status,
-    category,
-    search,
-  } = filters;
-
-  const skip = (page - 1) * limit;
-
-  const where: any = {userId};
-
-  // Search by order ID
-  if (search) {
-    const orderId = parseInt(search.replace(/\D/g, ''), 10);
-    if (!isNaN(orderId)) {
-      where.id = orderId;
+    // Filter by status if provided
+    if (status) {
+      where.order_status = status;
+    } else {
+      // Exclude PROGRESS orders if no specific status is provided
+      where.order_status = { not: OrderStatus.PROGRESS };
     }
-  }
 
-  // Filter by status if provided
-  if (status) {
-    where.order_status = status;
-  } else {
-    // Exclude PROGRESS orders if no specific status is provided
-    where.order_status = { not: OrderStatus.PROGRESS };
-    where.order_status = OrderStatus.PENDING || OrderStatus.ONGOING;
-  }
+    // Filter by category
+    if (category) {
+      where.delivery_type = category;
+    }
 
-  // Filter by category
-  if (category) {
-    where.delivery_type = category;
-  }
+    // Filter by date range
+    if (startDate || endDate) {
+      where.created_at = {};
+      if (startDate) where.created_at.gte = new Date(startDate);
+      if (endDate) where.created_at.lte = new Date(endDate);
+    }
 
-  // Filter by date range
-  if (startDate || endDate) {
-    where.created_at = {};
-    if (startDate) where.created_at.gte = new Date(startDate);
-    if (endDate) where.created_at.lte = new Date(endDate);
-  }
-
-  const [orders, total] = await this.prisma.$transaction([
-    this.prisma.order.findMany({
-      where,
-      select: {
-        id: true,
-        userId: true,
-        route_type: true,
-        delivery_type: true,
-        pay_type: true,
-        vehicle_type_id: true,
-        total_cost: true,
-        collect_time: true,
-        scheduled_time: true,
-        has_additional_services: true,
-        notify_favorite_raider: true,
-        payment_method_id: true,
-        assign_rider_id: true,
-        raider_confirmation: true,
-        is_reviewed: true,
-        is_placed: true,
-        is_pickup: true,
-        isBulk: true,
-        order_status: true,
-        is_out_for_delivery: true,
-        created_at: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            phone: true,
+    const [orders, total] = await this.prisma.$transaction([
+      this.prisma.order.findMany({
+        where,
+        select: {
+          id: true,
+          userId: true,
+          route_type: true,
+          delivery_type: true,
+          pay_type: true,
+          vehicle_type_id: true,
+          total_cost: true,
+          collect_time: true,
+          scheduled_time: true,
+          has_additional_services: true,
+          notify_favorite_raider: true,
+          payment_method_id: true,
+          assign_rider_id: true,
+          raider_confirmation: true,
+          is_reviewed: true,
+          is_placed: true,
+          is_pickup: true,
+          isBulk: true,
+          order_status: true,
+          is_out_for_delivery: true,
+          created_at: true,
+          user: {
+            select: {
+              id: true,
+              username: true,
+              phone: true,
+            },
           },
+          orderStops: true,
         },
-        orderStops: true,
-      },
-      orderBy: { created_at: 'desc' },
-      skip,
-      take: limit,
-    }),
-    this.prisma.order.count({ where }),
-  ]);
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.order.count({ where }),
+    ]);
 
-  return {
-    data: orders,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-  };
-}
+    return {
+      data: orders,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async findAllLiveTrack(filters: OrderFilterDto, userId: number) {
+    const {
+      page = 1,
+      limit = 20,
+      startDate,
+      endDate,
+      status,
+      category,
+      search,
+    } = filters;
+
+    const skip = (page - 1) * limit;
+
+    const where: any = { userId };
+
+    // Search by order ID
+    if (search) {
+      const orderId = parseInt(search.replace(/\D/g, ''), 10);
+      if (!isNaN(orderId)) {
+        where.id = orderId;
+      }
+    }
+
+    // Filter by status if provided
+    if (status) {
+      where.order_status = status;
+    } else {
+      // Exclude PROGRESS orders if no specific status is provided
+      where.order_status = { not: OrderStatus.PROGRESS };
+      where.order_status = OrderStatus.PENDING || OrderStatus.ONGOING;
+    }
+
+    // Filter by category
+    if (category) {
+      where.delivery_type = category;
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      where.created_at = {};
+      if (startDate) where.created_at.gte = new Date(startDate);
+      if (endDate) where.created_at.lte = new Date(endDate);
+    }
+
+    const [orders, total] = await this.prisma.$transaction([
+      this.prisma.order.findMany({
+        where,
+        select: {
+          id: true,
+          userId: true,
+          route_type: true,
+          delivery_type: true,
+          pay_type: true,
+          vehicle_type_id: true,
+          total_cost: true,
+          collect_time: true,
+          scheduled_time: true,
+          has_additional_services: true,
+          notify_favorite_raider: true,
+          payment_method_id: true,
+          assign_rider_id: true,
+          raider_confirmation: true,
+          is_reviewed: true,
+          is_placed: true,
+          is_pickup: true,
+          isBulk: true,
+          order_status: true,
+          is_out_for_delivery: true,
+          created_at: true,
+          user: {
+            select: {
+              id: true,
+              username: true,
+              phone: true,
+            },
+          },
+          orderStops: true,
+        },
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return {
+      data: orders,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 
   // ** bulk order system
   async findAllBulk(dto: PaginationDto, user: IUser) {
@@ -2223,11 +2223,10 @@ export class OrderService {
                 raider_name: true,
                 contact_number: true,
                 email_address: true,
-                current_state_province: true,
-                current_city: true,
-                current_zip_post_code: true,
-                current_country: true,
+                current_postal_code: true,
+                current_unit: true,
                 current_address: true,
+                current_country: true,
               }
             },
             locations: true
