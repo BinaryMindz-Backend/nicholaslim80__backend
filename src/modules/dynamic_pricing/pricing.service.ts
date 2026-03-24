@@ -17,7 +17,6 @@ export async function calculatePriceWithFee(params: {
   distanceKm: number;
   vehicle: Prisma.VehicleTypeUncheckedCreateInput;
   deliveryType: Prisma.DeliveryTypeUncheckedCreateInput;
-  deliveryTypeEnum: DeliveryTypeName;
   zone: DeliveryZone;
   orderDate: Date;
 }): Promise<PricingBreakdown> {
@@ -26,7 +25,6 @@ export async function calculatePriceWithFee(params: {
     distanceKm,
     vehicle,
     deliveryType,
-    deliveryTypeEnum,
     zone,
     orderDate,
   } = params;
@@ -41,28 +39,28 @@ export async function calculatePriceWithFee(params: {
 
   let price = base + deliveryTypeCharge;
 
-  /* ---------------- user fees ---------------- */
-  const fees = await prisma.userFeeStructure.findMany({
-    where: {
-      is_active: true,
-      service_area_id: zone.id,
-      OR: [
-        { applies_to: FeeAppliesType.ALL_ORDERS },
-        {
-          applies_to: FeeAppliesType.ORDER_LESS,
-          condition_value: { gt: price },
-        },
-        { applies_to: mapDeliveryType(deliveryTypeEnum) },
-      ],
-    },
-  });
+  /* ---------------- user fees ---------------- */ //TODO: need to fix
+  // const fees = await prisma.userFeeStructure.findMany({
+  //   where: {
+  //     is_active: true,
+  //     service_area_id: zone.id,
+  //     OR: [
+  //       { applies_to: FeeAppliesType.ALL_ORDERS },
+  //       {
+  //         applies_to: FeeAppliesType.ORDER_LESS,
+  //         condition_value: { gt: price },
+  //       },
+  //       { applies_to: mapDeliveryType(deliveryType.name) },
+  //     ],
+  //   },
+  // });
 
-  const userFeeTotal = fees.reduce(
-    (s, f) => s + Number(f.amount),
-    0,
-  );
+  // const userFeeTotal = fees.reduce(
+  //   (s, f) => s + Number(f.amount),
+  //   0,
+  // );
 
-  price += userFeeTotal;
+  // price += userFeeTotal;
 
   /* ---------------- zone fee ---------------- */
   let zoneFee = 0;
@@ -118,10 +116,12 @@ export async function calculatePriceWithFee(params: {
   return {
     basePrice: base,
     deliveryTypeCharge,
-    userFeeTotal,
+    // userFeeTotal,
+    userFeeTotal: 0,
     zoneFee,
     surgeAmount,
-    totalFee: userFeeTotal + zoneFee + surgeAmount,
+    totalFee: zoneFee + surgeAmount,
+    //    totalFee: userFeeTotal + zoneFee + surgeAmount,
     totalPrice: Number(price.toFixed(2)),
   };
 }

@@ -23,9 +23,9 @@ export class CreateOrderDto {
   @IsOptional()
   isFixed: boolean;
 
-  @ApiProperty({ enum: DeliveryTypeName, default: DeliveryTypeName.EXPRESS })
-  @IsEnum(DeliveryTypeName)
-  delivery_type: DeliveryTypeName;
+  @ApiProperty({ example: 1 })
+  @IsInt()
+  delivery_type_id: number;
 
   @ApiPropertyOptional({ example: 3 })
   @IsInt()

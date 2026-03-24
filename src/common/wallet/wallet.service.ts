@@ -732,6 +732,12 @@ export class WalletService {
             fcmToken: true
           }
         },
+        delivery_type: {
+          select: {
+            name: true,
+            id: true
+          }
+        },
         vehicle: {
           select: {
             vehicle_type: true,
@@ -816,7 +822,7 @@ export class WalletService {
                 totalOrderCost: String(order.total_cost),
                 totalFee: String(order.total_fee),
                 vehicleType: order.vehicle!,
-                deliveryType: order.delivery_type,
+                deliveryType: order.delivery_type.name,
                 orderStop: order.orderStops,
               }
             );
@@ -1095,71 +1101,71 @@ export class WalletService {
   // 
   async userWallet(dto: UserWalletQueryDto) {
 
-  const page = dto.page || 1;
-  const limit = dto.limit || 10;
+    const page = dto.page || 1;
+    const limit = dto.limit || 10;
 
-  const skip = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-  const where: any = {
-    roles: {
-      some: { name: dto.role },
-    },
-  };
-
-  // Search
-  if (dto.search) {
-    where.OR = [
-      { username: { contains: dto.search, mode: 'insensitive' } },
-      { email: { contains: dto.search, mode: 'insensitive' } },
-      { phone: { contains: dto.search, mode: 'insensitive' } },
-    ];
-  }
-
-  // Date Filter
-  if (dto.startDate || dto.endDate) {
-    where.created_at = {};
-
-    if (dto.startDate) {
-      where.created_at.gte = new Date(dto.startDate);
-    }
-
-    if (dto.endDate) {
-      where.created_at.lte = new Date(dto.endDate);
-    }
-  }
-
-  // Sorting
-  const orderBy = dto.balanceSort
-    ? { currentWalletBalance: dto.balanceSort }
-    : { createdAt: 'desc' };
-
-  const [total, data] = await Promise.all([
-    this.prisma.user.count({ where }),
-
-    this.prisma.user.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy,
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        totalWalletBalance: true,
-        currentWalletBalance: true,
-        created_at: true,
+    const where: any = {
+      roles: {
+        some: { name: dto.role },
       },
-    }),
-  ]);
+    };
 
-  return {
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-    data,
-  };
-}
+    // Search
+    if (dto.search) {
+      where.OR = [
+        { username: { contains: dto.search, mode: 'insensitive' } },
+        { email: { contains: dto.search, mode: 'insensitive' } },
+        { phone: { contains: dto.search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Date Filter
+    if (dto.startDate || dto.endDate) {
+      where.created_at = {};
+
+      if (dto.startDate) {
+        where.created_at.gte = new Date(dto.startDate);
+      }
+
+      if (dto.endDate) {
+        where.created_at.lte = new Date(dto.endDate);
+      }
+    }
+
+    // Sorting
+    const orderBy = dto.balanceSort
+      ? { currentWalletBalance: dto.balanceSort }
+      : { createdAt: 'desc' };
+
+    const [total, data] = await Promise.all([
+      this.prisma.user.count({ where }),
+
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          totalWalletBalance: true,
+          currentWalletBalance: true,
+          created_at: true,
+        },
+      }),
+    ]);
+
+    return {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      data,
+    };
+  }
 
 
   // user wallet history with filter and pagination

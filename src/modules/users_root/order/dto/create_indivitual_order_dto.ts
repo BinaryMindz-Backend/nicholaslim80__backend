@@ -22,20 +22,20 @@ export class CreateIndiOrderDto {
   @IsEnum(RouteType)
   route_type: RouteType;
 
-  @ApiProperty({example:false})
+  @ApiProperty({ example: false })
   @IsBoolean()
   @IsOptional()
   isFixed: boolean;
 
-  @ApiProperty({ enum: DeliveryTypeName, default: DeliveryTypeName.EXPRESS })
-  @IsEnum(DeliveryTypeName)
-  delivery_type: DeliveryTypeName;
+  @ApiProperty({ example: 1 })
+  @IsInt()
+  delivery_type_id: number;
 
   @ApiProperty({ example: 3 })
   @IsInt()
   vehicle_type_id: number;
 
-  @ApiProperty({enum:CollectTime, default: CollectTime.ASAP })
+  @ApiProperty({ enum: CollectTime, default: CollectTime.ASAP })
   @IsEnum(CollectTime)
   collect_time: CollectTime;
 
@@ -70,7 +70,7 @@ export class CreateIndiOrderDto {
   // @IsInt()
   // @IsOptional()
   // payment_method_id?: number;
-   
+
   // @ApiPropertyOptional({ enum: PayType, default: PayType.COD })
   // @IsEnum(PayType)
   // @IsOptional()
