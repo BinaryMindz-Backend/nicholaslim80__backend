@@ -21,6 +21,8 @@ model DeliveryType {
 
   // relation with vehicle types (many-to-many)
   vehicle_types DeliveryTypeVehicle[]
+  // orders
+  orders        Order[]
 
   is_active Boolean @default(true)
 

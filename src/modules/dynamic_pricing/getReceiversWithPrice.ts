@@ -16,7 +16,7 @@ export async function getReceiversWithPrice(
   prisma: PrismaService,
   sender: Receiver,
   receivers: Receiver[],
-  deliveryTypeEnum: DeliveryTypeName,
+  deliveryTypeId: number,
   vehicleTypeId: number,
   zone: DeliveryZone,
   options?: RouteOptions,
@@ -24,7 +24,7 @@ export async function getReceiversWithPrice(
 
   const [deliveryType, vehicle] = await Promise.all([
     prisma.deliveryType.findFirst({
-      where: { name: deliveryTypeEnum, is_active: true },
+      where: { id: deliveryTypeId, is_active: true },
     }),
     prisma.vehicleType.findUnique({ where: { id: vehicleTypeId } }),
   ]);
@@ -48,7 +48,6 @@ export async function getReceiversWithPrice(
     distanceKm: totalDistanceKm,
     vehicle,
     deliveryType,
-    deliveryTypeEnum,
     zone,
     orderDate: new Date(),
   });
@@ -76,14 +75,14 @@ export async function getReceiversWithIndividualPrice(
   prisma: PrismaService,
   sender: Receiver,
   receivers: Receiver[],
-  deliveryTypeEnum: DeliveryTypeName,
+  deliveryTypeId: number,
   vehicleTypeId: number,
   zone: DeliveryZone,
   options?: RouteOptions,
 ): Promise<ReceiverWithPricing[]> {
   const [deliveryType, vehicle] = await Promise.all([
     prisma.deliveryType.findFirst({
-      where: { name: deliveryTypeEnum, is_active: true },
+      where: { id: deliveryTypeId, is_active: true },
     }),
     prisma.vehicleType.findUnique({ where: { id: vehicleTypeId } }),
   ]);
@@ -114,7 +113,6 @@ export async function getReceiversWithIndividualPrice(
       distanceKm: finalDistanceKm,
       vehicle,
       deliveryType,
-      deliveryTypeEnum,
       zone,
       orderDate: new Date(),
     });

@@ -76,7 +76,7 @@ export class DeliveryTypeService {
     // লগ (basic log)
     await this.prisma.activityLog.create({
       data: {
-        action: 'CREATE_DELIVERY_TYPE',
+        action: 'CREATE',
         entity_id: deliveryType.id,
         entity_type: 'DeliveryType',
         user_id: user.id,

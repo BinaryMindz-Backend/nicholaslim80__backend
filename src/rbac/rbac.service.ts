@@ -386,34 +386,65 @@ export class RbacService implements OnModuleInit {
   // 
   // Service
   async findAllBySearch(dto: SearchDto) {
+    const searchTerm = dto.search?.trim();
 
-    const searchTerm = dto.search.trim();
+    if (!searchTerm) {
+      return {
+        orders: [],
+        users: [],
+        raiders: [],
+      };
+    }
+
     const isNumeric = !isNaN(Number(searchTerm));
+    const upperSearch = searchTerm.toUpperCase();
 
-    // Search in 3 tables parallelly
     const [orderResults, userResults, raiderResults] = await Promise.all([
-      // 1. Search in ORDER table
+      // ---------------- ORDER ----------------
       this.prisma.order.findMany({
         where: {
           OR: [
             // Order ID
             ...(isNumeric ? [{ id: Number(searchTerm) }] : []),
 
-            // Order status (enum exact match)
-            ...(Object.values(OrderStatus).includes(searchTerm.toUpperCase() as OrderStatus)
-              ? [{ order_status: searchTerm.toUpperCase() as OrderStatus }]
+            // Order status
+            ...(Object.values(OrderStatus).includes(upperSearch as OrderStatus)
+              ? [{ order_status: upperSearch as OrderStatus }]
               : []),
 
+            // Delivery Type (relation search)
+            {
+              delivery_type: {
+                is: {
+                  name: {
+                    contains: searchTerm,
+                    mode: 'insensitive',
+                  },
+                },
+              },
+            },
 
-            // Delivery type (enum exact match)
-            ...(Object.values(DeliveryTypeName).includes(searchTerm.toUpperCase() as DeliveryTypeName)
-              ? [{ delivery_type: searchTerm.toUpperCase() as DeliveryTypeName }]
-              : []),
+            // Service Zone (optional)
+            {
+              serviceZone: {
+                is: {
+                  name: {
+                    contains: searchTerm,
+                    mode: 'insensitive',
+                  },
+                },
+              },
+            },
           ],
+        },
+        include: {
+          user: true,
+          delivery_type: true,
+          serviceZone: true,
         },
       }),
 
-      // 2. Search in USER table
+      // ---------------- USER ----------------
       this.prisma.user.findMany({
         where: {
           OR: [
@@ -424,10 +455,10 @@ export class RbacService implements OnModuleInit {
         },
         include: {
           roles: true,
-        }
+        },
       }),
 
-      // 3. Search in RAIDER table
+      // ---------------- RAIDER ----------------
       this.prisma.raider.findMany({
         where: {
           registrations: {
@@ -443,18 +474,16 @@ export class RbacService implements OnModuleInit {
           },
         },
         include: {
-          registrations: true
-        }
+          registrations: true,
+        },
       }),
     ]);
 
     return {
       orders: orderResults,
       users: userResults,
-      raiders: raiderResults
-    }
-
-
+      raiders: raiderResults,
+    };
   }
 
   //

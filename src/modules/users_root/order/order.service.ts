@@ -57,7 +57,7 @@ export class OrderService {
           userId: user.id,
           total_cost: 0,
           pay_type: undefined,
-          delivery_type: dto.delivery_type,
+          delivery_type_id: dto.delivery_type_id,
           vehicle_type_id: dto.vehicle_type_id,
           route_type: dto.route_type ?? RouteType.ONE_WAY,
           order_status: OrderStatus.PROGRESS,
@@ -283,7 +283,7 @@ export class OrderService {
 
     // Track if price needs recalculation
     const needsRecalculation =
-      dto.delivery_type !== undefined ||
+      dto.delivery_type_id !== undefined ||
       dto.isFixed !== undefined ||
       dto.vehicle_type_id !== undefined ||
       dto.route_type !== undefined ||
@@ -293,16 +293,12 @@ export class OrderService {
     await this.prisma.order.update({
       where: { id: orderId },
       data: {
-        ...(dto.delivery_type && { delivery_type: dto.delivery_type }),
-        ...(dto.isFixed && { isFixed: dto.isFixed }),
-        ...(dto.route_type && { route_type: dto.route_type }),
-        ...(dto.collect_time && { collect_time: dto.collect_time }),
-        ...(dto.scheduled_time && { scheduled_time: dto.scheduled_time }),
-        ...(dto.vehicle_type_id && {
-          vehicle: {
-            connect: { id: dto.vehicle_type_id },
-          },
-        }),
+        ...(dto.delivery_type_id !== undefined && { delivery_type_id: dto.delivery_type_id }),
+        ...(dto.isFixed !== undefined && { isFixed: dto.isFixed }),
+        ...(dto.route_type !== undefined && { route_type: dto.route_type }),
+        ...(dto.collect_time !== undefined && { collect_time: dto.collect_time }),
+        ...(dto.scheduled_time !== undefined && { scheduled_time: dto.scheduled_time }),
+        ...(dto.vehicle_type_id !== undefined && { vehicle_type_id: dto.vehicle_type_id }),
       },
     });
 
@@ -333,6 +329,13 @@ export class OrderService {
           select: {
             vehicle_type: true,
             id: true,
+          }
+        },
+        delivery_type: {
+          select: {
+            id: true,
+            name: true,
+
           }
         },
         orderStops: {
@@ -508,7 +511,7 @@ export class OrderService {
                 totalOrderCost: String(order.total_cost),
                 totalFee: String(order.total_fee),
                 vehicleType: order.vehicle!,
-                deliveryType: order.delivery_type,
+                deliveryType: order.delivery_type.name,
                 orderStop: order.orderStops
               },
             )
@@ -1216,7 +1219,7 @@ export class OrderService {
       this.prisma,
       sender,
       receiverDestinations.map((d) => ({ lat: d.latitude, lng: d.longitude })),
-      payload.delivery_type,
+      payload.delivery_type_id,
       payload.vehicle_type_id,
       orderServiceZone,
       {
@@ -1237,7 +1240,7 @@ export class OrderService {
           serviceZoneId: Number(orderServiceZoneId),
           userId: user.id,
           route_type: payload.route_type,
-          delivery_type: payload.delivery_type,
+          delivery_type_id: payload.delivery_type_id,
           collect_time: payload.collect_time,
           scheduled_time: payload.scheduled_time,
           vehicle_type_id: payload.vehicle_type_id,
@@ -1400,6 +1403,11 @@ export class OrderService {
             phone: true,
           },
         },
+        delivery_type: {
+          select: {
+            name: true,
+          },
+        },
         vehicle: {
           select: {
             vehicle_type: true,
@@ -1429,7 +1437,7 @@ export class OrderService {
         user_name: order.user?.username ?? '',
         user_phone: order.user?.phone ?? '',
         route_type: order.route_type,
-        delivery_type: order.delivery_type,
+        delivery_type: order.delivery_type.name,
         pay_type: order.pay_type,
         collect_time: order.collect_time,
         vehicle_type: order.vehicle?.vehicle_type ?? '',
@@ -2240,7 +2248,7 @@ export class OrderService {
     const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
     const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
 
-    // ✅ ADD: Calculate pricing breakdown for display
+    // ADD: Calculate pricing breakdown for display
     if (order.is_placed && pickupStop && dropStops.length > 0) {
       const zone = await this.serviceZone.findZoneByPoint(
         pickupStop.latitude,
@@ -2258,13 +2266,13 @@ export class OrderService {
           this.prisma,
           sender,
           receivers,
-          order.delivery_type,
+          order.delivery_type_id,
           order.vehicle_type_id ?? 1,
           zone,
           { isRoundTrip: order.route_type === RouteType.ROUND },
         );
         const totalDistance = pricingResults.reduce((total, result) => total + result.distanceKm, 0);
-        // ✅ ADD: Enrich stops with pricing details
+        // Enrich stops with pricing details
         const enrichedStops = order.orderStops.map((stop) => {
           if (stop.type === StopType.PICKUP) return stop;
 
@@ -2741,7 +2749,7 @@ export class OrderService {
       this.prisma,
       sender,
       receivers,
-      order.delivery_type,
+      order.delivery_type_id,
       order.vehicle_type_id ?? 1,
       zone,
       { isRoundTrip: order.route_type === RouteType.ROUND },
@@ -3205,9 +3213,9 @@ export class OrderService {
       }
 
       /* -------------------- Validate delivery type -------------------- */
-      const deliveryTypeEnum = row.delivery_type as DeliveryTypeName;
+      const deliveryType = row.delivery_type;
       const deliveryTypeExists = await this.prisma.deliveryType.findFirst({
-        where: { name: deliveryTypeEnum, is_active: true },
+        where: { name: deliveryType, is_active: true },
       });
 
       if (!deliveryTypeExists) {
@@ -3219,7 +3227,7 @@ export class OrderService {
 
       /* -------------------- Validate vehicle type -------------------- */
       const vehicle = await this.prisma.vehicleType.findFirst({
-        where: { vehicle_type: row.vehicle_type },
+        where: { vehicle_type: row.vehicle_type, isActive: true },
       });
 
       if (!vehicle) {
@@ -3285,7 +3293,7 @@ export class OrderService {
         this.prisma,
         sender,
         receivers,
-        deliveryTypeEnum,
+        deliveryType.id,
         vehicle.id,
         zone,
         {
@@ -3324,7 +3332,7 @@ export class OrderService {
             userId,
             serviceZoneId: zone.id,
             route_type: row.route_type || RouteType.ONE_WAY,
-            delivery_type: deliveryTypeEnum,
+            delivery_type_id: row.delivery_type_id,
             collect_time: row.collect_time || 'ASAP',
             scheduled_time: row.scheduled_time || null,
             vehicle_type_id: vehicle.id,

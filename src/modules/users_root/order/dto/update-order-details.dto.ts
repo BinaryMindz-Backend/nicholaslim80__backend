@@ -3,10 +3,10 @@ import { CollectTime, DeliveryTypeName, RouteType } from "@prisma/client";
 import { IsBoolean, IsDateString, IsEnum, IsNumber, IsOptional } from "class-validator";
 
 export class UpdateOrderDetailsDto {
-  @ApiPropertyOptional({ enum: DeliveryTypeName })
-  @IsEnum(DeliveryTypeName)
+  @ApiPropertyOptional({ example: 1 })
+  @IsNumber()
   @IsOptional()
-  delivery_type?: DeliveryTypeName;
+  delivery_type_id?: number;
 
   @ApiPropertyOptional({ example: false })
   @IsBoolean()
