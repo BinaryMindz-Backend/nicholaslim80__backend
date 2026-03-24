@@ -1,208 +1,212 @@
-
-import { Optional } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Gender, VehicleTypeEnum } from '@prisma/client';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsDateString,
+  IsArray,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { Gender, LicenseClass } from '@prisma/client';
 
-export class CreateRidersProfileDto {
-  // --- Personal ---
+
+export class CreateRiderRegistrationDto {
+
+  // ---------------- PERSONAL ----------------
   @ApiProperty({ example: "Shariar Rahman" })
+  @IsString()
   @IsNotEmpty()
   raider_name: string;
 
   @ApiProperty({ example: "01712345678" })
+  @IsString()
   @IsNotEmpty()
   contact_number: string;
 
   @ApiProperty({ example: "shariar@gmail.com" })
+  @IsString()
   @IsNotEmpty()
   email_address: string;
 
   @ApiProperty({ example: "2004-05-12T00:00:00.000Z" })
-  @IsNotEmpty()
+  @IsDateString()
   dob: Date;
 
-  @ApiProperty({ example: Gender.MALE })
-  @IsNotEmpty()
+  @ApiProperty({ enum: Gender, example: Gender.MALE })
+  @IsEnum(Gender)
   gender: Gender;
 
   @ApiProperty({ example: ["driver1.jpg", "driver2.jpg"] })
-  @IsNotEmpty()
+  @IsArray()
   driver_photos: string[];
 
   @ApiProperty({ example: "Abdul Karim" })
-  @IsNotEmpty()
+  @IsString()
   emergency_contact_name: string;
 
   @ApiProperty({ example: "01812345678" })
-  @IsNotEmpty()
+  @IsString()
   emergency_contact_number: string;
 
-  // --- Identity ---
-  @ApiProperty({ example: "1234567890" })
-  @IsNotEmpty()
+  // ---------------- IDENTITY ----------------
+  @ApiProperty({ example: "S1234567A" })
+  @IsString()
   identity_card_number: string;
 
-  @ApiProperty({ example: "nid_front.jpg" })
-  @IsNotEmpty()
-  nid_front_images: string;
+  @ApiProperty({ example: "2020-01-01T00:00:00.000Z" })
+  @IsDateString()
+  identity_card_issue_date: Date;
 
-  @ApiProperty({ example: "nid_back.jpg" })
-  @IsNotEmpty()
-  nid_back_images: string;
+  @ApiProperty({ example: "nric_front.jpg" })
+  @IsString()
+  nric_front_images: string;
 
+  @ApiProperty({ example: "nric_back.jpg" })
+  @IsString()
+  nric_back_images: string;
+
+  // ---------------- DRIVING LICENSE ----------------
   @ApiProperty({ example: "DL-589623" })
-  @IsNotEmpty()
+  @IsString()
   driving_license_number: string;
 
   @ApiProperty({ example: "2020-01-10T00:00:00.000Z" })
-  @IsNotEmpty()
+  @IsDateString()
   driving_license_issue_date: Date;
 
   @ApiProperty({ example: "2030-01-10T00:00:00.000Z" })
-  @IsNotEmpty()
+  @IsDateString()
   driving_license_expire_date: Date;
 
+  @ApiProperty({ enum: LicenseClass, example: LicenseClass.CLASS_3 })
+  @IsEnum(LicenseClass)
+  license_class: LicenseClass;
+
   @ApiProperty({ example: "dl_front.jpg" })
-  @IsNotEmpty()
+  @IsString()
   driving_license_front_images: string;
 
   @ApiProperty({ example: "dl_back.jpg" })
-  @IsNotEmpty()
+  @IsString()
   driving_license_back_images: string;
 
-  // --- Vehicle ---
+  // ---------------- VEHICLE ----------------
   @ApiProperty({ example: "DHA-12345" })
-  @IsNotEmpty()
+  @IsString()
   vehicle_plate_number: string;
 
-  @ApiProperty({ example: VehicleTypeEnum.MOTORCYCLE })
-  @IsNotEmpty()
-  vehicle_type: VehicleTypeEnum;
+  @ApiProperty({ example: 1, description: "Vehicle Type ID from admin" })
+  @Type(() => Number)
+  @IsNumber()
+  vehicle_type_id: number;
 
   @ApiProperty({ example: "Honda" })
-  @IsNotEmpty()
+  @IsString()
   vehicle_brand: string;
 
+  @ApiProperty({ example: "Civic 2022" })
+  @IsString()
+  vehicle_model: string;
+
   @ApiProperty({ example: "2024-02-15T00:00:00.000Z" })
-  @IsNotEmpty()
+  @IsDateString()
   registration_date: Date;
 
   @ApiProperty({ example: "vehicle_front.jpg" })
-  @IsNotEmpty()
+  @IsString()
   vehicle_front_images: string;
 
   @ApiProperty({ example: "vehicle_back.jpg" })
-  @IsNotEmpty()
+  @IsString()
   vehicle_back_images: string;
 
-  @ApiProperty({ example: "vehicle_driver_side.jpg" })
-  @IsNotEmpty()
+  @ApiProperty({ example: "driver_side.jpg" })
+  @IsString()
   vehicle_driver_side_images: string;
 
-  @ApiProperty({ example: "vehicle_passenger_side.jpg" })
-  @IsNotEmpty()
+  @ApiProperty({ example: "passenger_side.jpg" })
+  @IsString()
   vehicle_passenger_side_images: string;
 
-  // --- Log & Insurance ---
-  @ApiProperty({ example: "LOG-872364" })
-  @IsNotEmpty()
-  vehicle_log_number: string;
+  // ---------------- LOG ----------------
+  @ApiProperty({ example: "CHS-123456789" })
+  @IsString()
+  chassis_number: string;
 
-  @ApiProperty({ example: "2023-05-01T00:00:00.000Z" })
-  @IsNotEmpty()
-  vehicle_log_issue_date: Date;
-
-  @ApiProperty({ example: "2025-05-01T00:00:00.000Z" })
-  @IsNotEmpty()
-  vehicle_log_expire_date: Date;
-
-  @ApiProperty({ example: "log.jpg" })
-  @IsNotEmpty()
+  @ApiProperty({ example: "log_card.jpg" })
+  @IsString()
   vehicle_log_images: string;
 
-  @ApiProperty({ example: "POLICY-21343" })
-  @IsNotEmpty()
-  vehicle_policy_number: string;
+  // ---------------- INSURANCE ----------------
+  @ApiProperty({ example: "POLICY-12345" })
+  @IsString()
+  insurance_policy_number: string;
 
   @ApiProperty({ example: "2024-01-01T00:00:00.000Z" })
-  @IsNotEmpty()
-  vehicle_policy_issue_date: Date;
+  @IsDateString()
+  insurance_issue_date: Date;
 
   @ApiProperty({ example: "2026-01-01T00:00:00.000Z" })
-  @IsNotEmpty()
-  vehicle_policy_expire_date: Date;
+  @IsDateString()
+  insurance_expiry_date: Date;
 
-  @ApiProperty({ example: "policy.jpg" })
-  @IsNotEmpty()
-  vehicle_policy_images: string;
+  @ApiProperty({ example: "insurance.jpg" })
+  @IsString()
+  insurance_policy_images: string;
 
-  // --- Current Address ---
-  @ApiProperty({ example: "House 12, Road 5" })
-  @IsNotEmpty()
+  // ---------------- CURRENT ADDRESS ----------------
+  @ApiProperty({ example: "1205" })
+  @IsString()
+  current_postal_code: string;
+
+  @ApiProperty({ example: "Block 123, Street 45" })
+  @IsString()
   current_address: string;
 
-  @ApiProperty({ example: "Apartment 4B" })
-  @IsNotEmpty()
-  current_apartment: string;
-
-  @ApiPropertyOptional({ example: "Dhaka Division" })
+  @ApiPropertyOptional({ example: "Unit 12-05" })
   @IsOptional()
-  current_state_province?: string;
+  @IsString()
+  current_unit?: string;
 
-  @ApiProperty({ example: "Dhaka" })
-  @IsNotEmpty()
-  current_city: string;
-
-  @ApiPropertyOptional({ example: "Singapur" })
+  @ApiPropertyOptional({ example: "Singapore", default: "Singapore" })
   @IsOptional()
-  current_country?: string;
+  @IsString()
+  current_country?: string = 'Singapore';
 
-  @ApiProperty({ example: "1205" })
-  @IsNotEmpty()
-  current_zip_post_code: string;
+  // ---------------- PERMANENT ADDRESS ----------------
+  @ApiProperty({ example: "6201" })
+  @IsString()
+  permanent_postal_code: string;
 
-  // --- Permanent Address ---
-  @ApiProperty({ example: "Village Road 3" })
-  @IsNotEmpty()
+  @ApiProperty({ example: "Permanent Address" })
+  @IsString()
   permanent_address: string;
 
-  @ApiProperty({ example: "N/A" })
-  @IsNotEmpty()
-  permanent_apartment: string;
-
-  @ApiPropertyOptional({ example: "Write Your Division" })
+  @ApiPropertyOptional({ example: "Unit 5A" })
   @IsOptional()
-  permanent_state_province?: string;
-
-  @ApiProperty({ example: "Hebek" })
-  @IsNotEmpty()
-  permanent_city: string;
-
-  @ApiPropertyOptional({ example: "Singapur" })
-  @IsOptional()
-  permanent_country?: string;
-
-  @ApiProperty({ example: "6201" })
-  @IsNotEmpty()
-  permanent_zip_post_code: string;
-
-  // --- Bank ---
-  @ApiProperty({ example: "Dutch-Bangla Bank" })
-  @IsNotEmpty()
-  bank_name: string;
-
-  @ApiProperty({ example: "01123456789" })
-  @IsNotEmpty()
-  account_number: string;
-
-  // password just for rider
-  @ApiPropertyOptional({example : "12345678"})
-  @Optional()
   @IsString()
-  password?:string
+  permanent_unit?: string;
+
+  @ApiPropertyOptional({ example: "Singapore", default: "Singapore" })
+  @IsOptional()
+  @IsString()
+  permanent_country?: string = 'Singapore';
+
+  // ---------------- BANK ----------------
+  @ApiPropertyOptional({ example: "DBS Bank" })
+  @IsOptional()
+  @IsString()
+  bank_name?: string;
+
+  @ApiPropertyOptional({ example: "1234567890" })
+  @IsOptional()
+  @IsString()
+  account_number?: string;
+
+  @ApiPropertyOptional({ example: "1234567890" })
+  @IsOptional()
+  @IsString()
+  password?: string;
 }
-
-
-
-
