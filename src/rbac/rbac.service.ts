@@ -137,7 +137,7 @@ export class RbacService implements OnModuleInit {
   //  
   async getAllRoles(query: RoleQueryDto) {
     const { search, page = 1, limit = 10 } = query;
-    
+
     // Calculate how many records to skip
     const skip = (page - 1) * limit;
 
@@ -437,7 +437,7 @@ export class RbacService implements OnModuleInit {
                 { current_address: { contains: searchTerm, mode: 'insensitive' } },
                 { contact_number: { contains: searchTerm, mode: 'insensitive' } },
                 { email_address: { contains: searchTerm, mode: 'insensitive' } },
-                { permanent_city: { contains: searchTerm, mode: 'insensitive' } },
+                { permanent_address: { contains: searchTerm, mode: 'insensitive' } },
               ],
             },
           },
