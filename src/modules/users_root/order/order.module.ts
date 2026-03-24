@@ -14,22 +14,24 @@ import { WalletService } from 'src/common/wallet/wallet.service';
 import { OrderGateway } from './order.gateway';
 import { RaiderModule } from 'src/modules/raider_root/raider gateways/raider.module';
 import { UserGateway } from '../users/user.gateways';
+import { ActivityLogService } from 'src/modules/superadmin_root/additional_services/activity_logs.services';
 
 
 @Module({
-  imports:[
-      RedisModule,
-      NotificationModule, 
-      QueueModule, 
-      WalletModule,
-      forwardRef(()=> RaiderModule)
-    ],
+  imports: [
+    RedisModule,
+    NotificationModule,
+    QueueModule,
+    WalletModule,
+    forwardRef(() => RaiderModule)
+  ],
   controllers: [OrderController],
-  providers: [OrderService, TransactionIdService, CompetitionWorker,SmsService, ServiceZoneService,GeoService, WalletService, OrderGateway, UserGateway],
-  exports:[
+  providers: [OrderService, TransactionIdService, CompetitionWorker, SmsService, ServiceZoneService, GeoService, WalletService, OrderGateway, UserGateway, ActivityLogService],
+  exports: [
     OrderService,
     OrderGateway,
-    UserGateway
+    UserGateway,
+    ActivityLogService
   ]
 })
-export class OrderModule {}
+export class OrderModule { }

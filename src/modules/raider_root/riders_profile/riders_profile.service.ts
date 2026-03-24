@@ -205,7 +205,7 @@ export class RidersProfileService {
 
 
   // 
-  async verifyRiderProfile(id: number, verify: RaiderVerification) {
+  async verifyRiderProfile(id: number, verify: RaiderVerification, userId: number) {
 
     const r = await this.prisma.raider.findUnique({
       where: { id: Number(id) }
@@ -220,116 +220,139 @@ export class RidersProfileService {
     });
 
     if (!registration) {
-      throw new NotFoundException('Rider registration not found for this rider');
+      throw new NotFoundException('Rider registration not found');
     }
+
+    const before = {
+      verification: r.raider_verificationFromAdmin,
+      status: r.raider_status
+    };
+
+    let status: RaiderStatus = RaiderStatus.IN_ACTIVE;
 
     if (verify === RaiderVerification.APPROVED) {
-      // 
-      const updatedProfile = await this.prisma.raider.update({
-        where: { id: r.id },
-        data: {
-          raider_verificationFromAdmin: verify,
-          raider_status: RaiderStatus.ACTIVE
-        },
-      });
-
-      return updatedProfile;
+      status = RaiderStatus.ACTIVE;
     }
 
-    //  
-    if (verify === RaiderVerification.PENDING) {
-      // 
-      const updatedProfile = await this.prisma.raider.update({
-        where: { id: r.id },
-        data: {
-          raider_verificationFromAdmin: verify,
-          raider_status: RaiderStatus.IN_ACTIVE
+    const updatedProfile = await this.prisma.raider.update({
+      where: { id: r.id },
+      data: {
+        raider_verificationFromAdmin: verify,
+        raider_status: status
+      },
+    });
+
+    // LOG
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'UPDATE',
+        entity_type: 'Raider',
+        entity_id: r.id,
+        user_id: userId,
+        meta: {
+          type: 'verify_rider',
+          before,
+          after: {
+            verification: verify,
+            status
+          }
         },
-      });
+      },
+    });
 
-      return updatedProfile;
-    }
-    // 
-
-    if (verify === RaiderVerification.REJECTED) {
-      // 
-      const updatedProfile = await this.prisma.raider.update({
-        where: { id: r.id },
-        data: {
-          raider_verificationFromAdmin: verify,
-          raider_status: RaiderStatus.IN_ACTIVE
-        },
-      });
-
-      return updatedProfile;
-    }
-
+    return updatedProfile;
   }
 
 
 
   // 
-  async update(id: number, updateRidersProfileDto: UpdateRidersProfileDto) {
+  async update(id: number, dto: UpdateRidersProfileDto, userId: number) {
 
-    const raiderExists = await this.prisma.raider.findUnique({
+    const raider = await this.prisma.raider.findUnique({
       where: { userId: Number(id) },
     });
 
-    if (!raiderExists) {
+    if (!raider) {
       throw new NotFoundException('Rider profile not found');
     }
-    console.log(raiderExists);
-    // find the registration for this raider
+
     const registration = await this.prisma.raiderRegistration.findFirst({
-      where: { raiderId: Number(raiderExists.id) },
+      where: { raiderId: raider.id },
     });
-    console.log({ registration });
+
     if (!registration) {
-      throw new NotFoundException('Rider registration not found for this rider');
+      throw new NotFoundException('Rider registration not found');
     }
 
-    const res = await this.prisma.raiderRegistration.update({
+    const updated = await this.prisma.raiderRegistration.update({
       where: { id: registration.id },
-      data: { ...updateRidersProfileDto },
+      data: { ...dto },
     });
-    return res;
+
+    // LOG
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'UPDATE',
+        entity_type: 'Raider',
+        entity_id: registration.id,
+        user_id: userId,
+        meta: {
+          type: 'self_update',
+          before: registration,
+          after: updated,
+        },
+      },
+    });
+
+    return updated;
   }
 
 
   // 
-  async remove(userId: number) {
-    // 
-    const record = await this.prisma.raider.findFirst({
-      where: {
-        userId
-      }
-    })
-    // 
-    if (!record) {
-      throw new NotFoundException("User not found")
-    }
-    // 
+  async remove(userId: number, adminId: number) {
 
-    const res = await this.prisma.raider.delete({
+    const record = await this.prisma.raider.findFirst({
+      where: { userId }
+    });
+
+    if (!record) {
+      throw new NotFoundException("User not found");
+    }
+
+    await this.prisma.raider.delete({
       where: { id: record.id },
     });
-    return res;
-    // 
+
+    // LOG
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'DELETE',
+        entity_type: 'Raider',
+        entity_id: record.id,
+        user_id: adminId,
+        meta: {
+          type: 'delete_rider',
+          userId,
+        },
+      },
+    });
+
+    return { message: "Rider deleted successfully" };
   }
 
 
-
   // 
-  async suspendRiderProfile(id: number, dto: SuspendRiderProfileDto) {
+  async suspendRiderProfile(id: number, dto: SuspendRiderProfileDto, userId: number) {
 
     const res = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
-      include: { registrations: true },
     });
+
     if (!res) {
       throw new NotFoundException('Rider profile not found');
     }
-    const updatedProfile = await this.prisma.raider.update({
+
+    const updated = await this.prisma.raider.update({
       where: { id: res.id },
       data: {
         isSuspended: true,
@@ -338,21 +361,35 @@ export class RidersProfileService {
       },
     });
 
-    return updatedProfile;
+    // LOG
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'UPDATE',
+        entity_type: 'Raider',
+        entity_id: res.id,
+        user_id: userId,
+        meta: {
+          type: 'suspend',
+          reason: dto.suspensionReason,
+          duration: dto.suspendedDuration,
+        },
+      },
+    });
+
+    return updated;
   }
   // Unsuspend a rider profile
-  async unsuspendRiderProfile(id: number) {
+  async unsuspendRiderProfile(id: number, userId: number) {
 
     const res = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
-      include: { registrations: true },
     });
-    // console.log({ res });
+
     if (!res) {
       throw new NotFoundException('Rider profile not found');
     }
 
-    const updatedProfile = await this.prisma.raider.update({
+    const updated = await this.prisma.raider.update({
       where: { id: res.id },
       data: {
         isSuspended: false,
@@ -361,12 +398,25 @@ export class RidersProfileService {
       },
     });
 
-    return updatedProfile;
+    // 🔥 LOG
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'UPDATE',
+        entity_type: 'Raider',
+        entity_id: res.id,
+        user_id: userId,
+        meta: {
+          type: 'unsuspend',
+        },
+      },
+    });
+
+    return updated;
   }
 
 
   //
-  async adminCreateRiderProfile(dto: CreateRiderRegistrationDto) {
+  async adminCreateRiderProfile(dto: CreateRiderRegistrationDto, userId: number) {
     // 1. Role check
     const role = await this.prisma.role.findUnique({
       where: { name: UserRole.RAIDER },
@@ -416,7 +466,7 @@ export class RidersProfileService {
           userId: user.id,
           raider_status: RaiderStatus.ACTIVE,
           raider_verificationFromAdmin: RaiderVerification.APPROVED,
-          rank:dto.driver_rank,
+          rank: dto.driver_rank,
         },
       });
 
@@ -430,15 +480,29 @@ export class RidersProfileService {
           raiderId: raider.id,
         },
       });
-
+      await tx.activityLog.create({
+        data: {
+          action: 'CREATE',
+          entity_type: 'Raider',
+          entity_id: raider.id,
+          user_id: userId,
+          meta: {
+            type: 'admin_create_rider',
+            user: {
+              id: user.id,
+              email: user.email,
+            },
+          },
+        },
+      });
       return { user, raider, registration };
     });
   }
 
 
   //
-  async adminUpdateRiderProfile(id: number, dto: UpdateRidersProfileDto) {
-    // 1. Check rider
+  async adminUpdateRiderProfile(id: number, dto: UpdateRidersProfileDto, userId: number) {
+
     const raider = await this.prisma.raider.findUnique({
       where: { id },
     });
@@ -447,7 +511,6 @@ export class RidersProfileService {
       throw new NotFoundException('Rider not found');
     }
 
-    // 2. Get registration
     const registration = await this.prisma.raiderRegistration.findFirst({
       where: { raiderId: raider.id },
     });
@@ -456,13 +519,36 @@ export class RidersProfileService {
       throw new NotFoundException('Rider profile not found');
     }
 
-    // 3. Update
-    return this.prisma.raiderRegistration.update({
+    const { vehicle_type_id, password, ...rest } = dto as any;
+
+    const updated = await this.prisma.raiderRegistration.update({
       where: { id: registration.id },
       data: {
-        ...dto,
+        ...rest,
+        ...(vehicle_type_id && {
+          vehicle_type: {
+            connect: { id: vehicle_type_id },
+          },
+        }),
       },
     });
+
+    // LOG
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'UPDATE',
+        entity_type: 'RaiderRegistration',
+        entity_id: registration.id,
+        user_id: userId,
+        meta: {
+          type: 'admin_update',
+          before: registration,
+          after: updated,
+        },
+      },
+    });
+
+    return updated;
   }
 
 }

@@ -119,9 +119,9 @@ export class RidersProfileController {
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verify rider profile (Admin only)' })
-  async verifyRiderProfile(@Param('raiderId') raiderId: string, @Param('verify') verify: RaiderVerification) {
+  async verifyRiderProfile(@Param('raiderId') raiderId: string, @Param('verify') verify: RaiderVerification, @CurrentUser() user: IUser) {
     try {
-      const res = await this.ridersProfileService.verifyRiderProfile(Number(raiderId), verify);
+      const res = await this.ridersProfileService.verifyRiderProfile(Number(raiderId), verify, user.id);
       return ApiResponses.success(res, 'Rider profile verified successfully');
     } catch (error) {
       return ApiResponses.error(error);
@@ -138,7 +138,7 @@ export class RidersProfileController {
   @ApiOperation({ summary: 'Update rider profile (Rider only)' })
   async update(@Body() updateRidersProfileDto: UpdateRidersProfileDto, @CurrentUser() user: IUser) {
     try {
-      const res = await this.ridersProfileService.update(user.id, updateRidersProfileDto);
+      const res = await this.ridersProfileService.update(user.id, updateRidersProfileDto, user.id);
       return ApiResponses.success(res, 'Rider profile updated successfully');
     } catch (error) {
       return ApiResponses.error(error);
@@ -151,9 +151,9 @@ export class RidersProfileController {
   // @Roles(UserRole.SUPER_ADMIN)
   @RequirePermission(Module.RAIDER, Permission.DELETE)
   @ApiOperation({ summary: 'Delete rider profile by id (Admin only)' })
-  async remove(@Param('userId') userId: string) {
+  async remove(@Param('userId') userId: string, @CurrentUser() user: IUser) {
     try {
-      const res = await this.ridersProfileService.remove(+userId);
+      const res = await this.ridersProfileService.remove(+userId, user.id);
       return ApiResponses.success(res, 'Rider profile deleted successfully');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -166,9 +166,9 @@ export class RidersProfileController {
   @RequirePermission(Module.RAIDER, Permission.JUST_ADMIN)
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Suspend rider profile by id (Admin only)' })
-  async Suspend(@Param('id') id: string, @Body() suspendRiderProfileDto: SuspendRiderProfileDto) {
+  async Suspend(@Param('id') id: string, @Body() suspendRiderProfileDto: SuspendRiderProfileDto, @CurrentUser() user: IUser) {
     try {
-      const res = await this.ridersProfileService.suspendRiderProfile(Number(id), suspendRiderProfileDto);
+      const res = await this.ridersProfileService.suspendRiderProfile(Number(id), suspendRiderProfileDto, user.id);
       return ApiResponses.success(res, 'Rider profile suspended successfully');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -181,9 +181,9 @@ export class RidersProfileController {
   @ApiBearerAuth()
   @RequirePermission(Module.RAIDER, Permission.JUST_ADMIN)
   @ApiOperation({ summary: 'Unsuspend rider profile by id (Admin only)' })
-  async Unsuspend(@Param('id') id: string) {
+  async Unsuspend(@Param('id') id: string, @CurrentUser() user: IUser) {
     try {
-      const res = await this.ridersProfileService.unsuspendRiderProfile(Number(id));
+      const res = await this.ridersProfileService.unsuspendRiderProfile(Number(id), user.id);
       return ApiResponses.success(res, 'Rider profile unsuspended successfully');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -203,9 +203,10 @@ export class RidersProfileController {
   @ApiOperation({ summary: 'Create rider profile for a user (Admin only)' })
   async adminCreateRiderProfile(
     @Body() createRidersProfileDto: CreateRiderRegistrationDto,
+    @CurrentUser() user: IUser
   ) {
     try {
-      const res = await this.ridersProfileService.adminCreateRiderProfile(createRidersProfileDto);
+      const res = await this.ridersProfileService.adminCreateRiderProfile(createRidersProfileDto, user.id);
       return ApiResponses.success(res, 'Rider profile created successfully by admin');
     } catch (error) {
       return ApiResponses.error(error);
@@ -222,9 +223,10 @@ export class RidersProfileController {
   async adminUpdateRiderProfile(
     @Param('id') id: number,
     @Body() updateRidersProfileDto: UpdateRidersProfileDto,
+    @CurrentUser() user: IUser
   ) {
     try {
-      const res = await this.ridersProfileService.adminUpdateRiderProfile(id, updateRidersProfileDto);
+      const res = await this.ridersProfileService.adminUpdateRiderProfile(id, updateRidersProfileDto, user.id);
       return ApiResponses.success(res, 'Rider profile updated successfully by admin');
     } catch (error) {
       return ApiResponses.error(error);

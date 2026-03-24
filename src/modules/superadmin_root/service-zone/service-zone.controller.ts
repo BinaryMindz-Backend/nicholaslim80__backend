@@ -7,6 +7,8 @@ import { ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ApiResponses } from 'src/common/apiResponse';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 @Controller('service-zone')
 export class ServiceZoneController {
@@ -16,9 +18,9 @@ export class ServiceZoneController {
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.SERVICE_AREAS, Permission.CREATE)
-  async create(@Body() createServiceZoneDto: CreateServiceZoneDto) {
+  async create(@Body() createServiceZoneDto: CreateServiceZoneDto, @CurrentUser() user:IUser) {
 
-    const rest = await this.serviceZoneService.create(createServiceZoneDto);
+    const rest = await this.serviceZoneService.create(createServiceZoneDto, user.id);
     return ApiResponses.success(rest, 'Service zone created successfully');
   }
 
@@ -39,8 +41,8 @@ export class ServiceZoneController {
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.SERVICE_AREAS, Permission.UPDATE)
-  async updateActiveStatus(@Param('id') id: string) {
-    const res = await this.serviceZoneService.updateActiveStatus(+id);
+  async updateActiveStatus(@Param('id') id: string, @CurrentUser() user:IUser) {
+    const res = await this.serviceZoneService.updateActiveStatus(+id, user.id);
     return ApiResponses.success(res, 'Service zone status updated successfully');
   }
 
@@ -48,9 +50,9 @@ export class ServiceZoneController {
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.SERVICE_AREAS, Permission.UPDATE)
-  async update(@Param('id') id: string, @Body() updateServiceZoneDto: UpdateServiceZoneDto) {
+  async update(@Param('id') id: string, @Body() updateServiceZoneDto: UpdateServiceZoneDto, @CurrentUser() user:IUser) {
 
-    const res = await this.serviceZoneService.update(+id, updateServiceZoneDto);
+    const res = await this.serviceZoneService.update(+id, updateServiceZoneDto, user.id);
     return ApiResponses.success(res, 'Service zone updated successfully');
   }
 
@@ -58,8 +60,8 @@ export class ServiceZoneController {
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.SERVICE_AREAS, Permission.DELETE)
-  async remove(@Param('id') id: string) {
-    const res = await this.serviceZoneService.remove(+id);
+  async remove(@Param('id') id: string, @CurrentUser() user:IUser) {
+    const res = await this.serviceZoneService.remove(+id, user.id);
     return ApiResponses.success(res, 'Service zone deleted successfully');
   }
 }
