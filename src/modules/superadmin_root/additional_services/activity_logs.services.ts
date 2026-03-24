@@ -7,6 +7,24 @@ import { ActivityLogQueryDto } from './dto/activity_logs.dto';
 export class ActivityLogService {
     constructor(private readonly prisma: PrismaService) { }
 
+    async log(data: {
+        action: 'CREATE' | 'UPDATE' | 'DELETE';
+        entityType: string;
+        entityId: number;
+        userId: number;
+        meta?: any;
+    }) {
+        return this.prisma.activityLog.create({
+            data: {
+                action: data.action,
+                entity_type: data.entityType,
+                entity_id: data.entityId,
+                user_id: data.userId,
+                meta: data.meta ?? null,
+            },
+        });
+    }
+
     async findAllLogs(query: ActivityLogQueryDto) {
         const { page = 1, limit = 10, entity_type, action, user_id, search } = query;
 
