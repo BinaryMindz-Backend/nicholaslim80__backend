@@ -55,7 +55,6 @@ export class OrderService {
     if (deliveryType.vehicle_types.length > 0) {
       const vehicleType = await this.prisma.vehicleType.findUnique({ where: { id: deliveryType.vehicle_types[0].vehicle_type_id }, include: { delivery_types: true } });
       if (!vehicleType) throw new NotFoundException('Vehicle type not found');
-      console.log(vehicleType.delivery_types)
       if (!vehicleType.delivery_types.find((type) => type.delivery_type_id === dto.delivery_type_id)) throw new BadRequestException('Vehicle type not found for this delivery type');
     }
     const res = await this.prisma.$transaction(async (tx) => {
@@ -69,6 +68,17 @@ export class OrderService {
           route_type: dto.route_type ?? RouteType.ONE_WAY,
           order_status: OrderStatus.PROGRESS,
         },
+        include:{
+           delivery_type:{
+              include:{ 
+                 vehicle_types:{
+                    include:{
+                       vehicle_type:true
+                    }
+                 }
+              }
+           }
+        }
       });
 
       const txId = this.txIdService.generate();
@@ -1278,6 +1288,17 @@ export class OrderService {
           isFixed: payload.isFixed ?? false,
           order_status: OrderStatus.PROGRESS,
         },
+        include:{
+           delivery_type:{
+              include:{ 
+                 vehicle_types:{
+                    include:{
+                       vehicle_type:true
+                    }
+                 }
+              }
+           }
+        },
       });
 
       const createdStops: any[] = [];
@@ -2241,8 +2262,16 @@ export class OrderService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
+           delivery_type:{
+              include:{ 
+                 vehicle_types:{
+                    include:{
+                       vehicle_type:true
+                    }
+                 }
+              }
+        },
         user: true,
-        vehicle: true,
         orderStops: {
           include: {
             destination: true,
