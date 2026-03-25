@@ -85,10 +85,7 @@ export class AdvertiseController {
   })
   async findAllLogs(@Query() filterDto: DateByFilterDto) {
     try {
-      const res = await this.advertiseService.findAllLogs(
-        filterDto.fromDate,
-        filterDto.toDate,
-      );
+      const res = await this.advertiseService.findAllLogs(filterDto);
 
       return ApiResponses.success(
         res,

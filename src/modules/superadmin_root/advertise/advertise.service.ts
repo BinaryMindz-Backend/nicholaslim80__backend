@@ -5,6 +5,7 @@ import { UpdateAdvertiseDto } from './dto/update-advertise.dto';
 import { performanceCountType } from 'src/types';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { NotificationType } from '@prisma/client';
+import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
 
 
 @Injectable()
@@ -492,23 +493,63 @@ async remove(
     });
   }
   // 
-  async findAllLogs(fromDate?: string, toDate?: string) {
-    return await this.prisma.advertiseLog.findMany({
-      where: {
+   async findAllLogs(dto: DateByFilterDto) {
+      const {
+        fromDate,
+        toDate,
+        search,
+        page = 1,
+        limit = 10,
+      } = dto;
+
+      const skip = (page - 1) * limit;
+
+      const where: any = {
         createdAt: {
           gte: fromDate ? new Date(fromDate) : undefined,
           lte: toDate ? new Date(toDate) : undefined,
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
+      };
 
+      // 🔍 Search support
+      if (search) {
+        where.OR = [
+          { action: { contains: search, mode: 'insensitive' } },
+          { entity_type: { contains: search, mode: 'insensitive' } },
+          {
+            meta: {
+              path: '$',
+              string_contains: search,
+            },
+          },
+        ];
+      }
 
+      const [data, total] = await this.prisma.$transaction([
+        this.prisma.advertiseLog.findMany({
+          where,
+          orderBy: {
+            createdAt: 'desc',
+          },
+          skip,
+          take: limit,
+        }),
 
+        this.prisma.advertiseLog.count({
+          where,
+        }),
+      ]);
 
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    }
 
 
 

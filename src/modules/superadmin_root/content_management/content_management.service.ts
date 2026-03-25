@@ -158,19 +158,70 @@ export class ContentManagementService {
 }
 
   //  
-  async findAllLogs(fromDate?: string, toDate?: string) {
-    return await this.prisma.contentManagementLog.findMany({
-      where: {
-        createdAt: {
-          gte: fromDate ? new Date(fromDate) : undefined,
-          lte: toDate ? new Date(toDate) : undefined,
+  async findAllLogs(
+  fromDate?: string,
+  toDate?: string,
+  search?: string,
+  page = 1,
+  limit = 10,
+) {
+  const skip = (page - 1) * limit;
+
+  const where: any = {
+    createdAt: {
+      gte: fromDate ? new Date(fromDate) : undefined,
+      lte: toDate ? new Date(toDate) : undefined,
+    },
+  };
+
+  // Add search condition (adjust fields based on your schema)
+  if (search) {
+    where.OR = [
+      {
+        action: {
+          contains: search,
+          mode: 'insensitive',
         },
       },
+      {
+        description: {
+          contains: search,
+          mode: 'insensitive',
+        },
+      },
+      {
+        user: {
+          email: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      },
+    ];
+  }
+
+  const [data, total] = await this.prisma.$transaction([
+    this.prisma.contentManagementLog.findMany({
+      where,
       orderBy: {
         createdAt: 'desc',
       },
-    });
-  }
+      skip,
+      take: limit,
+    }),
+    this.prisma.contentManagementLog.count({ where }),
+  ]);
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
 
 
 
