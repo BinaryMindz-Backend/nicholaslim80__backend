@@ -545,7 +545,7 @@ export class RidersProfileService {
     await this.prisma.activityLog.create({
       data: {
         action: 'UPDATE',
-        entity_type: 'RaiderRegistration',
+        entity_type: 'Raider',
         entity_id: registration.id,
         user_id: userId,
         meta: {
