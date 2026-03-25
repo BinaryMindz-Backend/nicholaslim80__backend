@@ -178,25 +178,11 @@ export class ContentManagementService {
   if (search) {
     where.OR = [
       {
-        action: {
-          contains: search,
-          mode: 'insensitive',
-        },
-      },
-      {
         description: {
           contains: search,
           mode: 'insensitive',
         },
-      },
-      {
-        user: {
-          email: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-      },
+      }
     ];
   }
 
