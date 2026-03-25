@@ -398,7 +398,7 @@ export class RidersProfileService {
       },
     });
 
-    // 🔥 LOG
+    // LOG
     await this.prisma.activityLog.create({
       data: {
         action: 'UPDATE',
@@ -510,7 +510,15 @@ export class RidersProfileService {
     if (!raider) {
       throw new NotFoundException('Rider not found');
     }
-
+    //  
+    if (dto.driver_rank) {
+      await this.prisma.raider.update({
+        where: { id: raider.id },
+        data: {
+          rank: dto.driver_rank,
+        },
+      });
+    }
     const registration = await this.prisma.raiderRegistration.findFirst({
       where: { raiderId: raider.id },
     });
@@ -519,7 +527,7 @@ export class RidersProfileService {
       throw new NotFoundException('Rider profile not found');
     }
 
-    const { vehicle_type_id, password, ...rest } = dto as any;
+    const { vehicle_type_id, driver_rank, password, ...rest } = dto as any;
 
     const updated = await this.prisma.raiderRegistration.update({
       where: { id: registration.id },
@@ -537,18 +545,18 @@ export class RidersProfileService {
     await this.prisma.activityLog.create({
       data: {
         action: 'UPDATE',
-        entity_type: 'RaiderRegistration',
+        entity_type: 'Raider',
         entity_id: registration.id,
         user_id: userId,
         meta: {
           type: 'admin_update',
           before: registration,
-          after: updated,
+          after: { ...updated, vehicle_type_id, driver_rank },
         },
       },
     });
 
-    return updated;
+    return { ...updated, vehicle_type_id, driver_rank };
   }
 
 }
