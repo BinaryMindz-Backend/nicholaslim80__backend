@@ -50,7 +50,14 @@ export class OrderService {
 
     const isUserExist = await this.prisma.user.findUnique({ where: { id: user.id } });
     if (!isUserExist) throw new UnauthorizedException('Unauthorized');
-
+    const deliveryType = await this.prisma.deliveryType.findUnique({ where: { id: dto.delivery_type_id }, include: { vehicle_types: true } });
+    if (!deliveryType) throw new NotFoundException('Delivery type not found');
+    if (deliveryType.vehicle_types.length > 0) {
+      const vehicleType = await this.prisma.vehicleType.findUnique({ where: { id: deliveryType.vehicle_types[0].vehicle_type_id }, include: { delivery_types: true } });
+      if (!vehicleType) throw new NotFoundException('Vehicle type not found');
+      console.log(vehicleType.delivery_types)
+      if (!vehicleType.delivery_types.find((type) => type.delivery_type_id === dto.delivery_type_id)) throw new BadRequestException('Vehicle type not found for this delivery type');
+    }
     const res = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
@@ -58,7 +65,7 @@ export class OrderService {
           total_cost: 0,
           pay_type: undefined,
           delivery_type_id: dto.delivery_type_id,
-          vehicle_type_id: dto.vehicle_type_id,
+          vehicle_type_id: deliveryType.vehicle_types[0].vehicle_type_id,
           route_type: dto.route_type ?? RouteType.ONE_WAY,
           order_status: OrderStatus.PROGRESS,
         },
@@ -280,7 +287,27 @@ export class OrderService {
     if (order.order_status !== OrderStatus.PROGRESS) {
       throw new BadRequestException('Cannot update placed order');
     }
-
+    // checking if vehicle type not avilable on delivery type  
+    if (dto.vehicle_type_id !== undefined) {
+      const deliveryType = await this.prisma.deliveryType.findUnique({
+        where: { id: dto.delivery_type_id },
+      });
+      if (!deliveryType) {
+        throw new BadRequestException('Delivery type not found');
+      }
+      const vehicleType = await this.prisma.vehicleType.findUnique({
+        where: { id: dto.vehicle_type_id },
+        include: {
+          delivery_types: true,
+        }
+      });
+      if (!vehicleType) {
+        throw new BadRequestException('Vehicle type not found');
+      }
+      if (!vehicleType.delivery_types.some((item) => item.delivery_type_id === dto.delivery_type_id)) {
+        throw new BadRequestException('Vehicle type not available for this delivery type');
+      }
+    }
     // Track if price needs recalculation
     const needsRecalculation =
       dto.delivery_type_id !== undefined ||
