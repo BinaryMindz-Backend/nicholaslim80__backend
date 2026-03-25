@@ -1,7 +1,9 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, UserFeeStructure } from '@prisma/client';
+import { UserFeeStructure } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { StandardCommissionRateService } from './commision_rate.services';
+import { CreateUserFeeStructureDto } from './dto/create_ user_fee_structure.dto';
+import { UpdateUserFeeStructureDto } from './dto/update-platform_fee.dto';
 
 @Injectable()
 export class UserFeeStructureService {
@@ -9,7 +11,7 @@ export class UserFeeStructureService {
     private readonly logServices: StandardCommissionRateService
   ) { }
 
-  async create(data: Prisma.UserFeeStructureCreateInput,
+  async create(data: CreateUserFeeStructureDto,
     changedByRole: string,
     changedById: number,
   ): Promise<UserFeeStructure> {
@@ -19,22 +21,27 @@ export class UserFeeStructureService {
         fee_name: data.fee_name
       }
     })
+    const serviceArea = await this.prisma.serviceZone.findFirst({
+       where:{
+         id:data.service_area_id
+       }
+    })
     // 
     if (record) {
       throw new ConflictException("Record all ready exist")
     }
-    // 
-    const r = await this.prisma.userFeeStructure.create({ data });
-    if (!r.service_area_id) {
+
+    if (!serviceArea) {
       throw new NotFoundException('Service area not found');
     }
-    const zone = await this.prisma.serviceZone.findUnique({ where: { id: r.service_area_id } });
+    // 
+    const r = await this.prisma.userFeeStructure.create({ data });
     // 
     await this.logServices.createFeeLog({
       logType: r.applies_to,
       referenceId: r.id,
       applicableUser: r.applicable_user,
-      serviceArea: zone?.name,
+      serviceArea: serviceArea.name,
       snapshot: r,
       changedByRole,
       changedById,
@@ -63,16 +70,18 @@ export class UserFeeStructureService {
     return record;
   }
 
-  async update(id: number, data: Prisma.UserFeeStructureUpdateInput,
+  async update(id: number, data: UpdateUserFeeStructureDto,
     changedByRole: string,
     changedById: number,
   ): Promise<UserFeeStructure> {
     await this.findOne(id);
-    const updated = await this.prisma.userFeeStructure.update({ where: { id }, data });
-    if (!updated.service_area_id) {
+    const zone = await this.prisma.serviceZone.findUnique({ where: { id: data.service_area_id } });
+    // 
+    if (!zone) {
       throw new NotFoundException('Service area not found');
     }
-    const zone = await this.prisma.serviceZone.findUnique({ where: { id: updated.service_area_id } });
+
+    const updated = await this.prisma.userFeeStructure.update({ where: { id }, data });
     // 
     await this.logServices.createFeeLog({
       logType: updated.applies_to,

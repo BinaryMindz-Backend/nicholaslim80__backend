@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -5,7 +6,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { CreateOrderDto } from './dto/create-order.dto';
 import { NotifyRaider, PriorityOrder, UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { DeliveryZone, DestinationInput, IUser, Receiver, UserRaiderMapping } from 'src/types';
+import { DeliveryZone, DestinationInput, IUser, Receiver, ReceiverWithPricing, UserRaiderMapping } from 'src/types';
 import { CollectTime, DeliveryTypeName, DestinationType, NotificationType, OrderConfirmationRatioType, OrderStatus, PaymentStatus, PaymentType, PayType, Raider, RaiderStatus, RaiderVerification, RouteType, StopStatus, StopType, TransactionStatus, TransactionType, VehicleTypeEnum, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
@@ -344,7 +345,7 @@ export class OrderService {
       await this.recalculateOrderPrice(orderId);
     }
 
-    return this.getOrderDetails(orderId);
+    return await this.getOrderDetails(orderId);
   }
 
   /**
@@ -2262,14 +2263,14 @@ export class OrderService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
-           delivery_type:{
-              include:{ 
-                 vehicle_types:{
-                    include:{
-                       vehicle_type:true
-                    }
-                 }
-              }
+        delivery_type: {
+          include: {
+            vehicle_types: {
+              include: {
+                vehicle_type: true,
+              },
+            },
+          },
         },
         user: true,
         orderStops: {
@@ -2291,10 +2292,10 @@ export class OrderService {
                 current_unit: true,
                 current_address: true,
                 current_country: true,
-              }
+              },
             },
-            locations: true
-          }
+            locations: true,
+          },
         },
       },
     });
@@ -2304,7 +2305,10 @@ export class OrderService {
     const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
     const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
 
-    // ADD: Calculate pricing breakdown for display
+    let pricingResults:any [] = [];
+    let totalDistance = 0;
+
+    // MAIN LOGIC
     if (order.is_placed && pickupStop && dropStops.length > 0) {
       const zone = await this.serviceZone.findZoneByPoint(
         pickupStop.latitude,
@@ -2318,7 +2322,7 @@ export class OrderService {
           lng: s.longitude,
         }));
 
-        const pricingResults = await getReceiversWithIndividualPrice(
+        pricingResults = await getReceiversWithIndividualPrice(
           this.prisma,
           sender,
           receivers,
@@ -2327,53 +2331,84 @@ export class OrderService {
           zone,
           { isRoundTrip: order.route_type === RouteType.ROUND },
         );
-        const totalDistance = pricingResults.reduce((total, result) => total + result.distanceKm, 0);
-        // Enrich stops with pricing details
-        const enrichedStops = order.orderStops.map((stop) => {
-          if (stop.type === StopType.PICKUP) return stop;
 
-          const dropIndex = dropStops.findIndex((d) => d.id === stop.id);
-          const pricing = pricingResults[dropIndex];
-
-          return {
-            ...stop,
-            pricingBreakdown: pricing
-              ? {
-                distance: pricing.distanceKm,
-                basePrice: pricing.pricing.basePrice,
-                deliveryTypeCharge: pricing.pricing.deliveryTypeCharge,
-                userFeeTotal: pricing.pricing.userFeeTotal,
-                zoneFee: pricing.pricing.zoneFee,
-                surgeAmount: pricing.pricing.surgeAmount,
-                totalFee: pricing.pricing.totalFee,
-                totalPrice: pricing.pricing.totalPrice,
-              }
-              : null,
-          };
-        });
-
-        return {
-          ...order,
-          orderStops: enrichedStops,
-          pricingSummary: {
-            totalDistance,
-            totalCost: Number(order.total_cost),
-            totalFee: Number(order.total_fee),
-            dropCount: dropStops.length,
-            perDropBreakdown: pricingResults.map((r, idx) => ({
-              stopId: dropStops[idx].id,
-              address: dropStops[idx].address,
-              sequence: dropStops[idx].sequence,
-              distance: r.distanceKm,
-              price: r.pricing.totalPrice,
-            })),
-          },
-        };
+        totalDistance = pricingResults.reduce(
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          (total, result) => total + result.distanceKm,
+          0,
+        );
       }
     }
+    // FALLBACK: calculate base pricing
+    const basePricing = await this.getBasePriceOnly(
+      order.delivery_type_id ?? 1,
+      order.delivery_type?.vehicle_types?.[0]?.vehicle_type_id ?? 1,
+    );
 
-    return order;
+    // Build pricingResults array with single global pricing
+    pricingResults = [
+      {
+        distanceKm: 0,
+        pricing: basePricing,
+      },
+    ];
+
+    const totalCost = pricingResults[0].pricing.totalPrice;
+    const totalFee = pricingResults[0].pricing.totalFee;
+    const basePrice = pricingResults[0].pricing.basePrice;
+    const deliveryTypeCharge = basePrice - totalCost;
+
+    return {
+      ...order,
+      // stops remain unchanged
+      pricingSummary: {
+        totalDistance: 0,
+        totalCost,
+        totalFee,
+        basePrice,
+        deliveryTypeCharge,
+        dropCount: order.orderStops.length,
+        perDropBreakdown: pricingResults.map((r, idx) => ({
+          price: r.pricing.totalPrice,
+          distance: r.distanceKm,
+        })),
+      },
+    };
+
   }
+   
+  //get base price only 
+  private async getBasePriceOnly(
+      deliveryTypeId: number,
+      vehicleTypeId: number,
+    ) {
+      const [deliveryType, vehicle] = await Promise.all([
+        this.prisma.deliveryType.findFirst({
+          where: { id: deliveryTypeId, is_active: true },
+        }),
+        this.prisma.vehicleType.findUnique({
+          where: { id: vehicleTypeId },
+        }),
+      ]);
+
+      if (!deliveryType || !vehicle) {
+        throw new BadRequestException('Invalid vehicle or delivery type');
+      }
+
+      const basePrice = Number(vehicle.base_price ?? 0);
+      const deliveryTypeCharge = Number(deliveryType.price_multiplier ?? 0);
+      const price = basePrice * deliveryTypeCharge
+      return {
+        basePrice:basePrice,
+        deliveryTypeCharge,
+        userFeeTotal: 0,
+        zoneFee: 0,
+        surgeAmount: 0,
+        totalFee: 0,
+        totalPrice: price,
+        distanceKm: 0,
+      };
+    }
 
   // 
   async updateOrderStatus(
