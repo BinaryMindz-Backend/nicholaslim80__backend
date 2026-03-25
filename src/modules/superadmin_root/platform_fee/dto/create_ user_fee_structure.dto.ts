@@ -45,17 +45,47 @@ export class CreateUserFeeStructureDto {
   @IsInt()
   service_area_id?: number;
 
+  /* ---------------- 🔥 Dynamic Rule Core ---------------- */
+
   @ApiProperty({
-    description: 'Fee application rule',
-    example: "All order",
+    description: 'Rule type (e.g. ALL_ORDERS, DELIVERY_TYPE, ORDER_AMOUNT)',
+    example: 'DELIVERY_TYPE',
   })
   @IsString()
+  @MaxLength(50)
   applies_to: string;
 
-  /* ---------------- Dynamic Condition Fields ---------------- */
+  @ApiPropertyOptional({
+    description: 'Rule key (e.g. delivery_type, order_amount, distance)',
+    example: 'delivery_type',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  rule_key?: string;
 
   @ApiPropertyOptional({
-    description: 'Condition threshold value (e.g. order amount, distance)',
+    description: 'Operator (=, >, <, >=, <=)',
+    example: '=',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  rule_operator?: string;
+
+  @ApiPropertyOptional({
+    description: 'Rule value (stored as string, parsed in backend)',
+    example: 'EXPRESS',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  rule_value?: string;
+
+  /* ---------------- Optional Legacy Condition ---------------- */
+
+  @ApiPropertyOptional({
+    description: 'Condition threshold value (optional legacy support)',
     example: 15,
   })
   @IsOptional()
