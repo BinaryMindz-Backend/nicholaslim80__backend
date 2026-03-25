@@ -219,14 +219,15 @@ enum ApplicableTyp {
 }
 
 // 
-enum FeeAppliesType {
-  ALL_ORDERS
-  ORDER_LESS
-  EXPRESS_ORDERS
-  SCHEDULED_ORDERS
-  STACKED_ORDERS
-  STANDARD_ORDERS
-}
+// enum FeeAppliesType {
+//   ALL_ORDERS
+//   ORDER_LESS
+//   EXPRESS_ORDERS
+//   SCHEDULED_ORDERS
+//   STACKED_ORDERS
+//   STANDARD_ORDERS
+  
+// }
 
 enum Condition {
   HIGH_DEMAND

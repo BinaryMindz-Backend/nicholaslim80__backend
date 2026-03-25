@@ -4,12 +4,10 @@ import { BadRequestException } from '@nestjs/common';
 import { parse, isWithinInterval } from 'date-fns';
 import {
   Condition,
-  DeliveryTypeName,
-  FeeAppliesType,
   Prisma,
 } from '@prisma/client';
 import { DeliveryZone, PricingBreakdown } from './types';
-import { mapDeliveryType } from './fee.helper';
+import { evaluateRule } from './fee.helper';
 import { isHoliday } from './holiday.helper';
 
 export async function calculatePriceWithFee(params: {
@@ -30,37 +28,44 @@ export async function calculatePriceWithFee(params: {
   } = params;
 
   /* ---------------- base ---------------- */
+  const distance = distanceKm - Number(vehicle.base_distance)
   const base =
     Number(vehicle.base_price ?? 0) +
-    Number(vehicle.per_km_price ?? 0) * distanceKm;
+    Number(vehicle.per_km_price ?? 0) * distance;
 
   const deliveryTypeCharge =
-    (base * Number(deliveryType.price_multiplier ?? 0)) / 100;
+    (base * Number(deliveryType.price_multiplier ?? 1));
 
   let price = base + deliveryTypeCharge;
 
-  /* ---------------- user fees ---------------- */ //TODO: need to fix
-  // const fees = await prisma.userFeeStructure.findMany({
-  //   where: {
-  //     is_active: true,
-  //     service_area_id: zone.id,
-  //     OR: [
-  //       { applies_to: FeeAppliesType.ALL_ORDERS },
-  //       {
-  //         applies_to: FeeAppliesType.ORDER_LESS,
-  //         condition_value: { gt: price },
-  //       },
-  //       { applies_to: mapDeliveryType(deliveryType.name) },
-  //     ],
-  //   },
-  // });
+  /* ---------------- user fees ---------------- */
+      const context = {
+      delivery_type: deliveryType.name,
+      order_amount: price,
+      distance: distance,
+    };
 
-  // const userFeeTotal = fees.reduce(
-  //   (s, f) => s + Number(f.amount),
-  //   0,
-  // );
+    const fees = await prisma.userFeeStructure.findMany({
+      where: {
+        is_active: true,
+        service_area_id: zone.id,
+      },
+    });
 
-  // price += userFeeTotal;
+    const matchedFees = fees.filter((fee) => {
+      // Basic rules like ALL_ORDERS
+      if (fee.applies_to === 'ALL_ORDERS') return true;
+
+      // Evaluate dynamic rules
+      return evaluateRule(fee, context);
+    });
+
+    const userFeeTotal = matchedFees.reduce(
+      (sum, fee) => sum + Number(fee.amount),
+      0,
+    );
+
+    price += userFeeTotal;
 
   /* ---------------- zone fee ---------------- */
   let zoneFee = 0;
@@ -116,12 +121,10 @@ export async function calculatePriceWithFee(params: {
   return {
     basePrice: base,
     deliveryTypeCharge,
-    // userFeeTotal,
-    userFeeTotal: 0,
+    userFeeTotal,
     zoneFee,
     surgeAmount,
-    totalFee: zoneFee + surgeAmount,
-    //    totalFee: userFeeTotal + zoneFee + surgeAmount,
+    totalFee: userFeeTotal + zoneFee + surgeAmount,
     totalPrice: Number(price.toFixed(2)),
   };
 }

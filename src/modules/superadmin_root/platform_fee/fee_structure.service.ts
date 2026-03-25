@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { FeeLogType, Prisma, UserFeeStructure } from '@prisma/client';
+import { Prisma, UserFeeStructure } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { StandardCommissionRateService } from './commision_rate.services';
 
@@ -31,7 +31,7 @@ export class UserFeeStructureService {
     const zone = await this.prisma.serviceZone.findUnique({ where: { id: r.service_area_id } });
     // 
     await this.logServices.createFeeLog({
-      logType: FeeLogType.USER_FEE_STRUCTURE,
+      logType: r.applies_to,
       referenceId: r.id,
       applicableUser: r.applicable_user,
       serviceArea: zone?.name,
@@ -75,7 +75,7 @@ export class UserFeeStructureService {
     const zone = await this.prisma.serviceZone.findUnique({ where: { id: updated.service_area_id } });
     // 
     await this.logServices.createFeeLog({
-      logType: FeeLogType.USER_FEE_STRUCTURE,
+      logType: updated.applies_to,
       referenceId: updated.id,
       applicableUser: updated.applicable_user,
       serviceArea: zone?.name,
