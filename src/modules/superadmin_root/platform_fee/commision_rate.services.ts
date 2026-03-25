@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateStandardCommissionRateDto } from './dto/create-commission_rate.dto';
@@ -98,7 +97,7 @@ export class StandardCommissionRateService {
   }
   // re-useable logger for platform fee 
   async createFeeLog(params: {
-    logType: FeeLogType;
+    logType: string;
     referenceId: number;
     applicableUser: ApplicableTyp;
     serviceArea?: string;
@@ -141,7 +140,7 @@ export class StandardCommissionRateService {
 
   // get logs by references 
   async getLogsByReference(
-    logType: FeeLogType,
+    logType: string,
     referenceId: number,
   ) {
     return await this.prisma.feeConfigurationLog.findMany({

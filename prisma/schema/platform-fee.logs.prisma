@@ -1,7 +1,7 @@
 model FeeConfigurationLog {
   id              Int        @id @default(autoincrement())
 
-  log_type        FeeLogType
+  log_type        String
   reference_id    Int        // ID from source table
 
   applicable_user ApplicableTyp

@@ -36,26 +36,30 @@ model RaiderDeductionFee {
 
 
 model UserFeeStructure {
-  id               Int            @id @default(autoincrement())
+  id               Int      @id @default(autoincrement())
 
-  applicable_user  ApplicableTyp   // USER | RAIDER | ADMIN
-  fee_name         String          @db.VarChar(100)
+  applicable_user  ApplicableTyp   // USER | RAIDER | ADMIN (can also be enum if fixed)
 
-  amount           Int             @default(0) // flat amount for now
-  service_area_id               Int?     
-  serviceArea                   serviceZone? @relation(fields: [service_area_id], references: [id])
+  fee_name         String   @db.VarChar(100)
 
-  applies_to       FeeAppliesType
+  amount           Int      @default(0)
 
-  /// 🔹 Dynamic condition support
-  condition_value  Float?          // e.g. 15, 20, 50
-  condition_unit   String?         @db.VarChar(20)
-  // examples: 'USD', 'BDT', 'KM', 'ORDER_AMOUNT'
+  service_area_id  Int?
+  serviceArea      serviceZone? @relation(fields: [service_area_id], references: [id])
 
-  is_active        Boolean          @default(true)
+  /// FULLY DYNAMIC RULE SYSTEM
+  applies_to       String   // e.g. "ALL_ORDERS", "ORDER_LESS", "DELIVERY_TYPE"
 
-  created_at       DateTime         @default(now())
-  updated_at       DateTime         @updatedAt
+  rule_key         String?  // e.g. "delivery_type", "order_amount", "distance"
+  rule_operator    String?  // e.g. "=", "<", ">", "<=", ">="
+  rule_value       String?  // stored as string (parse when needed)
+
+  condition_value  Float?   // optional fallback numeric
+
+  is_active        Boolean  @default(true)
+
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
 }
 
 model UserDynamicSurge {

@@ -8,7 +8,7 @@ import {
   IsNumber,
   MaxLength,
 } from 'class-validator';
-import { ApplicableTyp, FeeAppliesType } from '@prisma/client';
+import { ApplicableTyp } from '@prisma/client';
 
 export class CreateUserFeeStructureDto {
   @ApiProperty({
@@ -47,11 +47,10 @@ export class CreateUserFeeStructureDto {
 
   @ApiProperty({
     description: 'Fee application rule',
-    enum: FeeAppliesType,
-    example: FeeAppliesType.ALL_ORDERS,
+    example: "All order",
   })
-  @IsEnum(FeeAppliesType)
-  applies_to: FeeAppliesType;
+  @IsString()
+  applies_to: string;
 
   /* ---------------- Dynamic Condition Fields ---------------- */
 

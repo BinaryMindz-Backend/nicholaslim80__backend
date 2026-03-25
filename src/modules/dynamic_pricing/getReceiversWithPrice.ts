@@ -1,6 +1,5 @@
 import { PrismaService } from 'src/core/database/prisma.service';
 import { BadRequestException } from '@nestjs/common';
-import { DeliveryTypeName } from '@prisma/client';
 import {
   Receiver,
   ReceiverWithPricing,

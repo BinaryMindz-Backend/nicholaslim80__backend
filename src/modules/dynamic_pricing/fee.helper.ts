@@ -1,19 +1,21 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-import { DeliveryTypeName, FeeAppliesType } from '@prisma/client';
+export function evaluateRule(rule: any, context: any): boolean {
+  if (!rule.rule_key) return true;
 
-export function mapDeliveryType(
-  type: DeliveryTypeName,
-): FeeAppliesType {
-  switch (type) {
-    case 'STANDARD':
-      return FeeAppliesType.STANDARD_ORDERS;
-    case 'EXPRESS':
-      return FeeAppliesType.EXPRESS_ORDERS;
-    case 'SCHEDULED':
-      return FeeAppliesType.SCHEDULED_ORDERS;
-    case 'STACKED':
-      return FeeAppliesType.STACKED_ORDERS;
+  const value = context[rule.rule_key];
+  const ruleValue = rule.rule_value;
+
+  switch (rule.rule_operator) {
+    case '=':
+      return value === ruleValue;
+    case '>':
+      return Number(value) > Number(ruleValue);
+    case '<':
+      return Number(value) < Number(ruleValue);
+    case '>=':
+      return Number(value) >= Number(ruleValue);
+    case '<=':
+      return Number(value) <= Number(ruleValue);
     default:
-      throw new Error('Unsupported delivery type');
+      return false;
   }
 }

@@ -1,6 +1,6 @@
 // import {UserRole } from '@prisma/client';
 
-import { CollectTime, DeliveryTypeName, Destination, DestinationType, FeeAppliesType, Order, PayType, RouteType, StopPayment, StopStatus, StopType, Transaction } from "@prisma/client";
+import { CollectTime, DeliveryTypeName, Destination, DestinationType, Order, PayType, RouteType, StopPayment, StopStatus, StopType, Transaction } from "@prisma/client";
 
 
 export interface IUserRole {
@@ -157,7 +157,7 @@ export interface DeliveryZone {
 export interface AppliedFee {
   id: number;
   fee_name: string;
-  applies_to: FeeAppliesType;
+  applies_to: string;
   amount: number;
 }
 
