@@ -15,6 +15,8 @@ import { UpdateDashboardPopupDto } from './dto/update-dashboard_popup.dto';
 import { Auth } from 'src/decorators/auth.decorator';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 @ApiTags('Dashboard Popup')
 @ApiBearerAuth()
@@ -27,9 +29,9 @@ export class DashboardPopupController {
   @ApiBearerAuth()
   @RequirePermission(Module.DASHBOARD_POPUP, Permission.CREATE)
   @ApiOperation({ summary: 'Create dashboard popup' })
-  async create(@Body() dto: CreateDashboardPopupDto) {
+  async create(@Body() dto: CreateDashboardPopupDto, @CurrentUser() user:IUser) {
     try {
-      const data = await this.service.create(dto);
+      const data = await this.service.create(dto, user.id);
       return ApiResponses.success(data, 'Dashboard popup created successfully');
     } catch (error) {
       return ApiResponses.error(error);
@@ -70,9 +72,10 @@ export class DashboardPopupController {
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateDashboardPopupDto,
+    @CurrentUser() user:IUser
   ) {
     try {
-      const data = await this.service.update(+id, dto);
+      const data = await this.service.update(+id, dto, user.id);
       return ApiResponses.success(data, 'Dashboard popup updated successfully');
     } catch (error) {
       return ApiResponses.error(error);
@@ -83,9 +86,9 @@ export class DashboardPopupController {
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.DASHBOARD_POPUP, Permission.DELETE)
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user:IUser) {
     try {
-      const data = await this.service.remove(+id);
+      const data = await this.service.remove(+id, user.id);
       return ApiResponses.success(data, 'Dashboard popup deleted successfully');
     } catch (error) {
       return ApiResponses.error(error);
