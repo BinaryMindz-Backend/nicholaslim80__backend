@@ -53,7 +53,8 @@ model UserFeeStructure {
   rule_key         String?  // e.g. "delivery_type", "order_amount", "distance"
   rule_operator    String?  // e.g. "=", "<", ">", "<=", ">="
   rule_value       String?  // stored as string (parse when needed)
-
+  
+  condition_unit   String?
   condition_value  Float?   // optional fallback numeric
 
   is_active        Boolean  @default(true)

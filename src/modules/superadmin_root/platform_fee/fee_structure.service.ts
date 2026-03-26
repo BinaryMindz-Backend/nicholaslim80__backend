@@ -35,7 +35,23 @@ export class UserFeeStructureService {
       throw new NotFoundException('Service area not found');
     }
     // 
-    const r = await this.prisma.userFeeStructure.create({ data });
+    const r = await this.prisma.userFeeStructure.create({
+          data: {
+            applicable_user: data.applicable_user,
+            fee_name: data.fee_name,
+            amount: data.amount,
+            applies_to: data.applies_to,
+            rule_key: data.rule_key,
+            rule_operator: data.rule_operator,
+            rule_value: data.rule_value,
+            condition_value: data.condition_value,
+            condition_unit: data.condition_unit,
+            is_active: data.is_active,
+            serviceArea: {
+              connect: { id: data.service_area_id }, // if data.service_area_id exists
+            },
+          },
+        });
     // 
     await this.logServices.createFeeLog({
       logType: r.applies_to,
