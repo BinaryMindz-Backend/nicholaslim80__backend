@@ -65,8 +65,6 @@ model Order {
 
   rewards       Reward[]
   // 
-  pick_up_items String[]
-
   rate_raiders        RateRaider?
   rate_customers      RateCustomer?
   tips                Tip[]

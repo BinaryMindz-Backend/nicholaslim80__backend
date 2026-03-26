@@ -636,7 +636,30 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to fetch order');
     }
   }
+  //
+    // 
+  @Get(':order_id/is-first-order')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Check if this is the user first order' })
+  async checkFirstOrder(
+    @Param('order_id') orderId: string,
+    @CurrentUser() user: IUser,
+  ) {
+    try {
+      const isFirstOrder = await this.orderService.firstOrderChecker(
+        user.id,
+        +orderId,
+      );
 
+      return ApiResponses.success(
+        { isFirstOrder },
+        'First order check successful',
+      );
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to check first order');
+    }
+  }
 
 
   // UPDATE
