@@ -44,7 +44,23 @@ export class OrderService {
 
 
   ) { }
+  // first order checker
+  async firstOrderChecker(userId: number, orderId: number) {
+    const orders = await this.prisma.order.findMany({
+      where: { userId },
+      orderBy: { created_at: "asc" },
+      take: 1,
+    });
 
+    if (!orders.length) {
+      throw new NotFoundException("No orders found for this user");
+    }
+
+    return {
+      isFirstOrder: orders[0].id === orderId ? true : false
+    };
+  }
+  
   // create 
   async create(dto: CreateOrderDto, user: IUser) {
     if (!user) throw new NotFoundException('Authenticated user not found');
@@ -63,6 +79,7 @@ export class OrderService {
         data: {
           userId: user.id,
           total_cost: 0,
+          isFixed:dto.isFixed,
           pay_type: undefined,
           delivery_type_id: dto.delivery_type_id,
           vehicle_type_id: deliveryType.vehicle_types[0].vehicle_type_id,
@@ -2333,7 +2350,6 @@ export class OrderService {
         );
 
         totalDistance = pricingResults.reduce(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
           (total, result) => total + result.distanceKm,
           0,
         );
@@ -2367,6 +2383,7 @@ export class OrderService {
         totalFee,
         basePrice,
         deliveryTypeCharge,
+        additionServiceFee:Number(order.additional_cost),
         dropCount: order.orderStops.length,
         perDropBreakdown: pricingResults.map((r, idx) => ({
           price: r.pricing.totalPrice,
