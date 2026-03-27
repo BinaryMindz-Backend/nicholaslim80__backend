@@ -1,31 +1,28 @@
 model Incentive {
   id               Int                 @id @default(autoincrement())
-  admin            Admin?              @relation(fields: [adminId], references: [id], onDelete: SetNull)
   adminId          Int?
+  admin            Admin?              @relation(fields: [adminId], references: [id], onDelete: SetNull)
 
-  // Basic Info
   name             String              @map("incentive_name")
   description      String?
 
-  // Scope
   start_date       DateTime
   end_date         DateTime
   driver_type      DriverType
   priority         Int                 @default(1)
   status           IncentiveStatus
 
-  // Optional zone relation (one incentive per zone)
-  serviceZoneId    Int?               
-  serviceZone      serviceZone?      @relation(fields: [serviceZoneId], references: [id], onDelete: SetNull)
+  // Many-to-many relation with service zones
+  serviceZones     serviceZone[]       @relation("IncentiveZones")
 
-  // Reward
   reward_type      IncentiveRewardType
   reward_value     Float               @default(0)
 
-  // Claim
   claim_type       ClaimType
+  claim_expire     Int
+  max_clam         Int 
+  time_constant    TimeUnit @default(HOURS)
 
-  // Relations
   rules            IncentiveRule[]
   collected_incentives CollectedIncentive[]
   incentiveLogs    IncentiveLog[] 

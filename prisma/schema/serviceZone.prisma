@@ -18,7 +18,7 @@ model serviceZone {
   raiderCompensationRoles RaiderCompensationRole[]
   userFeeStructures UserFeeStructure[]
    // Incentives linked to this zone
-  incentives      Incentive[]
+  incentives      Incentive[]  @relation("IncentiveZones")
 
   destinations    Destination[]
 }
