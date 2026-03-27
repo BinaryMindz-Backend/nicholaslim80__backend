@@ -208,7 +208,7 @@ export class IncentiveController {
       return ApiResponses.error(error, 'Failed to update incentive');
     }
   }
-  // 
+  
 
   @Patch(':id/status')
   @Auth()

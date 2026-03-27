@@ -1,12 +1,12 @@
-import { IncentiveStatus, ClaimType, DriverType, IncentiveRewardType, Metric, Operator } from '@prisma/client';
+import { IncentiveStatus, ClaimType, DriverType, IncentiveRewardType, Metric, Operator, TimeUnit } from '@prisma/client';
 import { IsOptional, IsString, IsNumber, IsEnum, IsDateString, IsArray, ValidateNested } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 class IncentiveRuleDto {
   @ApiProperty({ example: 'COMPLETED_DELIVERIES' })
   @IsEnum(Metric)
-  metric: Metric; // use enum type
+  metric: Metric;
 
   @ApiProperty({ example: 'GTE' })
   @IsEnum(Operator)
@@ -48,7 +48,7 @@ export class CreateIncentiveDto {
   @IsEnum(IncentiveStatus)
   status: IncentiveStatus;
 
-  @ApiProperty({ description: 'incentive Reward type', enum: IncentiveRewardType })
+  @ApiProperty({ description: 'Incentive reward type', enum: IncentiveRewardType })
   @IsEnum(IncentiveRewardType)
   reward_type: IncentiveRewardType;
 
@@ -60,10 +60,26 @@ export class CreateIncentiveDto {
   @IsEnum(ClaimType)
   claim_type: ClaimType;
 
-  @ApiProperty({ description: 'Optional service zone ID', required: false })
+  @ApiPropertyOptional({ description: 'Claim expiration value', example: 2 })
   @IsOptional()
   @IsNumber()
-  serviceZoneId?: number;
+  claim_expire?: number;
+
+  @ApiPropertyOptional({ description: 'Time unit for claim expiration', enum: TimeUnit, example: 'HOURS' })
+  @IsOptional()
+  @IsEnum(TimeUnit)
+  time_constant?: TimeUnit;
+
+  @ApiPropertyOptional({ description: 'Maximum number of claims per user', example: 5 })
+  @IsOptional()
+  @IsNumber()
+  max_claim?: number;
+
+  @ApiPropertyOptional({ description: 'Service zone IDs (multiple)', type: [Number], example: [1, 2, 3] })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  serviceZoneIds?: number[];
 
   @ApiProperty({
     description: 'Rules as array of objects',
