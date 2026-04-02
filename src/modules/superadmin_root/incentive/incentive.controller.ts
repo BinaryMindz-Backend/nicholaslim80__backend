@@ -97,9 +97,9 @@ export class IncentiveController {
   // @Roles(UserRole.SUPER_ADMIN)
   @RequirePermission(Module.DRIVER_INCENTIVE, Permission.READ)
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async findAllIncentive() {
+  async findAllIncentive(@CurrentUser() user: IUser) {
     try {
-      const res = await this.incentiveService.findAllIncentive();
+      const res = await this.incentiveService.findAllIncentive(user.id);
       return ApiResponses.success(res, 'Incentives fetched successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to fetch incentives');

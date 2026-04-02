@@ -1,4 +1,4 @@
-import { IncentiveStatus, ClaimType, DriverType, IncentiveRewardType, Metric, Operator, TimeUnit } from '@prisma/client';
+import { IncentiveStatus, ClaimType, IncentiveRewardType, Metric, Operator, TimeUnit } from '@prisma/client';
 import { IsOptional, IsString, IsNumber, IsEnum, IsDateString, IsArray, ValidateNested } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -35,9 +35,15 @@ export class CreateIncentiveDto {
   @IsDateString()
   end_date: Date;
 
-  @ApiProperty({ description: 'Driver type', enum: DriverType })
-  @IsEnum(DriverType)
-  driver_type: DriverType;
+  
+  @ApiProperty({ description: 'Driver type ID', example: 1 })
+  @IsNumber()
+  driver_type_id: number;
+
+  @ApiProperty({ description: 'Driver type name', example: 'Car' })
+  @IsString()
+  driver_type_name: string;
+
 
   @ApiProperty({ description: 'Priority (1-10)', example: 1 })
   @IsOptional()
