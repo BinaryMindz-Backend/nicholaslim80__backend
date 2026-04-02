@@ -366,11 +366,11 @@ export class UsersService {
 
         const where: any = {
           regi_status: LoginType.ADMIN_SIGNIN,
-          role:{
-             in:{
-               name:UserRole.USER
-             }
-          }
+          // role:{
+          //    in:{
+          //      name:UserRole.USER
+          //    }
+          // }
         };
 
         // ================= STATUS FILTER =================
