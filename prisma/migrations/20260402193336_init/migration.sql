@@ -65,7 +65,7 @@ CREATE TYPE "VehicleTypeEnum" AS ENUM ('CAR', 'TRUCK', 'MOTORCYCLE', 'BUS', 'VAN
 CREATE TYPE "DeliveryTypeName" AS ENUM ('STANDARD', 'EXPRESS', 'STACKED', 'SCHEDULED');
 
 -- CreateEnum
-CREATE TYPE "TimeUnit" AS ENUM ('MINUTES', 'HOURS');
+CREATE TYPE "TimeUnit" AS ENUM ('MINUTES', 'HOURS', 'DAYS');
 
 -- CreateEnum
 CREATE TYPE "PermissionAction" AS ENUM ('CREATE', 'READ', 'UPDATE', 'DELETE');
@@ -90,9 +90,6 @@ CREATE TYPE "QuesCategory" AS ENUM ('SAFETY_PROCUDURE', 'GENERAL', 'IQ');
 
 -- CreateEnum
 CREATE TYPE "ApplicableTyp" AS ENUM ('RAIDER', 'USER');
-
--- CreateEnum
-CREATE TYPE "FeeAppliesType" AS ENUM ('ALL_ORDERS', 'ORDER_LESS', 'EXPRESS_ORDERS', 'SCHEDULED_ORDERS', 'STACKED_ORDERS', 'STANDARD_ORDERS');
 
 -- CreateEnum
 CREATE TYPE "Condition" AS ENUM ('HIGH_DEMAND', 'VERY_HIGH_DEMAND', 'WEEKEND');
@@ -156,6 +153,9 @@ CREATE TYPE "DriverType" AS ENUM ('BIKE', 'CAR', 'CYCLE');
 
 -- CreateEnum
 CREATE TYPE "IncentiveStatus" AS ENUM ('ACTIVE', 'DISABLED');
+
+-- CreateEnum
+CREATE TYPE "LicenseClass" AS ENUM ('CLASS_2B', 'CLASS_2A', 'CLASS_2', 'CLASS_3', 'CLASS_3A', 'CLASS_4', 'CLASS_5');
 
 -- CreateEnum
 CREATE TYPE "MessageType" AS ENUM ('TEXT', 'IMAGE', 'PDF');
@@ -568,10 +568,12 @@ CREATE TABLE "incentives" (
     "driver_type" "DriverType" NOT NULL,
     "priority" INTEGER NOT NULL DEFAULT 1,
     "status" "IncentiveStatus" NOT NULL,
-    "serviceZoneId" INTEGER,
     "reward_type" "IncentiveRewardType" NOT NULL,
     "reward_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "claim_type" "ClaimType" NOT NULL,
+    "claim_expire" INTEGER NOT NULL,
+    "max_clam" INTEGER NOT NULL,
+    "time_constant" "TimeUnit" NOT NULL DEFAULT 'HOURS',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "incentives_pkey" PRIMARY KEY ("id")
@@ -672,7 +674,7 @@ CREATE TABLE "orders" (
     "serviceZoneId" INTEGER,
     "userId" INTEGER,
     "route_type" "RouteType" NOT NULL DEFAULT 'ONE_WAY',
-    "delivery_type" "DeliveryTypeName" NOT NULL DEFAULT 'EXPRESS',
+    "delivery_type_id" INTEGER NOT NULL,
     "pay_type" "PayType" NOT NULL DEFAULT 'WALLET',
     "collect_time" "CollectTime" NOT NULL DEFAULT 'ASAP',
     "scheduled_time" TIMESTAMP(3),
@@ -708,7 +710,6 @@ CREATE TABLE "orders" (
     "isDispute" BOOLEAN NOT NULL DEFAULT false,
     "isBulk" BOOLEAN NOT NULL DEFAULT false,
     "total_distance" DECIMAL(12,2) NOT NULL DEFAULT 0,
-    "pick_up_items" TEXT[],
     "additional_services" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -790,7 +791,7 @@ CREATE TABLE "places" (
 -- CreateTable
 CREATE TABLE "fee_configuration_logs" (
     "id" SERIAL NOT NULL,
-    "log_type" "FeeLogType" NOT NULL,
+    "log_type" TEXT NOT NULL,
     "reference_id" INTEGER NOT NULL,
     "applicable_user" "ApplicableTyp" NOT NULL,
     "service_area" VARCHAR(100),
@@ -847,9 +848,12 @@ CREATE TABLE "UserFeeStructure" (
     "fee_name" VARCHAR(100) NOT NULL,
     "amount" INTEGER NOT NULL DEFAULT 0,
     "service_area_id" INTEGER,
-    "applies_to" "FeeAppliesType" NOT NULL,
+    "applies_to" TEXT NOT NULL,
+    "rule_key" TEXT,
+    "rule_operator" TEXT,
+    "rule_value" TEXT,
+    "condition_unit" TEXT,
     "condition_value" DOUBLE PRECISION,
-    "condition_unit" VARCHAR(20),
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -1059,43 +1063,40 @@ CREATE TABLE "raider_registrations" (
     "emergency_contact_name" TEXT NOT NULL,
     "emergency_contact_number" TEXT NOT NULL,
     "identity_card_number" TEXT NOT NULL,
-    "nid_front_images" TEXT NOT NULL,
-    "nid_back_images" TEXT NOT NULL,
+    "identity_card_issue_date" TIMESTAMP(3) NOT NULL,
+    "nric_front_images" TEXT NOT NULL,
+    "nric_back_images" TEXT NOT NULL,
     "driving_license_number" TEXT NOT NULL,
     "driving_license_issue_date" TIMESTAMP(3) NOT NULL,
     "driving_license_expire_date" TIMESTAMP(3) NOT NULL,
+    "license_class" "LicenseClass" NOT NULL,
     "driving_license_front_images" TEXT NOT NULL,
     "driving_license_back_images" TEXT NOT NULL,
     "vehicle_plate_number" TEXT NOT NULL,
-    "vehicle_type" "VehicleTypeEnum" NOT NULL,
+    "vehicle_type_id" INTEGER NOT NULL,
     "vehicle_brand" TEXT NOT NULL,
+    "vehicle_model" TEXT NOT NULL,
     "registration_date" TIMESTAMP(3) NOT NULL,
     "vehicle_front_images" TEXT NOT NULL,
     "vehicle_back_images" TEXT NOT NULL,
     "vehicle_driver_side_images" TEXT NOT NULL,
     "vehicle_passenger_side_images" TEXT NOT NULL,
-    "vehicle_log_number" TEXT NOT NULL,
-    "vehicle_log_issue_date" TIMESTAMP(3) NOT NULL,
-    "vehicle_log_expire_date" TIMESTAMP(3) NOT NULL,
+    "chassis_number" TEXT NOT NULL,
     "vehicle_log_images" TEXT NOT NULL,
-    "vehicle_policy_number" TEXT NOT NULL,
-    "vehicle_policy_issue_date" TIMESTAMP(3) NOT NULL,
-    "vehicle_policy_expire_date" TIMESTAMP(3) NOT NULL,
-    "vehicle_policy_images" TEXT NOT NULL,
+    "insurance_policy_number" TEXT NOT NULL,
+    "insurance_issue_date" TIMESTAMP(3) NOT NULL,
+    "insurance_expiry_date" TIMESTAMP(3) NOT NULL,
+    "insurance_policy_images" TEXT NOT NULL,
+    "current_postal_code" TEXT NOT NULL,
     "current_address" TEXT NOT NULL,
-    "current_apartment" TEXT NOT NULL,
-    "current_state_province" TEXT,
-    "current_city" TEXT NOT NULL,
-    "current_country" TEXT,
-    "current_zip_post_code" TEXT NOT NULL,
+    "current_unit" TEXT,
+    "current_country" TEXT NOT NULL DEFAULT 'Singapore',
+    "permanent_postal_code" TEXT NOT NULL,
     "permanent_address" TEXT NOT NULL,
-    "permanent_apartment" TEXT NOT NULL,
-    "permanent_state_province" TEXT,
-    "permanent_city" TEXT NOT NULL,
-    "permanent_country" TEXT,
-    "permanent_zip_post_code" TEXT NOT NULL,
-    "bank_name" TEXT NOT NULL,
-    "account_number" TEXT NOT NULL,
+    "permanent_unit" TEXT,
+    "permanent_country" TEXT NOT NULL DEFAULT 'Singapore',
+    "bank_name" TEXT,
+    "account_number" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -1352,6 +1353,14 @@ CREATE TABLE "WalletHistory" (
 );
 
 -- CreateTable
+CREATE TABLE "_IncentiveZones" (
+    "A" INTEGER NOT NULL,
+    "B" INTEGER NOT NULL,
+
+    CONSTRAINT "_IncentiveZones_AB_pkey" PRIMARY KEY ("A","B")
+);
+
+-- CreateTable
 CREATE TABLE "_RoleToUser" (
     "A" INTEGER NOT NULL,
     "B" INTEGER NOT NULL,
@@ -1552,6 +1561,9 @@ CREATE INDEX "vehicle_types_isActive_idx" ON "vehicle_types"("isActive");
 CREATE UNIQUE INDEX "WalletHistory_transactionId_key" ON "WalletHistory"("transactionId");
 
 -- CreateIndex
+CREATE INDEX "_IncentiveZones_B_index" ON "_IncentiveZones"("B");
+
+-- CreateIndex
 CREATE INDEX "_RoleToUser_B_index" ON "_RoleToUser"("B");
 
 -- AddForeignKey
@@ -1585,7 +1597,7 @@ ALTER TABLE "CustomerOrderConfirmationLog" ADD CONSTRAINT "CustomerOrderConfirma
 ALTER TABLE "delivery_types" ADD CONSTRAINT "delivery_types_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "admins"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "DeliveryTypeVehicle" ADD CONSTRAINT "DeliveryTypeVehicle_delivery_type_id_fkey" FOREIGN KEY ("delivery_type_id") REFERENCES "delivery_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "DeliveryTypeVehicle" ADD CONSTRAINT "DeliveryTypeVehicle_delivery_type_id_fkey" FOREIGN KEY ("delivery_type_id") REFERENCES "delivery_types"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "DeliveryTypeVehicle" ADD CONSTRAINT "DeliveryTypeVehicle_vehicle_type_id_fkey" FOREIGN KEY ("vehicle_type_id") REFERENCES "vehicle_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1607,9 +1619,6 @@ ALTER TABLE "incentive_logs" ADD CONSTRAINT "incentive_logs_incentiveId_fkey" FO
 
 -- AddForeignKey
 ALTER TABLE "incentives" ADD CONSTRAINT "incentives_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "admins"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "incentives" ADD CONSTRAINT "incentives_serviceZoneId_fkey" FOREIGN KEY ("serviceZoneId") REFERENCES "serviceZone"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "IncentiveRule" ADD CONSTRAINT "IncentiveRule_incentiveId_fkey" FOREIGN KEY ("incentiveId") REFERENCES "incentives"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1646,6 +1655,9 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_serviceZoneId_fkey" FOREIGN KEY ("se
 
 -- AddForeignKey
 ALTER TABLE "orders" ADD CONSTRAINT "orders_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "orders" ADD CONSTRAINT "orders_delivery_type_id_fkey" FOREIGN KEY ("delivery_type_id") REFERENCES "delivery_types"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "orders" ADD CONSTRAINT "orders_vehicle_type_id_fkey" FOREIGN KEY ("vehicle_type_id") REFERENCES "vehicle_types"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -1729,6 +1741,9 @@ ALTER TABLE "raider_answers" ADD CONSTRAINT "raider_answers_selected_option_id_f
 ALTER TABLE "raider_registrations" ADD CONSTRAINT "raider_registrations_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "raider_registrations" ADD CONSTRAINT "raider_registrations_vehicle_type_id_fkey" FOREIGN KEY ("vehicle_type_id") REFERENCES "vehicle_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "RaiderOnlineSession" ADD CONSTRAINT "RaiderOnlineSession_raiderId_fkey" FOREIGN KEY ("raiderId") REFERENCES "Raider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1796,6 +1811,12 @@ ALTER TABLE "vehicle_types" ADD CONSTRAINT "vehicle_types_admin_id_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "WalletHistory" ADD CONSTRAINT "WalletHistory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_IncentiveZones" ADD CONSTRAINT "_IncentiveZones_A_fkey" FOREIGN KEY ("A") REFERENCES "incentives"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_IncentiveZones" ADD CONSTRAINT "_IncentiveZones_B_fkey" FOREIGN KEY ("B") REFERENCES "serviceZone"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_RoleToUser" ADD CONSTRAINT "_RoleToUser_A_fkey" FOREIGN KEY ("A") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
