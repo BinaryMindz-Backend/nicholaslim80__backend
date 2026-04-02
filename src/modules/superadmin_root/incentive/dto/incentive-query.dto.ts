@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IncentiveStatus, DriverType, IncentiveRewardType } from '@prisma/client';
+import { IncentiveStatus, IncentiveRewardType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsOptional, IsInt, Min, IsDateString, IsString, IsEnum } from 'class-validator';
 
@@ -48,10 +48,9 @@ export class IncentiveQueryDto {
   @IsEnum(IncentiveRewardType)
   reward_type?: IncentiveRewardType;
 
-  @ApiPropertyOptional({ enum: DriverType, description: 'Filter by driver type' })
+  @ApiPropertyOptional({ example: 'Car', description: 'Filter by driver type name' })
   @IsOptional()
-  @IsEnum(DriverType)
-  driver_type?: DriverType;
+  driver_type_name?: string;
 
   @ApiPropertyOptional({ example: 1, description: 'Filter by service zone ID' })
   @IsOptional()

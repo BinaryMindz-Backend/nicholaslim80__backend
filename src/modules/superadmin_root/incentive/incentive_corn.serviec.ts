@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
@@ -38,7 +37,7 @@ export class IncentiveCronService {
       include: { rules: true },
     });
 
-    // ✅ Fetch users once (important)
+    // Fetch users once (important)
     const users = await this.prisma.user.findMany({
       where: { is_active: true, is_deleted: false },
     });

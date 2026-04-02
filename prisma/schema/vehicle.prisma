@@ -19,6 +19,7 @@ model VehicleType {
   orders               Order[]
   delivery_types       DeliveryTypeVehicle[]
   raider_registrations RaiderRegistration[]
+  incentives           Incentive[]
 
   @@index([vehicle_type])
   @@index([isActive])

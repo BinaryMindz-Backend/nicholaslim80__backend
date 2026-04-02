@@ -8,7 +8,9 @@ model Incentive {
 
   start_date       DateTime
   end_date         DateTime
-  driver_type      DriverType
+  driver_type_id   Int
+  driverType       VehicleType          @relation(fields: [driver_type_id], references: [id], onDelete: Cascade)
+  driver_type_name  String              @map("driver_type_name")
   priority         Int                 @default(1)
   status           IncentiveStatus
 

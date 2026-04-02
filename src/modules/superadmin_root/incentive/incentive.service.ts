@@ -92,7 +92,8 @@ export class IncentiveService {
             name: dto.name,
             start_date: dto.start_date,
             end_date: dto.end_date,
-            driver_type: dto.driver_type,
+            driver_type_id: dto.driver_type_id,
+            driver_type_name: dto.driver_type_name,
             status: dto.status,
             reward_type: dto.reward_type,
             reward_value: dto.reward_value,
@@ -148,7 +149,7 @@ export class IncentiveService {
           sort = 'desc',
           status,
           reward_type,
-          driver_type,
+          driver_type_name,
           serviceZoneId,
           serviceZoneName
         } = query;
@@ -170,7 +171,7 @@ export class IncentiveService {
         if (reward_type) where.reward_type = reward_type;
 
         // ========= DRIVER TYPE =========
-        if (driver_type) where.driver_type = driver_type;
+        if (driver_type_name) where.driver_type_name = driver_type_name;
 
         // ========= SEARCH =========
         if (search) {
@@ -220,9 +221,33 @@ export class IncentiveService {
 
 
   // 
-  async findAllIncentive() {
+  async findAllIncentive(userId:number) {
+    const rider = await this.prisma.raider.findUnique({
+      where: { userId: userId },
+      include: { registrations:{
+          select: {
+              id: true,
+              vehicle_type:true
+          }
+      }},
+    });
+
+    if (!rider || !rider.registrations || rider.registrations.length === 0) {
+      throw new NotFoundException('Rider or associated raider profile not found');
+    }
     // 
-    const res = await this.prisma.incentive.findMany({})
+    const res = await this.prisma.incentive.findMany({
+      where: {
+        status: IncentiveStatus.ACTIVE,
+        driver_type_id: rider.registrations[0].vehicle_type.id,
+        driver_type_name: rider.registrations[0].vehicle_type.vehicle_name!,
+      },
+      include: { rules: true },
+    })
+    if(!res || res.length === 0){
+      throw new NotFoundException('No active incentives found for this rider');
+    }
+
     return res;
   }
 
@@ -319,7 +344,8 @@ export class IncentiveService {
         ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.start_date !== undefined && { start_date: dto.start_date }),
         ...(dto.end_date !== undefined && { end_date: dto.end_date }),
-        ...(dto.driver_type !== undefined && { driver_type: dto.driver_type }),
+        ...(dto.driver_type_id !== undefined && { driver_type_id: dto.driver_type_id }),
+        ...(dto.driver_type_name !== undefined && { driver_type_name: dto.driver_type_name }),
         ...(dto.reward_type !== undefined && { reward_type: dto.reward_type }),
         ...(dto.reward_value !== undefined && { reward_value: dto.reward_value }),
         ...(dto.claim_type !== undefined && { claim_type: dto.claim_type }),
