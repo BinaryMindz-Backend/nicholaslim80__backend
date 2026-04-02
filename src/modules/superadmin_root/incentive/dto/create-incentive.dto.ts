@@ -36,13 +36,11 @@ export class CreateIncentiveDto {
   end_date: Date;
 
   
-  @ApiProperty({ description: 'Driver type ID', example: 1 })
-  @IsNumber()
-  driver_type_id: number;
-
-  @ApiProperty({ description: 'Driver type name', example: 'Car' })
-  @IsString()
-  driver_type_name: string;
+  @ApiPropertyOptional({ description: 'Driver type IDs (multiple)', type: [Number], example: [1, 2] })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  driver_type_ids?: number[];
 
 
   @ApiProperty({ description: 'Priority (1-10)', example: 1 })

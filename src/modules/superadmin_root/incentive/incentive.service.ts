@@ -40,104 +40,143 @@ export class IncentiveService {
   }
 
   // 
-    async create(dto: CreateIncentiveDto, adminId?: number, role?: string) {
-        const now = new Date();
+   async create(dto: CreateIncentiveDto, adminId?: number, role?: string) {
+      const now = new Date();
 
-        //  Validate dates
-        if (new Date(dto.start_date) < now) {
-          throw new BadRequestException('Start date cannot be in the past');
-        }
-        if (new Date(dto.end_date) < new Date(dto.start_date)) {
-          throw new BadRequestException('End date cannot be before start date');
-        }
+      const startDate = new Date(dto.start_date);
+      const endDate = new Date(dto.end_date);
 
-        // Validate service zones
-        if (!dto.serviceZoneIds || dto.serviceZoneIds.length === 0) {
-          throw new BadRequestException('At least one service zone must be selected');
-        }
-
-        const createdIncentives: any[] = [];
-
-        for (const zoneId of dto.serviceZoneIds) {
-          // a Validate zone exists
-          const zone = await this.prisma.serviceZone.findUnique({
-            where: { id: zoneId },
-          });
-          if (!zone) {
-            throw new NotFoundException(`Service zone with ID ${zoneId} not found`);
-          }
-
-          // Check overlapping incentives by date and zone
-          const existing = await this.prisma.incentive.findFirst({
-            where: {
-              AND: [
-                { serviceZones: { some: { id: zoneId } } },
-                {
-                  OR: [
-                    { start_date: dto.start_date },
-                    { end_date: dto.end_date },
-                  ],
-                },
-              ],
-            },
-          });
-
-          if (existing) {
-            throw new ConflictException(`Incentive already exists for zone ${zoneId} in this date range`);
-          }
-
-          // Prepare incentive data
-          const incentiveData: any = {
-            adminId,
-            name: dto.name,
-            start_date: dto.start_date,
-            end_date: dto.end_date,
-            driver_type_id: dto.driver_type_id,
-            driver_type_name: dto.driver_type_name,
-            status: dto.status,
-            reward_type: dto.reward_type,
-            reward_value: dto.reward_value,
-            claim_type: dto.claim_type,
-            claim_expire: dto.claim_expire,
-            max_clam: dto.max_claim,
-            time_constant: dto.time_constant,
-            priority: dto.priority ?? 1,
-            description: dto.description,
-            // Connect single zone
-            serviceZones: { connect: [{ id: zoneId }] },
-            // Create rules
-            rules: dto.rules && dto.rules.length > 0 ? {
-              createMany: {
-                data: dto.rules.map(rule => ({
-                  metric: rule.metric,
-                  operator: rule.operator,
-                  value: rule.value,
-                })),
-              },
-            } : undefined,
-          };
-
-          // Create incentive
-          const incentive = await this.prisma.incentive.create({
-            data: incentiveData,
-            include: { rules: true, serviceZones: true },
-          });
-
-          // Log creation
-          await this.prisma.incentiveLog.create({
-            data: {
-              incentiveId: incentive.id,
-              incentiveData: { ...incentive, rules: incentive.rules },
-              changedByRole: role ?? 'ADMIN',
-              changedByAdminId: adminId,
-            },
-          });
-
-          createdIncentives.push(incentive);
-        }
-
-        return createdIncentives;
+      // Validate dates
+      if (startDate < now) {
+        throw new BadRequestException('Start date cannot be in the past');
       }
+
+      if (endDate < startDate) {
+        throw new BadRequestException('End date cannot be before start date');
+      }
+
+      // Validate service zones
+      if (!dto.serviceZoneIds || dto.serviceZoneIds.length === 0) {
+        throw new BadRequestException('At least one service zone must be selected');
+      }
+
+      // Validate driver types (NEW)
+      if (dto.driver_type_ids && dto.driver_type_ids.length > 0) {
+        const driverTypes = await this.prisma.vehicleType.findMany({
+          where: {
+            id: { in: dto.driver_type_ids },
+          },
+          select: { id: true },
+        });
+
+        const foundIds = driverTypes.map((dt) => dt.id);
+
+        const invalidIds = dto.driver_type_ids.filter(
+          (id) => !foundIds.includes(id),
+        );
+
+        if (invalidIds.length > 0) {
+          throw new NotFoundException(
+            `Invalid driver type IDs: ${invalidIds.join(', ')}`,
+          );
+        }
+      }
+
+      const createdIncentives: any[] = [];
+
+      for (const zoneId of dto.serviceZoneIds) {
+        // Validate zone exists
+        const zone = await this.prisma.serviceZone.findUnique({
+          where: { id: zoneId },
+        });
+
+        if (!zone) {
+          throw new NotFoundException(
+            `Service zone with ID ${zoneId} not found`,
+          );
+        }
+
+        // Overlap check
+        const existing = await this.prisma.incentive.findFirst({
+          where: {
+            serviceZones: { some: { id: zoneId } },
+            AND: [
+              { start_date: { lte: endDate } },
+              { end_date: { gte: startDate } },
+            ],
+          },
+        });
+
+        if (existing) {
+          throw new ConflictException(
+            `Incentive already exists for zone ${zoneId} in this date range`,
+          );
+        }
+
+        // Prepare data
+        const incentiveData: any = {
+          adminId,
+          name: dto.name,
+          start_date: startDate,
+          end_date: endDate,
+          status: dto.status,
+          reward_type: dto.reward_type,
+          reward_value: dto.reward_value,
+          claim_type: dto.claim_type,
+          claim_expire: dto.claim_expire,
+          max_clam: dto.max_claim,
+          time_constant: dto.time_constant,
+          priority: dto.priority ?? 1,
+          description: dto.description,
+
+          serviceZones: {
+            connect: [{ id: zoneId }],
+          },
+
+          driver_types: dto.driver_type_ids?.length
+            ? {
+                connect: dto.driver_type_ids.map((id) => ({ id })),
+              }
+            : undefined,
+
+          rules: dto.rules?.length
+            ? {
+                createMany: {
+                  data: dto.rules.map((rule) => ({
+                    metric: rule.metric,
+                    operator: rule.operator,
+                    value: rule.value,
+                  })),
+                },
+              }
+            : undefined,
+        };
+
+        // Create incentive
+        const incentive = await this.prisma.incentive.create({
+          data: incentiveData,
+          include: {
+            rules: true,
+            serviceZones: true,
+            driver_types: true,
+          },
+        });
+
+        // Log creation
+        await this.prisma.incentiveLog.create({
+          data: {
+            incentiveId: incentive.id,
+            incentiveData: incentive,
+            changedByRole: role ?? 'ADMIN',
+            changedByAdminId: adminId,
+          },
+        });
+
+        createdIncentives.push(incentive);
+      }
+
+      return createdIncentives;
+    }
   // 
    async findAll(query: IncentiveQueryDto) {
         const {
@@ -149,9 +188,9 @@ export class IncentiveService {
           sort = 'desc',
           status,
           reward_type,
-          driver_type_name,
           serviceZoneId,
-          serviceZoneName
+          serviceZoneName,
+          driverTypeName
         } = query;
 
         const skip = (page - 1) * limit;
@@ -171,8 +210,16 @@ export class IncentiveService {
         if (reward_type) where.reward_type = reward_type;
 
         // ========= DRIVER TYPE =========
-        if (driver_type_name) where.driver_type_name = driver_type_name;
+         if (driverTypeName) {
+            if (!where.driver_types) {
+              where.driver_types = {};
+            }
 
+            where.driver_types.some = {
+              ...(where.driver_types.some || {}),
+              vehicle_name: { contains: driverTypeName, mode: 'insensitive' },
+            };
+          } 
         // ========= SEARCH =========
         if (search) {
           where.OR = [{ name: { contains: search, mode: 'insensitive' } }];
@@ -239,11 +286,15 @@ export class IncentiveService {
     const res = await this.prisma.incentive.findMany({
       where: {
         status: IncentiveStatus.ACTIVE,
-        driver_type_id: rider.registrations[0].vehicle_type.id,
-        driver_type_name: rider.registrations[0].vehicle_type.vehicle_name!,
+        driver_types: {
+          some: {
+            id: rider.registrations[0].vehicle_type.id
+          }
+        },
+        serviceZones: {},
       },
       include: { rules: true },
-    })
+    });
     if(!res || res.length === 0){
       throw new NotFoundException('No active incentives found for this rider');
     }
@@ -295,87 +346,157 @@ export class IncentiveService {
 
   //
   async update(
-      id: number,
-      dto: UpdateIncentiveDto,
-      adminId?: number,
-      role?: string
+    id: number,
+    dto: UpdateIncentiveDto,
+    adminId?: number,
+    role?: string
+  ) {
+    // Check existing
+    const rec = await this.prisma.incentive.findUnique({
+      where: { id },
+      include: { rules: true, serviceZones: true },
+    });
+
+    if (!rec) {
+      throw new NotFoundException('Incentive not found');
+    }
+
+    // ✅ Validate dates
+    if (dto.start_date && new Date(dto.start_date) < new Date()) {
+      throw new BadRequestException('Start date cannot be in the past');
+    }
+
+    if (
+      dto.start_date &&
+      dto.end_date &&
+      new Date(dto.end_date) < new Date(dto.start_date)
     ) {
-      // Fetch existing incentive
-      const rec = await this.prisma.incentive.findUnique({
-        where: { id },
-        include: { rules: true, serviceZones: true },
+      throw new BadRequestException('End date cannot be before start date');
+    }
+
+    // ✅ Validate service zones
+    if (dto.serviceZoneIds?.length) {
+      const zones = await this.prisma.serviceZone.findMany({
+        where: { id: { in: dto.serviceZoneIds } },
+        select: { id: true },
       });
 
-      if (!rec) throw new NotFoundException('Incentive not found');
+      const foundIds = zones.map((z) => z.id);
 
-      //  Validate dates
-      if (dto.start_date && new Date(dto.start_date) < new Date()) {
-        throw new BadRequestException('Start date cannot be in the past');
+      const invalidIds = dto.serviceZoneIds.filter(
+        (id) => !foundIds.includes(id)
+      );
+
+      if (invalidIds.length) {
+        throw new NotFoundException(
+          `Invalid service zone IDs: ${invalidIds.join(', ')}`
+        );
       }
-      if (dto.start_date && dto.end_date && new Date(dto.end_date) < new Date(dto.start_date)) {
-        throw new BadRequestException('End date cannot be before start date');
+    }
+
+    // Validate driver types
+    if (dto.driver_type_ids?.length) {
+      const driverTypes = await this.prisma.vehicleType.findMany({
+        where: { id: { in: dto.driver_type_ids } },
+        select: { id: true },
+      });
+
+      const foundIds = driverTypes.map((dt) => dt.id);
+
+      const invalidIds = dto.driver_type_ids.filter(
+        (id) => !foundIds.includes(id)
+      );
+
+      if (invalidIds.length) {
+        throw new NotFoundException(
+          `Invalid driver type IDs: ${invalidIds.join(', ')}`
+        );
       }
+    }
 
-      // Handle rules separately
-      if (dto.rules && dto.rules.length > 0) {
-        await this.prisma.incentiveRule.deleteMany({ where: { incentiveId: id } });
-        await this.prisma.incentiveRule.createMany({
-          data: dto.rules.map(r => ({
-            incentiveId: id,
-            metric: r.metric,
-            operator: r.operator,
-            value: r.value,
-          })),
-        });
-      }
+    // Handle rules
+    if (dto.rules?.length) {
+      await this.prisma.incentiveRule.deleteMany({
+        where: { incentiveId: id },
+      });
 
-      // Handle multiple service zones
-      let serviceZonesUpdate;
-      if (dto.serviceZoneIds && dto.serviceZoneIds.length > 0) {
-        // Disconnect old zones
-        serviceZonesUpdate = {
-          set: dto.serviceZoneIds.map(zoneId => ({ id: zoneId })),
-        };
-      }
+      await this.prisma.incentiveRule.createMany({
+        data: dto.rules.map((r) => ({
+          incentiveId: id,
+          metric: r.metric,
+          operator: r.operator,
+          value: r.value,
+        })),
+      });
+    }
 
-      // Build update object
-      const updateData: any = {
-        ...(dto.name !== undefined && { name: dto.name }),
-        ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.start_date !== undefined && { start_date: dto.start_date }),
-        ...(dto.end_date !== undefined && { end_date: dto.end_date }),
-        ...(dto.driver_type_id !== undefined && { driver_type_id: dto.driver_type_id }),
-        ...(dto.driver_type_name !== undefined && { driver_type_name: dto.driver_type_name }),
-        ...(dto.reward_type !== undefined && { reward_type: dto.reward_type }),
-        ...(dto.reward_value !== undefined && { reward_value: dto.reward_value }),
-        ...(dto.claim_type !== undefined && { claim_type: dto.claim_type }),
-        ...(dto.status !== undefined && { status: dto.status }),
-        ...(dto.priority !== undefined && { priority: dto.priority }),
-        ...(dto.max_claim !== undefined && { max_clam: dto.max_claim }),
-        ...(dto.time_constant !== undefined && { time_constant: dto.time_constant }),
-        ...(adminId !== undefined && { adminId }),
-        ...(serviceZonesUpdate && { serviceZones: serviceZonesUpdate }),
-      };
+    // Relations
+    const serviceZonesUpdate = dto.serviceZoneIds?.length
+      ? {
+          set: dto.serviceZoneIds.map((zoneId) => ({ id: zoneId })),
+        }
+      : undefined;
 
-      // Update incentive
+    const driverTypesUpdate = dto.driver_type_ids?.length
+      ? {
+          set: dto.driver_type_ids.map((id) => ({ id })),
+        }
+      : undefined;
+
+    // Build update data
+    const updateData: any = {
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.description !== undefined && { description: dto.description }),
+      ...(dto.start_date !== undefined && { start_date: dto.start_date }),
+      ...(dto.end_date !== undefined && { end_date: dto.end_date }),
+      ...(dto.reward_type !== undefined && { reward_type: dto.reward_type }),
+      ...(dto.reward_value !== undefined && { reward_value: dto.reward_value }),
+      ...(dto.claim_type !== undefined && { claim_type: dto.claim_type }),
+      ...(dto.status !== undefined && { status: dto.status }),
+      ...(dto.priority !== undefined && { priority: dto.priority }),
+      ...(dto.max_claim !== undefined && { max_clam: dto.max_claim }),
+      ...(dto.time_constant !== undefined && { time_constant: dto.time_constant }),
+
+      ...(adminId !== undefined && {
+        admin: { connect: { id: adminId } },
+      }),
+
+      ...(driverTypesUpdate && { driver_types: driverTypesUpdate }),
+      ...(serviceZonesUpdate && { serviceZones: serviceZonesUpdate }),
+    };
+
+    try {
+      // ✅ Update
       const updated = await this.prisma.incentive.update({
         where: { id },
         data: updateData,
         include: { rules: true, serviceZones: true },
       });
 
-      // Log snapshot
+      // ✅ Log
       await this.prisma.incentiveLog.create({
         data: {
           incentiveId: updated.id,
-          incentiveData: { ...updated, rules: updated.rules },
+          incentiveData: updated,
           changedByRole: role ?? 'ADMIN',
           changedByAdminId: adminId,
         },
       });
 
       return updated;
+
+    } catch (error) {
+      // Handle Prisma not found (race condition)
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Incentive not found');
+      }
+
+      throw error;
     }
+  }
 
   // ** status update
   async statusUpdate(id: number, dto: { status?: IncentiveStatus }, adminId?: number, role?: string) {

@@ -48,10 +48,6 @@ export class IncentiveQueryDto {
   @IsEnum(IncentiveRewardType)
   reward_type?: IncentiveRewardType;
 
-  @ApiPropertyOptional({ example: 'Car', description: 'Filter by driver type name' })
-  @IsOptional()
-  driver_type_name?: string;
-
   @ApiPropertyOptional({ example: 1, description: 'Filter by service zone ID' })
   @IsOptional()
   @Type(() => Number)
@@ -62,4 +58,10 @@ export class IncentiveQueryDto {
   @IsOptional()
   @IsString()
   serviceZoneName?: string;
+  
+  @ApiPropertyOptional({ example: 'Car', description: 'Filter by driver type name' })
+  @IsOptional()
+  @IsString()
+  driverTypeName?: string;
+
 }

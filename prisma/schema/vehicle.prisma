@@ -19,7 +19,7 @@ model VehicleType {
   orders               Order[]
   delivery_types       DeliveryTypeVehicle[]
   raider_registrations RaiderRegistration[]
-  incentives           Incentive[]
+  incentives           Incentive[]   @relation("IncentiveVehicleTypes")
 
   @@index([vehicle_type])
   @@index([isActive])
