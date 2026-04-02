@@ -7,7 +7,7 @@ import { OtpService } from 'src/modules/auth/otp.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ReferralUtils } from 'src/utils/referral.util';
 import { CoinEvent, IUser } from 'src/types';
-import { CoinHistoryType, LoginType, UserRole } from '@prisma/client';
+import { CoinHistoryType, LoginType, OrderStatus, UserRole } from '@prisma/client';
 import { UserFilterDto, UserStatusFilter } from './dto/user-filter.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { startOfDay, endOfDay, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
@@ -481,7 +481,7 @@ export class UsersService {
       // ================= ORDER AGGREGATION =================
       const aggregated = await this.prisma.order.groupBy({
         by: ['userId'],
-        where: { userId: { in: userIds } },
+        where: { userId: { in: userIds },order_status:{notIn:[OrderStatus.PROGRESS]} },
         _count: { id: true },
         _sum: { total_cost: true },
       });
@@ -754,6 +754,7 @@ export class UsersService {
           by: ['userId'],
           where: {
             userId: { in: userIds },
+            order_status: { notIn: [OrderStatus.PROGRESS] },
           },
           _count: { id: true },
           _sum: { total_cost: true },
