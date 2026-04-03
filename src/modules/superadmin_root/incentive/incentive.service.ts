@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { BadRequestException, ConflictException, Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { CreateIncentiveDto } from './dto/create-incentive.dto';
 import { UpdateIncentiveDto } from './dto/update-incentive.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -97,21 +97,21 @@ export class IncentiveService {
         }
 
         // Overlap check
-        const existing = await this.prisma.incentive.findFirst({
-          where: {
-            serviceZones: { some: { id: zoneId } },
-            AND: [
-              { start_date: { lte: endDate } },
-              { end_date: { gte: startDate } },
-            ],
-          },
-        });
+        // const existing = await this.prisma.incentive.findFirst({
+        //   where: {
+        //     serviceZones: { some: { id: zoneId } },
+        //     AND: [
+        //       { start_date: { lte: endDate } },
+        //       { end_date: { gte: startDate } },
+        //     ],
+        //   },
+        // });
 
-        if (existing) {
-          throw new ConflictException(
-            `Incentive already exists for zone ${zoneId} in this date range`,
-          );
-        }
+        // if (existing) {
+        //   throw new ConflictException(
+        //     `Incentive already exists for zone ${zoneId} in this date range`,
+        //   );
+        // }
 
         // Prepare data
         const incentiveData: any = {
@@ -361,7 +361,7 @@ export class IncentiveService {
       throw new NotFoundException('Incentive not found');
     }
 
-    // ✅ Validate dates
+    // Validate dates
     if (dto.start_date && new Date(dto.start_date) < new Date()) {
       throw new BadRequestException('Start date cannot be in the past');
     }
@@ -374,7 +374,7 @@ export class IncentiveService {
       throw new BadRequestException('End date cannot be before start date');
     }
 
-    // ✅ Validate service zones
+    // Validate service zones
     if (dto.serviceZoneIds?.length) {
       const zones = await this.prisma.serviceZone.findMany({
         where: { id: { in: dto.serviceZoneIds } },
@@ -456,7 +456,7 @@ export class IncentiveService {
       ...(dto.priority !== undefined && { priority: dto.priority }),
       ...(dto.max_claim !== undefined && { max_clam: dto.max_claim }),
       ...(dto.time_constant !== undefined && { time_constant: dto.time_constant }),
-
+      ...(dto.claim_expire !== undefined && { claim_expire: dto.claim_expire }),
       ...(adminId !== undefined && {
         admin: { connect: { id: adminId } },
       }),
@@ -466,14 +466,14 @@ export class IncentiveService {
     };
 
     try {
-      // ✅ Update
+      //  Update
       const updated = await this.prisma.incentive.update({
         where: { id },
         data: updateData,
-        include: { rules: true, serviceZones: true },
+        include: { rules: true, serviceZones: true, driver_types: true},
       });
 
-      // ✅ Log
+      //  Log
       await this.prisma.incentiveLog.create({
         data: {
           incentiveId: updated.id,
