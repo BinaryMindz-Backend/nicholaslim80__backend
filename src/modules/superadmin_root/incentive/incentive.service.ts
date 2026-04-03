@@ -248,7 +248,7 @@ export class IncentiveService {
             skip,
             take: limit,
             orderBy: { created_at: sort },
-            include: { rules: true, serviceZones: true }, // include multiple zones
+            include: { rules: true, serviceZones: true, driver_types:true }, // include multiple zones
           }),
           this.prisma.incentive.count({ where }),
         ]);
