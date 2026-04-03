@@ -19,8 +19,8 @@ model Incentive {
   reward_value     Float               @default(0)
 
   claim_type       ClaimType
-  claim_expire     Int
-  max_clam         Int 
+  claim_expire     Int?
+  max_clam         Int? 
   time_constant    TimeUnit @default(HOURS)
 
   rules            IncentiveRule[]
