@@ -57,9 +57,8 @@ export class RidersProfileService {
       data: {
         ...registrationFields,
         raiderId: rider.id,
-        vehicle_type_id,
-        raider_verificationFromAdmin: RaiderVerification.PENDING,
-      },
+        vehicle_type_id
+          },
     });
   }
 
@@ -300,7 +299,7 @@ export class RidersProfileService {
       user_id: userId,
       meta: {
         type: 'verify_rider',
-        before,
+        before: before,
         after: { verification: verify, status }
       },
     },
