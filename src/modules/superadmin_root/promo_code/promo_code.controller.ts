@@ -14,6 +14,8 @@ import {
 import { Auth } from 'src/decorators/auth.decorator';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 @ApiTags('Promo Codes')
 @Controller('promo-codes')
@@ -29,8 +31,8 @@ export class PromoCodeController {
   @ApiBody({ type: CreatePromoCodeDto })
   @ApiResponse({ status: 201, description: 'Promo code created successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid data or promo code already exists.' })
-  async create(@Body() dto: CreatePromoCodeDto) {
-    const result = await this.promoService.create(dto);
+  async create(@Body() dto: CreatePromoCodeDto, @CurrentUser() user:IUser) {
+    const result = await this.promoService.create(dto, user.id);
     if (!result.success) {
       return ApiResponses.error(result.error, result.message);
     }
@@ -77,8 +79,8 @@ export class PromoCodeController {
   @ApiBody({ type: UpdatePromoCodeDto })
   @ApiResponse({ status: 200, description: 'Promo code updated successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid data or duplicate promo code.' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePromoCodeDto) {
-    const result = await this.promoService.update(id, dto);
+  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePromoCodeDto, @CurrentUser() user:IUser) {
+    const result = await this.promoService.update(id, dto, user.id);
     if (!result.success) {
       return ApiResponses.error(result.error, result.message);
     }
@@ -93,8 +95,8 @@ export class PromoCodeController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Promo code deleted successfully.' })
   @ApiResponse({ status: 404, description: 'Promo code not found.' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    const result = await this.promoService.remove(id);
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user:IUser) {
+    const result = await this.promoService.remove(id, user.id);
     if (!result.success) {
       return ApiResponses.error(result.error, result.message);
     }

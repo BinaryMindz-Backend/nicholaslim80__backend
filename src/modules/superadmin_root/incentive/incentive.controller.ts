@@ -125,33 +125,31 @@ export class IncentiveController {
     }
   } 
   // 
-  @Get('logs')
-  @Auth()
-  @ApiBearerAuth()
-  @RequirePermission(Module.DRIVER_INCENTIVE, Permission.READ)
-  @ApiOperation({ summary: 'Get all incentive configuration change logs (Admin only)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Incentive configuration logs fetched successfully',
-  })
-  async findAllLogs(@Query() filterDto: DateByFilterDto) {
-    try {
-      const res = await this.incentiveService.findAllLogs(
-        filterDto.fromDate,
-        filterDto.toDate,
-      );
+    @Get('logs')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.DRIVER_INCENTIVE, Permission.READ)
+    @ApiOperation({ summary: 'Get all incentive configuration change logs (Admin only)' })
+    @ApiResponse({
+      status: 200,
+      description: 'Incentive configuration logs fetched successfully',
+    })
+    async findAllLogs(@Query() filterDto: DateByFilterDto) {
+      try {
+        const res = await this.incentiveService.findAllLogs(filterDto);
 
-      return ApiResponses.success(
-        res,
-        'Incentive configuration logs fetched successfully',
-      );
-    } catch (err) {
-      return ApiResponses.error(
-        err,
-        'Failed to fetch incentive configuration logs',
-      );
+        return ApiResponses.success(
+          res,
+          'Incentive configuration logs fetched successfully',
+        );
+      } catch (err) {
+        return ApiResponses.error(
+          err,
+          'Failed to fetch incentive configuration logs',
+        );
+      }
     }
-  }
+
 
 
 

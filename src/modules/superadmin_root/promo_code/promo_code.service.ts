@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CreatePromoCodeDto } from './dto/create-promo_code.dto';
 import { ApiResponses } from 'src/common/apiResponse';
-import { DiscountType } from '@prisma/client';
 import { UpdatePromoCodeDto } from './dto/update-promo_code.dto';
 
 
@@ -11,10 +10,10 @@ export class PromoCodeService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** CREATE promo code */
-  async create(dto: CreatePromoCodeDto) {
-    try {
-      // Check if promo code already exists
-      const existing = await this.prisma.promoCode.findUnique({
+  async create(dto: CreatePromoCodeDto, userId: number) {
+  try {
+    return await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.promoCode.findUnique({
         where: { promoCode: dto.promoCode },
       });
 
@@ -22,39 +21,40 @@ export class PromoCodeService {
         return ApiResponses.error(null, `Promo code '${dto.promoCode}' already exists`);
       }
 
-      // Validate discount
-      if (dto.discountValue <= 0) {
-        return ApiResponses.error(null, 'Discount value must be greater than 0');
-      }
-
-      if (dto.discountType === DiscountType.PERCENTAGE && dto.discountValue > 100) {
-        return ApiResponses.error(null, 'Percentage discount cannot exceed 100');
-      }
-
-      // Validate expiration
       const expiresDate = new Date(dto.expires_at);
-      if (expiresDate <= new Date()) {
-        return ApiResponses.error(null, 'Expiration date must be in the future');
-      }
 
-      // Create promo code
-      const promo = await this.prisma.promoCode.create({
+      const promo = await tx.promoCode.create({
         data: {
           promoCode: dto.promoCode,
           discountType: dto.discountType,
           discountValue: dto.discountValue,
           isActive: dto.isActive ?? false,
           expires_at: expiresDate,
-          discountDesc:dto.discountDesc,
-          redirectLink:dto.redirectLink || null,
+          discountDesc: dto.discountDesc,
+          redirectLink: dto.redirectLink || null,
+        },
+      });
+
+      // Activity Log
+      await tx.activityLog.create({
+        data: {
+          action: 'CREATE',
+          entity_type: 'PROMO_CODE',
+          entity_id: promo.id,
+          user_id: userId,
+          meta: {
+            newData: promo,
+          },
         },
       });
 
       return ApiResponses.success(promo, 'Promo code created successfully');
-    } catch (error) {
-      return ApiResponses.error(error, 'Failed to create promo code');
-    }
+    });
+  } catch (error) {
+    return ApiResponses.error(error, 'Failed to create promo code');
   }
+}
+
 
   /** GET ALL promo codes */
   async findAll() {
@@ -89,59 +89,74 @@ export class PromoCodeService {
   }
 
   /** UPDATE promo code */
-  async update(id: number, dto: UpdatePromoCodeDto) {
+   async update(id: number, dto: UpdatePromoCodeDto, userId: number) {
     try {
-      // Check if promo code exists
-      const existing = await this.prisma.promoCode.findUnique({ where: { id } });
-      if (!existing) return ApiResponses.error(null, 'Promo code not found');
+      return await this.prisma.$transaction(async (tx) => {
+        const existing = await tx.promoCode.findUnique({ where: { id } });
+        if (!existing) return ApiResponses.error(null, 'Promo code not found');
 
-      // Prevent duplicate promoCode
-      if (dto.promoCode && dto.promoCode !== existing.promoCode) {
-        const duplicate = await this.prisma.promoCode.findUnique({ where: { promoCode: dto.promoCode } });
-        if (duplicate) return ApiResponses.error(null, `Promo code '${dto.promoCode}' already exists`);
-      }
+        const updated = await tx.promoCode.update({
+          where: { id },
+          data: {
+            promoCode: dto.promoCode ?? existing.promoCode,
+            discountType: dto.discountType ?? existing.discountType,
+            discountValue: dto.discountValue ?? existing.discountValue,
+            isActive: dto.isActive ?? existing.isActive,
+            expires_at: dto.expires_at
+              ? new Date(dto.expires_at)
+              : existing.expires_at,
+          },
+        });
 
-      // Validate discount
-      if (dto.discountValue !== undefined) {
-        if (dto.discountValue <= 0) return ApiResponses.error(null, 'Discount value must be greater than 0');
-        if (dto.discountType === DiscountType.PERCENTAGE && dto.discountValue > 100)
-          return ApiResponses.error(null, 'Percentage discount cannot exceed 100');
-      }
+        // Log with old + new
+        await tx.activityLog.create({
+          data: {
+            action: 'UPDATE',
+            entity_type: 'PROMO_CODE',
+            entity_id: id,
+            user_id: userId,
+            meta: {
+              oldData: existing,
+              newData: updated,
+            },
+          },
+        });
 
-      // Validate expiration
-      let expiresDate: Date | undefined;
-      if (dto.expires_at) {
-        expiresDate = new Date(dto.expires_at);
-        if (expiresDate <= new Date()) return ApiResponses.error(null, 'Expiration date must be in the future');
-      }
-
-      const updated = await this.prisma.promoCode.update({
-        where: { id },
-        data: {
-          promoCode: dto.promoCode ?? existing.promoCode,
-          discountType: dto.discountType ?? existing.discountType,
-          discountValue: dto.discountValue ?? existing.discountValue,
-          isActive: dto.isActive ?? existing.isActive,
-          expires_at: expiresDate ?? existing.expires_at,
-        },
+        return ApiResponses.success(updated, 'Promo code updated successfully');
       });
-
-      return ApiResponses.success(updated, 'Promo code updated successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to update promo code');
     }
   }
 
-  /** DELETE promo code */
-  async remove(id: number) {
-    try {
-      const existing = await this.prisma.promoCode.findUnique({ where: { id } });
-      if (!existing) return ApiResponses.error(null, 'Promo code not found');
 
-      await this.prisma.promoCode.delete({ where: { id } });
-      return ApiResponses.success(null, 'Promo code deleted successfully');
-    } catch (error) {
-      return ApiResponses.error(error, 'Failed to delete promo code');
+  /** DELETE promo code */
+    async remove(id: number, userId: number) {
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          const existing = await tx.promoCode.findUnique({ where: { id } });
+          if (!existing) return ApiResponses.error(null, 'Promo code not found');
+
+          await tx.promoCode.delete({ where: { id } });
+
+          await tx.activityLog.create({
+            data: {
+              action: 'DELETE',
+              entity_type: 'PROMO_CODE',
+              entity_id: id,
+              user_id: userId,
+              meta: {
+                oldData: existing,
+              },
+            },
+          });
+
+          return ApiResponses.success(null, 'Promo code deleted successfully');
+        });
+      } catch (error) {
+        return ApiResponses.error(error, 'Failed to delete promo code');
+      }
     }
-  }
+
+
 }
