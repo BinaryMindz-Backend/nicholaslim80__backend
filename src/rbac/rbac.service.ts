@@ -3,7 +3,7 @@ import { Injectable, OnModuleInit, ConflictException, NotFoundException, BadRequ
 import { Module, Permission, STATIC_ROLES } from './rbac.constants';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { PermissionDto, SearchDto } from './dto/role.dto';
-import { DeliveryTypeName, OrderStatus } from '@prisma/client';
+import { OrderStatus } from '@prisma/client';
 import { RoleQueryDto } from './dto/serach_pagination.dto';
 import { ActivityLogService } from 'src/modules/superadmin_root/additional_services/activity_logs.services';
 

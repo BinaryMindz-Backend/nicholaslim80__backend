@@ -2319,6 +2319,7 @@ export class OrderService {
 
     if (!order) throw new NotFoundException('Order not found');
 
+
     const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
     const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
 
@@ -2374,8 +2375,29 @@ export class OrderService {
     const basePrice = pricingResults[0].pricing.basePrice;
     const deliveryTypeCharge = basePrice - totalCost;
 
+    // Get raider rating average
+      const avgRating = await this.prisma.rateRaider.aggregate({
+        where: {
+          raiderId: order.assign_rider_id,
+        },
+        _avg: {
+          rating_star: true
+        },
+        _count: {
+          id: true
+        }
+      });
+
+      const formattedAverage = avgRating._avg.rating_star
+        ? Number(avgRating._avg.rating_star.toFixed(2))
+        : 5;
+
+
+
     return {
       ...order,
+      // avg rating for assigned raider
+      formattedAverage,
       // stops remain unchanged
       pricingSummary: {
         totalDistance: 0,
