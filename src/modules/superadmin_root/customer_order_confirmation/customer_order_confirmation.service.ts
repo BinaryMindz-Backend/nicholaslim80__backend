@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateCustomerOrderConfirmationDto } from './dto/create-customer_order_confirmation.dto';
 import { UpdateCustomerOrderConfirmationDto } from './dto/update-customer_order_confirmation.dto';
 import { OrderConfirmationRatioType } from '@prisma/client';
+import { DateByFilterDto } from './dto/date-filter.dto';
 
 
 
@@ -121,20 +121,63 @@ export class CustomerOrderConfirmationService {
 
     return updated;
   }
+  
+  // find all logs
+  async findAllLogs(filterDto: DateByFilterDto) {
+    const { fromDate, toDate, page = 1, limit = 10, search } = filterDto;
 
-  async findAllLogs(fromDate?: string, toDate?: string) {
-    return await this.prisma.customerOrderConfirmationLog.findMany({
-      where: {
-        createdAt: {
-          gte: fromDate ? new Date(fromDate) : undefined,
-          lte: toDate ? new Date(toDate) : undefined,
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      createdAt: {
+        gte: fromDate ? new Date(fromDate) : undefined,
+        lte: toDate ? new Date(toDate) : undefined,
+      },
+    };
+
+    // Optional: search implementation (adjust fields as needed)
+    if (search) {
+      where.OR = [
+        {
+          // example field
+          action: {
+            contains: search,
+            mode: 'insensitive',
+          },
         },
+        {
+          // example field
+          description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.customerOrderConfirmationLog.findMany({
+        where,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.customerOrderConfirmationLog.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    };
   }
+
 
 
 

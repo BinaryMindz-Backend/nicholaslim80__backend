@@ -98,10 +98,7 @@ export class QuizController {
   })
   async findAllLogs(@Query() filterDto: DateByFilterDto) {
     try {
-      const res = await this.quizService.findAllLogs(
-        filterDto.fromDate,
-        filterDto.toDate,
-      );
+      const res = await this.quizService.findAllLogs(filterDto);
 
       return ApiResponses.success(
         res,
@@ -114,6 +111,7 @@ export class QuizController {
       );
     }
   }
+
 
 
 

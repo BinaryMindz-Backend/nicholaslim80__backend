@@ -457,6 +457,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.NOTIFICATION, action: Permission.DELETE },
     // qize module
     { module: Module.QUIZZES, action: Permission.GET_ONE },
+    { module: Module.QUIZ, action: Permission.GET_ONE },
     // wallet module
     { module: Module.WALLET, action: Permission.READ },
     // faq
