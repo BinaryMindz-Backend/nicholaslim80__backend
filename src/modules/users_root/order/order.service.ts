@@ -597,7 +597,7 @@ export class OrderService {
   }
 
   // notify rider
-  async notifyRider(orderId: number, userId: number) {
+  async notifyRider(orderId: number, userId: number, dto) {
     // 
     const isOrderExist = await this.prisma.order.findFirst({
       where: {
@@ -606,8 +606,8 @@ export class OrderService {
       }
     })
     //  
-    if (!isOrderExist || (isOrderExist && isOrderExist?.collect_time !== CollectTime.SCHEDULED)) {
-      throw new NotFoundException(`${isOrderExist?.collect_time !== CollectTime.SCHEDULED && "Scheduled"} Order Not found`)
+    if (!isOrderExist ) {
+      throw new NotFoundException(`Order Not found`)
     }
     //  
     const r = await this.prisma.order.update({
@@ -615,7 +615,7 @@ export class OrderService {
         id: orderId
       },
       data: {
-        is_auto_confirmation: false,
+        is_auto_confirmation: dto.notify_rider,
       }
     })
 

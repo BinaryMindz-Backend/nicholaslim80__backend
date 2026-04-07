@@ -239,8 +239,9 @@ export class OrderController {
   async notifyRider(
     @Param('order_id', ParseIntPipe) orderId: number,
     @CurrentUser() user: IUser,
+    @Body() dto: NotifyRaider,
   ) {
-    const order = await this.orderService.notifyRider(orderId, user.id);
+    const order = await this.orderService.notifyRider(orderId, user.id, dto);
     return ApiResponses.success(order, 'raider will notified you');
   }
 
