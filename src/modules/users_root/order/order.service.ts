@@ -480,7 +480,6 @@ export class OrderService {
               status: PaymentStatus.UNPAID,
             },
           });
-
           // Receivers pay nothing
           for (const drop of dropStops) {
             await tx.stopPayment.update({
@@ -597,7 +596,7 @@ export class OrderService {
   }
 
   // notify rider
-  async notifyRider(orderId: number, userId: number, dto) {
+  async notifyRider(orderId: number, userId: number) {
     // 
     const isOrderExist = await this.prisma.order.findFirst({
       where: {
@@ -615,7 +614,7 @@ export class OrderService {
         id: orderId
       },
       data: {
-        is_auto_confirmation: dto.notify_rider,
+        is_auto_confirmation: false,
       }
     })
 
