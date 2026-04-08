@@ -2308,6 +2308,7 @@ export class OrderService {
                 current_unit: true,
                 current_address: true,
                 current_country: true,
+                driver_photos: true,
               },
             },
             locations: true,
