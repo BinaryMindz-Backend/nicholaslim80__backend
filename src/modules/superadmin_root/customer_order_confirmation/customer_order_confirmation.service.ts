@@ -139,19 +139,19 @@ export class CustomerOrderConfirmationService {
     if (search) {
       where.OR = [
         {
-          // example field
-          action: {
+          // field
+          changedByRole: {
             contains: search,
             mode: 'insensitive',
           },
         },
-        {
-          // example field
-          description: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
+        // {
+        //   // example field
+        //   followersWeight: {
+        //     contains: search,
+        //     mode: 'insensitive',
+        //   },
+        // },
       ];
     }
 

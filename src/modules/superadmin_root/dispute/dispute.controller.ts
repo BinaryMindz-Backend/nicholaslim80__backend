@@ -17,6 +17,8 @@ import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import { DisputeQueryDto } from './dto/dispute-query.dto';
 import { Auth } from 'src/decorators/auth.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 @ApiTags('Disputes') 
 @Controller('disputes')
@@ -112,9 +114,9 @@ export class DisputeController {
   @Auth()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete dispute (User / Rider / Admin)' })
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id') id: string, @CurrentUser() user:IUser) {
     try {
-      const res = await this.service.delete(+id);
+      const res = await this.service.delete(+id, user.id);
       
       if (!res) {
         throw new HttpException(
@@ -136,9 +138,9 @@ export class DisputeController {
   @Auth()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Close dispute case (User / Rider / Admin)' })
-  async closeCase(@Param('id') id: string) {
+  async closeCase(@Param('id') id: string, @CurrentUser() user:IUser) {
     try {
-      const res = await this.service.closeCase(+id);
+      const res = await this.service.closeCase(+id, user.id);
       
       if (!res) {
         throw new HttpException(

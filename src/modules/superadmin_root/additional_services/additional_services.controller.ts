@@ -8,7 +8,7 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdditionalServicesService } from './additional_services.service';
 import { CreateAdditionalServiceDto } from './dto/create-additional_service.dto';
 import { ApiResponses } from 'src/common/apiResponse';
@@ -19,6 +19,8 @@ import { Module, Permission } from 'src/rbac/rbac.constants';
 import { ServiceEmailNumberDto } from './dto/service-email-number.dto';
 import { ActivityLogQueryDto } from './dto/activity_logs.dto';
 import { ActivityLogService } from './activity_logs.services';
+import type { IUser } from 'src/types';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
 
 
 @ApiTags('Additional Services')
@@ -52,9 +54,9 @@ export class AdditionalServicesController {
   @ApiBearerAuth()
   @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.CREATE)
   @ApiOperation({ summary: 'Create additional service' })
-  async create(@Body() dto: CreateAdditionalServiceDto) {
+  async create(@Body() dto: CreateAdditionalServiceDto, @CurrentUser() user: IUser) {
     try {
-      const data = await this.service.create(dto);
+      const data = await this.service.create(dto, user.id);
       return ApiResponses.success(data, 'Additional service created successfully');
     } catch (error) {
       return ApiResponses.error(error);
@@ -82,9 +84,9 @@ export class AdditionalServicesController {
   @ApiBearerAuth()
   @RequirePermission(Module.CONTACT_INFO, Permission.UPDATE)
   @ApiOperation({ summary: 'Update additional service email and number' })
-  async updateServiceEmailNumber(@Param('id') id: string, @Body() dto: ServiceEmailNumberDto) {
+  async updateServiceEmailNumber(@Param('id') id: string, @Body() dto: ServiceEmailNumberDto, @CurrentUser() user: IUser) {
     try {
-      const data = await this.service.updateServiceEmailNumber(+id, dto);
+      const data = await this.service.updateServiceEmailNumber(+id, dto, user.id);
       return ApiResponses.success(data, 'Additional service email and number updated successfully');
     } catch (error) {
       return ApiResponses.error(error);
@@ -99,9 +101,9 @@ export class AdditionalServicesController {
   @ApiBearerAuth()
   @RequirePermission(Module.CONTACT_INFO, Permission.DELETE)
   @ApiOperation({ summary: 'Delete additional service email and number' })
-  async deleteServiceEmailNumber(@Param('id') id: string) {
+  async deleteServiceEmailNumber(@Param('id') id: string, @CurrentUser() user: IUser) {
     try {
-      const data = await this.service.deleteServiceEmailNumber(+id);
+      const data = await this.service.deleteServiceEmailNumber(+id, user.id);
       return ApiResponses.success(data, 'Additional service email and number deleted successfully');
     } catch (error) {
       return ApiResponses.error(error);
@@ -144,9 +146,10 @@ export class AdditionalServicesController {
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateAdditionalServiceDto,
+    @CurrentUser() user: IUser
   ) {
     try {
-      const data = await this.service.update(+id, dto);
+      const data = await this.service.update(+id, dto, user.id);
       return ApiResponses.success(data, 'Additional service updated successfully');
     } catch (error) {
       return ApiResponses.error(error);
@@ -157,9 +160,9 @@ export class AdditionalServicesController {
   @Auth()
   @ApiBearerAuth()
   @RequirePermission(Module.ADDITIONAL_ORDER_SERVICE, Permission.DELETE)
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user: IUser) {
     try {
-      const data = await this.service.remove(+id);
+      const data = await this.service.remove(+id, user.id);
       return ApiResponses.success(data, 'Additional service deleted successfully');
     } catch (error) {
       return ApiResponses.error(error);

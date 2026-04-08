@@ -692,18 +692,12 @@ export class IncentiveService {
     if (search) {
       where.OR = [
         {
-          action: {
+          'incentiveData.name': {
             contains: search,
             mode: 'insensitive',
           },
         },
-        {
-          description: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-      ];
+             ];
     }
 
     const [data, total] = await this.prisma.$transaction([

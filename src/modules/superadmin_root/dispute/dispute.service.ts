@@ -16,6 +16,7 @@ import {
 import { CreateDisputeDto } from './dto/create-dispute.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
+import { ActivityLogService } from '../additional_services/activity_logs.services';
 
 @Injectable()
 export class DisputeService {
@@ -24,6 +25,7 @@ export class DisputeService {
   constructor(
          private readonly prisma: PrismaService,
          private readonly emailQueueService: EmailQueueService,
+         private readonly activityLogService: ActivityLogService,
   ) {}
 
   // -------------------------
@@ -151,7 +153,125 @@ export class DisputeService {
     });
   }
 
-  // -------------------------
+  // ------------------------- dep
+  // async resolve(dto: ResolveDisputeDto) {
+  //   const dispute = await this.prisma.dispute.findUnique({
+  //     where: { id: dto.disputeId },
+  //   });
+  //   if (!dispute) throw new NotFoundException('Dispute not found');
+
+  //   const order = await this.prisma.order.findUnique({
+  //     where: { id: dispute.orderId ?? undefined },
+  //        include:{ user:true}
+  //   });
+  //   if (!order) throw new NotFoundException('Order not found');
+
+  //   const raider = await this.prisma.user.findFirst({
+  //        where:{
+  //           raiderProfile:{
+  //               id:order.assign_rider_id!
+  //           } 
+  //        }
+  //   })
+  //   // 
+  //    if(!raider){
+  //         throw new NotFoundException('Rider not found');
+  //    }
+
+
+  //   let userAmount = 0;
+  //   let riderAmount = 0;
+  //   let companyAmount = 0;
+
+  //   if (dto.refundType === 'FULL') {
+  //     userAmount = dto.totalAmount;
+  //   } else {
+  //     companyAmount = (dto.totalAmount * (dto.companyPercent ?? 0)) / 100;
+  //     riderAmount = (dto.totalAmount * (dto.riderPercent ?? 0)) / 100;
+  //     if(raider.currentWalletBalance < riderAmount){
+  //         throw new BadRequestException('Rider has insufficient wallet balance');
+  //     }
+  //     // detucte from user amount
+  //     await this.prisma.user.update({
+  //        where:{
+  //           id:raider.id
+  //        },
+  //        data:{
+  //           totalWalletBalance:{
+  //               decrement:riderAmount
+  //           },
+  //           currentWalletBalance:{
+  //               decrement:riderAmount
+  //           }
+  //        }
+  //     })
+  //     //  
+  //     const totalAmount = companyAmount + riderAmount;
+  //     if (totalAmount !== dto.totalAmount) {
+  //       throw new BadRequestException(
+  //         'Company and Rider percentages do not sum up to total amount',
+  //       );
+  //     }
+  //     // 
+  //     userAmount = totalAmount ;
+  //   }
+
+  //   await this.prisma.$transaction(async (tx) => {
+  //     await tx.dispute.update({
+  //       where: { id: dto.disputeId },
+  //       data: {
+  //         status: 'RESOLVED',
+  //         refundType: dto.refundType,
+  //         refundAmount: dto.totalAmount,
+  //         companyPercent: dto.companyPercent,
+  //         riderPercent: dto.riderPercent,
+  //         resolvedByAdminId: dto.adminId,
+  //         resolvedAt: new Date(),
+  //       },
+  //     });
+
+  //     if (userAmount > 0 && order.userId) {
+  //       await this.creditWallet(
+  //         tx,
+  //         order.userId,
+  //         userAmount,
+  //         order.id,
+  //         'DISPUTE_REFUND',
+  //       );
+  //     }
+  //   });
+    
+  //    // After dispute is resolved and wallet updates are done
+  //     try {
+  //       // User notification
+  //       if (order.user?.fcmToken) {
+  //         await this.emailQueueService.queuePushNotification({
+  //           userId: order.user.id,
+  //           fcmToken: order.user.fcmToken,
+  //           title: 'Dispute Resolved',
+  //           body: `Your dispute #${dispute.id} for order #${order.id} has been resolved. Refund amount: ${userAmount}.`,
+  //         });
+  //       }
+
+  //       // Rider notification
+  //       if (raider.fcmToken) {
+  //         await this.emailQueueService.queuePushNotification({
+  //           userId: raider.id,
+  //           fcmToken: raider.fcmToken,
+  //           title: 'Dispute Resolved',
+  //           body: `Dispute #${dispute.id} for order #${order.id} has been resolved. Amount deducted: ${riderAmount}.`,
+  //         });
+  //       }
+  //     } catch (err) {
+  //       this.logger.error('Failed to queue dispute push notifications:', err);
+  //     }
+
+  //     return { success: true };
+  // }
+
+
+
+  // new
   async resolve(dto: ResolveDisputeDto) {
     const dispute = await this.prisma.dispute.findUnique({
       where: { id: dto.disputeId },
@@ -160,22 +280,21 @@ export class DisputeService {
 
     const order = await this.prisma.order.findUnique({
       where: { id: dispute.orderId ?? undefined },
-         include:{ user:true}
+      include: { user: true },
     });
     if (!order) throw new NotFoundException('Order not found');
 
     const raider = await this.prisma.user.findFirst({
-         where:{
-            raiderProfile:{
-                id:order.assign_rider_id!
-            } 
-         }
-    })
-    // 
-     if(!raider){
-          throw new NotFoundException('Rider not found');
-     }
+      where: {
+        raiderProfile: {
+          id: order.assign_rider_id!,
+        },
+      },
+    });
 
+    if (!raider) {
+      throw new NotFoundException('Rider not found');
+    }
 
     let userAmount = 0;
     let riderAmount = 0;
@@ -186,35 +305,33 @@ export class DisputeService {
     } else {
       companyAmount = (dto.totalAmount * (dto.companyPercent ?? 0)) / 100;
       riderAmount = (dto.totalAmount * (dto.riderPercent ?? 0)) / 100;
-      if(raider.currentWalletBalance < riderAmount){
-          throw new BadRequestException('Rider has insufficient wallet balance');
+
+      if (raider.currentWalletBalance < riderAmount) {
+        throw new BadRequestException('Rider has insufficient wallet balance');
       }
-      // detucte from user amount
-      await this.prisma.user.update({
-         where:{
-            id:raider.id
-         },
-         data:{
-            totalWalletBalance:{
-                decrement:riderAmount
-            },
-            currentWalletBalance:{
-                decrement:riderAmount
-            }
-         }
-      })
-      //  
+
       const totalAmount = companyAmount + riderAmount;
       if (totalAmount !== dto.totalAmount) {
         throw new BadRequestException(
           'Company and Rider percentages do not sum up to total amount',
         );
       }
-      // 
-      userAmount = totalAmount ;
+
+      userAmount = totalAmount;
     }
 
     await this.prisma.$transaction(async (tx) => {
+      // Deduct rider balance (inside transaction ⚠️ move here)
+      if (riderAmount > 0) {
+        await tx.user.update({
+          where: { id: raider.id },
+          data: {
+            totalWalletBalance: { decrement: riderAmount },
+            currentWalletBalance: { decrement: riderAmount },
+          },
+        });
+      }
+
       await tx.dispute.update({
         where: { id: dto.disputeId },
         data: {
@@ -238,34 +355,69 @@ export class DisputeService {
         );
       }
     });
-    
-     // After dispute is resolved and wallet updates are done
-      try {
-        // User notification
-        if (order.user?.fcmToken) {
-          await this.emailQueueService.queuePushNotification({
-            userId: order.user.id,
-            fcmToken: order.user.fcmToken,
-            title: 'Dispute Resolved',
-            body: `Your dispute #${dispute.id} for order #${order.id} has been resolved. Refund amount: ${userAmount}.`,
-          });
-        }
 
-        // Rider notification
-        if (raider.fcmToken) {
-          await this.emailQueueService.queuePushNotification({
-            userId: raider.id,
-            fcmToken: raider.fcmToken,
-            title: 'Dispute Resolved',
-            body: `Dispute #${dispute.id} for order #${order.id} has been resolved. Amount deducted: ${riderAmount}.`,
-          });
-        }
-      } catch (err) {
-        this.logger.error('Failed to queue dispute push notifications:', err);
+    // LOG AFTER SUCCESSFUL TRANSACTION
+    await this.activityLogService.log({
+      action: 'UPDATE',
+      entityType: 'Dispute',
+      entityId: dto.disputeId,
+      userId: dto.adminId,
+      meta: {
+        action: 'RESOLVE_DISPUTE',
+        disputeId: dto.disputeId,
+        orderId: order.id,
+
+        financials: {
+          total: dto.totalAmount,
+          refundType: dto.refundType,
+          userAmount,
+          riderAmount,
+          companyAmount,
+        },
+
+        distribution: {
+          companyPercent: dto.companyPercent,
+          riderPercent: dto.riderPercent,
+        },
+
+        affectedUsers: {
+          userId: order.userId,
+          riderId: raider.id,
+        },
+
+        statusChange: {
+          from: dispute.status,
+          to: 'RESOLVED',
+        },
+      },
+    });
+
+    // Notifications (unchanged)
+    try {
+      if (order.user?.fcmToken) {
+        await this.emailQueueService.queuePushNotification({
+          userId: order.user.id,
+          fcmToken: order.user.fcmToken,
+          title: 'Dispute Resolved',
+          body: `Your dispute #${dispute.id} for order #${order.id} has been resolved. Refund amount: ${userAmount}.`,
+        });
       }
 
-      return { success: true };
+      if (raider.fcmToken) {
+        await this.emailQueueService.queuePushNotification({
+          userId: raider.id,
+          fcmToken: raider.fcmToken,
+          title: 'Dispute Resolved',
+          body: `Dispute #${dispute.id} for order #${order.id} has been resolved. Amount deducted: ${riderAmount}.`,
+        });
+      }
+    } catch (err) {
+      this.logger.error('Failed to queue dispute push notifications:', err);
+    }
+
+    return { success: true };
   }
+
 
 
 
@@ -286,46 +438,62 @@ export class DisputeService {
        })
   }
     //  
-  async delete(id:number){
+    async delete(id: number, userId: number) {
+      const res = await this.prisma.dispute.findFirst({
+        where: { id },
+      });
 
-     const res = await this.prisma.dispute.findFirst({
-            where:{
-               id
-            }
-       }) 
+      if (!res) {
+        throw new NotFoundException("Dispute not found");
+      }
 
-       if(!res){
-           throw new NotFoundException("Dispute not found")
-       }
-      // 
-      return this.prisma.dispute.delete({
-          where:{
-              id
-          }
-      }) 
-  }
+      await this.prisma.dispute.delete({
+        where: { id },
+      });
+
+      await this.activityLogService.log({
+        action: 'DELETE',
+        entityType: 'Dispute',
+        entityId: id,
+        userId,
+        meta: {
+          deleted: res,
+        },
+      });
+
+      return { message: 'Deleted successfully' };
+    }
+
   // 
-    async closeCase(id:number){
+async closeCase(id: number, userId: number) {
+  const res = await this.prisma.dispute.findFirst({
+    where: { id },
+  });
 
-     const res = await this.prisma.dispute.findFirst({
-            where:{
-               id
-            }
-       }) 
-
-       if(!res){
-           throw new NotFoundException("Dispute not found")
-       }
-      // 
-      return await this.prisma.dispute.update({
-          where:{
-              id
-          },
-          data:{
-            is_closed:true  
-          }
-      }) 
+  if (!res) {
+    throw new NotFoundException("Dispute not found");
   }
+
+  const updated = await this.prisma.dispute.update({
+    where: { id },
+    data: { is_closed: true },
+  });
+
+  await this.activityLogService.log({
+    action: 'UPDATE',
+    entityType: 'Dispute',
+    entityId: id,
+    userId,
+    meta: {
+      action: 'CLOSE_CASE',
+      before: { is_closed: res.is_closed },
+      after: { is_closed: true },
+    },
+  });
+
+  return updated;
+}
+
 
 
 
