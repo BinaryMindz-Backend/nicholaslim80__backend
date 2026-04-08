@@ -924,7 +924,12 @@ export class UsersService {
         profile: true,
         raiderProfile: {
           include: {
-            registrations: true
+            registrations: true,
+            raiderQuizzes:{
+               include:{
+                 raiderAnswers:true
+               }
+            }
           }
         },
         roles: true,
