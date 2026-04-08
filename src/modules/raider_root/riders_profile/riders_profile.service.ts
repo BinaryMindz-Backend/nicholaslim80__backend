@@ -76,7 +76,14 @@ export class RidersProfileService {
 
     const skip = (page - 1) * limit;
 
-    const where: Prisma.RaiderWhereInput = {};
+    const where: Prisma.RaiderWhereInput = {
+        LoginType: LoginType.DIRECT_SIGNIN,
+        raider_verificationFromAdmin: RaiderVerification.PENDING,
+        registrations: {
+           some:{}
+        },
+
+    };
 
     if (raiderId) {
       where.id = raiderId;
@@ -204,64 +211,7 @@ export class RidersProfileService {
   }
 
 
-  // 
-  // async verifyRiderProfile(id: number, verify: RaiderVerification, userId: number) {
-
-  //   const r = await this.prisma.raider.findUnique({
-  //     where: { id: Number(id) }
-  //   });
-
-  //   if (!r) {
-  //     throw new NotFoundException('Rider profile not found');
-  //   }
-
-  //   const registration = await this.prisma.raiderRegistration.findFirst({
-  //     where: { raiderId: Number(id) },
-  //   });
-
-  //   if (!registration) {
-  //     throw new NotFoundException('Rider registration not found');
-  //   }
-
-  //   const before = {
-  //     verification: r.raider_verificationFromAdmin,
-  //     status: r.raider_status
-  //   };
-
-  //   let status: RaiderStatus = RaiderStatus.IN_ACTIVE;
-
-  //   if (verify === RaiderVerification.APPROVED) {
-  //     status = RaiderStatus.ACTIVE;
-  //   }
-
-  //   const updatedProfile = await this.prisma.raider.update({
-  //     where: { id: r.id },
-  //     data: {
-  //       raider_verificationFromAdmin: verify,
-  //       raider_status: status
-  //     },
-  //   });
-
-  //   // LOG
-  //   await this.prisma.activityLog.create({
-  //     data: {
-  //       action: 'UPDATE',
-  //       entity_type: 'Raider',
-  //       entity_id: r.id,
-  //       user_id: userId,
-  //       meta: {
-  //         type: 'verify_rider',
-  //         before,
-  //         after: {
-  //           verification: verify,
-  //           status
-  //         }
-  //       },
-  //     },
-  //   });
-
-  //   return updatedProfile;
-  // }
+  //
 
   async verifyRiderProfile(id: number, verify: RaiderVerification, userId: number) {
   const raiderId = Number(id);
