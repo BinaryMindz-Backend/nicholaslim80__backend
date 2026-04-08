@@ -25,6 +25,7 @@ export class PromoCodeService {
 
       const promo = await tx.promoCode.create({
         data: {
+          title: dto.title,
           promoCode: dto.promoCode,
           discountType: dto.discountType,
           discountValue: dto.discountValue,
@@ -98,6 +99,7 @@ export class PromoCodeService {
         const updated = await tx.promoCode.update({
           where: { id },
           data: {
+            title: dto.title,
             promoCode: dto.promoCode ?? existing.promoCode,
             discountType: dto.discountType ?? existing.discountType,
             discountValue: dto.discountValue ?? existing.discountValue,

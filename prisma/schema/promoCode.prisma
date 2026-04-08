@@ -1,6 +1,7 @@
 model PromoCode {
 
       id             Int @id @default(autoincrement())
+      title          String?
       promoCode      String @unique
       discountType   DiscountType
       discountValue  Int
