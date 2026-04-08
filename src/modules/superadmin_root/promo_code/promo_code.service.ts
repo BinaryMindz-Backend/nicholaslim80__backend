@@ -35,6 +35,18 @@ export class PromoCodeService {
           redirectLink: dto.redirectLink || null,
         },
       });
+      // send notification to all users about new promo code
+        // await tx.notification.create({
+        //   data: {
+        //     title: 'New Promo Code Available!',
+        //     message: `Check out our new promo code: ${promo.promoCode} for amazing discounts!`,
+        //     target_role: 'USER', // or 'RAIDER' based on your needs
+        //     send_immediately: true,
+        //   },
+        // })
+
+
+
 
       // Activity Log
       await tx.activityLog.create({

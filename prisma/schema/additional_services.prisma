@@ -11,9 +11,9 @@ model AdditionalServices {
 
 model DashboardPopup {
     id    Int     @unique @default(autoincrement())
-    title         String
-    desc          String
-    redirect_link String 
+    title         String?
+    desc          String?
+    redirect_link String? 
     image_link    String?
     isActive      Boolean           @default(true) 
     created_at    DateTime          @default(now())
