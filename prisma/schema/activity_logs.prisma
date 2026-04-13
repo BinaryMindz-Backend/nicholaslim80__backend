@@ -1,7 +1,7 @@
 model ActivityLog {
     id          Int    @id @default(autoincrement())
     action      String // CREATE, UPDATE, DELETE
-    entity_type String // DeliveryType, Order, VehicleType
+    entity_type String // 
     entity_id   Int
     user_id     Int
 

@@ -6,6 +6,7 @@ import { IUser } from 'src/types';
 import { CreateCoinDto } from './dto/create-coin_management.dto';
 import { CoinEvent, CoinHistoryType, UserRole } from '@prisma/client';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
+import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
 
 @Injectable()
 export class CoinManagementService {
@@ -278,64 +279,7 @@ export class CoinManagementService {
 
     return data;
   }
-
-
-  //     await this.prisma.user.update({
-  //       where: {
-  //         id: user.id
-  //       },
-  //       data: {
-  //         reward_points: Number(userExit.reward_points) + Number(coinExit.coin_amount)
-  //       }
-  //     })
-  //     const data = await this.prisma.coinHistory.create({
-  //       data: {
-  //         userId: user.id,
-  //         total_coin_acc: coinExit.coin_amount,
-  //         type: CoinHistoryType.ACCUMULATION,
-  //       }
-  //     })
-  //     return data;
-  //   } catch (error) {
-  //     return ApiResponses.error(error);
-  //   }
-  // }
-
-  // async reedomCoinHistory() {
-  //   try {
-  //     const data = await this.prisma.coinHistory.findMany({
-  //       orderBy: {
-  //         created_at: 'desc',
-  //       }
-  //     });
-
-  //     const userMap = new Map<number, any>();
-
-  //     for (const item of data) {
-  //       if (!userMap.has(item.userId)) {
-  //         userMap.set(item.userId, {
-  //           id: item.id,
-  //           userId: item.userId,
-  //           acumulated_coin: Number(item.total_coin_acc),
-  //           name: item.username,
-  //           totalCoin: (await this.prisma.user.findFirst({
-  //             where: { id: item.userId }
-  //           }))?.reward_points || 0,
-  //         });
-  //       }
-
-  //       const userData = userMap.get(item.userId);
-  //       userData.totalCoin += Number(item.total_coin_acc ?? 0);
-  //     }
-
-  //     return Array.from(userMap.values())
-  //   } catch (error) {
-  //     return ApiResponses.error(error, 'Failed to fetch coin history');
-  //   }
-  // }
-
-
-  // get coin acc history
+  //  
   async coinAccHistory(id: number) {
     try {
       const data = await this.prisma.coinHistory.findMany({
@@ -353,19 +297,65 @@ export class CoinManagementService {
   }
   
   // find all logs
-  async findAllLogs(fromDate?: string, toDate?: string) {
-  return await this.prisma.coinLog.findMany({
-    where: {
-      createdAt: {
-        gte: fromDate ? new Date(fromDate) : undefined,
-        lte: toDate ? new Date(toDate) : undefined,
+    async findAllLogs(filterDto: DateByFilterDto) {
+  const {
+    fromDate,
+    toDate,
+    page = 1,
+    limit = 10,
+    search,
+  } = filterDto;
+
+  const skip = (page - 1) * limit;
+
+  const where: any = {
+    createdAt: {
+      gte: fromDate ? new Date(`${fromDate}T00:00:00.000Z`) : undefined,
+      lte: toDate ? new Date(`${toDate}T23:59:59.999Z`) : undefined,
+    },
+  };
+
+  // Optional search (adjust fields based on your schema)
+  if (search) {
+    where.OR = [
+      {
+        action: {
+          contains: search,
+          mode: 'insensitive',
+        },
       },
+      {
+        description: {
+          contains: search,
+          mode: 'insensitive',
+        },
+      },
+    ];
+  }
+
+  const [data, total] = await this.prisma.$transaction([
+    this.prisma.coinLog.findMany({
+      where,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip,
+      take: limit,
+    }),
+    this.prisma.coinLog.count({ where }),
+  ]);
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
+  };
 }
+
 
 
 

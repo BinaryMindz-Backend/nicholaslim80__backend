@@ -3,6 +3,12 @@ import { DiscountType } from "@prisma/client";
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUrl } from "class-validator";
 
 export class CreatePromoCodeDto {
+  
+  @ApiPropertyOptional({ description: 'Title of the promo code', example: 'New Year Promo' })
+  @IsString()
+  @IsOptional()
+  title?: string;
+
   @ApiProperty({ description: 'Unique promo code string', example: 'NEWYEAR2026' })
   @IsString()
   promoCode: string;

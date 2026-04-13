@@ -1,8 +1,26 @@
-import { IsOptional, IsNumber, IsString, Min } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional, IsNumber, IsString, Min, IsDateString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 export class ActivityLogQueryDto {
+    
+    @ApiPropertyOptional({
+    example: '2025-01-01',
+    description: 'Start date (YYYY-MM-DD)',
+    })
+    @IsOptional()
+    @IsDateString()
+    fromDate?: string;
+
+    @ApiPropertyOptional({
+    example: '2027-01-31',
+    description: 'End date (YYYY-MM-DD)',
+    })
+    @IsOptional()
+    @IsDateString()
+    toDate?: string;
+
+
     @IsOptional()
     @Type(() => Number)
     @IsNumber()

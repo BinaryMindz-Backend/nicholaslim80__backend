@@ -10,8 +10,11 @@ model Raider {
   raider_status                RaiderStatus       @default(IN_ACTIVE)
   LoginType                    LoginType          @default(DIRECT_SIGNIN)
   raider_verificationFromAdmin RaiderVerification @default(PENDING)
-   
 
+  // is raider deposit
+  is_deposit_made             Boolean   @default(false)
+
+  // is raider suspended
   isSuspended                  Boolean   @default(false)
   suspendedDuration            DateTime?
   suspensionReason             String?

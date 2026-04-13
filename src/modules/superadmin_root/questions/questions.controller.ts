@@ -15,8 +15,6 @@ import { UpdateQuestionDto } from './dto/update-question.dto';
 
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { Auth } from 'src/decorators/auth.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
-import { UserRole } from '@prisma/client/edge';
 import { ApiResponses } from 'src/common/apiResponse';
 import { QuizResultdto } from './dto/raider-quiz-result.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';

@@ -1,21 +1,28 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsBoolean,IsOptional, IsString } from 'class-validator';
 
 export class CreateDashboardPopupDto {
-  @ApiProperty()
+  @ApiPropertyOptional({ description: 'Title for the popup', example: 'Sample Popup' })
   @IsString()
-  @IsNotEmpty()
-  title: string;
+  @IsOptional()
+  title?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ description: 'Description for the popup', example: 'This is a sample popup description' })
   @IsString()
-  desc: string;
+  @IsOptional()
+  desc?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional( { description: 'Image link for the popup', example: 'https://example.com/popup-image.jpg' })
+  @IsOptional()
   @IsString()
-  redirect_link: string;
+  image_link?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Redirect link for the popup', example: 'https://example.com/popup' })
+  @IsString()
+  @IsOptional()
+  redirect_link?: string;
+
+  @ApiPropertyOptional({ description: 'Whether the popup is active', example: true })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

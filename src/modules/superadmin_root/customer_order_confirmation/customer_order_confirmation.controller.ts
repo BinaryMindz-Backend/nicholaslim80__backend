@@ -94,10 +94,7 @@ export class CustomerOrderConfirmationController {
   })
   async findAllLogs(@Query() filterDto: DateByFilterDto) {
     try {
-      const res = await this.service.findAllLogs(
-        filterDto.fromDate,
-        filterDto.toDate,
-      );
+      const res = await this.service.findAllLogs(filterDto);
 
       return ApiResponses.success(
         res,
@@ -111,7 +108,6 @@ export class CustomerOrderConfirmationController {
     }
   }
 
- 
   // FIND ONE
   @Get(':id')
   @Auth()

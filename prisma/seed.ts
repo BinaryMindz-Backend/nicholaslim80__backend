@@ -309,6 +309,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.QUIZZES, action: Permission.DELETE },
     { module: Module.QUIZZES, action: Permission.UPDATE },
     { module: Module.QUIZZES, action: Permission.READ },
+    { module: Module.QUIZZES, action: Permission.GET_ONE },
     // customer configuaration
     { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.CREATE },
     { module: Module.CUSTOMER_ORDER_CONFIRMATION, action: Permission.DELETE },
@@ -456,6 +457,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.NOTIFICATION, action: Permission.DELETE },
     // qize module
     { module: Module.QUIZZES, action: Permission.GET_ONE },
+    { module: Module.QUIZ, action: Permission.GET_ONE },
     // wallet module
     { module: Module.WALLET, action: Permission.READ },
     // faq

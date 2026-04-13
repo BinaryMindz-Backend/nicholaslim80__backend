@@ -25,73 +25,95 @@ export class ActivityLogService {
         });
     }
 
-    async findAllLogs(query: ActivityLogQueryDto) {
-        const { page = 1, limit = 10, entity_type, action, user_id, search } = query;
+async findAllLogs(query: ActivityLogQueryDto) {
+    const {
+        page = 1,
+        limit = 10,
+        entity_type,
+        action,
+        user_id,
+        search,
+        fromDate,
+        toDate,
+    } = query;
 
-        const where: any = {};
+    const where: any = {};
 
-        // Filter by entity type
-        if (entity_type) {
-            where.entity_type = entity_type;
+    // Date range filter
+    if (fromDate || toDate) {
+        where.created_at = {};
+
+        if (fromDate) {
+            where.created_at.gte = new Date(fromDate);
         }
 
-        // Filter by action
-        if (action) {
-            where.action = action;
+        if (toDate) {
+            // include full day (important)
+            const endDate = new Date(toDate);
+            endDate.setHours(23, 59, 59, 999);
+            where.created_at.lte = endDate;
         }
-
-        // Filter by user
-        if (user_id) {
-            where.user_id = user_id;
-        }
-
-        // Search scoped to entity
-        if (search && entity_type) {
-            switch (entity_type) {
-                case 'DeliveryType':
-                    where.OR = [
-                        { action: { contains: search, mode: 'insensitive' } },
-                        { meta: { path: ['name'], string_contains: search } },
-                    ];
-                    break;
-
-                case 'VehicleType':
-                    where.OR = [
-                        { action: { contains: search, mode: 'insensitive' } },
-                        { meta: { path: ['vehicle_name'], string_contains: search } },
-                    ];
-                    break;
-
-
-                // TODO: Add more entity types
-
-                default:
-                    where.OR = [
-                        { action: { contains: search, mode: 'insensitive' } },
-                        { meta: { string_contains: search } }, // fallback
-                    ];
-            }
-        }
-
-        // Fetch paginated results
-        const [data, total] = await Promise.all([
-            this.prisma.activityLog.findMany({
-                where,
-                skip: (page - 1) * limit,
-                take: limit,
-                orderBy: { created_at: 'desc' },
-            }),
-            this.prisma.activityLog.count({ where }),
-        ]);
-
-        return {
-            data,
-            meta: {
-                total,
-                page,
-                limit,
-                totalPages: Math.ceil(total / limit),
-            },
-        };
     }
+
+    // Filter by entity type
+    if (entity_type) {
+        where.entity_type = entity_type;
+    }
+
+    // Filter by action
+    if (action) {
+        where.action = action;
+    }
+
+    // Filter by user
+    if (user_id) {
+        where.user_id = user_id;
+    }
+
+    // Search scoped to entity
+    if (search && entity_type) {
+        switch (entity_type) {
+            case 'DeliveryType':
+                where.OR = [
+                    { action: { contains: search, mode: 'insensitive' } },
+                    { meta: { path: ['name'], string_contains: search } },
+                ];
+                break;
+
+            case 'VehicleType':
+                where.OR = [
+                    { action: { contains: search, mode: 'insensitive' } },
+                    { meta: { path: ['vehicle_name'], string_contains: search } },
+                ];
+                break;
+
+            default:
+                where.OR = [
+                    { action: { contains: search, mode: 'insensitive' } },
+                    { meta: { string_contains: search } },
+                ];
+        }
+    }
+
+    const [data, total] = await Promise.all([
+        this.prisma.activityLog.findMany({
+            where,
+            skip: (page - 1) * limit,
+            take: limit,
+            orderBy: { created_at: 'desc' },
+        }),
+        this.prisma.activityLog.count({ where }),
+    ]);
+
+    return {
+        data,
+        meta: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        },
+    };
+}
+
 }

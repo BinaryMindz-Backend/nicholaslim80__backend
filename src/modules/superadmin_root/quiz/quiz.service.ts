@@ -2,6 +2,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
+import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
 
 
 @Injectable()
@@ -135,19 +136,65 @@ export class QuizService {
    }
    
   //  
-  async findAllLogs(fromDate?: string, toDate?: string) {
-      return await this.prisma.quizLog.findMany({
-        where: {
-          createdAt: {
-            gte: fromDate ? new Date(fromDate) : undefined,
-            lte: toDate ? new Date(toDate) : undefined,
-          },
+ async findAllLogs(filterDto: DateByFilterDto) {
+  const {
+    fromDate,
+    toDate,
+    page = 1,
+    limit = 10,
+    search,
+  } = filterDto;
+
+  const skip = (page - 1) * limit;
+
+  const where: any = {
+    createdAt: {
+      gte: fromDate ? new Date(fromDate) : undefined,
+      lte: toDate ? new Date(toDate) : undefined,
+    },
+  };
+
+  // Optional search (adjust fields based on your schema)
+  if (search) {
+    where.OR = [
+      {
+        action: {
+          contains: search,
+          mode: 'insensitive',
         },
-        orderBy: {
-          createdAt: 'desc',
+      },
+      {
+        description: {
+          contains: search,
+          mode: 'insensitive',
         },
-      });
-    }
+      },
+    ];
+  }
+
+  const [data, total] = await this.prisma.$transaction([
+    this.prisma.quizLog.findMany({
+      where,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip,
+      take: limit,
+    }),
+    this.prisma.quizLog.count({ where }),
+  ]);
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
 
 
 

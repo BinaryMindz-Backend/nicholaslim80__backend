@@ -58,34 +58,32 @@ export class CoinManagementController {
     }
   }
   //  
-  @Get('logs')
-  @Auth()
-  @ApiBearerAuth()
-  @RequirePermission(Module.CUSTOMER_REWARDS, Permission.READ)
-  @ApiOperation({ summary: 'Get all coin configuration change logs (Admin only)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Coin configuration logs fetched successfully',
-  })
-  @ApiQuery({ type: DateByFilterDto })
-  async findAllLogs(@Query() filterDto: DateByFilterDto) {
-    try {
-      const res = await this.coinManagementService.findAllLogs(
-        filterDto.fromDate,
-        filterDto.toDate,
-      );
+    @Get('logs')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.CUSTOMER_REWARDS, Permission.READ)
+    @ApiOperation({ summary: 'Get all coin configuration change logs (Admin only)' })
+    @ApiResponse({
+      status: 200,
+      description: 'Coin configuration logs fetched successfully',
+    })
+    async findAllLogs(@Query() filterDto: DateByFilterDto) {
+      try {
+        const res = await this.coinManagementService.findAllLogs(filterDto);
 
-      return ApiResponses.success(
-        res,
-        'Coin configuration logs fetched successfully',
-      );
-    } catch (err) {
-      return ApiResponses.error(
-        err,
-        'Failed to fetch coin configuration logs',
-      );
+        return ApiResponses.success(
+          res,
+          'Coin configuration logs fetched successfully',
+        );
+      } catch (err) {
+        return ApiResponses.error(
+          err,
+          'Failed to fetch coin configuration logs',
+        );
+      }
     }
-  }
+
+
 
 
   //  

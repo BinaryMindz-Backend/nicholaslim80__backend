@@ -7,6 +7,7 @@ import { IncentiveStatus, Prisma, RaiderStatus, WalletTransactionStatus, WalletT
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
 import { IncentiveQueryDto } from './dto/incentive-query.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
 
 @Injectable()
 export class IncentiveService {
@@ -669,19 +670,59 @@ export class IncentiveService {
   return res;
 }
   // 
-  async findAllLogs(fromDate?: string, toDate?: string) {
-    return await this.prisma.incentiveLog.findMany({
-      where: {
-        createdAt: {
-          gte: fromDate ? new Date(fromDate) : undefined,
-          lte: toDate ? new Date(toDate) : undefined,
+  async findAllLogs(filterDto: DateByFilterDto) {
+    const {
+      fromDate,
+      toDate,
+      page = 1,
+      limit = 10,
+      search,
+    } = filterDto;
+
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      createdAt: {
+        gte: fromDate ? new Date(`${fromDate}T00:00:00.000Z`) : undefined,
+        lte: toDate ? new Date(`${toDate}T23:59:59.999Z`) : undefined,
+      },
+    };
+
+    // Optional search (customize fields based on your schema)
+    if (search) {
+      where.OR = [
+        {
+          'incentiveData.name': {
+            contains: search,
+            mode: 'insensitive',
+          },
         },
+             ];
+    }
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.incentiveLog.findMany({
+        where,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.incentiveLog.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    };
   }
+
 
   // 
 
