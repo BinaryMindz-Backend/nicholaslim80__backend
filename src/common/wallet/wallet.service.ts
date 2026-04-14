@@ -593,12 +593,25 @@ export class WalletService {
     if (!user) throw new NotFoundException('User not found');
     // ADD_MONEY: Credit user's wallet
     await this.prisma.$transaction(async (tx) => {
+
+      const userWithProfile = await tx.user.findUnique({
+            where: { id: userId },
+            include: { raiderProfile: true },
+          });
+
+          if (userWithProfile?.raiderProfile) {
+            await tx.raider.update({
+              where: { userId },
+              data: { is_deposit_made: true },
+            });
+          }
+
       // 3. Update Balance
       const updatedUser = await tx.user.update({
         where: { id: userId },
         data: {
           totalWalletBalance: { increment: amount },
-          currentWalletBalance: { increment: amount },
+          currentWalletBalance: { increment: amount }
         },
       });
 
