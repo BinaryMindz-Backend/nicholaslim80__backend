@@ -19,7 +19,13 @@ export class ReportAndAnalyticsService {
         activeOrder,
         ordersWithRatings,
       ] = await Promise.all([
-        this.prisma.order.count(),
+        this.prisma.order.count({
+            where:{
+                NOT:{
+                   order_status:OrderStatus.PROGRESS
+                }
+            }
+        }),
 
         this.prisma.order.count({
           where: { order_status: OrderStatus.COMPLETED },
