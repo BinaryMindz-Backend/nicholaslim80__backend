@@ -1,33 +1,34 @@
 model Incentive {
-  id               Int                 @id @default(autoincrement())
-  adminId          Int?
-  admin            Admin?              @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  id          Int             @id @default(autoincrement())
+  adminId     Int?
+  admin       Admin?          @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  name        String          @map("incentive_name")
+  description String?
+  start_date  DateTime
+  end_date    DateTime?       // Now optional (ONE_TIME only has start_date)
 
-  name             String              @map("incentive_name")
-  description      String?
+  // ─── NEW SCHEDULE FIELDS ───────────────────────────────────────────
+  recurring_type   RecurringType  @default(ONE_TIME)
+  days_of_week     DayOfWeek[]    // For WEEKLY and MONTHLY (week-based)
+  month            MonthName?     // For MONTHLY
+  day_of_month     Int[]          // For MONTHLY day-based (1–31)
+  week_of_month    Int[]          // For MONTHLY week-based (1,2,3,4,5)
+  // ──────────────────────────────────────────────────────────────────
 
-  start_date       DateTime
-  end_date         DateTime
-  driver_types     VehicleType[]       @relation("IncentiveVehicleTypes")
-  priority         Int                 @default(1)
+  driver_types     VehicleType[]  @relation("IncentiveVehicleTypes")
+  priority         Int            @default(1)
   status           IncentiveStatus
-
-  // Many-to-many relation with service zones
-  serviceZones     serviceZone[]       @relation("IncentiveZones")
-
+  serviceZones     serviceZone[]  @relation("IncentiveZones")
   reward_type      IncentiveRewardType
-  reward_value     Float               @default(0)
-
+  reward_value     Float          @default(0)
   claim_type       ClaimType
   claim_expire     Int?
-  max_clam         Int? 
-  time_constant    TimeUnit @default(HOURS)
-
+  max_clam         Int?
+  time_constant    TimeUnit       @default(HOURS)
   rules            IncentiveRule[]
   collected_incentives CollectedIncentive[]
-  incentiveLogs    IncentiveLog[] 
-
-  created_at       DateTime            @default(now())
+  incentiveLogs    IncentiveLog[]
+  created_at       DateTime       @default(now())
 
   @@map("incentives")
 }

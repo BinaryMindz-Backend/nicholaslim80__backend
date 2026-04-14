@@ -599,7 +599,7 @@ export class WalletService {
             include: { raiderProfile: true },
           });
 
-          if (userWithProfile?.raiderProfile) {
+          if (userWithProfile?.raiderProfile && userWithProfile?.raiderProfile?.is_deposit_made===false) {
             await tx.raider.update({
               where: { userId },
               data: { is_deposit_made: true },

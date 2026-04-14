@@ -346,7 +346,7 @@ enum FeeLogType {
   USER_DYNAMIC_SURGE
 }
 
-// Enums for dynamic behavior
+// Enums for dynamic behavior on incentive
 enum IncentiveRewardType {
   FIXED
   PERCENTAGE
@@ -386,6 +386,40 @@ enum IncentiveStatus {
   ACTIVE
   DISABLED
 }
+// Add these enums
+enum RecurringType {
+  ONE_TIME
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum DayOfWeek {
+  ALL
+  MON
+  TUE
+  WED
+  THURS
+  FRI
+  SAT
+  SUN
+}
+
+enum MonthName {
+  Jan
+  Feb
+  Mar
+  Apr
+  May
+  Jun
+  Jul
+  Aug
+  Sep
+  Oct
+  Nov
+  Dec
+}
+
 
 //
 enum LicenseClass {
