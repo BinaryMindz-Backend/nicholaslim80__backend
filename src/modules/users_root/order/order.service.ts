@@ -28,6 +28,7 @@ import { Parser } from 'json2csv';
 import { UpdateOrderDetailsDto } from './dto/update-order-details.dto';
 import { ApplyDiscountDto } from './dto/apply-discount.dto';
 import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.gateway';
+import { when } from 'joi';
 
 
 @Injectable()
@@ -2713,7 +2714,13 @@ export class OrderService {
   async getOrderStats() {
     const [totalOrders, ongoing, scheduled, pending] = await this.prisma.$transaction([
       // Total Orders
-      this.prisma.order.count(),
+      this.prisma.order.count(
+          {
+            where:{
+                order_status:OrderStatus.PROGRESS
+            }
+          }
+      ),
 
       // Ongoing Orders (progressing states)
       this.prisma.order.count({
