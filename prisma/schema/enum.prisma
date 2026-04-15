@@ -20,6 +20,9 @@ enum Rank {
 
 // Notification enum
 enum NotificationType {
+    ORDER_UPDATE
+  PROMOTION
+  GENERAL
   PUSH_NOTIFICATION
   EMAIL
   SMS
