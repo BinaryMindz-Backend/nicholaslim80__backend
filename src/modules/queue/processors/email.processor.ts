@@ -41,6 +41,14 @@ export class EmailProcessor extends WorkerHost {
         return await this.handleOrderAssignedUserEmail(job);
       case 'order-assigned-driver-email':
         return await this.handleOrderAssignedDriverEmail(job);
+      case EmailJobType.RIDER_SUSPENDED:
+        return await this.handleRiderSuspendedEmail(job);
+      case EmailJobType.RIDER_UNSUSPENDED:
+        return await this.handleRiderUnsuspendedEmail(job);
+      case EmailJobType.RIDER_VERIFIED:
+        return await this.handleRiderVerifiedEmail(job);
+      case EmailJobType.RIDER_REJECTED:
+        return await this.handleRiderRejectedEmail(job);
       default:
         throw new Error(`Unknown job type: ${job.name}`);
     }
@@ -208,6 +216,131 @@ export class EmailProcessor extends WorkerHost {
       throw error;
     }
   }
+  //
+  private async handleRiderSuspendedEmail(job: Job) {
+  const { email, username, payload } = job.data;
+
+  try {
+    await job.updateProgress(10);
+
+    await this.mailService.sendTemplateMail(
+      'rider-suspended',
+      email,
+      'Your Rider Account Has Been Suspended',
+      {
+        name: username ?? 'User',
+        reason: payload?.reason,
+        duration: payload?.duration,
+      },
+    );
+
+    await job.updateProgress(100);
+
+    this.logger.log(`✅ Rider suspension email sent successfully to ${email}`);
+
+    return { success: true, email, type: 'RIDER_SUSPENDED', timestamp: new Date() };
+  } catch (error) {
+    this.logger.error(
+      `❌ Rider suspension email failed for ${email}:`,
+      error.message,
+    );
+    throw error;
+  }
+  }
+  // 
+  private async handleRiderUnsuspendedEmail(job: Job) {
+    const { email, username } = job.data;
+
+    try {
+      await job.updateProgress(10);
+
+      await this.mailService.sendTemplateMail(
+        'rider-unsuspended',
+        email,
+        'Your Rider Account Has Been Reactivated',
+        {
+          name: username ?? 'User',
+        },
+      );
+
+      await job.updateProgress(100);
+
+      this.logger.log(`✅ Rider unsuspension email sent successfully to ${email}`);
+
+      return { success: true, email, type: 'RIDER_UNSUSPENDED', timestamp: new Date() };
+    } catch (error) {
+      this.logger.error(
+        `❌ Rider unsuspension email failed for ${email}:`,
+        error.message,
+      );
+      throw error;
+    }
+  }
+  //
+  private async handleRiderVerifiedEmail(job: Job) {
+  const { email, username } = job.data;
+
+  try {
+    await job.updateProgress(10);
+
+    await this.mailService.sendTemplateMail(
+      'rider-verified',
+      email,
+      'Rider Profile Approved 🎉',
+      {
+        name: username ?? 'User',
+      },
+    );
+
+    await job.updateProgress(100);
+
+    this.logger.log(`✅ Rider verification email sent successfully to ${email}`);
+
+    return { success: true, email, type: 'RIDER_VERIFIED', timestamp: new Date() };
+  } catch (error) {
+    this.logger.error(
+      `❌ Rider verification email failed for ${email}:`,
+      error.message,
+    );
+    throw error;
+  }
+  }
+  //
+  private async handleRiderRejectedEmail(job: Job) {
+  const { email, username, payload } = job.data;
+
+  try {
+    await job.updateProgress(10);
+
+    await this.mailService.sendTemplateMail(
+      'rider-rejected',
+      email,
+      'Rider Profile Rejected',
+      {
+        name: username ?? 'User',
+        reason: payload?.reason,
+      },
+    );
+
+    await job.updateProgress(100);
+
+    this.logger.log(`❌ Rider rejection email sent successfully to ${email}`);
+
+    return { success: true, email, type: 'RIDER_REJECTED', timestamp: new Date() };
+  } catch (error) {
+    this.logger.error(
+      `❌ Rider rejection email failed for ${email}:`,
+      error.message,
+    );
+    throw error;
+  }
+  }
+
+
+
+
+
+
 
   // EVENT HANDLERS  
   @OnWorkerEvent('completed')

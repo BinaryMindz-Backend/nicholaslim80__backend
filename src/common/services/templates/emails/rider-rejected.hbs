@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <h2>Profile Verification Rejected ❌</h2>
+
+    <p>Hi {{name}},</p>
+
+    <p>
+      Unfortunately, your rider profile verification was not approved.
+    </p>
+
+    {{#if reason}}
+    <p>
+      <b>Reason:</b> {{reason}}
+    </p>
+    {{/if}}
+
+    <p>
+      Please update your information and try again.
+    </p>
+
+    <br />
+    <p>— Zipbee Team</p>
+  </body>
+</html>
