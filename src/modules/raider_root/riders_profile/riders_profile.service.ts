@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotAcceptableException, NotFoundException } from '@nestjs/common';
 import { CreateRiderRegistrationDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -7,6 +7,8 @@ import { LoginType, Prisma, RaiderStatus, RaiderVerification, UserRole, VehicleT
 import { GetRidersQueryDto } from './dto/query-riders.dto';
 import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
 import bcrypt from "bcrypt"
+import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
+import { EmailJobType } from 'src/modules/queue/interfaces/queue-job.interface';
 
 
 // 
@@ -14,11 +16,17 @@ import bcrypt from "bcrypt"
 export class RidersProfileService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly emailQueueService:EmailQueueService,
   ) { }
 
   // create
   async create(userId: number, dto: CreateRiderRegistrationDto) {
-
+     
+    // better approch
+    if(dto.password || dto.driver_rank){
+        throw new NotAcceptableException("Remove password field and driver rank from raider registation dto")
+    }
+    
     // 1. Check rider exists
     const rider = await this.prisma.raider.findUnique({
       where: { userId },
@@ -212,36 +220,68 @@ export class RidersProfileService {
 
 
   //
-
   async verifyRiderProfile(id: number, verify: RaiderVerification, userId: number) {
-  const raiderId = Number(id);
+      const raiderId = Number(id);
 
-  const r = await this.prisma.raider.findUnique({ where: { id: raiderId } });
-  if (!r) throw new NotFoundException('Rider profile not found');
+      const r = await this.prisma.raider.findUnique({ where: { id: raiderId },include:{user:true} });
+      if (!r) throw new NotFoundException('Rider profile not found');
 
-  const registration = await this.prisma.raiderRegistration.findFirst({
-    where: { raiderId }
-  });
-  if (!registration) throw new NotFoundException('Rider registration not found');
+      const registration = await this.prisma.raiderRegistration.findFirst({
+        where: { raiderId }
+      });
+      if (!registration) throw new NotFoundException('Rider registration not found');
 
-  const before = {
-    verification: r.raider_verificationFromAdmin,
-    status: r.raider_status
-  };
+      const before = {
+        verification: r.raider_verificationFromAdmin,
+        status: r.raider_status
+      };
 
-  const status: RaiderStatus =
-    verify === RaiderVerification.APPROVED ? RaiderStatus.ACTIVE : RaiderStatus.IN_ACTIVE;
+      const status: RaiderStatus =
+        verify === RaiderVerification.APPROVED ? RaiderStatus.ACTIVE : RaiderStatus.IN_ACTIVE;
 
-  const updatedProfile = await this.prisma.raider.update({
-    where: { id: raiderId },
-    data: {
-      raider_verificationFromAdmin: verify,
-      raider_status: status
-    },
-  });
+      const updatedProfile = await this.prisma.raider.update({
+        where: { id: raiderId },
+        data: {
+          raider_verificationFromAdmin: verify,
+          raider_status: status
+        },
+      });
+      
+      // send email
+      if(r?.user?.email){
+          await this.emailQueueService.queueEmail({
+            userId: r.userId,
+            email: r.user.email,
+            username: r.user.username,
+            type:
+              verify === RaiderVerification.APPROVED
+                ? EmailJobType.RIDER_VERIFIED
+                : EmailJobType.RIDER_REJECTED,
+            payload: {
+              status: verify,
+            },
+          });
+      }
+
+      // send notification
+      if (r?.user?.fcmToken) {
+        await this.emailQueueService.queuePushNotification({
+            userId: r.userId,
+            fcmToken: r.user.fcmToken,
+            title:
+              verify === RaiderVerification.APPROVED
+                ? 'Account Approved 🎉'
+                : 'Account Rejected',
+
+            body:
+              verify === RaiderVerification.APPROVED
+                ? 'Your Zipbee rider profile has been approved. You can now start earning rides.'
+                : 'Your Zipbee rider profile was rejected. Please update your information and try again.',
+          });
+      }
 
   // LOG (non-blocking)
-  this.prisma.activityLog.create({
+  await this.prisma.activityLog.create({
     data: {
       action: 'UPDATE',
       entity_type: 'Raider',
@@ -339,6 +379,9 @@ export class RidersProfileService {
 
     const res = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
+      include:{
+        user:true,
+      }
     });
 
     if (!res) {
@@ -354,6 +397,30 @@ export class RidersProfileService {
         suspensionReason: dto.suspensionReason,
       },
     });
+
+    // Queue suspension email
+    if (res?.user?.email) {
+       await this.emailQueueService.queueEmail({
+          userId: res.userId,
+          email: res.user.email,
+          username: res.user.username,
+          type: EmailJobType.RIDER_SUSPENDED,
+          payload: {
+            reason: dto.suspensionReason,
+            duration: dto.suspendedDuration,
+          },
+        });
+    }
+
+    // Queue push notification
+    if (res?.user?.fcmToken) {
+      await this.emailQueueService.queuePushNotification({
+        userId: res.userId,
+        fcmToken: res.user.fcmToken,
+        title: 'Account Suspended',
+        body: `Your Zipbee raider account has been suspended for ${dto.suspendedDuration?.toString()}. Reason: ${dto.suspensionReason}`,
+      });
+    }
 
     // LOG
     await this.prisma.activityLog.create({
@@ -372,11 +439,15 @@ export class RidersProfileService {
 
     return updated;
   }
+
   // Unsuspend a rider profile
   async unsuspendRiderProfile(id: number, userId: number) {
 
     const res = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
+      include:{
+         user:true,
+      }
     });
 
     if (!res) {
@@ -391,6 +462,25 @@ export class RidersProfileService {
         suspensionReason: null,
       },
     });
+
+    if(res?.user?.email){
+      await this.emailQueueService.queueEmail({
+        userId: res.userId,
+        email: res.user.email,
+        username: res.user.username,
+        type: EmailJobType.RIDER_UNSUSPENDED,
+        payload: {},
+      });
+    }
+
+    if(res?.user?.fcmToken){
+       await this.emailQueueService.queuePushNotification({
+          userId: res.userId,
+          fcmToken: res.user.fcmToken,
+          title: 'Account Reactivated',
+          body: 'Your Zipbee account is now active again. You can resume your activities.',
+        });
+    }
 
     // LOG
     await this.prisma.activityLog.create({

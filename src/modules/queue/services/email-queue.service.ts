@@ -11,7 +11,38 @@ export class EmailQueueService {
     @InjectQueue('email-queue') private emailQueue: Queue,
     @InjectQueue('notification-queue') private notificationQueue: Queue,
   ) {}
+  // 
+  async queueEmail(data: {
+    userId: number;
+    email: string;
+    username?: string;
+    type: EmailJobType;
+    payload: Record<string, any>;
+  }) {
+    try {
+      const job = await this.emailQueue.add(
+        data.type,
+        {
+          userId: data.userId,
+          email: data.email,
+          username: data.username,
+          payload: data.payload,
+        },
+        {
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 2000 },
+          removeOnComplete: { age: 24 * 3600, count: 1000 },
+          removeOnFail: { age: 7 * 24 * 3600 },
+        },
+      );
 
+      this.logger.log(`Email queued: ${data.type}, Job ID: ${job.id}`);
+      return job;
+    } catch (error) {
+      this.logger.error(`Failed to queue email: ${data.type}`, error);
+      throw error;
+    }
+  }
   // USER REGISTRATION & AUTHENTICATION  
   async queueWelcomeEmail(data: {
     userId: number;
