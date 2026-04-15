@@ -18,25 +18,42 @@ enum Rank {
   PREMIUM
 }
 
-// 
-enum NotificationSentRole {
-  USER
-  RAIDER
-}
-
-// 
-
+// Notification enum
 enum NotificationType {
-  ORDER_UPDATE
+    ORDER_UPDATE
   PROMOTION
   GENERAL
   PUSH_NOTIFICATION
   EMAIL
   SMS
   WEB_ANNOUNCEMENT
+  IN_APP             
 }
-
+ 
+//
+enum NotificationCategory {
+  NOTIFICATION  // system / transactional alerts
+  PROMOTION     // marketing, discounts, campaigns
+}
+ 
 // 
+enum NotificationSentRole { 
+     USER
+     RAIDER
+     ALL
+   }
+//
+enum LogAction {
+  CREATED
+  EDITED
+  DELETED
+  RESCHEDULED
+  RESENT
+  DISABLED
+}   
+
+
+// reward
 enum RewardType {
   SHARE
   COMPLETED
