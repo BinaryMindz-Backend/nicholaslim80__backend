@@ -71,6 +71,8 @@ model User {
   logins                 UserLogin[]
   // 
   addMoneyForOrderPriority addMoneyForOrderPriority[]
+  // notification logs
+  notificationLogs  NotificationLog[]  @relation("AdminLogs")
 
   // 
   created_at         DateTime       @default(now())

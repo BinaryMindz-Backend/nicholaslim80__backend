@@ -1,17 +1,57 @@
 model Notification {
-  id               Int              @id @default(autoincrement())
-  user             User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               Int                    @id @default(autoincrement())
+  user             User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId           Int?
+ 
   type             NotificationType
-  title            String?          @db.VarChar(255)
-  message          String?          @db.Text
-  is_read          Boolean          @default(false)
-  created_at       DateTime         @default(now())
-  send_immediately Boolean          @default(false)
+  category         NotificationCategory   @default(NOTIFICATION)   
+ 
+  title            String?                
+  message          String?                @db.Text
+  image_url        String?                @db.VarChar(500)      
+ 
+  is_read          Boolean                @default(false)
+  mark_as_read_id  Int[]
+ 
+  send_immediately Boolean                @default(false)
   schedule_to_send DateTime?
-  target_role      NotificationSentRole? 
-  is_from_admin    Boolean          @default(false) 
-  orderId           Int?             // Optional link to an order
-  mark_as_read_id  Int[]            
+  expiry_date      DateTime?              // NEW – promo expiry
+ 
+  target_role      NotificationSentRole?
+  // NEW – specific user / driver IDs (empty means broadcast)
+  target_user_ids  Int[]
+ 
+  is_from_admin    Boolean                @default(false)
+  is_active        Boolean                @default(true)           
+ 
+  orderId          Int?
+ 
+  created_at       DateTime               @default(now())
+  updated_at       DateTime               @updatedAt               
+ 
+  // NEW – soft audit snapshot stored inside log
+  logs             NotificationLog[]
+ 
   @@map("notifications")
+}
+
+
+model NotificationLog {
+  id               Int                    @id @default(autoincrement())
+  notification     Notification           @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  notificationId   Int
+ 
+  admin            User                   @relation("AdminLogs", fields: [adminId], references: [id])
+  adminId          Int
+ 
+  action           LogAction
+  category         NotificationCategory
+  title            String?                @db.VarChar(255)
+  previous_message String?                @db.Text                 // before edit
+  new_message      String?                @db.Text                 // after edit
+  note             String?                @db.VarChar(500)
+ 
+  created_at       DateTime               @default(now())
+ 
+  @@map("notification_logs")
 }
