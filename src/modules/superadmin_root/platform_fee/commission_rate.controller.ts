@@ -141,7 +141,7 @@ export class StandardCommissionRateController {
 
   @Patch(':id')
   @Auth()
-  @RequirePermission(Module.PLATFORM_FEE, Permission.UPDATE)
+  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a standard commission rate by ID' })
   @ApiResponse({ status: 200, description: 'Record updated successfully' })
