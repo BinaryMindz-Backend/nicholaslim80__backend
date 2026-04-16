@@ -86,7 +86,6 @@ export class RidersProfileService {
 
     const where: Prisma.RaiderWhereInput = {
         LoginType: LoginType.DIRECT_SIGNIN,
-        raider_verificationFromAdmin: RaiderVerification.PENDING,
         registrations: {
            some:{}
         },

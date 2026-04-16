@@ -59,6 +59,8 @@ import { TipModule } from './modules/users_root/tip/tip.module';
 import { DashboardPopupModule } from './modules/superadmin_root/dashboard_popup/dashboard_popup.module';
 import { AdditionalServicesModule } from './modules/superadmin_root/additional_services/additional_services.module';
 import { PromoCodeModule } from './modules/superadmin_root/promo_code/promo_code.module';
+import { SurgePricingRuleModule } from './modules/superadmin_root/surge_pricing_rule/surge_pricing_rule.module';
+
 
 
 
@@ -131,6 +133,7 @@ import { PromoCodeModule } from './modules/superadmin_root/promo_code/promo_code
     AdditionalServicesModule,
     DashboardPopupModule,
     PromoCodeModule,
+    SurgePricingRuleModule,
 
 
   ],
