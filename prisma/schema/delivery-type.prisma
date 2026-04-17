@@ -21,6 +21,8 @@ model DeliveryType {
 
   // relation with vehicle types (many-to-many)
   vehicle_types DeliveryTypeVehicle[]
+  // 
+  surgePricingRules SurgePricingRuleDeliveryType[]
   // orders
   orders        Order[]
 

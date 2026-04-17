@@ -1,0 +1,39 @@
+model SurgePricingRule {
+  id              Int                @id @default(autoincrement())
+  ruleName        String
+  ratioFrom       Decimal            @db.Decimal(10, 4)
+  ratioTo         Decimal            @db.Decimal(10, 4)
+  priceMultiplier Decimal            @db.Decimal(10, 4)
+  maxCap          Decimal?           @db.Decimal(10, 4)
+  status          SurgePricingStatus @default(ACTIVE)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  serviceZones  SurgePricingRuleZone[]
+  deliveryTypes SurgePricingRuleDeliveryType[]
+
+  @@index([status, ratioFrom, ratioTo])
+  @@map("surge_pricing_rules")
+}
+
+model SurgePricingRuleZone {
+  surgePricingRuleId Int
+  serviceZoneId      Int
+
+  surgePricingRule SurgePricingRule @relation(fields: [surgePricingRuleId], references: [id], onDelete: Cascade)
+  serviceZone      serviceZone      @relation(fields: [serviceZoneId], references: [id], onDelete: Cascade)
+
+  @@id([surgePricingRuleId, serviceZoneId])
+  @@map("surge_pricing_rule_zones")
+}
+
+model SurgePricingRuleDeliveryType {
+  surgePricingRuleId Int
+  deliveryTypeId     Int
+
+  surgePricingRule SurgePricingRule @relation(fields: [surgePricingRuleId], references: [id], onDelete: Cascade)
+  deliveryType     DeliveryType     @relation(fields: [deliveryTypeId], references: [id], onDelete: Cascade)
+
+  @@id([surgePricingRuleId, deliveryTypeId])
+  @@map("surge_pricing_rule_delivery_types")
+}

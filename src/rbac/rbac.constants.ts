@@ -35,6 +35,7 @@ export enum Module {
   VEHICLE_TYPE='vehicle_type',
   DELIVERY_TYPE='delivery_type',
   POLICIES='policies',
+  SURGE_PRICING_ROLE="surge_pricing_role",
   // revenue configuaration
   REVENUE_CONFIGURATION = "revenue_order_config",
   // customer configuaration
