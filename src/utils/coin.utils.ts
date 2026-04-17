@@ -11,6 +11,7 @@ export class CoinUtils {
    * @param coinAmount - number of coins to add
    * @param event - CoinEvent enum value
    */
+  
   async earnCoin(userId:number, coinAmount: number, event: CoinEvent) {
     if (coinAmount < 0) throw new BadRequestException('Coin amount must be positive');
     // const coin = await this.prisma.coin.findFirst({
