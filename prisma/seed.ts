@@ -31,6 +31,7 @@ export enum Module {
   VEHICLE_TYPE = 'vehicle_type',
   DELIVERY_TYPE = 'delivery_type',
   POLICIES = 'policies',
+  SURGE_PRICING_ROLE="surge_pricing_role",
   // revenue configuaration
   REVENUE_CONFIGURATION = "revenue_order_config",
   // customer configuaration
@@ -425,6 +426,12 @@ const ROLE_PERMISSIONS = {
     { module: Module.TRANSACTION_STATS, action: Permission.UPDATE },
     { module: Module.TRANSACTION_STATS, action: Permission.DELETE },
 
+    // surge pricing role (new)
+    { module: Module.SURGE_PRICING_ROLE, action: Permission.CREATE },
+    { module: Module.SURGE_PRICING_ROLE, action: Permission.DELETE },
+    { module: Module.SURGE_PRICING_ROLE, action: Permission.UPDATE },
+    { module: Module.SURGE_PRICING_ROLE, action: Permission.READ },
+    { module: Module.SURGE_PRICING_ROLE, action: Permission.GET_ONE },
 
   ],
 

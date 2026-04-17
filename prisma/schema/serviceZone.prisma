@@ -19,6 +19,8 @@ model serviceZone {
   userFeeStructures UserFeeStructure[]
    // Incentives linked to this zone
   incentives      Incentive[]  @relation("IncentiveZones")
+  //
+  surgePricingRules SurgePricingRuleZone[]
 
   destinations    Destination[]
 }

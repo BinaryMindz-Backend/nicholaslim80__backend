@@ -448,3 +448,8 @@ enum LicenseClass {
   CLASS_4
   CLASS_5
 }
+// surge pricing 
+enum SurgePricingStatus {
+  ACTIVE
+  INACTIVE
+}
