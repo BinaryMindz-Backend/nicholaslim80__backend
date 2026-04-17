@@ -30,6 +30,8 @@ import { SurgePricingRuleService } from './surge_pricing_rule.service';
 import { Auth } from 'src/decorators/auth.decorator';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 @ApiTags('Surge Pricing Rules')
 @ApiBearerAuth()
@@ -47,8 +49,8 @@ export class SurgePricingRuleController {
   @ApiOperation({ summary: 'Create a new surge pricing rule' })
   @ApiResponse({ status: 201, description: 'Rule created successfully' })
   @ApiResponse({ status: 400, description: 'Ratio range overlaps existing rule' })
-  create(@Body() dto: CreateSurgePricingRuleDto) {
-    return this.service.create(dto);
+  async create(@Body() dto: CreateSurgePricingRuleDto,@CurrentUser() user:IUser) {
+    return await this.service.create(dto, user.id);
   }
 
   @Get()
@@ -57,8 +59,8 @@ export class SurgePricingRuleController {
   @RequirePermission(Module.SURGE_PRICING_ROLE, Permission.READ)
   @ApiOperation({ summary: 'List all surge pricing rules with optional filters' })
   @ApiResponse({ status: 200, description: 'Paginated list of rules' })
-  findAll(@Query() query: SurgePricingRuleQueryDto) {
-    return this.service.findAll(query);
+  async findAll(@Query() query: SurgePricingRuleQueryDto) {
+    return await this.service.findAll(query);
   }
 
   @Get(':id')
@@ -69,8 +71,8 @@ export class SurgePricingRuleController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Rule details' })
   @ApiResponse({ status: 404, description: 'Rule not found' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    return await this.service.findOne(id);
   }
 
   @Patch(':id')
@@ -81,11 +83,12 @@ export class SurgePricingRuleController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Rule updated successfully' })
   @ApiResponse({ status: 404, description: 'Rule not found' })
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateSurgePricingRuleDto,
+    @CurrentUser() user:IUser
   ) {
-    return this.service.update(id, dto);
+    return await this.service.update(id, dto, user.id);
   }
 
   @Delete(':id')
@@ -97,8 +100,8 @@ export class SurgePricingRuleController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Rule deleted successfully' })
   @ApiResponse({ status: 404, description: 'Rule not found' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.service.remove(id);
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user:IUser) {
+    return await this.service.remove(id, user.id);
   }
 
   @Patch(':id/toggle-status')
@@ -108,8 +111,8 @@ export class SurgePricingRuleController {
   @ApiOperation({ summary: 'Toggle rule status between ACTIVE and INACTIVE' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Status toggled' })
-  toggleStatus(@Param('id', ParseIntPipe) id: number) {
-    return this.service.toggleStatus(id);
+  async toggleStatus(@Param('id', ParseIntPipe) id: number, @CurrentUser() user:IUser) {
+    return await this.service.toggleStatus(id, user.id);
   }
 
   // ─── Surge Engine ──────────────────────────────────────────────────────────
@@ -142,7 +145,7 @@ export class SurgePricingRuleController {
       },
     },
   })
-  resolve(@Body() dto: ResolveSurgeDto) {
-    return this.service.resolveSurge(dto);
+  async resolve(@Body() dto: ResolveSurgeDto) {
+    return await this.service.resolveSurge(dto);
   }
 }
