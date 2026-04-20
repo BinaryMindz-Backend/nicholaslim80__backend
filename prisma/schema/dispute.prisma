@@ -33,3 +33,22 @@ model Dispute {
   @@index([createdById])
   @@map("disputes")
 }
+
+
+model DisputeType {
+  id        String   @id @default(cuid())
+  name      String
+  role      DisputeRole // USER | DRIVER
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum DisputeRole {
+  USER
+  DRIVER
+}
+
+
+

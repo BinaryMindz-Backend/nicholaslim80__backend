@@ -60,6 +60,7 @@ import { DashboardPopupModule } from './modules/superadmin_root/dashboard_popup/
 import { AdditionalServicesModule } from './modules/superadmin_root/additional_services/additional_services.module';
 import { PromoCodeModule } from './modules/superadmin_root/promo_code/promo_code.module';
 import { SurgePricingRuleModule } from './modules/superadmin_root/surge_pricing_rule/surge_pricing_rule.module';
+import { DisputeTypeModule } from './modules/superadmin_root/dispute-type/dispute-type.module';
 
 
 
@@ -134,6 +135,7 @@ import { SurgePricingRuleModule } from './modules/superadmin_root/surge_pricing_
     DashboardPopupModule,
     PromoCodeModule,
     SurgePricingRuleModule,
+    DisputeTypeModule,
 
 
   ],
