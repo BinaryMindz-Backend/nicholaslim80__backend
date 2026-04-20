@@ -73,6 +73,14 @@ model User {
   addMoneyForOrderPriority addMoneyForOrderPriority[]
   // notification logs
   notificationLogs  NotificationLog[]  @relation("AdminLogs")
+  // User (customer) disputes
+  userDisputes Dispute[] @relation("UserDisputes")
+
+  // Rider disputes
+  riderDisputes Dispute[] @relation("RiderDisputes")
+
+  // Admin resolved disputes
+  resolvedDisputes Dispute[] @relation("ResolvedDisputes")
 
   // 
   created_at         DateTime       @default(now())

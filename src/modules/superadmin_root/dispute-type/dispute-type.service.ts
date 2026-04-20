@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/core/database/prisma.service";
 import { CreateDisputeTypeDto } from "./dto/create-dispute-type.dto";
+import { UpdateDisputeTypeDto } from "./dto/update-dispute-type.dto";
 
 @Injectable()
 export class DisputeTypeService {

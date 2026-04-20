@@ -68,7 +68,7 @@ model Order {
   rate_raiders        RateRaider?
   rate_customers      RateCustomer?
   tips                Tip[]
-  dispute             Dispute?
+  dispute             Dispute[]
   additional_services Json?
 
   created_at DateTime @default(now())

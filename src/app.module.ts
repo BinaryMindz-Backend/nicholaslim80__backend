@@ -123,6 +123,7 @@ import { DisputeTypeModule } from './modules/superadmin_root/dispute-type/disput
     RatingsModule,
     ServiceZoneModule,
     DisputeModule,
+    DisputeTypeModule,
     LiveMapFleetTrackModule,
     TransactionsModule,
     WalletModule,
@@ -135,7 +136,6 @@ import { DisputeTypeModule } from './modules/superadmin_root/dispute-type/disput
     DashboardPopupModule,
     PromoCodeModule,
     SurgePricingRuleModule,
-    DisputeTypeModule,
 
 
   ],
