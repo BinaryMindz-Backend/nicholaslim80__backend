@@ -29,9 +29,9 @@ export class DisputeController {
   @ApiOperation({ summary: 'Create dispute (User / Rider)' })
   @Auth()
   @ApiBearerAuth()
-  async create(@Body() dto: CreateDisputeDto) {
+  async create(@Body() dto: CreateDisputeDto, @CurrentUser() user:IUser) {
     try {
-      const res = await this.service.create(dto);
+      const res = await this.service.create(dto, user);
       
       if (!res) {
         throw new HttpException(

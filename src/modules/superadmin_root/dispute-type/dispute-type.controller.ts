@@ -1,16 +1,21 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { DisputeTypeService } from "./dispute-type.service";
 import { ApiResponses } from "src/common/apiResponse";
 import { CreateDisputeTypeDto } from "./dto/create-dispute-type.dto";
 import { UpdateDisputeTypeDto } from "./dto/update-dispute-type.dto";
+import { Auth } from "src/decorators/auth.decorator";
+import { JwtAuthGuard } from "src/guards/jwt.guard";
 
 @ApiTags('Admin - Dispute Type')
+@UseGuards(JwtAuthGuard)
 @Controller('admin/dispute-types')
 export class DisputeTypeController {
   constructor(private readonly service: DisputeTypeService) {}
 
   @Post()
+  @Auth()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create dispute type' })
   async create(@Body() dto: CreateDisputeTypeDto) {
     const res = await this.service.create(dto);
@@ -18,6 +23,8 @@ export class DisputeTypeController {
   }
 
   @Get()
+  @Auth()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all dispute types' })
   async findAll() {
     const res = await this.service.findAll();
@@ -25,6 +32,8 @@ export class DisputeTypeController {
   }
 
   @Get(':role')
+  @Auth()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get dispute types by role (USER / DRIVER)' })
   async findByRole(@Param('role') role: 'USER' | 'DRIVER') {
     const res = await this.service.findByRole(role);
@@ -32,6 +41,8 @@ export class DisputeTypeController {
   }
 
   @Patch(':id')
+  @Auth()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update dispute type' })
   async update(
     @Param('id') id: string,
@@ -42,6 +53,8 @@ export class DisputeTypeController {
   }
 
   @Delete(':id')
+  @Auth()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Soft delete dispute type' })
   async remove(@Param('id') id: string) {
     const res = await this.service.remove(id);

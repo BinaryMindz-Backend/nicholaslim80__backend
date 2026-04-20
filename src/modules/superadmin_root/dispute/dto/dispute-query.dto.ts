@@ -1,44 +1,36 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
-import { Type } from 'class-transformer';
-import { DisputeStatus } from '@prisma/client';
+import { IsInt, IsOptional } from 'class-validator';
 
 export class DisputeQueryDto {
-  // @ApiPropertyOptional({ example: 101 })
-  // @IsOptional()
-  // @Type(() => Number)
-  // @IsInt()
-  // orderId?: number;
-
-  // @ApiPropertyOptional({ example: 5 })
-  // @IsOptional()
-  // @Type(() => Number)
-  // @IsInt()
-  // createdById?: number;
-
-  @ApiPropertyOptional({ enum: DisputeStatus })
+  @ApiPropertyOptional({ example: 1 })
   @IsOptional()
-  @IsEnum(DisputeStatus)
-  status?: DisputeStatus;
-
-  // Pagination
-  @ApiPropertyOptional({
-    example: 1,
-    description: 'Page number (starts from 1)',
-  })
-  @IsOptional()
-  @Type(() => Number)
   @IsInt()
-  @Min(1)
-  page?: number = 1;
+  page?: number;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsInt()
+  limit?: number;
+
+  @ApiPropertyOptional({ example: 101 })
+  @IsOptional()
+  @IsInt()
+  orderId?: number;
+
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @IsInt()
+  userId?: number;
+
+  @ApiPropertyOptional({ example: 9 })
+  @IsOptional()
+  @IsInt()
+  riderId?: number;
 
   @ApiPropertyOptional({
-    example: 10,
-    description: 'Number of records per page',
+    example: 'PENDING',
+    enum: ['PENDING', 'UNDER_REVIEW', 'AWAITING_INFO', 'RESOLVED', 'REJECTED'],
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit?: number = 10;
+  status?: string;
 }

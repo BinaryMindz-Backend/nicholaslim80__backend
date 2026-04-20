@@ -1,54 +1,66 @@
 model Dispute {
-  id                Int               @id @default(autoincrement())
+  id            Int    @id @default(autoincrement())
 
-  orderId           Int?                @unique
-  order             Order?             @relation(fields: [orderId], references: [id])
+  orderId       Int?
+  order         Order? @relation(fields: [orderId], references: [id])
 
-  createdByType     DisputeCreatedBy
-  createdById       Int               // userId OR riderId (no relation)
+  // Creator
+  // Customer
+  userId Int?
+  user   User? @relation("UserDisputes", fields: [userId], references: [id])
 
-  issueType         DisputeIssueType
-  description       String?
+  // Rider
+  riderId Int?
+  rider   User? @relation("RiderDisputes", fields: [riderId], references: [id])
 
-  priority          DisputePriority
-  status            DisputeStatus      @default(PENDING)
 
-  evidence          String[]
+  // Admin resolver
+  resolvedByAdminId Int?
+  resolvedByAdmin   User? @relation("ResolvedDisputes", fields: [resolvedByAdminId], references: [id])
 
-  refundType        String?            // FULL | CUSTOM
-  refundAmount      Decimal?            @db.Decimal(12,2)
+
+
+
+  // Dynamic dispute type
+  disputeTypeId String
+  disputeType   DisputeType @relation(fields: [disputeTypeId], references: [id])
+
+  description   String?
+
+  priority      DisputePriority
+  status        DisputeStatus @default(PENDING)
+
+  evidence      String[]
+
+  refundType        String?
+  refundAmount      Decimal? @db.Decimal(12,2)
   companyPercent    Int?
   riderPercent      Int?
 
-  resolvedByAdminId Int?               // admin userId
+
   resolvedAt        DateTime?
 
-  is_closed         Boolean             @default(false)
+  is_closed         Boolean   @default(false)
 
-  created_at        DateTime            @default(now())
-  updated_at        DateTime            @updatedAt
-  deletedAt         DateTime?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
   @@index([orderId])
-  @@index([createdById])
-  @@map("disputes")
+  @@index([userId])
+  @@index([riderId])
+  @@index([disputeTypeId])
 }
-
 
 model DisputeType {
   id        String   @id @default(cuid())
   name      String
-  role      DisputeRole // USER | DRIVER
+  role      DisputeRole
+  priority  DisputePriority @default(LOW)
   isActive  Boolean  @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  disputes  Dispute[]
 }
-
-enum DisputeRole {
-  USER
-  DRIVER
-}
-
-
 
