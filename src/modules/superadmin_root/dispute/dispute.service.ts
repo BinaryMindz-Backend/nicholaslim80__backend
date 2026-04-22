@@ -154,24 +154,26 @@ export class DisputeService {
 
   // -------------------------
   async resolve(dto: ResolveDisputeDto) {
-    const dispute = await this.prisma.dispute.findUnique({
+    const dispute = await this.prisma.dispute.findFirst({
       where: { id: dto.disputeId },
       include: { order: true },
     });
 
     if (!dispute) throw new NotFoundException('Dispute not found');
 
-    const order = await this.prisma.order.findUnique({
+    const order = await this.prisma.order.findFirst({
       where: { id: dispute.orderId! },
       include: { user: true },
     });
 
     if (!order) throw new NotFoundException('Order not found');
-
+     if(!order.assign_rider_id){
+       throw new NotFoundException("Raider Not Assigned on this order");
+     } 
     const rider = await this.prisma.user.findFirst({
       where: {
         raiderProfile: {
-          id: order.assign_rider_id!,
+          id: order.assign_rider_id,
         },
       },
     });

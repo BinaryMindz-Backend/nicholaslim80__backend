@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsNumber } from 'class-validator';
+import { IsInt, IsOptional, IsNumber, IsString } from 'class-validator';
 
 export class ResolveDisputeDto {
   @ApiProperty({
@@ -17,11 +17,11 @@ export class ResolveDisputeDto {
   totalAmount: number;
 
   @ApiProperty({
-    example: 'FULL',
+    example: 'FULL | CUSTOM',
     description: 'Refund type',
-    enum: ['FULL', 'CUSTOM'],
   })
-  refundType: 'FULL' | 'CUSTOM';
+  @IsString()
+  refundType: string;
 
   @ApiProperty({
     example: 70,
