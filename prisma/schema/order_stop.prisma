@@ -9,21 +9,26 @@ model OrderStop {
   destinationId   Int
   destination     Destination   @relation(fields: [destinationId], references: [id], onDelete: Restrict)
   
-  // Snapshot of destination data at time of order creation
-  // This preserves historical data even if user updates their saved address
-  address         String        // Snapshot
-  latitude        Float         // Snapshot
-  longitude       Float         // Snapshot
-  additionalInfo  String?       // Snapshot
+  // Snapshot of destination data
+  address         String
+  latitude        Float
+  longitude       Float
+  additionalInfo  String?
   
   // Stop Details
-  type            StopType      // PICKUP or DROP
-  sequence        Int           // Order of stops: 1, 2, 3...
+  type            StopType
+  sequence        Int
   status          StopStatus    @default(PENDING)
   
+  // Rider Step Tracking
+  proceed_to_pickup  Boolean     @default(false)
+  is_arrived         Boolean     @default(false)
+  is_load            Boolean     @default(false)
+  is_unload          Boolean     @default(false)
+  
   // Delivery Proof
-  proofs          String[]      @default([]) // Photo URLs
-  notes           String?       // Delivery notes from raider
+  proofs          String[]      @default([])
+  notes           String?
   
   // Timestamps
   arrivedAt       DateTime?
