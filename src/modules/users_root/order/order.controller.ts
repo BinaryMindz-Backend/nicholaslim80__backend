@@ -15,6 +15,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { NotifyRaider, PriorityOrder, UpdateOrderDto } from './dto/update-order.dto';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiParam,
   ApiQuery,
@@ -289,6 +290,19 @@ export class OrderController {
   @Auth()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update stop progress (raider only)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        step: {
+          type: 'string',
+          enum: ['PROCEED', 'ARRIVED', 'LOADED', 'UNLOADED'],
+          example: 'ARRIVED',
+        },
+      },
+      required: ['step'],
+    },
+  })
   async updateProgress(
     @Param('stop_id', ParseIntPipe) stopId: number,
     @CurrentUser() user: IUser,
