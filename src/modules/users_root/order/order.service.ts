@@ -737,6 +737,101 @@ export class OrderService {
       });
     });
   }
+  // stop progress
+  async updateStopProgress(
+      orderStopId: number,
+      raiderId: number,
+      step: 'PROCEED' | 'ARRIVED' | 'LOADED' | 'UNLOADED',
+    ) {
+      const raider = await this.prisma.raider.findUnique({
+        where: { userId: raiderId },
+      });
+
+      if (!raider) {
+        throw new NotFoundException('Unauthorized raider');
+      }
+
+      const stop = await this.prisma.orderStop.findUnique({
+        where: { id: orderStopId },
+      });
+
+      if (!stop) throw new NotFoundException('Stop not found');
+
+      if (stop.status === StopStatus.COMPLETED) {
+        throw new BadRequestException('Stop already completed');
+      }
+
+      const now = new Date();
+
+      let data: any = {};
+
+      // Controlled transitions
+      switch (step) {
+        case 'PROCEED':
+          if (stop.proceed_to_pickup) {
+            throw new BadRequestException('Already proceeded');
+          }
+          data = {
+            proceed_to_pickup: true,
+            proceedAt: now,
+          };
+          break;
+
+        case 'ARRIVED':
+          if (!stop.proceed_to_pickup) {
+            throw new BadRequestException('Must proceed first');
+          }
+          if (stop.is_arrived) {
+            throw new BadRequestException('Already arrived');
+          }
+          data = {
+            is_arrived: true,
+            arrivedStepAt: now,
+            arrivedAt: now, // sync main timestamp
+          };
+          break;
+
+        case 'LOADED':
+          if (!stop.is_arrived) {
+            throw new BadRequestException('Must arrive first');
+          }
+          if (stop.is_load) {
+            throw new BadRequestException('Already loaded');
+          }
+          data = {
+            is_load: true,
+            loadedAt: now,
+          };
+          break;
+
+        case 'UNLOADED':
+          if (!stop.is_load) {
+            throw new BadRequestException('Must load first');
+          }
+          if (stop.is_unload) {
+            throw new BadRequestException('Already unloaded');
+          }
+          data = {
+            is_unload: true,
+            unloadedAt: now,
+          };
+          break;
+
+        default:
+          throw new BadRequestException('Invalid step');
+      }
+
+      const updated = await this.prisma.orderStop.update({
+        where: { id: orderStopId },
+        data,
+      });
+
+      return {
+        message: `Step ${step} updated successfully`,
+        stop: updated,
+      };
+    }
+
 
   /**
   * COMPLETE STOP (Raider)

@@ -284,6 +284,24 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to complete stop');
     }
   }
+  
+  @Patch('stops/:stop_id/progress')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update stop progress (raider only)' })
+  async updateProgress(
+    @Param('stop_id', ParseIntPipe) stopId: number,
+    @CurrentUser() user: IUser,
+    @Body('step') step: 'PROCEED' | 'ARRIVED' | 'LOADED' | 'UNLOADED',
+  ) {
+    const result = await this.orderService.updateStopProgress(
+      stopId,
+      user.id,
+      step,
+    );
+
+    return ApiResponses.success(result, 'Progress updated successfully');
+  }
 
   // 
   @Post('stops/:stop_id/fail')

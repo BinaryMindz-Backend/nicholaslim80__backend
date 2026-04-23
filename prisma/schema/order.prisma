@@ -58,7 +58,6 @@ model Order {
   isDispute            Boolean     @default(false)
   isBulk               Boolean     @default(false)
   total_distance       Decimal     @default(0) @db.Decimal(12, 2)
-
   transactions Transaction[]
   declines     OrderDecline[]
   orderStops   OrderStop[]
