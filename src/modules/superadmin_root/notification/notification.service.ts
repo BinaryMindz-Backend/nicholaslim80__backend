@@ -435,54 +435,157 @@ export class NotificationService {
   // ─────────────────────────────────────────────────────────────────────────
   // ⑦ FIND ALL – for user (bell icon feed)
   // ─────────────────────────────────────────────────────────────────────────
+  // async findAll(dto: FindNotificationsDto, user: IUser) {
+  //   const page = Number(dto.page ?? 1);
+  //   const limit = Number(dto.limit ?? 10);
+  //   const skip = (page - 1) * limit;
+
+  //   const now = new Date();
+
+  //   const where: Prisma.NotificationWhereInput = {
+  //     is_active: true,
+  //     AND: [
+  //       // Only non-expired
+  //       {
+  //         OR: [{ expiry_date: null }, { expiry_date: { gte: now } }],
+  //       },
+  //       // Audience match
+  //       {
+  //         OR: [
+  //           // Broadcast to all
+  //           { target_role: null, target_user_ids: { isEmpty: true } },
+  //           // Role-based
+  //           {
+  //             target_role: (user.roles?.[0]?.name as NotificationSentRole) ?? null,
+  //             target_user_ids: { isEmpty: true },
+  //           },
+  //           // Direct target
+  //           { target_user_ids: { has: user.id } },
+  //         ],
+  //       },
+  //     ],
+  //   };
+
+  //   if (dto.type) (where as any).type = dto.type;
+  //   if (dto.category) (where as any).category = dto.category;
+
+  //   if (dto.isRead !== undefined) {
+  //     (where as any).AND.push({
+  //       OR: [
+  //         { userId: user.id, is_read: dto.isRead === 'true' },
+  //         {
+  //           userId: null,
+  //           mark_as_read_id:
+  //             dto.isRead === 'true'
+  //               ? { has: user.id }
+  //               : { isEmpty: false }, // not read
+  //         },
+  //       ],
+  //     });
+  //   }
+  //   const [data, total] = await Promise.all([
+  //     this.prisma.notification.findMany({
+  //       where,
+  //       orderBy: { created_at: 'desc' },
+  //       skip,
+  //       take: limit,
+  //     }),
+  //     this.prisma.notification.count({ where }),
+  //   ]);
+
+  //   // Attach isRead flag per notification for easy client rendering
+  //   const enriched = data.map((n) => ({
+  //     ...n,
+  //     isReadByUser: n.userId != null ? n.is_read : n.mark_as_read_id.includes(user.id),
+  //   }));
+
+  //   return { data: enriched, total, page, limit };
+  // }
+
   async findAll(dto: FindNotificationsDto, user: IUser) {
     const page = Number(dto.page ?? 1);
     const limit = Number(dto.limit ?? 10);
     const skip = (page - 1) * limit;
 
     const now = new Date();
+    const userRole = user.roles?.[0]?.name as NotificationSentRole | undefined;
 
     const where: Prisma.NotificationWhereInput = {
       is_active: true,
+
       AND: [
-        // Only non-expired
-        {
-          OR: [{ expiry_date: null }, { expiry_date: { gte: now } }],
-        },
-        // Audience match
+        // expiry filter
         {
           OR: [
-            // Broadcast to all
-            { target_role: null, target_user_ids: { isEmpty: true } },
-            // Role-based
+            { expiry_date: null },
+            { expiry_date: { gte: now } },
+          ],
+        },
+
+        // audience filter
+        {
+          OR: [
+            // 1. Broadcast (no targeting)
             {
-              target_role: (user.roles?.[0]?.name as NotificationSentRole) ?? null,
-              target_user_ids: { isEmpty: true },
+              AND: [
+                { target_role: null },
+                { target_user_ids: { isEmpty: true } },
+              ],
             },
-            // Direct target
-            { target_user_ids: { has: user.id } },
+
+            // 3. Direct user targeting
+            {
+              target_user_ids: { has: user.id },
+            },
+
+            // 2. Role-based (only if user has role)
+            ...(userRole
+              ? [
+                  {
+                    AND: [
+                      { target_role: userRole },
+                      { target_user_ids: { isEmpty: true } },
+                    ],
+                  },
+                ]
+              : []),
           ],
         },
       ],
     };
 
-    if (dto.type) (where as any).type = dto.type;
-    if (dto.category) (where as any).category = dto.category;
+    // optional filters
+    if (dto.type) {
+      (where as any).type = dto.type;
+    }
 
+    if (dto.category) {
+      (where as any).category = dto.category;
+    }
+
+    // read/unread filter FIXED
     if (dto.isRead !== undefined) {
+      const isRead = dto.isRead === 'true';
+
       (where as any).AND.push({
         OR: [
-          { userId: user.id, is_read: dto.isRead === 'true' },
+          // personal notifications
+          {
+            userId: user.id,
+            is_read: isRead,
+          },
+
+          // global notifications
           {
             userId: null,
-            mark_as_read_id:
-              dto.isRead === 'true'
-                ? { has: user.id }
-                : { isEmpty: false }, // not read
+            mark_as_read_id: isRead
+              ? { has: user.id } // read
+              : { not: { has: user.id } }, // unread
           },
         ],
       });
     }
+
     const [data, total] = await Promise.all([
       this.prisma.notification.findMany({
         where,
@@ -490,16 +593,25 @@ export class NotificationService {
         skip,
         take: limit,
       }),
+
       this.prisma.notification.count({ where }),
     ]);
 
-    // Attach isRead flag per notification for easy client rendering
+    // safe enrichment
     const enriched = data.map((n) => ({
       ...n,
-      isReadByUser: n.userId != null ? n.is_read : n.mark_as_read_id.includes(user.id),
+      isReadByUser:
+        n.userId != null
+          ? n.is_read
+          : (n.mark_as_read_id ?? []).includes(user.id),
     }));
 
-    return { data: enriched, total, page, limit };
+    return {
+      data: enriched,
+      total,
+      page,
+      limit,
+    };
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -673,35 +785,52 @@ export class NotificationService {
   // ⑮ UNREAD COUNT (for bell badge)
   // ─────────────────────────────────────────────────────────────────────────
   async getUnreadCount(user: IUser): Promise<{ count: number }> {
+    const userRole = user.roles?.[0]?.name as NotificationSentRole | undefined;
     const now = new Date();
 
-    const count = await this.prisma.notification.count({
-      where: {
-        is_active: true,
-        AND: [
-          { OR: [{ expiry_date: null }, { expiry_date: { gte: now } }] },
-          {
-            OR: [
-              { target_role: null, target_user_ids: { isEmpty: true } },
-              {
-                target_role: (user.roles?.[0]?.name as NotificationSentRole) ?? null,
-                target_user_ids: { isEmpty: true },
-              },
-              { target_user_ids: { has: user.id } },
-            ],
-          },
-          {
-            OR: [
-              { userId: user.id, is_read: false },
-              { userId: null, mark_as_read_id: { isEmpty: true } },
-              // not in mark_as_read_id
-              { userId: null, NOT: { mark_as_read_id: { has: user.id } } },
-            ],
-          },
-        ],
-      },
-    });
+    // Common filters for both queries
+    const commonFilter = {
+      is_active: true,
+      OR: [{ expiry_date: null }, { expiry_date: { gte: now } }],
+    };
 
-    return { count };
+    const [personalCount, globalCount] = await Promise.all([
+      // 1. Personal Notifications (Targeted specifically to this user ID)
+      this.prisma.notification.count({
+        where: {
+          ...commonFilter,
+          userId: user.id,
+          is_read: false,
+          is_from_admin:false
+        },
+      }),
+
+      // 2. Global/Role-Based Notifications (Not read by this user yet)
+      this.prisma.notification.count({
+        where: {
+          ...commonFilter,
+          userId: null,
+          is_from_admin:true,
+          // Audience: Broadcast OR Role-based
+          OR: [
+            { 
+              target_role: null, 
+              target_user_ids: { isEmpty: true } 
+            },
+            ...(userRole ? [{ 
+              target_role: userRole, 
+              target_user_ids: { isEmpty: true } 
+            }] : []),
+            { target_user_ids: { has: user.id } }
+          ],
+          // Read Receipt Check: User ID is NOT in the read array
+          NOT: {
+            mark_as_read_id: { has: user.id },
+          },
+        },
+      }),
+    ]);
+    console.log("personal",personalCount);
+    return { count: personalCount + globalCount };
   }
 }
