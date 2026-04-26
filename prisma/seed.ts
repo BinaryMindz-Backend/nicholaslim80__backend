@@ -463,6 +463,7 @@ const ROLE_PERMISSIONS = {
     { module: Module.ADVERTISEMENT, action: Permission.READ },
     // notification
     { module: Module.NOTIFICATION, action: Permission.READ },
+    { module: Module.NOTIFICATION, action: Permission.UPDATE_USER_STATUS},
     { module: Module.NOTIFICATION, action: Permission.DELETE },
     // qize module
     { module: Module.QUIZZES, action: Permission.GET_ONE },
@@ -525,6 +526,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.ADVERTISEMENT, action: Permission.READ },
     // notification
     { module: Module.NOTIFICATION, action: Permission.READ },
+    { module: Module.NOTIFICATION, action: Permission.DELETE},
+    { module: Module.NOTIFICATION, action: Permission.UPDATE_USER_STATUS},
     // 
     { module: Module.CONTENT_MANAGEMENT, action: Permission.READ },
     // user profile
