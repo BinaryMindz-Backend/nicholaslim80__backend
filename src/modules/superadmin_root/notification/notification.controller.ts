@@ -311,7 +311,7 @@ export class NotificationController {
   @Patch(':id/mark-read')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.UPDATE)
+  @RequirePermission(Module.NOTIFICATION, Permission.UPDATE_USER_STATUS)
   @ApiOperation({ summary: 'User: mark a notification as read' })
   async markAsRead(
     @Param('id', ParseIntPipe) id: number,
