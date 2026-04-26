@@ -115,7 +115,7 @@ export class NotificationController {
   @Get('admin/list')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.READ)
+  @RequirePermission(Module.NOTIFICATION, Permission.JUST_ADMIN)
   @ApiOperation({ summary: 'Admin: list all notifications / promotions with filters' })
   @ApiResponse({ status: 200, description: 'List fetched successfully' })
   async findAllForAdmin(@Query() query: FindAdminNotificationsDto) {
@@ -133,7 +133,7 @@ export class NotificationController {
   @Get('admin/logs')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.READ)
+  @RequirePermission(Module.NOTIFICATION, Permission.JUST_ADMIN)
   @ApiOperation({ summary: 'Admin: get audit log history (filter by category, admin, date)' })
   @ApiResponse({ status: 200, description: 'Logs fetched successfully' })
   async getLogHistory(@Query() query: FindAdminNotificationsDto) {

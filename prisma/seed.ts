@@ -237,6 +237,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.NOTIFICATION, action: Permission.CREATE },
     { module: Module.NOTIFICATION, action: Permission.DELETE },
     { module: Module.NOTIFICATION, action: Permission.UPDATE },
+    { module: Module.NOTIFICATION, action: Permission.READ},
+    { module: Module.NOTIFICATION, action: Permission.JUST_ADMIN},
 
     //Quiz module
     { module: Module.QUIZ, action: Permission.CREATE },

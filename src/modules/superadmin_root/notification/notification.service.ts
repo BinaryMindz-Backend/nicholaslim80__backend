@@ -483,7 +483,6 @@ export class NotificationService {
         ],
       });
     }
-
     const [data, total] = await Promise.all([
       this.prisma.notification.findMany({
         where,
