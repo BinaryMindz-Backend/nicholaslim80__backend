@@ -1163,6 +1163,25 @@ export class OrderService {
 
   // skiped
   async skipedStop(stopId: number){
+    const exist = await this.prisma.orderStop.findFirst({
+      where: { 
+        id:stopId
+      }
+    })
+
+   if(!exist){
+       throw new NotFoundException("Order stop Not found by this id")
+   }
+    const order = await this.prisma.order.findFirst({
+      where: { 
+        id:exist.orderId
+      }
+    })
+
+    if(order?.route_type !==  RouteType.ROUND){
+       throw new NotFoundException("This is not round order")
+    }
+
     const stop = await this.prisma.orderStop.update({
       where: { id: stopId},
       data:{
@@ -2040,6 +2059,8 @@ export class OrderService {
         },
         orderBy: { created_at: 'desc' },
         include: {
+          delivery_type:true,
+          vehicle:true,
           user: true, transactions: true, orderStops: {
             include: {
               destination: true,

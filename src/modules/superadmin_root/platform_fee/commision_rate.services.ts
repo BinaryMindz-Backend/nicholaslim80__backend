@@ -3,6 +3,7 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { CreateStandardCommissionRateDto } from './dto/create-commission_rate.dto';
 import { UpdateStandardCommissionRateDto } from './dto/update-platform_fee.dto';
 import { ApplicableTyp, FeeLogType } from '@prisma/client';
+import { FeeLogFilterDto } from './dto/fee-logs-filter.dto';
 
 
 // 
@@ -119,24 +120,41 @@ export class StandardCommissionRateService {
   }
 
 
-  async getLogs(
-    logType?: FeeLogType,
-    fromDate?: string,
-    toDate?: string,
-  ) {
-    return await this.prisma.feeConfigurationLog.findMany({
-      where: {
+    async getLogs(filterDto: FeeLogFilterDto) {
+      const { logType, fromDate, toDate, page, limit } = filterDto;
+      
+      // Calculate how many records to skip
+      const skip = (page - 1) * limit;
+
+      const where = {
         log_type: logType,
         created_at: {
           gte: fromDate ? new Date(fromDate) : undefined,
           lte: toDate ? new Date(toDate) : undefined,
         },
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
-  }
+      };
+
+      // Run both queries in a transaction for efficiency/consistency
+      const [data, total] = await this.prisma.$transaction([
+        this.prisma.feeConfigurationLog.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { created_at: 'desc' },
+        }),
+        this.prisma.feeConfigurationLog.count({ where }),
+      ]);
+
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    }
 
   // get logs by references 
   async getLogsByReference(

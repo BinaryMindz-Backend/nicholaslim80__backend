@@ -55,24 +55,15 @@ export class StandardCommissionRateController {
   }
   
     // 🔹 Get all logs (with optional filters)
-  @Get('logs')
-  @Auth()
-  @ApiBearerAuth()
-  @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
-  @ApiOperation({
-    summary: 'Get all fee configuration change logs (Admin only)',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Fee configuration logs fetched successfully',
-  })
-  async findAlllogs(@Query() filterDto: FeeLogFilterDto) {
+    @Get('logs')
+    @Auth()
+    @ApiBearerAuth()
+    @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.READ)
+    @ApiOperation({ summary: 'Get all fee configuration change logs (Admin only)' })
+    @ApiResponse({ status: 200, description: 'Fee configuration logs fetched successfully' })
+    async findAlllogs(@Query() filterDto: FeeLogFilterDto) {
     try {
-      const res = await this.service.getLogs(
-        filterDto.logType,
-        filterDto.fromDate,
-        filterDto.toDate,
-      );
+      const res = await this.service.getLogs(filterDto);
 
       return ApiResponses.success(
         res,
@@ -84,7 +75,7 @@ export class StandardCommissionRateController {
         'Failed to fetch fee configuration logs',
       );
     }
-  }
+    }
 
   // 🔹 Get logs by record (reference ID)
   @Get(':logType/:referenceId')
