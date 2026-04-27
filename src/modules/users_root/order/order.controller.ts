@@ -316,6 +316,23 @@ export class OrderController {
 
     return ApiResponses.success(result, 'Progress updated successfully');
   }
+  // 
+  @Patch('stops/:stop_id/skiped')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mark stop as skiped (raider only)' })
+  @ApiParam({ name: 'stop_id', description: 'Order Stop ID', example: 201 })
+  @ApiResponse({ status: 200, description: 'Stop marked as skiped ' })
+  async stopSkiped(
+    @Param('stop_id', ParseIntPipe) stopId: number
+  ) {
+    try {
+      const result = await this.orderService.skipedStop(stopId);
+      return ApiResponses.success(result, 'Stop marked as skiped ');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to mark stop as skiped');
+    }
+  }
 
   // 
   @Post('stops/:stop_id/fail')
@@ -352,6 +369,24 @@ export class OrderController {
     }
   }
 
+
+  // 
+  @Patch('raider-confirmation/:order_id')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Raider Confirmation upadate' })
+  @ApiParam({ name: 'order_id', description: 'Order ID', example: 201 })
+  @ApiResponse({ status: 200, description: 'Order confirmation updated ' })
+  async orderCallConfirmation(
+    @Param('order_id', ParseIntPipe) orderId: number
+  ) {
+    try {
+      const result = await this.orderService.orderCallConfirmation(orderId);
+      return ApiResponses.success(result, 'Order confirmation updated succesfully ');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to Order confirmation updated');
+    }
+  }
 
   // CANCEL ORDER
   @Patch(':order_id/cancel')

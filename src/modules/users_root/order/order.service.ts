@@ -1161,6 +1161,17 @@ export class OrderService {
     });
   }
 
+  // skiped
+  async skipedStop(stopId: number){
+    const stop = await this.prisma.orderStop.update({
+      where: { id: stopId},
+      data:{
+        is_skiped:true
+      }
+    })
+    return stop;
+  }
+
   /**
    * Fail a stop (Rule #4: Receiver not available)
    */
@@ -1292,6 +1303,27 @@ export class OrderService {
       stopId
     };
   }
+
+  // 
+   async orderCallConfirmation(orderId: number){
+      
+    const exist = await this.prisma.order.findFirst({
+      where: { id: orderId},
+    })
+   if(!exist){
+       throw new NotFoundException("Order Not found by this id")
+   }
+  //  
+    const x = await this.prisma.order.update({
+      where: { id: orderId},
+      data:{
+        raider_confirmation:true
+      }
+    })
+    return x;
+  }
+
+
 
   /** deprecated
  * Create individual order with geocoding and pricing
