@@ -27,6 +27,12 @@ model OrderStop {
   is_unload         Boolean @default(false)
   is_skiped         Boolean @default(false)
 
+  // 
+  proceedAt     DateTime?
+  arrivedStepAt DateTime?
+  loadedAt      DateTime?
+  unloadedAt    DateTime?
+
   // Delivery Proof
   proofs String[] @default([])
   notes  String?

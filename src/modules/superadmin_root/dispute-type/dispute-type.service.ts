@@ -37,10 +37,8 @@ export class DisputeTypeService {
   }
 
   async remove(id: string) {
-    // soft delete (recommended)
-    return this.prisma.disputeType.update({
+    return this.prisma.disputeType.delete({
       where: { id },
-      data: { isActive: false },
     });
   }
 }

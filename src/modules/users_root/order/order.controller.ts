@@ -327,7 +327,7 @@ export class OrderController {
     @Param('stop_id', ParseIntPipe) stopId: number
   ) {
     try {
-      const result = await this.orderService.skipedStop(stopId);
+      const result = await this.orderService.skippedStop(stopId);
       return ApiResponses.success(result, 'Stop marked as skiped ');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to mark stop as skiped');
@@ -700,6 +700,7 @@ export class OrderController {
       const order = await this.orderService.getOrderDetails(+id);
       return ApiResponses.success(order, 'Order retrieved successfully');
     } catch (err) {
+      console.log(err);
       return ApiResponses.error(err, 'Failed to fetch order');
     }
   }

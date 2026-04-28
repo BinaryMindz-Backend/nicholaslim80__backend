@@ -123,7 +123,6 @@ export class DisputeService {
         where.riderId = { not: null };
       }
       // 'all'
-
       const [data, total] = await this.prisma.$transaction([
         this.prisma.dispute.findMany({
           where,

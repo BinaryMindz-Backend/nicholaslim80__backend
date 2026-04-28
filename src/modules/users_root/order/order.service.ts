@@ -551,12 +551,10 @@ export class OrderService {
             }
           }
         })
-        // console.log("fav raider -->", favRaiders);
         // Send notification to rider
         if (favRaiders.length > 0) {
           // 
           for (const rider of favRaiders) {
-            // console.log("rraider -->", rider);
             await this.raiderGateway.notifyUserFavRaider(
               rider.raiderId,
               orderId,
@@ -787,7 +785,7 @@ export class OrderService {
           data = {
             is_arrived: true,
             arrivedStepAt: now,
-            arrivedAt: now, // sync main timestamp
+            // arrivedAt: now, // sync main timestamp
           };
           break;
 
@@ -1161,35 +1159,56 @@ export class OrderService {
     });
   }
 
-  // skiped
-  async skipedStop(stopId: number){
-    const exist = await this.prisma.orderStop.findFirst({
-      where: { 
-        id:stopId
-      }
-    })
+    // skiped
+    async skippedStop(stopId: number) {
+      const exist = await this.prisma.orderStop.findFirst({
+        where: { id: stopId },
+      });
 
-   if(!exist){
-       throw new NotFoundException("Order stop Not found by this id")
-   }
-    const order = await this.prisma.order.findFirst({
-      where: { 
-        id:exist.orderId
+      if (!exist) {
+        throw new NotFoundException('Stop not found for the provided ID');
       }
-    })
 
-    if(order?.route_type !==  RouteType.ROUND){
-       throw new NotFoundException("This is not round order")
+      const order = await this.prisma.order.findFirst({
+        where: { id: exist.orderId },
+        include: {
+          orderStops: true,
+        },
+      });
+
+      if (!order) {
+        throw new NotFoundException('Order not found for this stop');
+      }
+
+      if (order.route_type !== RouteType.ROUND) {
+        throw new BadRequestException(
+          'You can only skip stops for round trip orders'
+        );
+      }
+
+      const dropStops = order.orderStops.filter(
+        (i) => i.type === 'DROP' && !i.is_skiped
+      );
+
+      if (dropStops.length <= 1) {
+        throw new BadRequestException(
+          'At least one active drop stop must remain. Cannot skip this stop.'
+        );
+      }
+
+      if (exist.is_skiped) {
+        throw new BadRequestException('This stop has already been skipped');
+      }
+
+      const stop = await this.prisma.orderStop.update({
+        where: { id: stopId },
+        data: {
+          is_skiped: true,
+        },
+      });
+
+      return stop;
     }
-
-    const stop = await this.prisma.orderStop.update({
-      where: { id: stopId},
-      data:{
-        is_skiped:true
-      }
-    })
-    return stop;
-  }
 
   /**
    * Fail a stop (Rule #4: Receiver not available)
