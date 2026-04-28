@@ -121,15 +121,6 @@ export class OrderService {
 
       return order;
     });
-    // await this.emailQueueService.queueOrderStatusNotification({
-    //   userId: user.id,
-    //   fcmToken: isUserExist?.fcmToken ?? '',
-    //   orderId: res.id,
-    //   orderNumber: `ORD-${String(res.id).padStart(6, '0')}`,
-    //   status: NotificationType.ORDER_UPDATE,
-    //   title: 'Order Created Successfully',
-    //   message: `Your order ORD-${String(res.id).padStart(6, '0')} has been created with total cost $${res.total_cost.toFixed(2)}.`,
-    // });
     return res;
   }
 
@@ -3058,7 +3049,12 @@ export class OrderService {
       lat: s.latitude,
       lng: s.longitude,
     }));
+    
 
+
+
+
+    // 
     const pricingResults = await getReceiversWithIndividualPrice(
       this.prisma,
       sender,
@@ -3436,8 +3432,6 @@ export class OrderService {
       return updatedOrder;
     });
   }
-
-
 
 
   // remove additional services
@@ -4075,7 +4069,30 @@ export class OrderService {
 
     return { score, shouldAutoConfirm, requiresManualConfirmation: !shouldAutoConfirm };
   }
+  
+  
 
+  // order demand
+  private async getCurrentDemand(zoneId: number): Promise<number> {
+    return this.prisma.order.count({
+      where: {
+        serviceZoneId: zoneId,
+        order_status: OrderStatus.PENDING,  
+      },
+    });
+  }
+
+  // available raider
+  // private async getAvailableDrivers(zoneId: number): Promise<number> {
+  //   return await this.prisma.raider.count({
+  //     where: {
+  //       serviceZoneId: zoneId,
+  //       status: 'ONLINE',       
+  //       is_active: true,
+  //       // last_location_updated_at > now - 5 minutes, etc.
+  //     },
+  //   });
+  // }
 
 
 

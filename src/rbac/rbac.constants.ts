@@ -77,7 +77,8 @@ export enum Module {
   // order management
   ORDER_PLACEMENT = "order_placement", //order placement
   LIVE_ORDER_TRACKING='live_order_tracking',
-  ORDER_HISTORY='order_history'
+  ORDER_HISTORY='order_history',
+  NOTIFICATION_MANAGEMENT='notification_management'
 
 
 
