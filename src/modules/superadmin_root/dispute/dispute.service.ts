@@ -18,6 +18,7 @@ import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { ActivityLogService } from '../additional_services/activity_logs.services';
 import { IUser } from 'src/types';
+import { DisputeQueryDto } from './dto/dispute-query.dto';
 
 @Injectable()
 export class DisputeService {
@@ -83,45 +84,71 @@ export class DisputeService {
   }
 
   // -------------------------
-  async findAll(dto: any) {
-    const page = dto.page ?? 1;
-    const limit = dto.limit ?? 10;
-    const skip = (page - 1) * limit;
+   async findAll(dto: DisputeQueryDto) {
+      const page = dto.page ?? 1;
+      const limit = dto.limit ?? 10;
+      const skip = (page - 1) * limit;
 
-    const where: any = {
-      is_closed: false,
-    };
+      const where: any = {
+        is_closed: false,
+      };
 
-    if (dto.status) where.status = dto.status;
-    if (dto.orderId) where.orderId = dto.orderId;
-    if (dto.userId) where.userId = dto.userId;
-    if (dto.riderId) where.riderId = dto.riderId;
+      if (dto.status) where.status = dto.status;
+      if (dto.orderId) where.orderId = dto.orderId;
+      if (dto.userId) where.userId = dto.userId;
+      if (dto.riderId) where.riderId = dto.riderId;
 
-    const [data, total] = await this.prisma.$transaction([
-      this.prisma.dispute.findMany({
-        where,
-        include: {
-          user: true,
-          rider: true,
-          disputeType: true,
+      // dispute type filter
+      if (dto.disputeTypeId) {
+        where.disputeTypeId = dto.disputeTypeId;
+      }
+
+      // date range filter
+      if (dto.fromDate || dto.toDate) {
+        where.created_at = {};
+
+        if (dto.fromDate) {
+          where.created_at.gte = new Date(dto.fromDate);
+        }
+
+        if (dto.toDate) {
+          where.created_at.lte = new Date(dto.toDate);
+        }
+      }
+
+      // participant type filter
+      if (String(dto.participantType) === 'user') {
+        where.userId = { not: null };
+      } else if (String(dto.participantType) === 'rider') {
+        where.riderId = { not: null };
+      }
+      // 'all'
+
+      const [data, total] = await this.prisma.$transaction([
+        this.prisma.dispute.findMany({
+          where,
+          include: {
+            user: true,
+            rider: true,
+            disputeType: true,
+          },
+          skip,
+          take: limit,
+          orderBy: { created_at: 'desc' },
+        }),
+        this.prisma.dispute.count({ where }),
+      ]);
+
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
         },
-        skip,
-        take: limit,
-        orderBy: { created_at: 'desc' },
-      }),
-      this.prisma.dispute.count({ where }),
-    ]);
-
-    return {
-      data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
-  }
+      };
+    }
 
   // -------------------------
   private async creditWallet(

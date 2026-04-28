@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsEnum } from 'class-validator';
+import { IsInt, IsOptional, IsEnum, IsDateString, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum DisputeStatus {
@@ -9,7 +9,11 @@ export enum DisputeStatus {
   RESOLVED = 'RESOLVED',
   REJECTED = 'REJECTED',
 }
-
+export enum ParticipantType {
+  USER = 'user',
+  RIDER = 'rider',
+  ALL = 'all',
+}
 export class DisputeQueryDto {
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
@@ -41,11 +45,30 @@ export class DisputeQueryDto {
   @IsInt()
   riderId?: number;
 
-  @ApiPropertyOptional({
-    example: DisputeStatus.PENDING,
-    enum: DisputeStatus,
-  })
+  @ApiPropertyOptional({ enum: DisputeStatus })
   @IsOptional()
   @IsEnum(DisputeStatus)
   status?: DisputeStatus;
+
+
+  @ApiPropertyOptional({ example: '2026-04-01' })
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @ApiPropertyOptional({ example: '2026-04-30' })
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
+
+  @ApiPropertyOptional({ example: "cmo7prm7q0007n401dt41etog" })
+  @IsOptional()
+  @Type(() => String)
+  @IsString()
+  disputeTypeId?: string;
+
+  @ApiPropertyOptional({ enum: ParticipantType, example: 'user' })
+  @IsOptional()
+  @IsEnum(ParticipantType)
+  participantType?: ParticipantType;
 }
