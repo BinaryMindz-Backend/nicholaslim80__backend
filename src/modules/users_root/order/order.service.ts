@@ -735,6 +735,8 @@ export class OrderService {
       });
     });
   }
+
+
   // stop progress
   async updateStopProgress(
       orderStopId: number,
@@ -802,18 +804,26 @@ export class OrderService {
           };
           break;
 
-        case 'UNLOADED':
-          if (!stop.is_load) {
-            throw new BadRequestException('Must load first');
-          }
-          if (stop.is_unload) {
-            throw new BadRequestException('Already unloaded');
-          }
-          data = {
-            is_unload: true,
-            unloadedAt: now,
-          };
-          break;
+          case 'UNLOADED':
+               if (stop.type !== 'DROP' && !stop.is_load) {
+                  throw new BadRequestException(
+                    'You must complete loading before unloading at this stop'
+                  );
+                }
+
+            if (stop.type === 'DROP') {
+              // No load requirement for DROP
+            }
+
+            if (stop.is_unload) {
+              throw new BadRequestException('Already unloaded');
+            }
+
+            data = {
+              is_unload: true,
+              unloadedAt: now,
+            };
+            break;
 
         default:
           throw new BadRequestException('Invalid step');

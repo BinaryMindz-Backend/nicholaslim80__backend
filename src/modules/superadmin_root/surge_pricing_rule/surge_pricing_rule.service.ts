@@ -121,19 +121,84 @@ export class SurgePricingRuleService {
 
   // ─── Update ────────────────────────────────────────────────────────────────
 
-   async update(id: number, dto: UpdateSurgePricingRuleDto, userId: number) {
+  //  async update(id: number, dto: UpdateSurgePricingRuleDto, userId: number) {
+  //     const existing = await this.findOne(id);
+
+  //     if (dto.ratioFrom !== undefined || dto.ratioTo !== undefined) {
+  //       const from = dto.ratioFrom ?? Number(existing.ratioFrom);
+  //       const to   = dto.ratioTo   ?? Number(existing.ratioTo);
+  //       await this.validateRatioOverlap(from, to, id);
+  //     }
+
+  //     if (dto.serviceZoneIds?.length) {
+  //       await this.validateServiceZoneIds(dto.serviceZoneIds);
+  //     }
+
+  //     if (dto.deliveryTypeIds?.length) {
+  //       await this.validateDeliveryTypeIds(dto.deliveryTypeIds);
+  //     }
+
+  //     return this.prisma.$transaction(async (tx) => {
+  //       const updated = await tx.surgePricingRule.update({
+  //         where: { id },
+  //         data: {
+  //           ...(dto.ruleName && { ruleName: dto.ruleName }),
+  //           ...(dto.ratioFrom && { ratioFrom: dto.ratioFrom }),
+  //           ...(dto.ratioTo && { ratioTo: dto.ratioTo }),
+  //           ...(dto.priceMultiplier && { priceMultiplier: dto.priceMultiplier }),
+  //           ...(dto.maxCap !== undefined && { maxCap: dto.maxCap }),
+  //           ...(dto.status && { status: dto.status }),
+
+  //           ...(dto.serviceZoneIds !== undefined && {
+  //             serviceZones: {
+  //               deleteMany: {},
+  //               create: dto.serviceZoneIds.map((id) => ({
+  //                 serviceZone: { connect: { id } },
+  //               })),
+  //             },
+  //           }),
+
+  //           ...(dto.deliveryTypeIds !== undefined && {
+  //             deliveryTypes: {
+  //               deleteMany: {},
+  //               create: dto.deliveryTypeIds.map((id) => ({
+  //                 deliveryType: { connect: { id } },
+  //               })),
+  //             },
+  //           }),
+  //         },
+  //       });
+
+  //       await this.logActivity(tx, {
+  //         action: 'UPDATE',
+  //         entityType: 'SurgePricingRule',
+  //         entityId: id,
+  //         userId,
+  //         meta: {
+  //           before: existing,
+  //           after: updated,
+  //         },
+  //       });
+
+  //       return updated;
+  //     });
+  //   }
+
+  // ─── Update ────────────────────────────────────────────────────────────────
+    async update(id: number, dto: UpdateSurgePricingRuleDto, userId: number) {
       const existing = await this.findOne(id);
 
+      // Validate ratio overlap only if ratioFrom or ratioTo is being updated
       if (dto.ratioFrom !== undefined || dto.ratioTo !== undefined) {
-        const from = dto.ratioFrom ?? Number(existing.ratioFrom);
-        const to   = dto.ratioTo   ?? Number(existing.ratioTo);
+        const from = dto.ratioFrom !== undefined ? dto.ratioFrom : Number(existing.ratioFrom);
+        const to = dto.ratioTo !== undefined ? dto.ratioTo : Number(existing.ratioTo);
         await this.validateRatioOverlap(from, to, id);
       }
 
+      // Validate related entities if provided
       if (dto.serviceZoneIds?.length) {
         await this.validateServiceZoneIds(dto.serviceZoneIds);
       }
-
       if (dto.deliveryTypeIds?.length) {
         await this.validateDeliveryTypeIds(dto.deliveryTypeIds);
       }
@@ -142,22 +207,22 @@ export class SurgePricingRuleService {
         const updated = await tx.surgePricingRule.update({
           where: { id },
           data: {
-            ...(dto.ruleName && { ruleName: dto.ruleName }),
-            ...(dto.ratioFrom && { ratioFrom: dto.ratioFrom }),
-            ...(dto.ratioTo && { ratioTo: dto.ratioTo }),
-            ...(dto.priceMultiplier && { priceMultiplier: dto.priceMultiplier }),
-            ...(dto.maxCap !== undefined && { maxCap: dto.maxCap }),
-            ...(dto.status && { status: dto.status }),
+            ...(dto.ruleName !== undefined && { ruleName: dto.ruleName }),
+            ...(dto.ratioFrom !== undefined && { ratioFrom: dto.ratioFrom }),
+            ...(dto.ratioTo !== undefined && { ratioTo: dto.ratioTo }),
+            ...(dto.priceMultiplier !== undefined && { priceMultiplier: dto.priceMultiplier }),
+            ...(dto.maxCap !== undefined && { maxCap: dto.maxCap }),           // Fixed
+            ...(dto.status !== undefined && { status: dto.status }),
 
+            // Handle many-to-many relations safely
             ...(dto.serviceZoneIds !== undefined && {
               serviceZones: {
-                deleteMany: {},
+                deleteMany: {},                                           // Remove all existing
                 create: dto.serviceZoneIds.map((id) => ({
                   serviceZone: { connect: { id } },
                 })),
               },
             }),
-
             ...(dto.deliveryTypeIds !== undefined && {
               deliveryTypes: {
                 deleteMany: {},
@@ -244,71 +309,149 @@ export class SurgePricingRuleService {
    * Priority: rules scoped to both zone+type > zone only > type only > global (no scope).
    * Returns multiplier = 1.0 (no surge) when no rule matches.
    */
-   async resolveSurge(dto: ResolveSurgeDto) {
-      const { ratio, serviceZoneId, deliveryTypeId } = dto;
+  //  async resolveSurge(dto: ResolveSurgeDto) {
+  //     const { ratio, serviceZoneId, deliveryTypeId } = dto;
 
-      const candidates = await this.prisma.surgePricingRule.findMany({
+  //     const candidates = await this.prisma.surgePricingRule.findMany({
+  //       where: {
+  //         status: SurgePricingStatus.ACTIVE,
+  //         ratioFrom: { lte: ratio },
+  //         ratioTo: { gte: ratio },
+  //         AND: [
+  //           serviceZoneId
+  //             ? { serviceZones: { some: { serviceZoneId } } }
+  //             : {},
+  //           deliveryTypeId
+  //             ? { deliveryTypes: { some: { deliveryTypeId } } }
+  //             : {},
+  //         ],
+  //       },
+  //       include: {
+  //         serviceZones: true,
+  //         deliveryTypes: true,
+  //       },
+  //     });
+
+  //     if (!candidates.length) {
+  //       return { matched: false, multiplier: 1.0, rule: null };
+  //     }
+
+  //     const getScore = (rule: any) => {
+  //       let score = 0;
+
+  //       const hasZoneMatch = serviceZoneId
+  //         ? rule.serviceZones.some(z => z.serviceZoneId === serviceZoneId)
+  //         : false;
+
+  //       const hasTypeMatch = deliveryTypeId
+  //         ? rule.deliveryTypes.some(t => t.deliveryTypeId === deliveryTypeId)
+  //         : false;
+
+  //       // Priority scoring
+  //       if (hasZoneMatch && hasTypeMatch) score = 3;
+  //       else if (hasZoneMatch) score = 2;
+  //       else if (hasTypeMatch) score = 1;
+  //       else score = 0;
+
+  //       return score;
+  //     };
+
+  //     const rule = candidates
+  //       .map(r => ({ ...r, score: getScore(r) }))
+  //       .sort((a, b) => b.score - a.score)[0];
+
+  //     let multiplier = Number(rule.priceMultiplier);
+
+  //     if (rule.maxCap && multiplier > Number(rule.maxCap)) {
+  //       multiplier = Number(rule.maxCap);
+  //     }
+
+  //     return {
+  //       matched: true,
+  //       multiplier,
+  //       rule,
+  //     };
+  //   }
+
+// ─── Resolve Surge (Engine) ────────────────────────────────────────────────
+/**
+ * Finds the most specific matching ACTIVE surge rule based on priority:
+ * 1. Both serviceZone + deliveryType
+ * 2. ServiceZone only
+ * 3. DeliveryType only
+ * 4. Global rule
+ */
+  async resolveSurge(dto: ResolveSurgeDto) {
+    const { ratio, serviceZoneId, deliveryTypeId } = dto;
+
+    const findBestRule = async (zoneId?: number | null, typeId?: number | null) => {
+      return this.prisma.surgePricingRule.findFirst({
         where: {
           status: SurgePricingStatus.ACTIVE,
           ratioFrom: { lte: ratio },
-          ratioTo: { gte: ratio },
-          AND: [
-            serviceZoneId
-              ? { serviceZones: { some: { serviceZoneId } } }
-              : {},
-            deliveryTypeId
-              ? { deliveryTypes: { some: { deliveryTypeId } } }
-              : {},
-          ],
+          ratioTo: { gt: ratio },                    // exclusive upper bound (recommended)
+          ...(zoneId && {
+            serviceZones: { some: { serviceZoneId: zoneId } },
+          }),
+          ...(typeId && {
+            deliveryTypes: { some: { deliveryTypeId: typeId } },
+          }),
         },
         include: {
           serviceZones: true,
           deliveryTypes: true,
         },
+        orderBy: [
+          { priceMultiplier: 'desc' },
+          { createdAt: 'desc' },
+        ],
       });
+    };
 
-      if (!candidates.length) {
-        return { matched: false, multiplier: 1.0, rule: null };
-      }
+    let rule = null as any;   // Temporary to help TS
 
-      const getScore = (rule: any) => {
-        let score = 0;
+    // Priority 1: Most specific (Zone + Type)
+    if (serviceZoneId && deliveryTypeId) {
+      rule = await findBestRule(serviceZoneId, deliveryTypeId);
+    }
 
-        const hasZoneMatch = serviceZoneId
-          ? rule.serviceZones.some(z => z.serviceZoneId === serviceZoneId)
-          : false;
+    // Priority 2: Zone only
+    if (!rule && serviceZoneId) {
+      rule = await findBestRule(serviceZoneId, null);
+    }
 
-        const hasTypeMatch = deliveryTypeId
-          ? rule.deliveryTypes.some(t => t.deliveryTypeId === deliveryTypeId)
-          : false;
+    // Priority 3: Delivery Type only
+    if (!rule && deliveryTypeId) {
+      rule = await findBestRule(null, deliveryTypeId);
+    }
 
-        // Priority scoring
-        if (hasZoneMatch && hasTypeMatch) score = 3;
-        else if (hasZoneMatch) score = 2;
-        else if (hasTypeMatch) score = 1;
-        else score = 0;
+    // Priority 4: Global rule
+    if (!rule) {
+      rule = await findBestRule(null, null);
+    }
 
-        return score;
-      };
-
-      const rule = candidates
-        .map(r => ({ ...r, score: getScore(r) }))
-        .sort((a, b) => b.score - a.score)[0];
-
-      let multiplier = Number(rule.priceMultiplier);
-
-      if (rule.maxCap && multiplier > Number(rule.maxCap)) {
-        multiplier = Number(rule.maxCap);
-      }
-
+    // No matching rule found
+    if (!rule) {
       return {
-        matched: true,
-        multiplier,
-        rule,
+        matched: false,
+        multiplier: 1.0,
+        rule: null,
       };
     }
 
-  // ─── Helpers ───────────────────────────────────────────────────────────────
+    // Safe access after null check
+    let multiplier = Number(rule.priceMultiplier);
+
+    if (rule.maxCap && multiplier > Number(rule.maxCap)) {
+      multiplier = Number(rule.maxCap);
+    }
+
+    return {
+      matched: true,
+      multiplier,
+      rule,
+    };
+  }
 
   private async validateRatioOverlap(
     ratioFrom: number,
@@ -332,22 +475,22 @@ export class SurgePricingRuleService {
   }
 
 
-private async validateServiceZoneIds(ids: number[]) {
-  const zones = await this.prisma.serviceZone.findMany({
-    where: { id: { in: ids } },
-    select: { id: true },
-  });
+  private async validateServiceZoneIds(ids: number[]) {
+    const zones = await this.prisma.serviceZone.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
 
-  const existingIds = zones.map(z => z.id);
+    const existingIds = zones.map(z => z.id);
 
-  const invalidIds = ids.filter(id => !existingIds.includes(id));
+    const invalidIds = ids.filter(id => !existingIds.includes(id));
 
-  if (invalidIds.length) {
-    throw new BadRequestException(
-      `Invalid serviceZoneIds: ${invalidIds.join(', ')}`
-    );
+    if (invalidIds.length) {
+      throw new BadRequestException(
+        `Invalid serviceZoneIds: ${invalidIds.join(', ')}`
+      );
+    }
   }
-}
 
 private async validateDeliveryTypeIds(ids: number[]) {
   const types = await this.prisma.deliveryType.findMany({
