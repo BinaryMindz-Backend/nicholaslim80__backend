@@ -169,18 +169,28 @@ export interface Receiver {
   lng: number;
 }
 
+// Main Pricing Breakdown with Surge Support
 export interface PricingBreakdown {
   basePrice: number;
   deliveryTypeCharge: number;
   userFeeTotal: number;
   zoneFee: number;
+  surgeAmount: number;           // ← Added
+  surgeMultiplier: number;       // ← Added (important for display)
   totalFee: number;
   totalPrice: number;
+  
+  // Optional fields for better clarity
+  distanceKm?: number;
+  distance?: number;
+  isRoundTrip?: boolean;
+  returnFactor?: number;
 }
 
+// Extended Receiver with Pricing
 export interface ReceiverWithPricing extends Receiver {
   distanceKm: number;
-  durationMin: number;
+  durationMin?: number;          // ← Kept as optional
   pricing: PricingBreakdown;
 }
 

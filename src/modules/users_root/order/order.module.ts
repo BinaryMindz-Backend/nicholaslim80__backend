@@ -15,6 +15,8 @@ import { OrderGateway } from './order.gateway';
 import { RaiderModule } from 'src/modules/raider_root/raider gateways/raider.module';
 import { UserGateway } from '../users/user.gateways';
 import { ActivityLogService } from 'src/modules/superadmin_root/additional_services/activity_logs.services';
+import { SurgePricingRuleModule } from 'src/modules/superadmin_root/surge_pricing_rule/surge_pricing_rule.module';
+import { SurgePricingRuleService } from 'src/modules/superadmin_root/surge_pricing_rule/surge_pricing_rule.service';
 
 
 @Module({
@@ -23,15 +25,17 @@ import { ActivityLogService } from 'src/modules/superadmin_root/additional_servi
     NotificationModule,
     QueueModule,
     WalletModule,
+    SurgePricingRuleModule,
     forwardRef(() => RaiderModule)
   ],
   controllers: [OrderController],
-  providers: [OrderService, TransactionIdService, CompetitionWorker, SmsService, ServiceZoneService, GeoService, WalletService, OrderGateway, UserGateway, ActivityLogService],
+  providers: [OrderService,SurgePricingRuleService, TransactionIdService, CompetitionWorker, SmsService, ServiceZoneService, GeoService, WalletService, OrderGateway, UserGateway, ActivityLogService],
   exports: [
     OrderService,
     OrderGateway,
     UserGateway,
-    ActivityLogService
+    ActivityLogService,
+    SurgePricingRuleService
   ]
 })
 export class OrderModule { }

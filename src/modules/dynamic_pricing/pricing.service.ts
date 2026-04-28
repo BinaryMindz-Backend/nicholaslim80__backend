@@ -1,75 +1,62 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { PrismaService } from 'src/core/database/prisma.service';
 import { BadRequestException } from '@nestjs/common';
-import { parse, isWithinInterval } from 'date-fns';
-import {
-  Condition,
-  Prisma,
-} from '@prisma/client';
-import { DeliveryZone, PricingBreakdown } from './types';
+import {PricingBreakdown, CalculatePriceParams } from './types';
 import { evaluateRule } from './fee.helper';
-import { isHoliday } from './holiday.helper';
 
-export async function calculatePriceWithFee(params: {
-  prisma: PrismaService;
-  distanceKm: number;
-  vehicle: Prisma.VehicleTypeUncheckedCreateInput;
-  deliveryType: Prisma.DeliveryTypeUncheckedCreateInput;
-  zone: DeliveryZone;
-  orderDate: Date;
-}): Promise<PricingBreakdown> {
+export async function calculatePriceWithFee(
+  params: CalculatePriceParams
+): Promise<PricingBreakdown> {
+  
   const {
     prisma,
+    surgePricingRuleService,
     distanceKm,
     vehicle,
     deliveryType,
     zone,
     orderDate,
+    demand = 0,
+    availableDrivers = 0,
   } = params;
 
   /* ---------------- base ---------------- */
-  const distance = distanceKm - Number(vehicle.base_distance)
+  const distance = distanceKm - Number(vehicle.base_distance ?? 0);
+  
   const base =
     Number(vehicle.base_price ?? 0) +
     Number(vehicle.per_km_price ?? 0) * distance;
 
-  const deliveryTypeCharge =
-    (base * Number(deliveryType.price_multiplier ?? 1));
-
+  const deliveryTypeCharge = base * Number(deliveryType.price_multiplier ?? 1);
+  
   let price = base + deliveryTypeCharge;
 
   /* ---------------- user fees ---------------- */
-      const context = {
-      delivery_type: deliveryType.name,
-      order_amount: price,
-      distance: distance,
-    };
+  const context = {
+    delivery_type: deliveryType.name,
+    order_amount: price,
+    distance: distance,
+  };
 
-    const fees = await prisma.userFeeStructure.findMany({
-      where: {
-        is_active: true,
-        service_area_id: zone.id,
-      },
-    });
+  const fees = await prisma.userFeeStructure.findMany({
+    where: {
+      is_active: true,
+      service_area_id: zone.id,
+    },
+  });
 
-    const matchedFees = fees.filter((fee) => {
-      // Basic rules like ALL_ORDERS
-      if (fee.applies_to === 'ALL_ORDERS') return true;
+  const matchedFees = fees.filter((fee) => {
+    if (fee.applies_to === 'ALL_ORDERS') return true;
+    return evaluateRule(fee, context);
+  });
 
-      // Evaluate dynamic rules
-      return evaluateRule(fee, context);
-    });
-
-    const userFeeTotal = matchedFees.reduce(
-      (sum, fee) => sum + Number(fee.amount),
-      0,
-    );
-
-    price += userFeeTotal;
+  const userFeeTotal = matchedFees.reduce(
+    (sum, fee) => sum + Number(fee.amount),
+    0,
+  );
+  price += userFeeTotal;
 
   /* ---------------- zone fee ---------------- */
   let zoneFee = 0;
-
   if (zone.priority === 1 && price < zone.minOrderAmmount) {
     throw new BadRequestException(
       `Minimum order amount for ${zone.zoneName} is ${zone.minOrderAmmount}`,
@@ -84,47 +71,40 @@ export async function calculatePriceWithFee(params: {
     price += zoneFee;
   }
 
-  /* ---------------- surges ---------------- */
+  /* ---------------- NEW SURGE PRICING RULES (Demand / Drivers) ---------------- */
   let surgeAmount = 0;
+  let surgeMultiplier = 1.0;
 
-  const surges = await prisma.userDynamicSurge.findMany({
-    where: { applicable_user: 'USER' },
-  });
+  try {
+    const demandRatio = availableDrivers > 0 ? demand / availableDrivers : 0;
 
-  for (const s of surges) {
-    if (!s.time_range || typeof s.time_range !== 'string') continue; // skip if invalid
+    const surgeResult = await surgePricingRuleService.resolveSurge({
+      ratio: Number(demandRatio.toFixed(4)),
+      serviceZoneId: zone.id,
+      deliveryTypeId: Number(deliveryType.id),
+    });
 
-    if (s.condition === 'HIGH_DEMAND') {
-      const [start, end] = s.time_range.split('-');
-      if (!start || !end) continue; // skip if split failed
+    surgeMultiplier = surgeResult.multiplier;
+    surgeAmount = price * (surgeMultiplier - 1);
 
-      try {
-        const startTime = parse(start, 'HH:mm', orderDate);
-        const endTime = parse(end, 'HH:mm', orderDate);
-
-        if (isWithinInterval(orderDate, { start: startTime, end: endTime })) {
-          surgeAmount += price * (s.price_multiplier / 100);
-        }
-      } catch (err) {
-        console.warn('Invalid time_range format for surge:', s.time_range);
-        continue;
-      }
-    }
-
-    if (s.condition === Condition.WEEKEND && isHoliday(orderDate)) {
-      surgeAmount += price * (s.price_multiplier / 100);
-    }
+  } catch (error) {
+    console.error('Surge calculation failed, applying no surge:', error);
+    surgeMultiplier = 1.0;
+    surgeAmount = 0;
   }
 
   price += surgeAmount;
 
+  /* ---------------- Final Return ---------------- */
   return {
-    basePrice: base,
-    deliveryTypeCharge,
-    userFeeTotal,
-    zoneFee,
-    surgeAmount,
-    totalFee: userFeeTotal + zoneFee + surgeAmount,
+    basePrice: Number(base.toFixed(2)),
+    deliveryTypeCharge: Number(deliveryTypeCharge.toFixed(2)),
+    userFeeTotal: Number(userFeeTotal.toFixed(2)),
+    zoneFee: Number(zoneFee.toFixed(2)),
+    surgeAmount: Number(surgeAmount.toFixed(2)),
+    surgeMultiplier: Number(surgeMultiplier.toFixed(4)),
+    totalFee: Number((userFeeTotal + zoneFee + surgeAmount).toFixed(2)),
     totalPrice: Number(price.toFixed(2)),
+    distanceKm: distanceKm,
   };
 }

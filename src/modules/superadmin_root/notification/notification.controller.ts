@@ -47,7 +47,7 @@ export class NotificationController {
   @Post('admin/notification')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.CREATE)
+  @RequirePermission(Module.NOTIFICATION_MANAGEMENT, Permission.CREATE)
   @ApiOperation({ summary: 'Admin: create & send a system notification' })
   @ApiBody({ type: AdminCreateNotificationDto })
   @ApiResponse({ status: 201, description: 'Notification created successfully' })
@@ -71,7 +71,7 @@ export class NotificationController {
   @Post('admin/broadcast')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.CREATE)
+  @RequirePermission(Module.NOTIFICATION_MANAGEMENT, Permission.CREATE)
   @ApiOperation({ summary: 'Admin: broadcast notification (legacy endpoint)' })
   @ApiBody({ type: AdminCreateNotificationDto })
   @ApiResponse({ status: 201, description: 'Notification created and sent successfully' })
@@ -93,7 +93,7 @@ export class NotificationController {
   @Post('admin/promotion')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.CREATE)
+  @RequirePermission(Module.NOTIFICATION_MANAGEMENT, Permission.CREATE)
   @ApiOperation({ summary: 'Admin: create & send a promotion' })
   @ApiBody({ type: AdminCreatePromotionDto })
   @ApiResponse({ status: 201, description: 'Promotion created successfully' })
@@ -115,7 +115,7 @@ export class NotificationController {
   @Get('admin/list')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.JUST_ADMIN)
+  @RequirePermission(Module.NOTIFICATION_MANAGEMENT, Permission.JUST_ADMIN)
   @ApiOperation({ summary: 'Admin: list all notifications / promotions with filters' })
   @ApiResponse({ status: 200, description: 'List fetched successfully' })
   async findAllForAdmin(@Query() query: FindAdminNotificationsDto) {
@@ -133,7 +133,7 @@ export class NotificationController {
   @Get('admin/logs')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.JUST_ADMIN)
+  @RequirePermission(Module.NOTIFICATION_MANAGEMENT, Permission.JUST_ADMIN)
   @ApiOperation({ summary: 'Admin: get audit log history (filter by category, admin, date)' })
   @ApiResponse({ status: 200, description: 'Logs fetched successfully' })
   async getLogHistory(@Query() query: FindAdminNotificationsDto) {
@@ -151,7 +151,7 @@ export class NotificationController {
   @Patch('admin/:id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.UPDATE)
+  @RequirePermission(Module.NOTIFICATION_MANAGEMENT, Permission.UPDATE)
   @ApiOperation({ summary: 'Admin: edit a notification or promotion (logged)' })
   @ApiParam({ name: 'id', type: Number })
   @ApiBody({ type: UpdateNotificationDto })
@@ -174,7 +174,7 @@ export class NotificationController {
   @Post('admin/:id/resend')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.CREATE)
+  @RequirePermission(Module.NOTIFICATION_MANAGEMENT, Permission.CREATE)
   @ApiOperation({ summary: 'Admin: resend an existing notification' })
   @ApiParam({ name: 'id', type: Number })
   async resend(
@@ -196,7 +196,7 @@ export class NotificationController {
   @Patch('admin/:id/disable')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.UPDATE)
+  @RequirePermission(Module.NOTIFICATION_MANAGEMENT, Permission.UPDATE)
   @ApiOperation({ summary: 'Admin: disable a promotion' })
   @ApiParam({ name: 'id', type: Number })
   async disablePromotion(
@@ -217,7 +217,7 @@ export class NotificationController {
   @Delete('admin/:id')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.DELETE)
+  @RequirePermission(Module.NOTIFICATION_MANAGEMENT, Permission.DELETE)
   @ApiOperation({ summary: 'Admin: delete a notification / promotion (logged)' })
   @ApiParam({ name: 'id', type: Number })
   async delete(
@@ -238,7 +238,7 @@ export class NotificationController {
   @Post('admin/delete-many')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.DELETE)
+  @RequirePermission(Module.NOTIFICATION_MANAGEMENT, Permission.DELETE)
   @ApiOperation({ summary: 'Admin: delete multiple notifications / promotions (logged)' })
   @ApiBody({ type: DeleteNotificationsDto })
   async deleteMany(
@@ -259,7 +259,7 @@ export class NotificationController {
   @Get()
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.NOTIFICATION, Permission.READ)
+  @RequirePermission(Module.NOTIFICATION_MANAGEMENT, Permission.READ)
   @ApiOperation({
     summary: 'User: get own notifications (pass category=NOTIFICATION or PROMOTION)',
   })
