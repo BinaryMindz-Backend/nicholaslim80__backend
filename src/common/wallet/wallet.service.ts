@@ -1,4 +1,3 @@
-import { UserGateway } from 'src/modules/users_root/users/user.gateways';
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import {
   Injectable,
@@ -12,6 +11,8 @@ import { UserWalletQueryDto } from './dto/user-wallet.dto';
 import { UserWalletHistoryQueryDto } from './dto/user-wallet-history-query.dto';
 import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.gateway';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
+import { UserGateway } from 'src/modules/users_root/users/user.gateways';
+
 
 
 @Injectable()
@@ -103,131 +104,115 @@ export class WalletService {
     };
   }
   //  earning money
-  async earnMoney(userId: number, date?: Date) {
+  async earnMoney(
+    userId: number,
+    options?: {
+      date?: Date;
+      rangeType?: 'daily' | 'weekly' | 'monthly';
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    const { date, rangeType = 'daily', page = 1, limit = 10 } = options || {};
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) throw new NotFoundException('User not found');
-    if (!user.email) throw new BadRequestException('User email is not found');
 
-    const assignRider = await this.prisma.raider.findFirst({
+    const rider = await this.prisma.raider.findFirst({
       where: { userId },
     });
 
-    if (!assignRider) {
+    if (!rider) {
       return {
-        earningHistory: [],
+        data: [],
+        pagination: { total: 0, page, limit },
         totalEarning: 0,
         totalTips: 0,
         totalDrivingHours: 0,
       };
     }
 
-    // Daily Filter
+    // Date filter (optional)
     let dateFilter = {};
     if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
+      const start = new Date(date);
+      start.setHours(0, 0, 0, 0);
 
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      const end = new Date(date);
+      end.setHours(23, 59, 59, 999);
 
       dateFilter = {
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
+        createdAt: { gte: start, lte: end },
       };
     }
 
-    // Fetch completed orders with stops + tips
-    const completedOrders = await this.prisma.order.findMany({
-      where: {
-        userId,
-        order_status: OrderStatus.COMPLETED,
-        assign_rider_id: assignRider.id,
-        ...dateFilter,
-      },
-      include: {
-        tips: true,
-        orderStops: {
-          where: {
-            status: StopStatus.COMPLETED,
-            arrivedAt: { not: null },
-            completedAt: { not: null },
-          },
-        },
-      },
-    });
-
-    // Total Driving Hours
-    let totalDrivingMilliseconds = 0;
-
-    for (const order of completedOrders) {
-      for (const stop of order.orderStops) {
-        const duration =
-          new Date(stop.completedAt!).getTime() -
-          new Date(stop.arrivedAt!).getTime();
-
-        if (duration > 0) {
-          totalDrivingMilliseconds += duration;
-        }
-      }
-    }
-
-    const totalDrivingHours = totalDrivingMilliseconds / (1000 * 60 * 60);
-
-    // Total Tips
-    const totalTips = completedOrders.reduce((total, order) => {
-      const orderTipTotal = order.tips.reduce(
-        (tipTotal, tip) => tipTotal + Number(tip.amount || 0),
-        0,
-      );
-      return total + orderTipTotal;
-    }, 0);
-
-
-    // Wallet Earnings
-    const earningHistory = await this.prisma.walletHistory.findMany({
+    // Get all wallet earnings
+    const earnings = await this.prisma.walletHistory.findMany({
       where: {
         userId,
         type: 'credit',
         transactionType: WalletTransactionType.EARNING,
         ...dateFilter,
       },
+      orderBy: { createdAt: 'desc' },
     });
 
-    const totalEarning = earningHistory.reduce(
-      (total, tx) => total + Number(tx.amount || 0),
+    // Grouping function
+    const grouped = {};
+
+    for (const tx of earnings) {
+      const d = new Date(tx.createdAt);
+
+      let key: string;
+
+      if (rangeType === 'daily') {
+        key = d.toISOString().split('T')[0];
+      } else if (rangeType === 'weekly') {
+        const firstDay = new Date(d);
+        firstDay.setDate(d.getDate() - d.getDay());
+        key = firstDay.toISOString().split('T')[0];
+      } else {
+        key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      }
+
+      if (!grouped[key]) {
+        grouped[key] = 0;
+      }
+
+      grouped[key] += Number(tx.amount || 0);
+    }
+
+    // Convert to array
+    const groupedArray = Object.entries(grouped).map(([date, total]) => ({
+      date,
+      total,
+    }));
+
+    // Sort latest first
+    groupedArray.sort((a, b) => (a.date < b.date ? 1 : -1));
+
+    // Pagination
+    const total = groupedArray.length;
+    const startIndex = (page - 1) * limit;
+    const paginated = groupedArray.slice(startIndex, startIndex + limit);
+
+    // Totals
+    const totalEarning = earnings.reduce(
+      (sum, tx) => sum + Number(tx.amount || 0),
       0,
     );
 
-    const dailyEarnings = await this.prisma.walletHistory.groupBy({
-      by: ['createdAt'],
-      where: {
-        userId,
-        type: 'credit',
-        transactionType: WalletTransactionType.EARNING,
-      },
-      _sum: {
-        amount: true,
-      },
-    });
-    //  
-    const dailyTotals = dailyEarnings.map((tx) => ({
-      date: tx.createdAt.toISOString().split('T')[0], // YYYY-MM-DD
-      total: tx._sum.amount || 0,
-    }));
-
-    // 
-
     return {
-      dailyTotals,
-      earningHistory,
+      data: paginated,
+      pagination: {
+        total,
+        page,
+        limit,
+      },
       totalEarning,
-      totalTips,
-      totalDrivingHours,
     };
   }
 

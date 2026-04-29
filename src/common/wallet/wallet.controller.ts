@@ -27,22 +27,25 @@ export class WalletController {
     @Auth()
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Get rider earning summary' })
-    @ApiQuery({ name: 'date', required: false, type: String })
+    @ApiQuery({ name: 'rangeType', required: false, enum: ['daily', 'weekly', 'monthly'] })
+    @ApiQuery({ name: 'page', required: false, type: Number })
+    @ApiQuery({ name: 'limit', required: false, type: Number })
+
     async earnMoney(
-        @CurrentUser() user: IUser,
-        @Query('date') date?: string,
+    @CurrentUser() user: IUser,
+    // @Query('date') date?: string,
+    @Query('rangeType') rangeType?: 'daily' | 'weekly' | 'monthly',
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
     ) {
-        const parsedDate = date ? new Date(date) : undefined;
+    const result = await this.walletService.earnMoney(+user.id, {
+        // date: date ? new Date(date) : undefined,
+        rangeType,
+        page: Number(page) || 1,
+        limit: Number(limit) || 10,
+    });
 
-        const result = await this.walletService.earnMoney(
-            +user.id,
-            parsedDate,
-        );
-
-        return ApiResponses.success(
-            result,
-            'Earning summary fetched successfully',
-        );
+    return ApiResponses.success(result, 'Earning summary fetched');
     }
 
 
