@@ -50,7 +50,6 @@ export class OrderController {
   // CREATE
   @Post()
   @Auth()
-  // @Roles(UserRole.USER, UserRole.SUPER_ADMIN)
   @RequirePermission(Module.ORDER, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new order' })
