@@ -2600,163 +2600,172 @@ export class OrderService {
 
   // }
    
-  async getOrderDetails(orderId: number) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        delivery_type: {
-          include: {
-            vehicle_types: {
-              include: {
-                vehicle_type: true,
+   async getOrderDetails(orderId: number) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          delivery_type: {
+            include: {
+              vehicle_types: {
+                include: { vehicle_type: true },
               },
             },
           },
-        },
-        user: true,
-        orderStops: {
-          include: {
-            destination: true,
-            payment: true,
-          },
-          orderBy: { sequence: 'asc' },
-        },
-        assign_rider: {
-          include: {
-            registrations: {
-              select: {
-                id: true,
-                raider_name: true,
-                contact_number: true,
-                email_address: true,
-                current_postal_code: true,
-                current_unit: true,
-                current_address: true,
-                current_country: true,
-                driver_photos: true,
-              },
+          user: true,
+          orderStops: {
+            include: {
+              destination: true,
+              payment: true,
             },
-            locations: true,
+            orderBy: { sequence: 'asc' },
+          },
+          assign_rider: {
+            include: {
+              registrations: {
+                select: {
+                  id: true,
+                  raider_name: true,
+                  contact_number: true,
+                  email_address: true,
+                  current_postal_code: true,
+                  current_unit: true,
+                  current_address: true,
+                  current_country: true,
+                  driver_photos: true,
+                },
+              },
+              locations: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!order) throw new NotFoundException('Order not found');
+      if (!order) throw new NotFoundException('Order not found');
 
-    const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
-    const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
+      const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
+      const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
 
-    let pricingResults: ReceiverWithPricing[] = [];
-    let totalDistance = 0;
+      let pricingResults: ReceiverWithPricing[] = [];
+      let totalDistance = 0;
 
-    // MAIN LOGIC: Calculate individual pricing with Surge
-    if (order.is_placed && pickupStop && dropStops.length > 0) {
-      const zone = await this.serviceZone.findZoneByPoint(
-        pickupStop.latitude,
-        pickupStop.longitude,
-      );
-
-      if (zone) {
-        const sender = { 
-          lat: pickupStop.latitude, 
-          lng: pickupStop.longitude 
-        };
-
-        const receivers = dropStops.map((s) => ({
-          lat: s.latitude,
-          lng: s.longitude,
-        }));
-
-        // Fetch real-time demand and drivers for surge calculation
-        const [demand, availableDrivers] = await Promise.all([
-          this.getCurrentDemand(zone.id),
-          this.getAvailableDrivers(zone.id),
-        ]);
-
-        pricingResults = await getReceiversWithIndividualPrice(
-          this.prisma,
-          this.surgePricingRuleService, 
-          sender,
-          receivers,
-          order.delivery_type_id,
-          order.vehicle_type_id ?? 1,
-          zone,
-          { isRoundTrip: order.route_type === RouteType.ROUND },
-          demand,                              
-          availableDrivers,                   
+      // MAIN LOGIC: Calculate individual pricing with Surge + Driver Earnings
+      if (order.is_placed && pickupStop && dropStops.length > 0) {
+        const zone = await this.serviceZone.findZoneByPoint(
+          pickupStop.latitude,
+          pickupStop.longitude,
         );
 
-        totalDistance = pricingResults.reduce(
-          (total, result) => total + result.distanceKm,
-          0,
-        );
+        if (zone) {
+          const sender = {
+            lat: pickupStop.latitude,
+            lng: pickupStop.longitude,
+          };
+
+          const receivers = dropStops.map((s) => ({
+            lat: s.latitude,
+            lng: s.longitude,
+          }));
+
+          // Fetch real-time demand and available drivers for surge
+          const [demand, availableDrivers] = await Promise.all([
+            this.getCurrentDemand(zone.id),
+            this.getAvailableDrivers(zone.id),
+          ]);
+
+          pricingResults = await getReceiversWithIndividualPrice(
+            this.prisma,
+            this.surgePricingRuleService,
+            sender,
+            receivers,
+            order.delivery_type_id,
+            order.vehicle_type_id ?? 1,
+            zone,
+            { isRoundTrip: order.route_type === RouteType.ROUND },
+            demand,
+            availableDrivers,
+          );
+
+          totalDistance = pricingResults.reduce(
+            (total, result) => total + result.distanceKm,
+            0,
+          );
+        }
       }
-    }
 
-    // FALLBACK: If no pricing calculated (e.g., order not placed yet)
-    if (pricingResults.length === 0) {
-      const basePricing = await this.getBasePriceOnly(
-        order.delivery_type_id ?? 1,
-        order.delivery_type?.vehicle_types?.[0]?.vehicle_type_id ?? 1,
+      // FALLBACK: If pricing calculation failed or order not placed yet
+      if (pricingResults.length === 0) {
+        const basePricing = await this.getBasePriceOnly(
+          order.delivery_type_id ?? 1,
+          order.delivery_type?.vehicle_types?.[0]?.vehicle_type_id ?? 1,
+        );
+
+        pricingResults = [
+          {
+            lat: 0,
+            lng: 0,
+            distanceKm: 0,
+            pricing: {
+              ...basePricing,
+              surgeAmount: 0,
+              surgeMultiplier: 1.0,
+              raiderEarnings: basePricing.totalPrice,   // fallback
+              platformFee: 0,
+              distanceKm: 0,
+            } as PricingBreakdown,
+          },
+        ];
+      }
+
+      // Calculate totals
+      const totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
+      const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+      const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
+      const totalPlatformFee = pricingResults.reduce((sum, r) => sum + r.pricing.platformFee, 0);
+
+      const basePrice = pricingResults[0]?.pricing.basePrice ?? 0;
+      const deliveryTypeCharge = pricingResults.reduce(
+        (sum, r) => sum + r.pricing.deliveryTypeCharge,
+        0
       );
 
-      pricingResults = [
-        {
-          lat: 0,
-          lng: 0,
-          distanceKm: 0,
-          pricing: {
-            ...basePricing,
-            surgeAmount: 0,
-            surgeMultiplier: 1.0,
-            distanceKm: 0,
-          } as PricingBreakdown,
+      // Raider Rating
+      const avgRating = await this.prisma.rateRaider.aggregate({
+        where: { raiderId: order.assign_rider_id },
+        _avg: { rating_star: true },
+        _count: { id: true },
+      });
+
+      const formattedAverage = avgRating._avg.rating_star
+        ? Number(avgRating._avg.rating_star.toFixed(2))
+        : 5;
+
+      return {
+        ...order,
+        formattedAverage,
+
+        pricingSummary: {
+          totalDistance: Number(totalDistance.toFixed(2)),
+          totalCost: Number(totalCost.toFixed(2)),           // Customer total
+          totalFee: Number(totalFee.toFixed(2)),
+          totalRaiderEarnings: Number(totalRaiderEarnings.toFixed(2)),   // ← Important for raider
+          totalPlatformFee: Number(totalPlatformFee.toFixed(2)),         // ← Platform earning
+
+          basePrice: Number(basePrice.toFixed(2)),
+          deliveryTypeCharge: Number(deliveryTypeCharge.toFixed(2)),
+          additionServiceFee: Number(order.additional_cost ?? 0),
+
+          dropCount: dropStops.length,
+          surgeApplied: pricingResults.some((r) => r.pricing.surgeMultiplier > 1),
+
+          perDropBreakdown: pricingResults.map((r) => ({
+            price: Number(r.pricing.totalPrice.toFixed(2)),           // Customer pays
+            raiderEarnings: Number(r.pricing.raiderEarnings.toFixed(2)), // Driver earns
+            distance: Number(r.distanceKm.toFixed(2)),
+            surgeMultiplier: r.pricing.surgeMultiplier,
+          })),
         },
-      ];
+      };
     }
-
-    const totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
-    const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
-    const basePrice = pricingResults[0]?.pricing.basePrice ?? 0;
-    const deliveryTypeCharge = pricingResults.reduce(
-      (sum, r) => sum + r.pricing.deliveryTypeCharge,
-      0
-    );
-
-    // Get raider rating average
-    const avgRating = await this.prisma.rateRaider.aggregate({
-      where: {
-        raiderId: order.assign_rider_id,
-      },
-      _avg: { rating_star: true },
-      _count: { id: true },
-    });
-
-    const formattedAverage = avgRating._avg.rating_star
-      ? Number(avgRating._avg.rating_star.toFixed(2))
-      : 5;
-
-    return {
-      ...order,
-      formattedAverage,
-      pricingSummary: {
-        totalDistance: Number(totalDistance.toFixed(2)),
-        totalCost: Number(totalCost.toFixed(2)),
-        totalFee: Number(totalFee.toFixed(2)),
-        basePrice: Number(basePrice.toFixed(2)),
-        deliveryTypeCharge: Number(deliveryTypeCharge.toFixed(2)),
-        additionServiceFee: Number(order.additional_cost ?? 0),
-        dropCount: dropStops.length,
-        perDropBreakdown: pricingResults.map((r, idx) => ({
-          price: Number(r.pricing.totalPrice.toFixed(2)),
-          distance: Number(r.distanceKm.toFixed(2)),
-          surgeMultiplier: r.pricing.surgeMultiplier,
-        })),
-        surgeApplied: pricingResults.some(r => r.pricing.surgeMultiplier > 1),
-      },
-    };
-  }
 
 
 

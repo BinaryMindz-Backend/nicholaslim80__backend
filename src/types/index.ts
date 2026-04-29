@@ -175,17 +175,19 @@ export interface PricingBreakdown {
   deliveryTypeCharge: number;
   userFeeTotal: number;
   zoneFee: number;
-  surgeAmount: number;           // ← Added
-  surgeMultiplier: number;       // ← Added (important for display)
+  surgeAmount: number;
+  surgeMultiplier: number;    
   totalFee: number;
   totalPrice: number;
-  
-  // Optional fields for better clarity
-  distanceKm?: number;
   distance?: number;
+  distanceKm?: number;
   isRoundTrip?: boolean;
   returnFactor?: number;
+    // Driver & Platform breakdown
+  raiderEarnings: number;   
+  platformFee: number; 
 }
+
 
 // Extended Receiver with Pricing
 export interface ReceiverWithPricing extends Receiver {

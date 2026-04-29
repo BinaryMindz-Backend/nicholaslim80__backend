@@ -2,7 +2,12 @@
 import { BadRequestException } from '@nestjs/common';
 import {PricingBreakdown, CalculatePriceParams } from './types';
 import { evaluateRule } from './fee.helper';
+import { PrismaService } from 'src/core/database/prisma.service';
 
+
+
+
+// order fee
 export async function calculatePriceWithFee(
   params: CalculatePriceParams
 ): Promise<PricingBreakdown> {
@@ -19,65 +24,41 @@ export async function calculatePriceWithFee(
     availableDrivers = 0,
   } = params;
 
-  /* ---------------- base ---------------- */
+  /* ---------------- Base Cost ---------------- */
   const distance = distanceKm - Number(vehicle.base_distance ?? 0);
-  
-  const base =
-    Number(vehicle.base_price ?? 0) +
-    Number(vehicle.per_km_price ?? 0) * distance;
+  const basePrice = Number(vehicle.base_price ?? 0) +
+                    Number(vehicle.per_km_price ?? 0) * distance;
 
-  const deliveryTypeCharge = base * Number(deliveryType.price_multiplier ?? 1);
-  
-  let price = base + deliveryTypeCharge;
+  const deliveryTypeCharge = basePrice * Number(deliveryType.price_multiplier ?? 1);
 
-  /* ---------------- user fees ---------------- */
-  const context = {
-    delivery_type: deliveryType.name,
-    order_amount: price,
-    distance: distance,
-  };
+  let price = basePrice + deliveryTypeCharge;
 
+  /* ---------------- User Fees ---------------- */
+  const context = { delivery_type: deliveryType.name, order_amount: price, distance };
   const fees = await prisma.userFeeStructure.findMany({
-    where: {
-      is_active: true,
-      service_area_id: zone.id,
-    },
+    where: { is_active: true, service_area_id: zone.id },
   });
 
-  const matchedFees = fees.filter((fee) => {
-    if (fee.applies_to === 'ALL_ORDERS') return true;
-    return evaluateRule(fee, context);
-  });
-
-  const userFeeTotal = matchedFees.reduce(
-    (sum, fee) => sum + Number(fee.amount),
-    0,
+  const matchedFees = fees.filter(fee => 
+    fee.applies_to === 'ALL_ORDERS' || evaluateRule(fee, context)
   );
+
+  const userFeeTotal = matchedFees.reduce((sum, fee) => sum + Number(fee.amount), 0);
   price += userFeeTotal;
 
-  /* ---------------- zone fee ---------------- */
+  /* ---------------- Zone Fee ---------------- */
   let zoneFee = 0;
-  if (zone.priority === 1 && price < zone.minOrderAmmount) {
-    throw new BadRequestException(
-      `Minimum order amount for ${zone.zoneName} is ${zone.minOrderAmmount}`,
-    );
-  }
-
-  if (
-    zone.priority === 1 ||
-    (zone.priority === 2 && price < zone.minOrderAmmount)
-  ) {
+  if ((zone.priority === 1 || zone.priority === 2) && price < zone.minOrderAmmount) {
     zoneFee = zone.deliveryFee;
     price += zoneFee;
   }
 
-  /* ---------------- NEW SURGE PRICING RULES (Demand / Drivers) ---------------- */
+  /* ---------------- Surge Pricing ---------------- */
   let surgeAmount = 0;
   let surgeMultiplier = 1.0;
 
   try {
     const demandRatio = availableDrivers > 0 ? demand / availableDrivers : 0;
-
     const surgeResult = await surgePricingRuleService.resolveSurge({
       ratio: Number(demandRatio.toFixed(4)),
       serviceZoneId: zone.id,
@@ -86,25 +67,60 @@ export async function calculatePriceWithFee(
 
     surgeMultiplier = surgeResult.multiplier;
     surgeAmount = price * (surgeMultiplier - 1);
-
+    price += surgeAmount;
   } catch (error) {
-    console.error('Surge calculation failed, applying no surge:', error);
-    surgeMultiplier = 1.0;
-    surgeAmount = 0;
+    console.error('Surge calculation failed:', error);
   }
 
-  price += surgeAmount;
+  /* ---------------- Calculate Driver & Platform Split ---------------- */
+  // Get platform commission + deductions for this order
+  const platformFee = await calculateDriverFeeForOrder(prisma, zone.id);   
+  console.log("platform fee", platformFee)
+  // Raider Earnings = Total Customer Payment - Platform Fee
+  const raiderEarnings = price - platformFee;
 
-  /* ---------------- Final Return ---------------- */
+  /* ---------------- Final Result ---------------- */
   return {
-    basePrice: Number(base.toFixed(2)),
+    basePrice: Number(basePrice.toFixed(2)),
     deliveryTypeCharge: Number(deliveryTypeCharge.toFixed(2)),
     userFeeTotal: Number(userFeeTotal.toFixed(2)),
     zoneFee: Number(zoneFee.toFixed(2)),
     surgeAmount: Number(surgeAmount.toFixed(2)),
     surgeMultiplier: Number(surgeMultiplier.toFixed(4)),
+
     totalFee: Number((userFeeTotal + zoneFee + surgeAmount).toFixed(2)),
-    totalPrice: Number(price.toFixed(2)),
-    distanceKm: distanceKm,
+    totalPrice: Number(price.toFixed(2)),           // Customer pays
+
+    raiderEarnings: Number(Math.max(0, raiderEarnings).toFixed(2)), // Driver earns
+    platformFee: Number(platformFee.toFixed(2)),    // Platform earns
   };
-}
+    }
+
+// driver fee
+async function calculateDriverFeeForOrder(
+    prisma: PrismaService, 
+    serviceZoneId: number
+    ): Promise<number> {
+  
+    const [standardCommissions, deductions] = await Promise.all([
+        prisma.standardCommissionRate.findMany({
+        where: { 
+            service_area_id: serviceZoneId,
+        }
+        }),
+        prisma.raiderDeductionFee.findMany({
+        })
+    ]);
+    console.log(standardCommissions, deductions);
+    const commissionTotal = standardCommissions.reduce(
+        (sum, rate) => sum + Number(rate.commission_rate_delivery_fee ?? 0), 
+        0
+    );
+
+    const deductionTotal = deductions.reduce(
+        (sum, fee) => sum + Number(fee.amount ?? 0), 
+        0
+    );
+
+    return commissionTotal + deductionTotal;
+  }

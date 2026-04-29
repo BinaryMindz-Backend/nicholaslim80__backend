@@ -70,77 +70,7 @@ import { SurgePricingRuleService } from '../superadmin_root/surge_pricing_rule/s
 
 
 //** NEW
-export async function getReceiversWithIndividualPrice(
-    prisma: PrismaService,
-    surgePricingRuleService: SurgePricingRuleService, 
-    sender: Receiver,
-    receivers: Receiver[],
-    deliveryTypeId: number,
-    vehicleTypeId: number,
-    zone: DeliveryZone,
-    options?: RouteOptions,
-    demand: number = 0,           
-    availableDrivers: number = 0, 
-  ): Promise<ReceiverWithPricing[]> {
-    
-    const [deliveryType, vehicle] = await Promise.all([
-      prisma.deliveryType.findFirst({
-        where: { id: deliveryTypeId, is_active: true },
-      }),
-      prisma.vehicleType.findUnique({ where: { id: vehicleTypeId } }),
-    ]);
 
-    if (!deliveryType || !vehicle) {
-      throw new BadRequestException('Invalid vehicle or delivery type');
-    }
-
-    if (!receivers.length) return [];
-
-    const receiversWithPricing: ReceiverWithPricing[] = [];
-
-    for (const receiver of receivers) {
-      const { km: distanceKm } = await getRoadDistance(sender, receiver);
-
-      let finalDistanceKm = distanceKm;
-      if (options?.isRoundTrip) {
-        const returnFactor = options.returnFactor ?? 0.5;
-        finalDistanceKm = distanceKm + distanceKm * returnFactor;
-      }
-
-      const pricing = await calculatePriceWithFee({
-        prisma,
-        surgePricingRuleService,        
-        distanceKm: finalDistanceKm,
-        vehicle,
-        deliveryType,
-        zone,
-        orderDate: new Date(),
-        demand,                       
-        availableDrivers,               
-      });
-
-      receiversWithPricing.push({
-        ...receiver,
-        distanceKm: distanceKm,
-        pricing: {
-          basePrice: pricing.basePrice,
-          deliveryTypeCharge: pricing.deliveryTypeCharge,
-          userFeeTotal: pricing.userFeeTotal,
-          zoneFee: pricing.zoneFee,
-          surgeAmount: pricing.surgeAmount,
-          surgeMultiplier: pricing.surgeMultiplier, 
-          totalFee: pricing.totalFee,
-          totalPrice: pricing.totalPrice,
-          distance: distanceKm,
-          distanceKm: distanceKm,
-          isRoundTrip: options?.isRoundTrip ?? false,
-          returnFactor: options?.returnFactor ?? 0,
-        },
-      });
-    }
-
-    return receiversWithPricing;
-} 
 
 
 
@@ -219,3 +149,86 @@ export async function getReceiversWithIndividualPrice(
 //   console.log("reciver with pricing-->",receiversWithPricing);
 //   return receiversWithPricing;
 // }
+
+
+export async function getReceiversWithIndividualPrice(
+  prisma: PrismaService,
+  surgePricingRuleService: SurgePricingRuleService,
+  sender: Receiver,
+  receivers: Receiver[],
+  deliveryTypeId: number,
+  vehicleTypeId: number,
+  zone: DeliveryZone,
+  options?: RouteOptions,
+  demand: number = 0,
+  availableDrivers: number = 0,
+): Promise<ReceiverWithPricing[]> {
+  
+  const [deliveryType, vehicle] = await Promise.all([
+    prisma.deliveryType.findFirst({
+      where: { id: deliveryTypeId, is_active: true },
+    }),
+    prisma.vehicleType.findUnique({ where: { id: vehicleTypeId } }),
+  ]);
+
+  if (!deliveryType || !vehicle) {
+    throw new BadRequestException('Invalid vehicle or delivery type');
+  }
+
+  if (!receivers.length) return [];
+
+  const receiversWithPricing: ReceiverWithPricing[] = [];
+
+  for (const receiver of receivers) {
+    // Calculate distance from sender to this specific receiver
+    const { km: distanceKm } = await getRoadDistance(sender, receiver);
+
+    // Add return trip distance if it's a round trip
+    let finalDistanceKm = distanceKm;
+    if (options?.isRoundTrip) {
+      const returnFactor = options.returnFactor ?? 0.5;
+      finalDistanceKm = distanceKm + (distanceKm * returnFactor);
+    }
+
+    // Calculate full pricing including surge and driver split
+    const pricing = await calculatePriceWithFee({
+      prisma,
+      surgePricingRuleService,
+      distanceKm: finalDistanceKm,
+      vehicle,
+      deliveryType,
+      zone,
+      orderDate: new Date(),
+      demand,
+      availableDrivers,
+    });
+
+    receiversWithPricing.push({
+      ...receiver,
+      distanceKm: distanceKm,
+      pricing: {
+        basePrice: pricing.basePrice,
+        deliveryTypeCharge: pricing.deliveryTypeCharge,
+        userFeeTotal: pricing.userFeeTotal,
+        zoneFee: pricing.zoneFee,
+        surgeAmount: pricing.surgeAmount,
+        surgeMultiplier: pricing.surgeMultiplier,
+
+        totalFee: pricing.totalFee,
+        totalPrice: pricing.totalPrice,
+
+        // Driver & Platform breakdown - Very Important
+        raiderEarnings: pricing.raiderEarnings,
+        platformFee: pricing.platformFee,
+
+        // Extra metadata for this leg
+        distance: distanceKm,
+        distanceKm: distanceKm,
+        isRoundTrip: options?.isRoundTrip ?? false,
+        returnFactor: options?.returnFactor ?? 0,
+      },
+    });
+  }
+
+  return receiversWithPricing;
+}

@@ -28,6 +28,9 @@ export interface PricingBreakdown {
   distanceKm?: number;
   isRoundTrip?: boolean;
   returnFactor?: number;
+    // Driver & Platform breakdown
+  raiderEarnings: number;   
+  platformFee: number; 
 }
 
 export interface RouteOptions {
