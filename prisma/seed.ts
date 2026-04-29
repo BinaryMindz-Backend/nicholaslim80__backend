@@ -464,6 +464,9 @@ const ROLE_PERMISSIONS = {
     { module: Module.NOTIFICATION, action: Permission.READ },
     { module: Module.NOTIFICATION, action: Permission.UPDATE_USER_STATUS},
     { module: Module.NOTIFICATION, action: Permission.DELETE },
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.READ },
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.DELETE},
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.UPDATE_USER_STATUS},
     // qize module
     { module: Module.QUIZZES, action: Permission.GET_ONE },
     { module: Module.QUIZ, action: Permission.GET_ONE },
@@ -527,6 +530,9 @@ const ROLE_PERMISSIONS = {
     { module: Module.NOTIFICATION, action: Permission.READ },
     { module: Module.NOTIFICATION, action: Permission.DELETE},
     { module: Module.NOTIFICATION, action: Permission.UPDATE_USER_STATUS},
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.READ },
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.DELETE},
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.UPDATE_USER_STATUS},
     // 
     { module: Module.CONTENT_MANAGEMENT, action: Permission.READ },
     // user profile
