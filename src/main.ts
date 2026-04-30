@@ -27,7 +27,7 @@ const app = await NestFactory.create(AppModule, {
       'http://localhost:5173',
       'http://localhost:5174',
       'http://127.0.0.1:5500',
-      'https://nongregarious-tayna-lipochromic.ngrok-free.dev', 
+      'https://0e03-103-174-189-241.ngrok-free.app', 
     ],
     credentials: true,
   });

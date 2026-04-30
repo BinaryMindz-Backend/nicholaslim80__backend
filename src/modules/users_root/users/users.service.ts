@@ -925,6 +925,7 @@ export class UsersService {
         raiderProfile: {
           include: {
             registrations: true,
+            tier: true,
             raiderQuizzes:{
                include:{
                  raiderAnswers:true
