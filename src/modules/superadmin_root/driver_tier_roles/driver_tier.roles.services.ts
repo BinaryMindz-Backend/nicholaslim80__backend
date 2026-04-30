@@ -68,58 +68,132 @@ export class DriverTierService {
   }
 
   // ================= UPDATE =================
-  async updateTier(id: number, dto: any): Promise<DriverTier> {
-    const tier = await this.prisma.driverTier.findUnique({ where: { id } });
+  async updateTier(
+      id: number,
+      dto: any,
+      adminUserId: number,
+    ): Promise<DriverTier> {
+      const tier = await this.prisma.driverTier.findUnique({
+        where: { id },
+      });
 
-    if (!tier) throw new NotFoundException('Tier not found');
+      if (!tier) {
+        throw new NotFoundException('Tier not found');
+      }
 
-    if (dto.code || dto.priorityScore) {
-      throw new BadRequestException('System-controlled fields');
+      // Protect system fields
+      if (dto.code) {
+        throw new BadRequestException(
+          'Code is system-controlled fields',
+        );
+      }
+
+      const updated = await this.prisma.driverTier.update({
+        where: { id },
+        data: {
+          name: dto.name?.trim(),
+          description: dto.description?.trim(),
+          isActive: dto.isActive,
+          priorityScore: dto.priorityScore,
+          minOrders: dto.minOrders,
+          minRating: dto.minRating,
+          maxCancellationRate: dto.maxCancellationRate,
+          requiresBranding: dto.requiresBranding,
+          isInvitationOnly: dto.isInvitationOnly,
+        },
+      });
+
+      // Activity Log
+      await this.prisma.activityLog.create({
+        data: {
+          action: 'UPDATE',
+          entity_type: 'DriverTier',
+          entity_id: id,
+          user_id: adminUserId,
+          meta: {
+            type: 'UPDATE_DRIVER_TIER',
+            before: tier,
+            after: updated,
+          },
+        },
+      });
+
+      return updated;
     }
 
-    return this.prisma.driverTier.update({
-      where: { id },
-      data: dto,
-    });
-  }
+
+
 
   // ================= PROMOTE =================
-  async promoteRaider(
-    raiderId: number,
-    dto: { tierId: number; reason: string },
-  ) {
-    const raider = await this.prisma.raider.findUnique({
-      where: { id: raiderId },
-    });
-
-    if (!raider) throw new NotFoundException('Raider not found');
-
-    const tier = await this.prisma.driverTier.findUnique({
-      where: { id: dto.tierId },
-    });
-
-    if (!tier) throw new NotFoundException('Tier not found');
-
-    await this.prisma.$transaction([
-      this.prisma.raider.update({
+   async promoteRaider(
+      raiderId: number,
+      dto: { tierId: number; reason: string },
+      adminUserId: number,
+    ) {
+      const raider = await this.prisma.raider.findUnique({
         where: { id: raiderId },
-        data: { tierId: tier.id },
-      }),
+        include: { tier: true },
+      });
 
-      this.prisma.raiderTierHistory.create({
-        data: {
-          raiderId,
-          driverTierId: tier.id,
-          reason: dto.reason,
-        },
-      }),
-    ]);
+      if (!raider) {
+        throw new NotFoundException('Raider not found');
+      }
 
-    return {
-      message: 'Raider promoted successfully',
-      newTier: tier.name,
-    };
-  }
+      const newTier = await this.prisma.driverTier.findUnique({
+        where: { id: dto.tierId },
+      });
+
+      if (!newTier) {
+        throw new NotFoundException('Tier not found');
+      }
+
+      const oldTier = raider.tier;
+
+      await this.prisma.$transaction(async (tx) => {
+        // Update tier
+        await tx.raider.update({
+          where: { id: raiderId },
+          data: { tierId: newTier.id },
+        });
+
+        // History table
+        await tx.raiderTierHistory.create({
+          data: {
+            raiderId,
+            driverTierId: newTier.id,
+            reason: dto.reason,
+          },
+        });
+
+        // Activity log
+        await tx.activityLog.create({
+          data: {
+            action: 'UPDATE',
+            entity_type: 'RaiderTier',
+            entity_id: raiderId,
+            user_id: adminUserId,
+            meta: {
+              type: 'PROMOTE_RAIDER',
+              reason: dto.reason,
+              before: {
+                tierId: oldTier?.id ?? null,
+                tierName: oldTier?.name ?? null,
+              },
+              after: {
+                tierId: newTier.id,
+                tierName: newTier.name,
+              },
+            },
+          },
+        });
+      });
+
+      return {
+        message: `Raider promoted to ${newTier.name}`,
+        raiderId,
+        newTier: newTier.name,
+      };
+    }
 
   // ================= AUTO EVALUATION =================
   async autoEvaluateTier(raiderId: number): Promise<void> {
