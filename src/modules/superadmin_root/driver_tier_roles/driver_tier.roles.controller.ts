@@ -36,7 +36,7 @@ export class DriverTierController {
   // ================= CREATE =================
   @Post()
   @Auth()
-  @RequirePermission(Module.RAIDER, Permission.CREATE)
+  @RequirePermission(Module.DRIVER_TIER_ROLE, Permission.CREATE)
   @ApiOperation({ summary: 'Create Driver Tier' })
   async create(@Body() dto: CreateDriverTierDto) {
     try {
@@ -50,7 +50,7 @@ export class DriverTierController {
   // ================= GET ALL =================
   @Get()
   @Auth()
-  @RequirePermission(Module.RAIDER, Permission.READ)
+  @RequirePermission(Module.DRIVER_TIER_ROLE, Permission.READ)
   @ApiOperation({ summary: 'Get all Driver Tiers' })
   async findAll() {
     try {
@@ -64,7 +64,7 @@ export class DriverTierController {
   // ================= GET BY ID =================
   @Get(':id')
   @Auth()
-  @RequirePermission(Module.RAIDER, Permission.READ)
+  @RequirePermission(Module.DRIVER_TIER_ROLE, Permission.READ)
   @ApiOperation({ summary: 'Get Driver Tier by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {
@@ -78,7 +78,7 @@ export class DriverTierController {
   // ================= UPDATE =================
   @Patch(':id')
   @Auth()
-  @RequirePermission(Module.RAIDER, Permission.UPDATE)
+  @RequirePermission(Module.DRIVER_TIER_ROLE, Permission.UPDATE)
   @ApiOperation({ summary: 'Update Driver Tier' })
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -95,7 +95,7 @@ export class DriverTierController {
   // ================= PROMOTE RAIDER =================
   @Post(':raiderId/promote')
   @Auth()
-  @RequirePermission(Module.RAIDER, Permission.UPDATE)
+  @RequirePermission(Module.DRIVER_TIER_ROLE, Permission.UPDATE)
   @ApiOperation({ summary: 'Promote Raider to Tier' })
   async promote(
     @Param('raiderId', ParseIntPipe) raiderId: number,

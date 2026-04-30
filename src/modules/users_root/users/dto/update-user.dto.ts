@@ -1,20 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEmail, ValidateNested, IsDateString } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsEmail,
+  IsDateString,
+  IsInt,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-import { Rank } from '@prisma/client';
-
-class UpdateRaiderDto {
-  @ApiPropertyOptional({
-    example: Rank.PREMIUM,
-    description: 'Raider rank',
-  })
-  @IsOptional()
-  @IsString()
-  rank?: Rank;
-}
 
 export class UpdateUserDto {
-  
   @ApiPropertyOptional({ example: 'John' })
   @IsOptional()
   @IsString()
@@ -24,7 +19,6 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   lastName?: string;
-
 
   @ApiPropertyOptional({ example: 'john_doe' })
   @IsOptional()
@@ -46,9 +40,8 @@ export class UpdateUserDto {
   @IsString()
   image?: string;
 
-  // --- New Fields ---
-
-@ApiPropertyOptional({ example: '1995-12-30' })
+  // ================= EXTRA PROFILE =================
+  @ApiPropertyOptional({ example: '1995-12-30' })
   @IsOptional()
   @IsDateString()
   dob?: string;
@@ -63,9 +56,14 @@ export class UpdateUserDto {
   @IsString()
   bank_name?: string;
 
-  @ApiPropertyOptional({ type: UpdateRaiderDto })
+  // ================= TIER (REPLACES RANK) =================
+  @ApiPropertyOptional({
+    example: 2,
+    description: 'Driver Tier ID (Bronze=1, Silver=2, Gold=3, etc.)',
+  })
   @IsOptional()
-  @ValidateNested()
-  @Type(() => UpdateRaiderDto)
-  raider?: UpdateRaiderDto;
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  tier_id?: number;
 }
