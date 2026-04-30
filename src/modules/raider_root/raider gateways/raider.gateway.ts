@@ -14,11 +14,13 @@ import { RaiderService } from './raider.service';
 import { OrderService } from 'src/modules/users_root/order/order.service';
 import { JwtService } from '@nestjs/jwt';
 import { SocketIOAdapter } from 'src/adapters/socket-io.adapter'; // Import the adapter
-import { forwardRef, Inject,  } from '@nestjs/common';
+import { forwardRef, Inject, Logger,  } from '@nestjs/common';
 import { OrderCompetitionData, OrderData } from 'src/types';
 
 @WebSocketGateway({ namespace: '/raider', cors: true })
 export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
+   private readonly logger = new Logger(RaiderGateway.name);
+
   @WebSocketServer()
   server: Server;
 
@@ -76,41 +78,42 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { lat: number; lng: number; heading?: number },
   ) {
-    const riderId = client.data.user.id;
-    
-    console.log(`Received location from riderId ${riderId}:`, payload);
-    
-     await this.raiderService.updateLocation(
-      riderId,
-      payload.lat,
-      payload.lng,
-      payload.heading,
-    );
-    
-    // Get ALL active orders for this rider
-    // const orders = await this.orderService.getAllActiveOrdersByRider(riderId);
-    
-    // if (!orders || orders.length === 0) {
-    //   console.log(`No active orders found for rider ${riderId}`);
-    //   return;
-    // }
-    
-    // console.log(`Found  active order(s) for rider ${riderId}`);
-    
-    try {
-      const io = SocketIOAdapter.getServer();
-      
-      // Broadcast location update for EACH active order
-          io.of('/admin').to('admin:live-map').emit('admin:rider_location', {
-          riderId,
-          lat: payload.lat,
-          lng: payload.lng,
-          heading: payload.heading,
-        });
-       }
+    const riderId = client.data.user?.id;
 
-     catch (err) {
-      console.error('❌ Error broadcasting to admin:', err.message);
+    if (!riderId) {
+      this.logger.warn('⚠️ Location update without riderId');
+      return;
+    }
+
+    this.logger.debug(
+      `📍 Location update | riderId=${riderId} | ${payload.lat},${payload.lng}`,
+    );
+
+    try {
+      const result = await this.raiderService.updateLocation(
+        riderId,
+        payload.lat,
+        payload.lng,
+        payload.heading,
+      );
+
+      this.logger.debug(`💾 DB updated | riderId=${riderId}`);
+
+      const io = SocketIOAdapter.getServer();
+
+      io.of('/admin')
+        .to('admin:live-map')
+        .emit('admin:rider_location', {
+          riderId,
+          ...payload,
+        });
+
+      this.logger.log(`📡 Broadcasted location | riderId=${riderId}`);
+    } catch (err) {
+      this.logger.error(
+        `❌ Location update failed | riderId=${riderId}`,
+        err.stack,
+      );
     }
   }
 
