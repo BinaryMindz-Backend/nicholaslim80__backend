@@ -24,12 +24,12 @@ model Raider {
   isPremium   Boolean @default(false)
 
   // ================= PERFORMANCE =================
-  reviews_count     Int     @default(0)
-  completed_orders  Int     @default(0)
-  active_days       Int     @default(0)
+  reviews_count    Int @default(0)
+  completed_orders Int @default(0)
+  active_days      Int @default(0)
 
-  avg_rating        Decimal @default(0) @db.Decimal(3,2)
-  completion_rate   Float   @default(100)  // ✅ added
+  avg_rating        Decimal @default(0) @db.Decimal(3, 2)
+  completion_rate   Float   @default(100) // ✅ added
   cancellation_rate Float   @default(0)
 
   // ================= GOLD PROGRAM =================
@@ -55,15 +55,16 @@ model Raider {
   followers           myRaider[]
   customer_ratings    RateCustomer[]
   raider_ratings      RateRaider[]
-  assignedOrders      Order[] @relation("AssignedRaider")
+  assignedOrders      Order[]                 @relation("AssignedRaider")
   declines            OrderDecline[]
   raiderOnlineSession RaiderOnlineSession[]
+  // wallet addjustments for raider (admin adjustments to raider wallet)
+  adjustments         WalletAdjustment[]
 
   // ================= META =================
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
-
 
 // ✅ Removed
 // ❌ rank (duplicate system)

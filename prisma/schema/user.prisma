@@ -1,90 +1,89 @@
 // prisma/models/user.prisma
 
 model User {
-  id            Int      @id @default(autoincrement())
+  id            Int     @id @default(autoincrement())
   username      String  @unique
-  email         String?  @unique @db.VarChar(200)
-  phone         String   @db.VarChar(20)
-  password      String?  @db.VarChar(255)
-  reward_points Int      @default(0)
-  is_active     Boolean  @default(false)
-  is_verified   Boolean  @default(false)
-  is_deleted    Boolean  @default(false)
-  refresh_token String?  @db.VarChar(500)
+  email         String? @unique @db.VarChar(200)
+  phone         String  @db.VarChar(20)
+  password      String? @db.VarChar(255)
+  reward_points Int     @default(0)
+  is_active     Boolean @default(false)
+  is_verified   Boolean @default(false)
+  is_deleted    Boolean @default(false)
+  refresh_token String? @db.VarChar(500)
 
   is_acc_refered Boolean   @default(false)
   referral_code  String?   @unique
   referral_link  String?   @unique
   regi_status    LoginType @default(DIRECT_SIGNIN)
 
-
   // stripe fields(existing)
   stripe_customer_id       String? @db.VarChar(100)
   stripe_payment_method_id String? @db.VarChar(100)
   stripe_balance           Float   @default(0)
 
-
   //new fields(stripe)
-  totalWalletBalance    Float  @default(0)
-  currentWalletBalance  Float  @default(0)
-  stripeCustomerId String?  // For saved payment methods
-  stripeAccountId  String?  // Connected Stripe Account for withdrawals
+  totalWalletBalance   Float           @default(0)
+  currentWalletBalance Float           @default(0)
+  stripeCustomerId     String? // For saved payment methods
+  stripeAccountId      String? // Connected Stripe Account for withdrawals
   //new fields(wallet)
-  paymentMethods   PaymentMethod[]
-  walletHistories  WalletHistory[]
+  paymentMethods       PaymentMethod[]
+  walletHistories      WalletHistory[]
   // coin
-  total_coin_acc   Int      @default(0)
-  current_coin_balance  Int @default(0)
-
+  total_coin_acc       Int             @default(0)
+  current_coin_balance Int             @default(0)
 
   // 
-  reset_pass               Boolean @default(false)
+  reset_pass Boolean @default(false)
   // 
 
-  fcmToken       String?
-  image          String?
+  fcmToken             String?
+  image                String?
   // Relations
-  profile        Profile?         
-  notifications  Notification[]
-  places         Place[]
-  refers         Refer[]
-  rewards        Reward[]
-  orders         Order[]
-  transactions   Transaction[]
-  tips           Tip[]
-  raiderProfile  Raider?
-  adminProfiles  Admin[]
-  coinHistory    CoinHistory[]
-  destinations   Destination[]
-  my_raiders     myRaider[]
-  customer_ratings RateCustomer[]
-  raider_ratings  RateRaider[]
+  profile              Profile?
+  notifications        Notification[]
+  places               Place[]
+  refers               Refer[]
+  rewards              Reward[]
+  orders               Order[]
+  transactions         Transaction[]
+  tips                 Tip[]
+  raiderProfile        Raider?
+  adminProfiles        Admin[]
+  coinHistory          CoinHistory[]
+  destinations         Destination[]
+  my_raiders           myRaider[]
+  customer_ratings     RateCustomer[]
+  raider_ratings       RateRaider[]
   collected_incentives CollectedIncentive[]
 
-  sentMessages       Message[]      @relation("SentMessages")
-  receivedMessages   Message[]      @relation("ReceivedMessages")
-  user1Conversations Conversation[] @relation("User1Conversations")
-  user2Conversations Conversation[] @relation("User2Conversations")
+  sentMessages             Message[]                  @relation("SentMessages")
+  receivedMessages         Message[]                  @relation("ReceivedMessages")
+  user1Conversations       Conversation[]             @relation("User1Conversations")
+  user2Conversations       Conversation[]             @relation("User2Conversations")
   // 
-  roles  Role[]
+  roles                    Role[]
   // 
-  logins                 UserLogin[]
+  logins                   UserLogin[]
   // 
   addMoneyForOrderPriority addMoneyForOrderPriority[]
   // notification logs
-  notificationLogs  NotificationLog[]  @relation("AdminLogs")
+  notificationLogs         NotificationLog[]          @relation("AdminLogs")
   // User (customer) disputes
-  userDisputes Dispute[] @relation("UserDisputes")
+  userDisputes             Dispute[]                  @relation("UserDisputes")
 
   // Rider disputes
   riderDisputes Dispute[] @relation("RiderDisputes")
 
   // Admin resolved disputes
-  resolvedDisputes Dispute[] @relation("ResolvedDisputes")
+  resolvedDisputes Dispute[]          @relation("ResolvedDisputes")
+  // this for admin wallet adjustments(user only)
+  adjustments      WalletAdjustment[]
 
   // 
-  created_at         DateTime       @default(now())
-  updated_at         DateTime       @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@map("users")
 }
