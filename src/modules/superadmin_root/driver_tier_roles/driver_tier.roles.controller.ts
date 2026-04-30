@@ -25,6 +25,7 @@ import { Auth } from 'src/decorators/auth.decorator';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { ApiResponses } from 'src/common/apiResponse';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
 
 
 @ApiTags('Admin - Driver Tiers')
@@ -83,9 +84,10 @@ export class DriverTierController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateDriverTierDto,
+    @CurrentUser() adminUserId: number,
   ) {
     try {
-      const res = await this.service.updateTier(id, dto);
+      const res = await this.service.updateTier(id, dto, adminUserId);
       return ApiResponses.success(res, 'Tier updated successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to update tier');
@@ -100,9 +102,10 @@ export class DriverTierController {
   async promote(
     @Param('raiderId', ParseIntPipe) raiderId: number,
     @Body() dto: PromoteRaiderDto,
+    @CurrentUser() adminUserId: number, 
   ) {
     try {
-      const res = await this.service.promoteRaider(raiderId, dto);
+      const res = await this.service.promoteRaider(raiderId, dto, adminUserId);
       return ApiResponses.success(res, 'Raider promoted successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to promote raider');
