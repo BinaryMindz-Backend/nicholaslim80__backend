@@ -313,6 +313,7 @@ export class DisputeService {
       include: {
         user: true,
         rider: true,
+        order: true,
         disputeType: true,
       },
     });
