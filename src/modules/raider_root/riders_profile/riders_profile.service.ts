@@ -184,38 +184,53 @@ export class RidersProfileService {
 
 
   // 
-  async findOne(id: string) {
-    const res = await this.prisma.raider.findUnique({
+   async findOne(id: string) {
+    const raider = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
-      include: { registrations: true, locations: true, raider_ratings: true, followers: { where: { is_fav: true } }, },
-    });
-    // Get raider rating average
-    const avgRating = await this.prisma.rateRaider.aggregate({
-      where: {
-        raiderId: res?.id
+      include: {
+        registrations: true,
+        locations: true,
+        raider_ratings: true,
+        followers: { where: { is_fav: true } },
+        tier: true,
       },
-      _avg: {
-        rating_star: true
-      },
-      _count: {
-        id: true
-      }
     });
 
-    const formattedAverage = avgRating._avg.rating_star
-      ? Number(avgRating._avg.rating_star.toFixed(2))
-      : 5;
+      if (!raider) return null;
 
-    // 
-    return {
-      ...res,
-      rank: res?.rank,
-      rankScore: res?.rankScore || 0,
-      rating: res?.reviews_count || 0,
-      followers: res?.followers.length || 0,
-      formattedAverage
-    };
-  }
+      const avgRating = await this.prisma.rateRaider.aggregate({
+        where: { raiderId: raider.id },
+        _avg: { rating_star: true },
+        _count: { id: true },
+      });
+
+      const formattedAverage = Number(
+        (avgRating._avg.rating_star ?? 5).toFixed(2),
+      );
+
+      return {
+        ...raider,
+
+        // TIER SYSTEM (NEW)
+        tier: raider.tier
+          ? {
+              id: raider.tier.id,
+              name: raider.tier.name,
+              code: raider.tier.code,
+              priorityScore: Number(raider.tier.priorityScore),
+            }
+          : null,
+
+        rating: raider.reviews_count ?? 0,
+        followers: raider.followers?.length ?? 0,
+
+        formattedAverage,
+
+        //TODO : REMOVE OLD FIELDS 
+        rank: undefined,
+        rankScore: undefined,
+      };
+    }
 
 
   //

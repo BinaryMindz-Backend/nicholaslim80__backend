@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { RaiderRankService } from './raider-rank.service';
+import { RaiderTierService } from './raider-rank.service';
 
 @Module({
-  providers: [RaiderRankService],
-  exports: [RaiderRankService],
+  providers: [RaiderTierService],
+  exports: [RaiderTierService],
 })
 export class RaiderRankModule {}

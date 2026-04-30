@@ -1,0 +1,39 @@
+model DriverTier {
+    id            Int     @id @default(autoincrement())
+    name          String  @unique
+    code          String  @unique
+    priorityScore Decimal @db.Decimal(5, 2)
+    description   String?
+    isActive      Boolean @default(true)
+
+    minOrders           Int?
+    minRating           Decimal? @db.Decimal(3, 2)
+    minCompletionRate   Float?
+    maxCancellationRate Float?
+
+    requiresBranding Boolean @default(false)
+    isInvitationOnly Boolean @default(false)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    raiders             Raider[]
+    raiderTierHistories RaiderTierHistory[]
+
+    @@index([priorityScore])
+    @@map("driver_tiers")
+}
+
+
+model RaiderTierHistory {
+  id           Int      @id @default(autoincrement())
+  raiderId     Int
+  driverTierId Int?
+  reason       String
+  createdAt    DateTime @default(now())
+
+  raider     Raider      @relation(fields: [raiderId], references: [id])
+  driverTier DriverTier? @relation(fields: [driverTierId], references: [id])
+
+  @@map("raider_tier_history")
+}
