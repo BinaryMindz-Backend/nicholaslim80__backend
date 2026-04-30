@@ -29,6 +29,7 @@ const app = await NestFactory.create(AppModule, {
       'http://127.0.0.1:5500',
       'https://0e03-103-174-189-241.ngrok-free.app', 
     ],
+      methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true,
   });
 
