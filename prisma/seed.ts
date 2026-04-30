@@ -1,5 +1,6 @@
 import {  LoginType, PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { seedDriverTiers } from './driver_tier_seed';
 
 const prisma = new PrismaClient();
 
@@ -87,7 +88,8 @@ export enum Module {
   ORDER_PLACEMENT = "order_placement", //order placement
   LIVE_ORDER_TRACKING = 'live_order_tracking',
   ORDER_HISTORY = 'order_history',
-  NOTIFICATION_MANAGEMENT='notification_management'
+  NOTIFICATION_MANAGEMENT='notification_management',
+  DRIVER_TIER_ROLE='driver_tier_role',              
 
 }
 
@@ -433,6 +435,12 @@ const ROLE_PERMISSIONS = {
     { module: Module.SURGE_PRICING_ROLE, action: Permission.UPDATE },
     { module: Module.SURGE_PRICING_ROLE, action: Permission.READ },
     { module: Module.SURGE_PRICING_ROLE, action: Permission.GET_ONE },
+    // driver tier role (new)s
+    { module: Module.DRIVER_TIER_ROLE, action: Permission.CREATE },
+    { module: Module.DRIVER_TIER_ROLE, action: Permission.DELETE },
+    { module: Module.DRIVER_TIER_ROLE, action: Permission.UPDATE },
+    { module: Module.DRIVER_TIER_ROLE, action: Permission.READ },
+    { module: Module.DRIVER_TIER_ROLE, action: Permission.GET_ONE },
 
   ],
 
@@ -573,6 +581,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.CONTACT_INFO, action: Permission.READ },
   ],
 };
+
+
 
 // SYNC PERMISSIONS FOR EXISTING ROLES
 // (Run this to update permissions for existing roles)
@@ -777,38 +787,7 @@ async function initialSeed() {
         followers_weight: 50,
       },
     });
-    console.log(`✅ Customer Order Confirmation Config seeded: ${customerOrderConfirmationConfig.id}\n`);
-    // delivery type seed
-    // const deliveryTypes = await tx.deliveryType.createMany({
-    //   data: [
-    //     {
-    //       name: DeliveryTypeName.EXPRESS,
-    //       percentage: 10,
-    //       pickup_duration: 75,
-    //       delivery_duration: 90,
-    //       is_active: true,
-    //       admin_id: admin.id
-    //     },
-    //     {
-    //       name: DeliveryTypeName.STACKED,
-    //       percentage: 5,
-    //       pickup_duration: 95,
-    //       delivery_duration: 130,
-    //       is_active: true,
-    //       admin_id: admin.id
-    //     },
-    //     {
-    //       name: DeliveryTypeName.STANDARD,
-    //       percentage: 2,
-    //       pickup_duration: 275,
-    //       delivery_duration: 290,
-    //       is_active: true,
-    //       admin_id: admin.id
-    //     }
-    //   ]
-    // })
-    // console.log(`✅ Delivery type Config seeded: ${deliveryTypes.count}\n`);
-    // 
+    console.log(`✅ Customer Order Confirmation Config seeded: ${customerOrderConfirmationConfig.id}\n`); 
     return {
       roles: [superAdminRole, userRole, raiderRole],
       user,
@@ -830,21 +809,20 @@ async function initialSeed() {
   console.log(`   Email: ${superAdminEmail}`);
   console.log(`   Password: ${superAdminPassword}\n`);
 
-  return true; // Return true to indicate seed was successful
+  return true;
 }
 
-// MAIN FUNCTION - Smart Seeding
+ // MAIN FUNCTION - Smart Seeding
 async function main() {
   // Check if this is first time or update
   const existingRoles = await prisma.role.count();
 
   if (existingRoles === 0) {
-    // First time - run initial seed
     await initialSeed();
   } else {
-    // Roles exist - sync permissions for new modules
     console.log('📦 Roles already exist. Running permission sync...\n');
     await syncPermissionsForExistingRoles();
+    await seedDriverTiers();
   }
 }
 
@@ -916,8 +894,8 @@ Create a separate file: src/scripts/sync-permissions.ts
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
-// Import syncPermissionsForExistingRoles function
-// Run it
+Import syncPermissionsForExistingRoles function
+Run it
 
 Then run: ts-node src/scripts/sync-permissions.ts
 */

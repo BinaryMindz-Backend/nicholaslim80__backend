@@ -18,6 +18,8 @@ enum Rank {
   PREMIUM
 }
 
+
+
 // Notification enum
 enum NotificationType {
     ORDER_UPDATE

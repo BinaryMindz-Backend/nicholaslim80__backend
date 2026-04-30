@@ -1037,66 +1037,99 @@ export class UsersService {
 
     const user = await this.prisma.user.findUnique({
       where: { id },
-      include: { raiderProfile: true, profile: true },
+      include: {
+        raiderProfile: true,
+        profile: true,
+      },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // 1. Destructure all profile-specific fields
+    // ================= DTO CLEAN =================
     const {
-      raider,
       dob,
       bank_account_num,
       bank_name,
       firstName,
       lastName,
+      tier_id,
       ...userData
     } = updateUserDto;
 
-    return await this.prisma.user.update({
+    // ================= UPDATE USER + PROFILE =================
+    const updatedUser = await this.prisma.user.update({
       where: { id },
       data: {
-        ...userData, // Updates username, email, phone, etc. on the User model
+        ...userData,
 
-        // 2. Nested Profile Update (Upsert logic)
         profile: {
           ...(user.profile
             ? {
-              update: {
-                firstName,
-                lastName,
-                bank_account_num,
-                bank_name,
-                avatarUrl: updateUserDto.image,
-                ...(dob && { dob: new Date(dob) }),
-              },
-            }
+                update: {
+                  firstName,
+                  lastName,
+                  bank_account_num,
+                  bank_name,
+                  avatarUrl: updateUserDto.image,
+                  ...(dob && { dob: new Date(dob) }),
+                },
+              }
             : {
-              create: {
-                firstName,
-                lastName,
-                bank_account_num,
-                bank_name,
-                avatarUrl: updateUserDto.image,
-                ...(dob && { dob: new Date(dob) }),
-              },
-            }),
+                create: {
+                  firstName,
+                  lastName,
+                  bank_account_num,
+                  bank_name,
+                  avatarUrl: updateUserDto.image,
+                  ...(dob && { dob: new Date(dob) }),
+                },
+              }),
         },
-
-        // 3. Nested Raider Profile Update
-        ...(raider && {
-          raiderProfile: user.raiderProfile
-            ? { update: { rank: raider.rank } }
-            : { create: { rank: raider.rank } },
-        }),
       },
       include: {
         profile: true,
-        raiderProfile: true
-      }
+        raiderProfile: true,
+      },
     });
+
+    // ================= TIER UPDATE (SEPARATE) =================
+    if (tier_id) {
+      if (!user.raiderProfile) {
+        throw new NotFoundException('Raider profile not found for this user');
+      }
+
+      const tier = await this.prisma.driverTier.findUnique({
+        where: { id: tier_id },
+      });
+
+      if (!tier) {
+        throw new NotFoundException('Driver tier not found');
+      }
+
+      await this.prisma.raider.update({
+        where: { id: user.raiderProfile.id },
+        data: {
+          tierId: tier.id,
+        },
+      });
+    }
+
+    // ================= RETURN FINAL =================
+    const finalUser = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        profile: true,
+        raiderProfile: {
+          include: {
+            tier: true,
+          },
+        },
+      },
+    });
+
+    return finalUser;
   }
 
 

@@ -23,8 +23,8 @@ export class RidersProfileService {
   async create(userId: number, dto: CreateRiderRegistrationDto) {
      
     // better approch
-    if(dto.password || dto.driver_rank){
-        throw new NotAcceptableException("Remove password field and driver rank from raider registation dto")
+    if(dto.password || dto.tier_id){
+        throw new NotAcceptableException("Remove password field and driver rank tier from raider registation dto")
     }
     
     // 1. Check rider exists
@@ -184,38 +184,53 @@ export class RidersProfileService {
 
 
   // 
-  async findOne(id: string) {
-    const res = await this.prisma.raider.findUnique({
+   async findOne(id: string) {
+    const raider = await this.prisma.raider.findUnique({
       where: { id: Number(id) },
-      include: { registrations: true, locations: true, raider_ratings: true, followers: { where: { is_fav: true } }, },
-    });
-    // Get raider rating average
-    const avgRating = await this.prisma.rateRaider.aggregate({
-      where: {
-        raiderId: res?.id
+      include: {
+        registrations: true,
+        locations: true,
+        raider_ratings: true,
+        followers: { where: { is_fav: true } },
+        tier: true,
       },
-      _avg: {
-        rating_star: true
-      },
-      _count: {
-        id: true
-      }
     });
 
-    const formattedAverage = avgRating._avg.rating_star
-      ? Number(avgRating._avg.rating_star.toFixed(2))
-      : 5;
+      if (!raider) return null;
 
-    // 
-    return {
-      ...res,
-      rank: res?.rank,
-      rankScore: res?.rankScore || 0,
-      rating: res?.reviews_count || 0,
-      followers: res?.followers.length || 0,
-      formattedAverage
-    };
-  }
+      const avgRating = await this.prisma.rateRaider.aggregate({
+        where: { raiderId: raider.id },
+        _avg: { rating_star: true },
+        _count: { id: true },
+      });
+
+      const formattedAverage = Number(
+        (avgRating._avg.rating_star ?? 5).toFixed(2),
+      );
+
+      return {
+        ...raider,
+
+        // TIER SYSTEM (NEW)
+        tier: raider.tier
+          ? {
+              id: raider.tier.id,
+              name: raider.tier.name,
+              code: raider.tier.code,
+              priorityScore: Number(raider.tier.priorityScore),
+            }
+          : null,
+
+        rating: raider.reviews_count ?? 0,
+        followers: raider.followers?.length ?? 0,
+
+        formattedAverage,
+
+        //TODO : REMOVE OLD FIELDS 
+        rank: undefined,
+        rankScore: undefined,
+      };
+    }
 
 
   //
@@ -499,147 +514,231 @@ export class RidersProfileService {
 
 
   //
-  async adminCreateRiderProfile(dto: CreateRiderRegistrationDto, userId: number) {
-    // 1. Role check
-    const role = await this.prisma.role.findUnique({
-      where: { name: UserRole.RAIDER },
-    });
+ async adminCreateRiderProfile(
+     dto: CreateRiderRegistrationDto,
+        userId: number,
+      ) {
+        // ================= ROLE =================
+        const role = await this.prisma.role.findUnique({
+          where: { name: UserRole.RAIDER },
+        });
 
-    if (!role) {
-      throw new NotFoundException('Role not found');
-    }
+        if (!role) {
+          throw new NotFoundException('Role not found');
+        }
 
-    // 2. Duplicate user check
-    const existingUser = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: dto.email_address },
-          { phone: dto.contact_number },
-        ],
-      },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('User already exists');
-    }
-
-    // 3. Transaction
-    return this.prisma.$transaction(async (tx) => {
-      const hashedPassword = await bcrypt.hash(dto.password || '12345678', 10);
-
-      // Create user
-      const user = await tx.user.create({
-        data: {
-          username: dto.raider_name,
-          email: dto.email_address,
-          phone: dto.contact_number,
-          password: hashedPassword,
-          regi_status: LoginType.ADMIN_SIGNIN,
-          is_active: true,
-          is_verified: true,
-          roles: {
-            connect: { id: role.id },
+        // ================= DUPLICATE CHECK =================
+        const existingUser = await this.prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: dto.email_address },
+              { phone: dto.contact_number },
+            ],
           },
+        });
+
+        if (existingUser) {
+          throw new ConflictException('User already exists');
+        }
+
+        // ================= TRANSACTION =================
+        return this.prisma.$transaction(async (tx) => {
+          const hashedPassword = await bcrypt.hash(
+            dto.password || '12345678',
+            10,
+          );
+
+          // ================= CREATE USER =================
+          const user = await tx.user.create({
+            data: {
+              username: dto.raider_name,
+              email: dto.email_address,
+              phone: dto.contact_number,
+              password: hashedPassword,
+              regi_status: LoginType.ADMIN_SIGNIN,
+              is_active: true,
+              is_verified: true,
+              roles: {
+                connect: { id: role.id },
+              },
+            },
+          });
+
+          // ================= TIER LOGIC =================
+          let tierId: number | null = null;
+
+          if (dto.tier_id) {
+            const tier = await tx.driverTier.findUnique({
+              where: { id: dto.tier_id },
+            });
+
+            if (!tier) {
+              throw new NotFoundException('Driver tier not found');
+            }
+
+            tierId = tier.id;
+          } else {
+            // fallback → Bronze (lowest priorityScore)
+            const bronze = await tx.driverTier.findFirst({
+              where: { isActive: true },
+              orderBy: { priorityScore: 'asc' },
+            });
+
+            tierId = bronze?.id ?? null;
+          }
+
+          // ================= CREATE RAIDER =================
+          const raider = await tx.raider.create({
+            data: {
+              userId: user.id,
+              raider_status: RaiderStatus.ACTIVE,
+              raider_verificationFromAdmin: RaiderVerification.APPROVED,
+              tierId,
+            },
+          });
+
+          // ================= CLEAN DTO =================
+          const { password, tier_id, ...registrationData } = dto as any;
+
+          // ================= CREATE REGISTRATION =================
+          const registration = await tx.raiderRegistration.create({
+            data: {
+              ...registrationData,
+              raiderId: raider.id,
+            },
+          });
+
+          // ================= LOG =================
+          await tx.activityLog.create({
+            data: {
+              action: 'CREATE',
+              entity_type: 'Raider',
+              entity_id: raider.id,
+              user_id: userId,
+              meta: {
+                type: 'admin_create_rider',
+                user: {
+                  id: user.id,
+                  email: user.email,
+                },
+                tierId,
+              },
+            },
+          });
+
+          // ================= RESPONSE =================
+          return {
+            user,
+            raider: {
+              ...raider,
+              tier: tierId
+                ? await tx.driverTier.findUnique({
+                    where: { id: tierId },
+                  })
+                : null,
+            },
+            registration,
+          };
+        });
+      }
+
+
+   //
+   async adminUpdateRiderProfile(
+      id: number,
+      dto: UpdateRidersProfileDto,
+      userId: number,
+    ) {
+      const raider = await this.prisma.raider.findUnique({
+        where: { id },
+        include: {
+          tier: true,
+          registrations: true,
         },
       });
 
-      // Create raider
-      const raider = await tx.raider.create({
-        data: {
-          userId: user.id,
-          raider_status: RaiderStatus.ACTIVE,
-          raider_verificationFromAdmin: RaiderVerification.APPROVED,
-          rank: dto.driver_rank,
-        },
+      if (!raider) {
+        throw new NotFoundException('Rider not found');
+      }
+
+      const registration = await this.prisma.raiderRegistration.findFirst({
+        where: { raiderId: raider.id },
       });
 
-      // Clean DTO
-      const { password, driver_rank, ...registrationData } = dto;
+      if (!registration) {
+        throw new NotFoundException('Rider profile not found');
+      }
 
-      // Create registration
-      const registration = await tx.raiderRegistration.create({
+      // ================= TIER UPDATE =================
+      if (dto.tier_id) {
+        const tier = await this.prisma.driverTier.findUnique({
+          where: { id: dto.tier_id },
+        });
+
+        if (!tier) {
+          throw new NotFoundException('Driver tier not found');
+        }
+
+        await this.prisma.raider.update({
+          where: { id: raider.id },
+          data: {
+            tierId: tier.id,
+          },
+        });
+      }
+
+      // ================= CLEAN DTO =================
+      const {
+        vehicle_type_id,
+        tier_id,
+        password,
+        ...rest
+      } = dto as any;
+
+      // ================= UPDATE REGISTRATION =================
+      const updatedRegistration =
+        await this.prisma.raiderRegistration.update({
+          where: { id: registration.id },
+          data: {
+            ...rest,
+            ...(vehicle_type_id && {
+              vehicle_type: {
+                connect: { id: vehicle_type_id },
+              },
+            }),
+          },
+        });
+
+      // ================= LOG =================
+      await this.prisma.activityLog.create({
         data: {
-          ...registrationData,
-          raiderId: raider.id,
-        },
-      });
-      await tx.activityLog.create({
-        data: {
-          action: 'CREATE',
+          action: 'UPDATE',
           entity_type: 'Raider',
           entity_id: raider.id,
           user_id: userId,
           meta: {
-            type: 'admin_create_rider',
-            user: {
-              id: user.id,
-              email: user.email,
+            type: 'admin_update',
+            before: {
+              registration,
+              tier: raider.tier,
+            },
+            after: {
+              registration: updatedRegistration,
+              tier_id: dto.tier_id ?? raider.tierId,
             },
           },
         },
       });
-      return { user, raider, registration };
-    });
-  }
 
-
-  //
-  async adminUpdateRiderProfile(id: number, dto: UpdateRidersProfileDto, userId: number) {
-
-    const raider = await this.prisma.raider.findUnique({
-      where: { id },
-    });
-
-    if (!raider) {
-      throw new NotFoundException('Rider not found');
+      // ================= RESPONSE =================
+      return {
+        ...updatedRegistration,
+        tier: dto.tier_id
+          ? await this.prisma.driverTier.findUnique({
+              where: { id: dto.tier_id },
+            })
+          : raider.tier,
+      };
     }
-    //  
-    if (dto.driver_rank) {
-      await this.prisma.raider.update({
-        where: { id: raider.id },
-        data: {
-          rank: dto.driver_rank,
-        },
-      });
-    }
-    const registration = await this.prisma.raiderRegistration.findFirst({
-      where: { raiderId: raider.id },
-    });
-
-    if (!registration) {
-      throw new NotFoundException('Rider profile not found');
-    }
-
-    const { vehicle_type_id, driver_rank, password, ...rest } = dto as any;
-
-    const updated = await this.prisma.raiderRegistration.update({
-      where: { id: registration.id },
-      data: {
-        ...rest,
-        ...(vehicle_type_id && {
-          vehicle_type: {
-            connect: { id: vehicle_type_id },
-          },
-        }),
-      },
-    });
-
-    // LOG
-    await this.prisma.activityLog.create({
-      data: {
-        action: 'UPDATE',
-        entity_type: 'Raider',
-        entity_id: registration.id,
-        user_id: userId,
-        meta: {
-          type: 'admin_update',
-          before: registration,
-          after: { ...updated, vehicle_type_id, driver_rank },
-        },
-      },
-    });
-
-    return { ...updated, vehicle_type_id, driver_rank };
-  }
 
 }

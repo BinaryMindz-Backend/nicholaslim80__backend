@@ -11,39 +11,61 @@ model Raider {
   LoginType                    LoginType          @default(DIRECT_SIGNIN)
   raider_verificationFromAdmin RaiderVerification @default(PENDING)
 
-  // is raider deposit
-  is_deposit_made             Boolean   @default(false)
+  // Financial / status
+  is_deposit_made Boolean @default(false)
 
-  // is raider suspended
-  isSuspended                  Boolean   @default(false)
-  suspendedDuration            DateTime?
-  suspensionReason             String?
-  hasBranding                 Boolean     @default(false)
-  hasAdDecal                  Boolean     @default(false)
-  isPremium                   Boolean     @default(false)
-  
-  // 
-  rank                        Rank        @default(BRONZE)       // use enum
-  rankScore                   Int?
-  reviews_count               Int?        @default(0)
-  completed_orders            Int?        @default(0)
-  active_days                 Int?        @default(0)
-  cancellation_rate           Float?      @default(0)
-  // 
+  isSuspended       Boolean   @default(false)
+  suspendedDuration DateTime?
+  suspensionReason  String?
 
-  registrations   RaiderRegistration[]
-  locations       RaiderLocation?
-  locationHistory RaiderLocationHistory[]
-  raiderQuizzes   RaiderQuiz[]
-  tips            Tip[]
-  followers                   myRaider[]
-  customer_ratings RateCustomer[]
-  raider_ratings  RateRaider[]
-  assignedOrders  Order[]                 @relation("AssignedRaider")
-  declines                OrderDecline[]
-  // 
-  raiderOnlineSession    RaiderOnlineSession[]
+  // Branding / premium
+  hasBranding Boolean @default(false)
+  hasAdDecal  Boolean @default(false)
+  isPremium   Boolean @default(false)
 
+  // ================= PERFORMANCE =================
+  reviews_count     Int     @default(0)
+  completed_orders  Int     @default(0)
+  active_days       Int     @default(0)
+
+  avg_rating        Decimal @default(0) @db.Decimal(3,2)
+  completion_rate   Float   @default(100)  // ✅ added
+  cancellation_rate Float   @default(0)
+
+  // ================= GOLD PROGRAM =================
+  isGoldOptedIn     Boolean @default(false)
+  weeklyActiveHours Float   @default(0)
+
+  // ================= TIER =================
+  tierId Int?
+  tier   DriverTier? @relation(fields: [tierId], references: [id])
+
+  raiderTierHistories RaiderTierHistory[]
+
+  // ================= ACTIVITY =================
+  lastDeliveryAt      DateTime? // ✅ removed default
+  lastOrderAssignedAt DateTime? // ✅ fairness
+
+  // ================= RELATIONS =================
+  registrations       RaiderRegistration[]
+  locations           RaiderLocation?
+  locationHistory     RaiderLocationHistory[]
+  raiderQuizzes       RaiderQuiz[]
+  tips                Tip[]
+  followers           myRaider[]
+  customer_ratings    RateCustomer[]
+  raider_ratings      RateRaider[]
+  assignedOrders      Order[] @relation("AssignedRaider")
+  declines            OrderDecline[]
+  raiderOnlineSession RaiderOnlineSession[]
+
+  // ================= META =================
   created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
+  updated_at DateTime @updatedAt
 }
+
+
+// ✅ Removed
+// ❌ rank (duplicate system)
+// ❌ rankScore (unused/confusing)
+// ❌ activityBoost (should be dynamic)

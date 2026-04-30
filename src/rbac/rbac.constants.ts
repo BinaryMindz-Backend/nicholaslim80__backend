@@ -78,7 +78,9 @@ export enum Module {
   ORDER_PLACEMENT = "order_placement", //order placement
   LIVE_ORDER_TRACKING='live_order_tracking',
   ORDER_HISTORY='order_history',
-  NOTIFICATION_MANAGEMENT='notification_management'
+  NOTIFICATION_MANAGEMENT='notification_management',
+  DRIVER_TIER_ROLE='driver_tier_role',              
+
 
 
 
