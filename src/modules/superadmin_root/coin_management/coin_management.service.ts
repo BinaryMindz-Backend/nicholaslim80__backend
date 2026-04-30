@@ -4,7 +4,7 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { ApiResponses } from 'src/common/apiResponse';
 import { IUser } from 'src/types';
 import { CreateCoinDto } from './dto/create-coin_management.dto';
-import { CoinEvent, CoinHistoryType, UserRole } from '@prisma/client';
+import { CoinHistoryType, UserRole } from '@prisma/client';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
 
@@ -170,115 +170,123 @@ export class CoinManagementService {
       }
     })
   }
-  //  
+
+  //  redeem coin
   async redeemCoin(user: IUser, coinAmount: number) {
-    // ---------------- Fetch User ----------------
-    const userRecord = await this.prisma.user.findUnique({
+    return this.prisma.$transaction(async (tx) => {
+    const userRecord = await tx.user.findUnique({
       where: { id: user.id },
     });
+
     if (!userRecord) throw new NotFoundException('User not found');
 
-    // ---------------- Check Balance ----------------
     if ((userRecord.current_coin_balance ?? 0) < coinAmount) {
       throw new BadRequestException('Insufficient coin balance');
     }
 
-    // ---------------- Get Base Coin Value ----------------
-    const baseCoin = await this.prisma.coin.aggregate({
+    //  get value
+    const baseCoin = await tx.coin.aggregate({
       _avg: { coin_value_in_cent: true },
     });
+
     const basePrice = Number(baseCoin._avg.coin_value_in_cent ?? 0);
 
-    // ---------------- Deduct Coins ----------------
-    const updatedUser = await this.prisma.user.update({
+    // deduct safely
+    await tx.user.update({
       where: { id: user.id },
       data: {
         current_coin_balance: { decrement: coinAmount },
       },
     });
 
-    // ---------------- Record Coin History ----------------
-    const data = await this.prisma.coinHistory.create({
+      await tx.coinHistory.create({
       data: {
         userId: user.id,
-        role_triggered: CoinEvent.COMPLETED_ORDER, // example role, or your own context
+        role_triggered: 'REDEEM',
         coin_acc_amount: coinAmount,
-        type: CoinHistoryType.APPLICATION, // spending
+        type: CoinHistoryType.APPLICATION,
+        source: 'REDEEM',
       },
     });
-    //  SEND NOTIFICATION
-    if (data && userRecord.fcmToken) {
+
+    //  notification
+    if (userRecord.fcmToken) {
       await this.emailQueueService.queuePushNotification({
         userId: user.id,
         fcmToken: userRecord.fcmToken,
-        title: "Coin Redeemed",
-        body: "You have redeemed " + coinAmount + " coins",
-      })
+        title: 'Coins Redeemed',
+        body: `You used ${coinAmount} coins`,
+      });
     }
+
     return {
-      updatedUser,
-      redeemedAmountInCent: coinAmount * basePrice,
+      success: true,
+      coinsUsed: coinAmount,
+      valueInCent: coinAmount * basePrice,
     };
-  }
-
-
-  // 
-  async basePrice() {
-    const result = await this.prisma.coin.aggregate({
-      _avg: {
-        coin_value_in_cent: true,
-      },
     });
-
-    const avgPrice = result._avg.coin_value_in_cent ?? 0;
-
-    return avgPrice;
-  }
-
-
-  async collectCoin(userId: number, coinAmount: number) {
-
-    const userExit = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-    if (!userExit) throw new NotFoundException('User not found');
-    // 
-    const coinExit = await this.prisma.coin.findFirst({
-      where: {
-        key: "ORDER_PLACED"
-      }
-    })
-    if (!coinExit) throw new NotFoundException('Coin not found');
-    // 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        total_coin_acc: Number(userExit.total_coin_acc) + Number(coinAmount),
-        current_coin_balance: Number(userExit.current_coin_balance) + Number(coinAmount)
-      }
-    })
-    const data = await this.prisma.coinHistory.create({
-      data: {
-        userId: userId,
-        role_triggered: "ORDER_PLACED",
-        coin_acc_amount: coinExit.coin_amount,
-        type: CoinHistoryType.ACCUMULATION,
-      }
-    })
-    //  SEND NOTIFICATION
-    if (data && userExit.fcmToken) {
-      await this.emailQueueService.queuePushNotification({
-        userId: userId,
-        fcmToken: userExit.fcmToken,
-        title: "Coin Accumulated",
-        body: "You have accumulated " + coinExit.coin_amount + " coins",
-      })
     }
 
 
+    // 
+    async basePrice() {
+      const result = await this.prisma.coin.aggregate({
+        _avg: {
+          coin_value_in_cent: true,
+        },
+      });
 
-    return data;
+      const avgPrice = result._avg.coin_value_in_cent ?? 0;
+
+      return avgPrice;
+    }
+
+
+    async collectCoin(userId: number, coinAmount: number) {
+
+      const userExit = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!userExit) throw new NotFoundException('User not found');
+      // 
+      const coinExit = await this.prisma.coin.findFirst({
+        where: {
+          key: "ORDER_PLACED"
+        }
+      })
+      if (!coinExit) throw new NotFoundException('Coin not found');
+      // 
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          total_coin_acc: Number(userExit.total_coin_acc) + Number(coinAmount),
+          current_coin_balance: Number(userExit.current_coin_balance) + Number(coinAmount)
+        }
+      })
+      const data = await this.prisma.coinHistory.create({
+        data: {
+          userId: userId,
+          role_triggered: "ORDER_PLACED",
+          coin_acc_amount: coinExit.coin_amount,
+          type: CoinHistoryType.ACCUMULATION,
+        }
+      })
+      //  SEND NOTIFICATION
+      if (data && userExit.fcmToken) {
+        await this.emailQueueService.queuePushNotification({
+          userId: userId,
+          fcmToken: userExit.fcmToken,
+          title: "Coin Accumulated",
+          body: "You have accumulated " + coinExit.coin_amount + " coins",
+        })
+      }
+
+
+
+      return data;
   }
+
+  
   //  
   async coinAccHistory(id: number) {
     try {
