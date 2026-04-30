@@ -1,14 +1,21 @@
 model CoinHistory {
-  id       Int     @id @default(autoincrement())
-  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId   Int
-  role_triggered   String? 
-  coin_acc_amount       Int
-  edited_by           String?
-  type                 String?
-  created_at           DateTime        @default(now())
-  updated_at           DateTime        @updatedAt
-  reward               Reward[]
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  role_triggered  String?
+  coin_acc_amount Int
+  edited_by       String?
+  type            String? // CREDIT | DEBIT
+
+  expiresAt DateTime?
+  isExpired Boolean   @default(false)
+  source    String? // ADMIN_GIFT / SYSTEM / REFERRAL
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  reward Reward[]
+
   @@map("coin_history")
 }
-

@@ -90,7 +90,9 @@ export enum Module {
   LIVE_ORDER_TRACKING = 'live_order_tracking',
   ORDER_HISTORY = 'order_history',
   NOTIFICATION_MANAGEMENT='notification_management',
-  DRIVER_TIER_ROLE='driver_tier_role',              
+  DRIVER_TIER_ROLE='driver_tier_role',  
+  ADMIN_RAIDER_WALLET='admin_raider_wallet',  
+  ADMIN_USER_WALLET='admin_user_wallet',             
 
 }
 
@@ -232,6 +234,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.WALLET, action: Permission.READ },
     { module: Module.WALLET, action: Permission.DELETE },
     { module: Module.WALLET, action: Permission.UPDATE },
+    { module: Module.ADMIN_RAIDER_WALLET, action: Permission.READ },
+    { module: Module.ADMIN_USER_WALLET, action: Permission.READ },
     { module: Module.USER_WALLET, action: Permission.READ },
     { module: Module.RAIDER_WALLET, action: Permission.READ },
 

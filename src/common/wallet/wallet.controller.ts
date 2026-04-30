@@ -194,6 +194,21 @@ export class WalletController {
     async raiderUserWallet(@Query() query: UserWalletQueryDto) {
         return this.walletService.userWallet(query);
     }
+
+    @Get('/user/wallet/admin')
+    @RequirePermission(Module.ADMIN_USER_WALLET, Permission.READ) // Higher permission
+    @Auth()
+    async userWalletAdmin(@Query() query: UserWalletQueryDto) {
+        return this.walletService.userWallet(query);
+    }
+
+    // Raider Module Access
+    @Get('raider/wallet/admin')
+    @RequirePermission(Module.ADMIN_RAIDER_WALLET, Permission.READ) // Lower permission
+    @Auth()
+    async raiderWalletAdmin(@Query() query: UserWalletQueryDto) {
+        return this.walletService.userWallet(query);
+    }
     // remove card
     @Delete('wallet/cards/:id')
     @Auth()
