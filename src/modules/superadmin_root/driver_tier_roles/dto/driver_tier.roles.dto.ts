@@ -103,6 +103,43 @@ export class UpdateDriverTierDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  // RULES (ONLY WHAT SERVICE USES)
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  minOrders?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  minRating?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  minCompletionRate?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  maxCancellationRate?: number;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  requiresBranding?: boolean;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  isInvitationOnly?: boolean;
 }
 
 
