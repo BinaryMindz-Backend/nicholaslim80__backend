@@ -55,8 +55,7 @@ export class DriverTierService {
   // ================= GET =================
   async getAllTiers(): Promise<any> {
     return await this.prisma.driverTier.findMany({
-      where: { isActive: true },
-      orderBy: { priorityScore: 'desc' },
+         orderBy: { priorityScore: 'desc' },
     });
   }
 
