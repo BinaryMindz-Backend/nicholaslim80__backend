@@ -16,6 +16,7 @@ export enum Module {
 
   CUSTOMER_ORDER_CONFIRMATION = "customer_order_confirmation",
   RBAC = "rbac",
+  
   // ** sub modules
   //DESTINATION
   DESTINATION = 'destination',
