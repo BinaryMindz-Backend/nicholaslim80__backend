@@ -18,32 +18,31 @@ enum Rank {
   PREMIUM
 }
 
-
-
 // Notification enum
 enum NotificationType {
-    ORDER_UPDATE
+  ORDER_UPDATE
   PROMOTION
   GENERAL
   PUSH_NOTIFICATION
   EMAIL
   SMS
   WEB_ANNOUNCEMENT
-  IN_APP             
+  IN_APP
 }
- 
+
 //
 enum NotificationCategory {
-  NOTIFICATION  // system / transactional alerts
-  PROMOTION     // marketing, discounts, campaigns
+  NOTIFICATION // system / transactional alerts
+  PROMOTION // marketing, discounts, campaigns
 }
- 
+
 // 
-enum NotificationSentRole { 
-     USER
-     RAIDER
-     ALL
-   }
+enum NotificationSentRole {
+  USER
+  RAIDER
+  ALL
+}
+
 //
 enum LogAction {
   CREATED
@@ -52,8 +51,7 @@ enum LogAction {
   RESCHEDULED
   RESENT
   DISABLED
-}   
-
+}
 
 // reward
 enum RewardType {
@@ -246,7 +244,7 @@ enum ApplicableTyp {
 //   SCHEDULED_ORDERS
 //   STACKED_ORDERS
 //   STANDARD_ORDERS
-  
+
 // }
 
 enum Condition {
@@ -297,6 +295,7 @@ enum WalletTransactionType {
   REFUND
   DEDUCTION
   EARNING
+  ADMIN_ADJUSTMENT
 }
 
 enum WalletTransactionStatus {
@@ -405,6 +404,7 @@ enum IncentiveStatus {
   ACTIVE
   DISABLED
 }
+
 // Add these enums
 enum RecurringType {
   ONE_TIME
@@ -439,7 +439,6 @@ enum MonthName {
   Dec
 }
 
-
 //
 enum LicenseClass {
   CLASS_2B
@@ -450,15 +449,46 @@ enum LicenseClass {
   CLASS_4
   CLASS_5
 }
+
 // surge pricing 
 enum SurgePricingStatus {
   ACTIVE
   INACTIVE
 }
+
 // dispute role
 enum DisputeRole {
   USER
   DRIVER
 }
 
+//Wallet Adjustment Enums
 
+// Enums
+enum AdjustmentAction {
+  ADD_CREDIT_FUNDS
+  DEDUCT_MINUS_FUNDS
+}
+
+enum AdjustmentReason {
+  REFUND
+  ADMIN_CORRECTION
+  PENALTY
+  LATE_ARRIVAL
+  SAFETY_VIOLATION
+  CANCELED_TRIP
+  OTHER
+}
+
+enum PenaltyType {
+  LATE_ARRIVAL
+  SAFETY_VIOLATION
+  CANCELED_TRIP
+  OTHER
+}
+
+enum AdjustmentStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}

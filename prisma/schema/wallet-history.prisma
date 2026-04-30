@@ -1,13 +1,14 @@
 model WalletHistory {
-  id        Int       @id @default(autoincrement())
-  transactionId String @unique  
+  id              Int                     @id @default(autoincrement())
+  transactionId   String                  @unique
   transactionType WalletTransactionType
-  userId    Int
-  user      User      @relation(fields: [userId], references: [id])
-  type      String    // "credit" | "debit"
-  amount    Decimal
-  status    WalletTransactionStatus  
-  currency  String?
-  createdAt DateTime  @default(now())
+  userId          Int
+  user            User                    @relation(fields: [userId], references: [id])
+  type            String // "credit" | "debit"
+  amount          Decimal
+  status          WalletTransactionStatus
+  adjustmentId    Int?                    @unique
+  adjustment      WalletAdjustment?       @relation(fields: [adjustmentId], references: [id])
+  currency        String?
+  createdAt       DateTime                @default(now())
 }
-

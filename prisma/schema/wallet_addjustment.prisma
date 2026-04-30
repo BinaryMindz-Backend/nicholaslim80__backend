@@ -1,0 +1,37 @@
+model WalletAdjustment {
+    id Int @id @default(autoincrement())
+
+    raiderId Int?
+    userId   Int?
+
+    adminId Int
+
+    adjustmentAction AdjustmentAction
+    amount           Decimal          @db.Decimal(15, 2)
+
+    orderId String?
+
+    reason      AdjustmentReason
+    penaltyType PenaltyType?
+
+    additionalNotes String?
+
+    isConfirmedByAdmin Boolean @default(false)
+    isNotify           Boolean @default(true)
+
+    status AdjustmentStatus @default(PENDING)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    raider Raider? @relation(fields: [raiderId], references: [id], onDelete: Cascade)
+    user   User?   @relation(fields: [userId], references: [id])
+
+    admin Admin @relation(fields: [adminId], references: [id])
+
+    transaction WalletHistory?
+
+    @@index([raiderId])
+    @@index([userId])
+    @@index([adminId])
+}
