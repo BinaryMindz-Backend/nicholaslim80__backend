@@ -129,6 +129,7 @@ import { WalletAdjustmentModule } from './modules/superadmin_root/wallet_adjustm
     LiveMapFleetTrackModule,
     TransactionsModule,
     WalletModule,
+    WalletAdjustmentModule,
     ReportAndAnalyticsModule,
     RaiderRankModule,
     QueueModule,
@@ -139,7 +140,6 @@ import { WalletAdjustmentModule } from './modules/superadmin_root/wallet_adjustm
     PromoCodeModule,
     SurgePricingRuleModule,
     DriverTierModule,
-    WalletAdjustmentModule
 
 
   ],

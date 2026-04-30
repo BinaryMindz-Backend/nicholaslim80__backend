@@ -79,7 +79,10 @@ export enum Module {
   LIVE_ORDER_TRACKING='live_order_tracking',
   ORDER_HISTORY='order_history',
   NOTIFICATION_MANAGEMENT='notification_management',
-  DRIVER_TIER_ROLE='driver_tier_role',              
+  DRIVER_TIER_ROLE='driver_tier_role',   
+  ADMIN_RAIDER_WALLET='admin_raider_wallet',  
+  ADMIN_USER_WALLET='admin_user_wallet',             
+           
 
 
 
