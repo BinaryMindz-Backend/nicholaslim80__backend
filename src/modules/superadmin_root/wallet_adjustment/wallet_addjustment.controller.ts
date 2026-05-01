@@ -9,6 +9,7 @@ import type { IUser } from 'src/types';
 import { WalletAdjustmentService } from './wallet_addjustment.services';
 import { JwtAuthGuard } from 'src/guards/jwt.guard';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiResponses } from 'src/common/apiResponse';
 
 @Controller('admin/wallet')
 @ApiBearerAuth()
@@ -23,6 +24,6 @@ export class WalletAdjustmentController {
   async adjustWallet(@Body() dto: WalletAdjustmentDto, @CurrentUser() user: IUser) {
     const result = await this.walletService.adjustWallet(dto, user.id);
     if (result instanceof Error) throw result;
-    return result;
+    return ApiResponses.success(result, 'Wallet adjusted successfully');
   }
 }
