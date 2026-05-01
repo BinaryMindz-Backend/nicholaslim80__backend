@@ -430,7 +430,7 @@ export class CompetitionWorker implements OnModuleInit {
         const rankWeight = Number(config.rank_weight ?? 0);
         const ratingWeight = Number(config.rating_weight ?? 0);
         const followerWeight = Number(config.followers_weight ?? 0);
-
+         console.log("driver details--<", config);
         //  FETCH DRIVERS 
         const driverDetails = await Promise.all(
           drivers.map(async (driverId) => {
@@ -479,7 +479,7 @@ export class CompetitionWorker implements OnModuleInit {
             };
           }),
         );
-
+        console.log("driver details--<", driverDetails);
         const validDrivers = driverDetails.filter(
           (d): d is NonNullable<typeof d> => d !== null,
         );
@@ -537,24 +537,26 @@ export class CompetitionWorker implements OnModuleInit {
             order_status: OrderStatus.ONGOING,
           },
         });
+       
+       console.log('winner reaider-->', winnerRaider);
 
         //  NOTIFICATIONS
-        if (winnerRaider.user?.fcmToken) {
+        // if (winnerRaider.user) {
           await this.raiderGateway.notifyCompetitionWon(
             winner.driverId,
             orderId,
             winner.score,
             drivers.length,
           );
-        }
+        // }
 
-        if (order.user?.id && order.user?.fcmToken) {
+        // if (order.user?.id && order.user?.fcmToken) {
           await this.userGateway.notifyUserRiderAssigned(
-            order.user.id,
+            order.userId!,
             orderId,
             winner.driverId,
           );
-        }
+        // }
 
         const losers = drivers.filter(
           (id) => id !== winner.driverId,
