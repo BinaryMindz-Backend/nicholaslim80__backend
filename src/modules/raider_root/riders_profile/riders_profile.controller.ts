@@ -32,23 +32,16 @@ export class RidersProfileController {
     @CurrentUser() user: IUser,
   ) {
     try {
-      // Make sure user.id exists
       if (!user?.id) {
         return ApiResponses.error('Invalid user');
       }
 
-      // Call the service
       const result = await this.ridersProfileService.create(user.id, createRidersProfileDto);
-
-      // Success response
       return ApiResponses.success(result, 'Rider profile created successfully');
 
     } catch (error: any) {
-      // Log full error for debugging
       console.error('Error creating rider profile:', error);
       console.error('Stack:', error.stack);
-
-      // Handle known Prisma unique constraint error
       if (error?.code === 'P2002') {
         return ApiResponses.error('Rider with this information already exists');
       }
@@ -63,7 +56,6 @@ export class RidersProfileController {
   @ApiOperation({ summary: 'Rider profiles fetching (Admin only)' })
   @Auth()
   @RequirePermission(Module.RAIDER_JOIN, Permission.JUST_ADMIN)
-  // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   async findAll(@Query() query: GetRidersQueryDto) {
     try {

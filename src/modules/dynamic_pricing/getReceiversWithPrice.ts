@@ -10,7 +10,6 @@ import { getRoadDistance } from './distance.service';
 import { calculatePriceWithFee } from './pricing.service';
 import { SurgePricingRuleService } from '../superadmin_root/surge_pricing_rule/surge_pricing_rule.service';
 
-
 export async function getReceiversWithIndividualPrice(
   prisma: PrismaService,
   surgePricingRuleService: SurgePricingRuleService,
@@ -23,7 +22,6 @@ export async function getReceiversWithIndividualPrice(
   demand: number = 0,
   availableDrivers: number = 0,
 ): Promise<ReceiverWithPricing[]> {
-  
   const [deliveryType, vehicle] = await Promise.all([
     prisma.deliveryType.findFirst({
       where: { id: deliveryTypeId, is_active: true },
@@ -42,6 +40,7 @@ export async function getReceiversWithIndividualPrice(
   for (const receiver of receivers) {
     const { km: distanceKm } = await getRoadDistance(sender, receiver);
 
+    // Round trip: add return leg factor
     let finalDistanceKm = distanceKm;
     if (options?.isRoundTrip) {
       const returnFactor = options.returnFactor ?? 0.5;
@@ -62,7 +61,7 @@ export async function getReceiversWithIndividualPrice(
 
     receiversWithPricing.push({
       ...receiver,
-      distanceKm: distanceKm,           // Individual distance (pickup to this drop)
+      distanceKm,
       pricing: {
         basePrice: pricing.basePrice,
         deliveryTypeCharge: pricing.deliveryTypeCharge,
@@ -70,16 +69,12 @@ export async function getReceiversWithIndividualPrice(
         zoneFee: pricing.zoneFee,
         surgeAmount: pricing.surgeAmount,
         surgeMultiplier: pricing.surgeMultiplier,
-
         totalFee: pricing.totalFee,
         totalPrice: pricing.totalPrice,
-
         raiderEarnings: pricing.raiderEarnings,
         platformFee: pricing.platformFee,
-
-        // Metadata
         distance: distanceKm,
-        distanceKm: distanceKm,
+        distanceKm,
         isRoundTrip: options?.isRoundTrip ?? false,
         returnFactor: options?.returnFactor ?? 0,
       },
