@@ -72,103 +72,103 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
   
-  // update loaction in every move
-  @SubscribeMessage('rider:location')
-  async handleLocation(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { lat: number; lng: number; heading?: number },
-  ) {
-    const riderId = client.data.user?.id;
+    // update loaction in every move
+    @SubscribeMessage('rider:location')
+    async handleLocation(
+      @ConnectedSocket() client: Socket,
+      @MessageBody() payload: { lat: number; lng: number; heading?: number },
+    ) {
+      const riderId = client.data.user?.id;
 
-    if (!riderId) {
-      this.logger.warn('⚠️ Location update without riderId');
-      return;
-    }
+      if (!riderId) {
+        this.logger.warn('⚠️ Location update without riderId');
+        return;
+      }
 
-    this.logger.debug(
-      `📍 Location update | riderId=${riderId} | ${payload.lat},${payload.lng}`,
-    );
+      // this.logger.debug(
+      //   `📍 Location update | riderId=${riderId} | ${payload.lat},${payload.lng}`,
+      // );
 
-    try {
-      const result = await this.raiderService.updateLocation(
-        riderId,
-        payload.lat,
-        payload.lng,
-        payload.heading,
-      );
-
-      this.logger.debug(`💾 DB updated | riderId=${riderId}`);
-
-      const io = SocketIOAdapter.getServer();
-
-      io.of('/admin')
-        .to('admin:live-map')
-        .emit('admin:rider_location', {
+      try {
+        const result = await this.raiderService.updateLocation(
           riderId,
-          ...payload,
-        });
+          payload.lat,
+          payload.lng,
+          payload.heading,
+        );
 
-      this.logger.log(`📡 Broadcasted location | riderId=${riderId}`);
-    } catch (err) {
-      this.logger.error(
-        `❌ Location update failed | riderId=${riderId}`,
-        err.stack,
-      );
+        // this.logger.debug(`💾 DB updated | riderId=${riderId}`);
+
+        const io = SocketIOAdapter.getServer();
+
+        io.of('/admin')
+          .to('admin:live-map')
+          .emit('admin:rider_location', {
+            riderId,
+            ...payload,
+          });
+
+        // this.logger.log(`📡 Broadcasted location | riderId=${riderId}`);
+      } catch (err) {
+        this.logger.error(
+          `❌ Location update failed | riderId=${riderId}`,
+          err.stack,
+        );
+      }
     }
-  }
 
   
   // raider join throw socket to compition
   
- @SubscribeMessage('rider:join_competition')
-  async handleJoinCompetition(
-   @ConnectedSocket() client: Socket,
-   @MessageBody() payload: { orderId: number },
- ) {
-  const user = client.data.user;
-  if (!user) return;
-  
-  try {
-    console.log(`🏁 Rider ${user.raider.id} joining competition ${payload.orderId}`);
+  @SubscribeMessage('rider:join_competition')
+    async handleJoinCompetition(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { orderId: number },
+  ) {
+    const user = client.data.user;
+    if (!user) return;
     
-    const result = await this.orderService.driverCompitition(user, payload.orderId);
-    
-    // Send success response to the rider who joined
-    client.emit('rider:competition_joined', {
-      orderId: payload.orderId,
-      success: true,
-      competitorCount: result.updated?.compititor_id?.length || 0,
-      autoConfirmed: result.shouldAutoConfirm,
-      competitionStarted: !!result.updated.competition_started_at,
-      timeRemaining: result.timeRemaining || 10,
-      message: 'Successfully joined competition!',
-    });
+    try {
+      console.log(`🏁 Rider ${user.raider.id} joining competition ${payload.orderId}`);
+      
+      const result = await this.orderService.driverCompitition(user, payload.orderId);
+      
+      // Send success response to the rider who joined
+      client.emit('rider:competition_joined', {
+        orderId: payload.orderId,
+        success: true,
+        competitorCount: result.updated?.compititor_id?.length || 0,
+        autoConfirmed: result.shouldAutoConfirm,
+        competitionStarted: !!result.updated.competition_started_at,
+        timeRemaining: result.timeRemaining || 10,
+        message: 'Successfully joined competition!',
+      });
 
-    // ⭐ BROADCAST TO ALL COMPETITORS (including the new joiner)
-    if (!result.alreadyJoined && result.updated?.compititor_id) {
-      const competitorIds = result.updated.compititor_id;
-      
-      console.log(`📣 Broadcasting competitor count update to ${competitorIds.length} riders`);
-      
-      // Send update to ALL riders in the competition
-      for (const riderId of competitorIds) {
-        this.server.to(`rider_${riderId}`).emit('rider:competitor_joined', {
-          orderId: payload.orderId,
-          competitorCount: competitorIds.length,
-          newRiderId: user.raider.id,
-          message: `${competitorIds.length} riders competing now!`,
-        });
+      //  BROADCAST TO ALL COMPETITORS (including the new joiner)
+      if (!result.alreadyJoined && result.updated?.compititor_id) {
+        const competitorIds = result.updated.compititor_id;
+        
+        console.log(`📣 Broadcasting competitor count update to ${competitorIds.length} riders`);
+        
+        // Send update to ALL riders in the competition
+        for (const riderId of competitorIds) {
+          this.server.to(`rider_${riderId}`).emit('rider:competitor_joined', {
+            orderId: payload.orderId,
+            competitorCount: competitorIds.length,
+            newRiderId: user.raider.id,
+            message: `${competitorIds.length} riders competing now!`,
+          });
+        }
       }
+      
+    } catch (err) {
+      console.error('❌ Join error:', err.message);
+      client.emit('rider:competition_error', {
+        orderId: payload.orderId,
+        message: err.message || 'Failed to join competition',
+      });
     }
-    
-  } catch (err) {
-    console.error('❌ Join error:', err.message);
-    client.emit('rider:competition_error', {
-      orderId: payload.orderId,
-      message: err.message || 'Failed to join competition',
-    });
   }
-}
 
 
   // BROADCAST NEW COMPETITION: To all riders in service zone
@@ -201,9 +201,9 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // NOTIFY RIDER ASSIGNMENT: Winner notification
     async notifyRiderAssignment(riderId: number, orderId: number, score?: number) {
-      console.log(`📢 Notifying rider ${riderId} of ASSIGNMENT to order ${orderId}`); // ✅ Fixed
+      console.log(`📢 Notifying rider ${riderId} of ASSIGNMENT to order ${orderId}`); 
       
-      this.server.to(`rider_${riderId}`).emit('rider:order_assigned', { // ✅ Fixed
+      this.server.to(`rider_${riderId}`).emit('rider:order_assigned', { 
         orderId,
         message: '🎉 You have been assigned to this order!',
         score,

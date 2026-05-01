@@ -75,8 +75,9 @@ export class WalletAdjustmentDto {
   orderId?: string;
 
   // ================= REASON =================
-  @ApiProperty({ enum: AdjustmentReason })
+  @ApiPropertyOptional({ enum: AdjustmentReason })
   @IsEnum(AdjustmentReason)
+  @IsOptional()
   reason: AdjustmentReason;
 
   // ================= PENALTY =================
