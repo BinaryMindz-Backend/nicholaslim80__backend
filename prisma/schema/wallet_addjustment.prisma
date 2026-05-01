@@ -11,7 +11,7 @@ model WalletAdjustment {
 
     orderId String?
 
-    reason      AdjustmentReason
+    reason      AdjustmentReason?
     penaltyType PenaltyType?
 
     additionalNotes String?
