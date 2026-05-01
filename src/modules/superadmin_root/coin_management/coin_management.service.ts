@@ -7,6 +7,7 @@ import { CreateCoinDto } from './dto/create-coin_management.dto';
 import { CoinHistoryType, UserRole } from '@prisma/client';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
+import { GiftCoinsDto } from './dto/gift_coin.dto';
 
 @Injectable()
 export class CoinManagementService {
@@ -362,6 +363,105 @@ export class CoinManagementService {
       totalPages: Math.ceil(total / limit),
     },
   };
+}
+
+
+async giftCoins(dto: GiftCoinsDto, adminId: number) {
+  const { userId, coins, expiresInDays, reason, message } = dto;
+
+  // ================= USER VALIDATION =================
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  if (coins <= 0) {
+    throw new BadRequestException('Coins must be greater than 0');
+  }
+
+  return this.prisma.$transaction(async (tx) => {
+    // ================= UPDATE USER BALANCE =================
+    const updatedUser = await tx.user.update({
+      where: { id: userId },
+      data: {
+        total_coin_acc: { increment: coins },
+        current_coin_balance: { increment: coins },
+      },
+    });
+
+    // ================= COIN HISTORY =================
+    const history = await tx.coinHistory.create({
+      data: {
+        userId,
+        role_triggered: 'ADMIN_GIFT',
+        coin_acc_amount: coins,
+        edited_by: `ADMIN_${adminId}`,
+        type: 'GIFT',
+      },
+    });
+
+    // ================= ACCUMULATION SNAPSHOT =================
+    await tx.coinAccHistory.upsert({
+      where: { userId },
+      update: {
+        coin_amount: updatedUser.total_coin_acc,
+        role_triggered: 'ADMIN_GIFT',
+        edited_by: `ADMIN_${adminId}`,
+      },
+      create: {
+        userId,
+        coin_amount: updatedUser.total_coin_acc,
+        role_triggered: 'ADMIN_GIFT',
+        edited_by: `ADMIN_${adminId}`,
+      },
+    });
+
+    // ================= ACTIVITY LOG =================
+    await tx.activityLog.create({
+      data: {
+        action: 'CREATE',
+        entity_type: 'COIN_GIFT',
+        entity_id: history.id,
+        user_id: adminId,
+        meta: {
+          userId,
+          coins,
+          expiresInDays,
+          reason,
+        },
+      },
+    });
+
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + expiresInDays);
+
+    // ================= NOTIFICATION =================
+    if (user.fcmToken) {
+      await this.emailQueueService.queuePushNotification({
+        userId: user.id,
+        fcmToken: user.fcmToken,
+        title: '🎁 Coins Received',
+        body:
+          message ??
+          `Hello ${user.username}, you've been gifted ${coins} coins!`,
+      });
+    }
+
+    return {
+      message: 'Coins gifted successfully',
+      data: {
+        userId,
+        username: user.username,
+        giftedCoins: coins,
+        currentBalance: updatedUser.current_coin_balance,
+        totalAccumulated: updatedUser.total_coin_acc,
+        expiresAt: expiryDate,
+      },
+    };
+  });
 }
 
 

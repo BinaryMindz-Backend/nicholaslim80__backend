@@ -19,6 +19,7 @@ import { RequirePermission } from 'src/rbac/decorators/require-permission.decora
 import { Permission, Module } from 'src/rbac/rbac.constants';
 import { CreateCoinDto } from './dto/create-coin_management.dto';
 import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
+import { GiftCoinsDto } from './dto/gift_coin.dto';
 
 @Controller('coin-management')
 export class CoinManagementController {
@@ -220,6 +221,12 @@ export class CoinManagementController {
       return ApiResponses.error(error);
     }
   }
-  // 
-
+  @Post('gift')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.CUSTOMER_REWARDS, Permission.READ)
+  async giftCoins(@Body() dto: GiftCoinsDto, @CurrentUser() user: IUser) {
+    const adminId = user.id;
+    return await this.coinManagementService.giftCoins(dto, adminId);
+  }
 }
