@@ -1020,41 +1020,33 @@ export class OrderService {
       };
     });
   }
-  // 
-  private async calculateDriverFee(orderId: number) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        orderStops: true,
-        serviceZone: true,
-      },
-    });
-    if (!order) throw new NotFoundException('Order not found');
-    if (!order.serviceZone) throw new NotFoundException('Service area not found');
+  // calculate driver fee
+  private async calculateDriverFee(
+    serviceZoneId: number
+    ): Promise<number> {
 
-    // Sum standard commission fees
-    const standardCommissionRates = await this.prisma.standardCommissionRate.findMany({
-      where: { service_area_id: order.serviceZoneId }
-    });
-    const standardCommissionFee = standardCommissionRates.reduce(
-      (acc, rate) => acc + rate.commission_rate_delivery_fee,
-      0
+    const [standardCommissions, deductions] = await Promise.all([
+        this.prisma.standardCommissionRate.findMany({
+        where: { 
+            service_area_id: serviceZoneId,
+        }
+        }),
+        this.prisma.raiderDeductionFee.findMany({
+        })
+    ]);
+
+    const commissionTotal = standardCommissions.reduce(
+        (sum, rate) => sum + Number(rate.commission_rate_delivery_fee ?? 0), 
+        0
     );
 
-    // Sum deductions
-    const deductionFees = await this.prisma.raiderDeductionFee.findMany();
-    const deductionFeeAmount = deductionFees.reduce(
-      (acc, fee) => acc + fee.amount,
-      0
+    const deductionTotal = deductions.reduce(
+        (sum, fee) => sum + Number(fee.amount ?? 0), 
+        0
     );
 
-    // Calculate total, clamp to zero
-    const totalFee = Math.max(0, standardCommissionFee + deductionFeeAmount);
-    return totalFee;
+    return commissionTotal + deductionTotal;
   }
-
-
-
 
   // cancle order 
   async cancelOrder(orderId: number, userId: number, reason?: string) {
@@ -1361,7 +1353,6 @@ export class OrderService {
     })
     return x;
   }
-
 
 
   /**
@@ -3959,21 +3950,22 @@ export class OrderService {
     if (!sender) return;
 
     // send notification to each rider
-    favRaiders.map((rider) => rider.id).forEach(async (riderId) => {
+    for (const favRaider of favRaiders) {
       const rider = await this.prisma.user.findFirst({
         where: {
-          id: riderId
-        }
+          id: favRaider.id,
+        },
       });
-      if (!rider) return;
+      if (!rider) continue;
 
       await this.emailQueueService.queuePushNotification({
         userId: rider.id,
         fcmToken: rider.fcmToken!,
+        type: 'ORDER_UPDATE',
         title: 'Incoming Order',
         body: `You have a new order from your follower ${sender.username} orderID: ${order.id}`,
       });
-    })
+    }
 
   }
 

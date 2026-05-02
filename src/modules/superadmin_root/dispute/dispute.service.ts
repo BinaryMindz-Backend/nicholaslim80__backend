@@ -286,6 +286,7 @@ export class DisputeService {
         await this.emailQueueService.queuePushNotification({
           userId: order.user.id,
           fcmToken: order.user.fcmToken,
+          type: "DISPUTE_RESOLVED",
           title: 'Dispute Resolved',
           body: `Refund: ${userAmount}`,
         });
@@ -295,6 +296,7 @@ export class DisputeService {
         await this.emailQueueService.queuePushNotification({
           userId: rider.id,
           fcmToken: rider.fcmToken,
+          type: "DISPUTE_RESOLVED",
           title: 'Dispute Resolved',
           body: `Deducted: ${riderAmount}`,
         });

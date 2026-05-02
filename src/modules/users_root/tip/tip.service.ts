@@ -176,32 +176,36 @@ export class TipService {
       });
 
       // 8. Send notifications (outside transaction - async)
-      setImmediate(async () => {
-        try {
-          // Notify raider
-          if (tip.raider?.user?.fcmToken) {
-            await this.emailQueueService.queuePushNotification({
-              userId: tip.raider.user.id,
-              fcmToken: tip.raider.user.fcmToken,
-              title: '🎉 You received a tip!',
-              body: `${tip.user.username} tipped you ৳${dto.amount} for order #${orderId}`,
-            });
-            console.log(`📱 Tip notification sent to raider ${tip.raider.user.id}`);
-          }
+      setImmediate(() => {
+        (async () => {
+          try {
+            // Notify raider
+            if (tip.raider?.user?.fcmToken) {
+              await this.emailQueueService.queuePushNotification({
+                userId: tip.raider.user.id,
+                fcmToken: tip.raider.user.fcmToken,
+                type: "TIP_RECEIVED",
+                title: '🎉 You received a tip!',
+                body: `${tip.user.username} tipped you ৳${dto.amount} for order #${orderId}`,
+              });
+              console.log(`📱 Tip notification sent to raider ${tip.raider.user.id}`);
+            }
 
-          // Notify user (confirmation)
-          if (tip.user?.fcmToken) {
-            await this.emailQueueService.queuePushNotification({
-              userId: tip.user.id,
-              fcmToken: tip.user.fcmToken,
-              title: '✅ Tip sent successfully',
-              body: `You tipped ${tip.raider.user.username} ৳${dto.amount}`,
-            });
-            console.log(`📱 Tip confirmation sent to user ${tip.user.id}`);
+            // Notify user (confirmation)
+            if (tip.user?.fcmToken) {
+              await this.emailQueueService.queuePushNotification({
+                userId: tip.user.id,
+                fcmToken: tip.user.fcmToken,
+                type: "TIP_SENT",
+                title: '✅ Tip sent successfully',
+                body: `You tipped ${tip.raider.user.username} ৳${dto.amount}`,
+              });
+              console.log(`📱 Tip confirmation sent to user ${tip.user.id}`);
+            }
+          } catch (error) {
+            console.error('Failed to send tip notifications:', error);
           }
-        } catch (error) {
-          console.error('Failed to send tip notifications:', error);
-        }
+        })();
       });
 
       return {

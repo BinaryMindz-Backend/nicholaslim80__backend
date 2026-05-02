@@ -266,4 +266,12 @@ export class AuthController {
   }
 
   // 
+  @Post('reward/share')
+  @Auth()
+  @ApiBearerAuth()
+  async rewardShare(@CurrentUser() user: IUser) {
+    return await this.authService.rewardSocialShare(user.id);
+  }
+
+  // 
 }

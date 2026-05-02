@@ -1,5 +1,5 @@
 import { PrismaService } from 'src/core/database/prisma.service';
-import {BadRequestException } from '@nestjs/common';
+import { NotAcceptableException } from '@nestjs/common';
 import { CoinEvent, CoinHistoryType } from '@prisma/client';
 
 export class CoinUtils {
@@ -11,45 +11,37 @@ export class CoinUtils {
    * @param coinAmount - number of coins to add
    * @param event - CoinEvent enum value
    */
-  
-  async earnCoin(userId:number, coinAmount: number, event: CoinEvent) {
-    if (coinAmount < 0) throw new BadRequestException('Coin amount must be positive');
-    // const coin = await this.prisma.coin.findFirst({
-    //        where:{
-    //           key:event
-    //        }
-    // }) 
-    // 
-    // if(!coin){
-    //       throw new NotAcceptableException("Coin key not found")
-    // }
-    // 
-    const baseCoin = await this.prisma.coin.aggregate({
-      _avg: { coin_value_in_cent: true },
+    async earnCoin(userId: number, coinAmount: number, event: CoinEvent) {
+    if (coinAmount <= 0) return; 
+
+    const coin = await this.prisma.coin.findFirst({
+      where: { key: event, is_active: true },
     });
-    const basePrice = Number(baseCoin._avg.coin_value_in_cent ?? 0);
+
+    if (!coin) throw new NotAcceptableException(`Coin config not found for: ${event}`);
+
+    const basePrice = Number(coin.coin_value_in_cent ?? 0);
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data: { total_coin_acc: { increment: coinAmount } ,current_coin_balance: { increment: coinAmount } },
+      data: {
+        total_coin_acc:        { increment: coinAmount },
+        current_coin_balance:  { increment: coinAmount },
+      },
     });
 
     await this.prisma.coinHistory.create({
       data: {
-        userId: userId,
-        role_triggered: event,
+        userId,
+        role_triggered: event,                 
         coin_acc_amount: coinAmount,
-        type: CoinHistoryType.ACCUMULATION,
+        type: CoinHistoryType.ACCUMULATION,       
         edited_by: 'SYSTEM',
       },
     });
 
-    return {
-      updatedUser,
-      earnedAmountInCent: coinAmount * basePrice,
-    };
+    return { updatedUser, earnedAmountInCent: coinAmount * basePrice };
   }
-
 
 //   
   }

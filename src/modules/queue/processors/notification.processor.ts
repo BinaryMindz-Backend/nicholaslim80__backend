@@ -44,12 +44,13 @@ export class NotificationProcessor extends WorkerHost {
 
   // GENERAL NOTIFICATIONS  
   private async handlePushNotification(job: Job) {
-    const { userId, fcmToken, title, body } = job.data;
-
+    const { userId, fcmToken, type, title, body } = job.data;
+    // 
     try {
       await this.notifyService.sendNotificationByType(
         'PUSH_NOTIFICATION',
         [{ fcmToken }],
+        type,
         title,
         body,
       );
@@ -57,7 +58,7 @@ export class NotificationProcessor extends WorkerHost {
         const notification = await this.prisma.notification.create({
             data: {
               userId,
-              type: job.data.status,
+              type,
               title,
               orderId: job.data.orderId,
               message: body,

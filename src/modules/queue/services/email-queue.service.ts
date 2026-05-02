@@ -101,6 +101,7 @@ export class EmailQueueService {
   async queuePushNotification(data: {
     userId: number;
     fcmToken: string;
+    type: string;
     title: string;
     body: string;
   }) {
