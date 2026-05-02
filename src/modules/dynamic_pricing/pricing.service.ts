@@ -75,7 +75,6 @@ export async function calculatePriceWithFee(
   /* ---------------- Calculate Driver & Platform Split ---------------- */
   // Get platform commission + deductions for this order
   const platformFee = await calculateDriverFeeForOrder(prisma, zone.id);   
-  console.log("platform fee", platformFee)
   // Raider Earnings = Total Customer Payment - Platform Fee
   const raiderEarnings = price - platformFee;
 
@@ -111,7 +110,6 @@ async function calculateDriverFeeForOrder(
         prisma.raiderDeductionFee.findMany({
         })
     ]);
-    console.log(standardCommissions, deductions);
     const commissionTotal = standardCommissions.reduce(
         (sum, rate) => sum + Number(rate.commission_rate_delivery_fee ?? 0), 
         0

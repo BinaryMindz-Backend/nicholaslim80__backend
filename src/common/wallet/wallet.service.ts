@@ -452,6 +452,7 @@ export class WalletService {
             await this.emailQueueService.queuePushNotification({
               userId,
               fcmToken: user?.fcmToken || '',
+              type: "FUNDS_FAILURE",
               title: "Add Money Failed",
               body: `Your add money of ${Number(intent.metadata.amount) / 100} ${intent.metadata?.currency?.toUpperCase()} failed. Please try again.`,
             });
@@ -491,6 +492,7 @@ export class WalletService {
             await this.emailQueueService.queuePushNotification({
               userId,
               fcmToken: user?.fcmToken || '',
+              type: "FUNDS_FAILURE",
               title: "Order Payment Failed",
               body: `Your order payment of ${Number(intent.metadata?.amount) / 100} ${intent.metadata?.currency?.toUpperCase()} failed. Please try again.`,
             });
@@ -627,6 +629,7 @@ export class WalletService {
         await this.emailQueueService.queuePushNotification({
           userId,
           fcmToken: user?.fcmToken || '',
+          type: "FUNDS_CREDITED",
           title: "Add Money Successful",
           body: `Your add money of ${amount} ${intent.metadata.currency?.toUpperCase()} was successful.`,
         });
@@ -780,6 +783,7 @@ export class WalletService {
         await this.emailQueueService.queuePushNotification({
           userId,
           fcmToken: order.user?.fcmToken || '',
+          type: "ORDER_UPDATE",
           title: "Order Placed Successfully",
           body: `Your order #${orderId} of ${Number(intent.metadata.amount) / 100} ${intent.metadata?.currency?.toUpperCase()} was placed successfully.`,
         });

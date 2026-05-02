@@ -215,8 +215,9 @@ export class CoinManagementService {
       await this.emailQueueService.queuePushNotification({
         userId: user.id,
         fcmToken: userRecord.fcmToken,
+        type: "COIN_REDEEMED",
         title: 'Coins Redeemed',
-        body: `You used ${coinAmount} coins`,
+        body: `You have redeemed ${coinAmount} coins for a value of ${coinAmount * basePrice} cents.`,
       });
     }
 
@@ -277,6 +278,7 @@ export class CoinManagementService {
         await this.emailQueueService.queuePushNotification({
           userId: userId,
           fcmToken: userExit.fcmToken,
+          type: "COIN_CREDITED",
           title: "Coin Accumulated",
           body: "You have accumulated " + coinExit.coin_amount + " coins",
         })
@@ -443,6 +445,7 @@ async giftCoins(dto: GiftCoinsDto, adminId: number) {
       await this.emailQueueService.queuePushNotification({
         userId: user.id,
         fcmToken: user.fcmToken,
+        type: "COIN_CREDITED",
         title: '🎁 Coins Received',
         body:
           message ??

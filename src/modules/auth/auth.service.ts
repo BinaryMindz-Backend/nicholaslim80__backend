@@ -13,6 +13,8 @@ import { UsersService } from '../users_root/users/users.service';
 import { OtpService } from './otp.service';
 import { LoginDto } from './dto/login.dto';
 import type { IUser } from 'src/types';
+import { CoinEvent } from '@prisma/client';
+import { CoinUtils } from 'src/utils/coin.utils';
 @Injectable()
 export class AuthService {
   constructor(
@@ -222,9 +224,6 @@ export class AuthService {
 
   // reset password
   async forgotResetPassword(email: string, phone: string, newPassword: string) {
-    // 
-    // console.log(phone, newPassword);
-    // 
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [{ email }, { phone }],
@@ -283,30 +282,55 @@ export class AuthService {
     return { message: 'Password reset successful' };
   }
   // 
+  async rewardSocialShare(userId: number) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
 
-  private async handlePostLogin(user: IUser, req: any) {
-      const existingSession = await this.prisma.userLogin.findFirst({
-          where: {
-            userId: user.id,
-            logoutAt: null,
-          },
-        });
+    // Prevent duplicate reward on the same day
+    const alreadyRewarded = await this.prisma.coinHistory.findFirst({
+      where: {
+        userId,
+        type: CoinEvent.SHARE_ON_SOCIAL,
+        created_at: { gte: startOfDay, lte: endOfDay },
+      },
+    });
 
-        // If already logged in → do nothing
-        if (existingSession) return;
+    if (alreadyRewarded) {
+      return { rewarded: false, reason: 'Already rewarded for sharing today' };
+    }
 
-        // Create new session
-        await this.prisma.userLogin.create({
-          data: {
-            userId: user.id,
-            ip: req.ip,
-            device: req.headers['user-agent'] || 'unknown',
-            loginAt: new Date(),
-          },
-        });
+    const shareCoin = await this.prisma.coin.findFirst({
+      where: { key: CoinEvent.SHARE_ON_SOCIAL, is_active: true },
+    });
 
-    // 
-    await this.loginRewardServices.rewardDailyLogin(user.id);
+    const rewardAmount = Number(shareCoin?.coin_amount) || 0;
+
+    if (rewardAmount > 0) {
+      const coinUtils = new CoinUtils(this.prisma as any);
+      await coinUtils.earnCoin(userId, rewardAmount, CoinEvent.SHARE_ON_SOCIAL);
+    }
+
+    return { rewarded: true, coins: rewardAmount };
   }
 
+  private async handlePostLogin(user: IUser, req?: any) {
+    const existingSession = await this.prisma.userLogin.findFirst({
+        where: { userId: user.id, logoutAt: null },
+    });
+
+    if (!existingSession) {
+        await this.prisma.userLogin.create({
+            data: {
+                userId: user.id,
+                ip: req?.ip ?? 'unknown',
+                device: req?.headers?.['user-agent'] ?? 'unknown',
+                loginAt: new Date(),
+            },
+        });
+    }
+
+    await this.loginRewardServices.rewardDailyLogin(user.id);
+  }
 }

@@ -282,6 +282,7 @@ export class RidersProfileService {
         await this.emailQueueService.queuePushNotification({
             userId: r.userId,
             fcmToken: r.user.fcmToken,
+            type:"ACCOUNT_UPDATE",
             title:
               verify === RaiderVerification.APPROVED
                 ? 'Account Approved 🎉'
@@ -431,6 +432,7 @@ export class RidersProfileService {
       await this.emailQueueService.queuePushNotification({
         userId: res.userId,
         fcmToken: res.user.fcmToken,
+        type: "ACCOUNT_UPDATE",
         title: 'Account Suspended',
         body: `Your Zipbee raider account has been suspended for ${dto.suspendedDuration?.toString()}. Reason: ${dto.suspensionReason}`,
       });
@@ -491,6 +493,7 @@ export class RidersProfileService {
        await this.emailQueueService.queuePushNotification({
           userId: res.userId,
           fcmToken: res.user.fcmToken,
+          type: "ACCOUNT_UPDATE",
           title: 'Account Reactivated',
           body: 'Your Zipbee account is now active again. You can resume your activities.',
         });

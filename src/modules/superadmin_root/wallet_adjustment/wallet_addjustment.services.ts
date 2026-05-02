@@ -122,6 +122,9 @@ async adjustWallet(dto: WalletAdjustmentDto, adminId: number) {
       await this.emailQueue.queuePushNotification({
         userId: targetUser.id,
         fcmToken: targetUser.fcmToken,
+        type: dto.adjustmentAction === AdjustmentAction.ADD_CREDIT_FUNDS
+            ? `Funds credited`
+            : `Funds debited`,
         title: 'Wallet Updated',
         body:
           dto.adjustmentAction === AdjustmentAction.ADD_CREDIT_FUNDS
