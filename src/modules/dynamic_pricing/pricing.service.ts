@@ -1,17 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { BadRequestException } from '@nestjs/common';
-import {PricingBreakdown, CalculatePriceParams } from './types';
+import { PricingBreakdown, CalculatePriceParams } from './types';
 import { evaluateRule } from './fee.helper';
 import { PrismaService } from 'src/core/database/prisma.service';
 
-
-
-
-// order fee
 export async function calculatePriceWithFee(
   params: CalculatePriceParams
 ): Promise<PricingBreakdown> {
-  
   const {
     prisma,
     surgePricingRuleService,
@@ -19,28 +12,35 @@ export async function calculatePriceWithFee(
     vehicle,
     deliveryType,
     zone,
-    orderDate,
+    // orderDate,
     demand = 0,
     availableDrivers = 0,
   } = params;
 
   /* ---------------- Base Cost ---------------- */
-  const distance = distanceKm - Number(vehicle.base_distance ?? 0);
+  //
+  const extraDistance = Math.max(0, distanceKm - Number(vehicle.base_distance ?? 0));
   const basePrice = Number(vehicle.base_price ?? 0) +
-                    Number(vehicle.per_km_price ?? 0) * distance;
+    Number(vehicle.per_km_price ?? 0) * extraDistance;
 
-  const deliveryTypeCharge = basePrice * Number(deliveryType.price_multiplier ?? 1);
-
-  let price = basePrice + deliveryTypeCharge;
+  // deliveryTypeCharge is the delta, price = basePrice × multiplier
+  const multiplier = Number(deliveryType.price_multiplier ?? 1);
+  const deliveryTypeCharge = basePrice * multiplier;   // final scaled price
+  let price = deliveryTypeCharge;                       
 
   /* ---------------- User Fees ---------------- */
-  const context = { delivery_type: deliveryType.name, order_amount: price, distance };
+  const context = {
+    delivery_type: deliveryType.name,
+    order_amount: price,
+    distance: extraDistance,
+  };
+
   const fees = await prisma.userFeeStructure.findMany({
     where: { is_active: true, service_area_id: zone.id },
   });
 
-  const matchedFees = fees.filter(fee => 
-    fee.applies_to === 'ALL_ORDERS' || evaluateRule(fee, context)
+  const matchedFees = fees.filter(
+    (fee) => fee.applies_to === 'ALL_ORDERS' || evaluateRule(fee, context)
   );
 
   const userFeeTotal = matchedFees.reduce((sum, fee) => sum + Number(fee.amount), 0);
@@ -72,12 +72,12 @@ export async function calculatePriceWithFee(
     console.error('Surge calculation failed:', error);
   }
 
-  /* ---------------- Calculate Driver & Platform Split ---------------- */
-  // Get platform commission + deductions for this order
-  const platformFee = await calculateDriverFeeForOrder(prisma, zone.id);   
-  // Raider Earnings = Total Customer Payment - Platform Fee
-  const raiderEarnings = price - platformFee;
+  /* ---------------- Platform Fee & Raider Earnings ---------------- */
+  // Pass final price so commission % is applied correctly
+  const platformFee = await calculateDriverFeeForOrder(prisma, zone.id, price);
 
+  const raiderEarnings = price - platformFee;
+  
   /* ---------------- Final Result ---------------- */
   return {
     basePrice: Number(basePrice.toFixed(2)),
@@ -86,39 +86,40 @@ export async function calculatePriceWithFee(
     zoneFee: Number(zoneFee.toFixed(2)),
     surgeAmount: Number(surgeAmount.toFixed(2)),
     surgeMultiplier: Number(surgeMultiplier.toFixed(4)),
-
     totalFee: Number((userFeeTotal + zoneFee + surgeAmount).toFixed(2)),
-    totalPrice: Number(price.toFixed(2)),           // Customer pays
-
-    raiderEarnings: Number(Math.max(0, raiderEarnings).toFixed(2)), // Driver earns
-    platformFee: Number(platformFee.toFixed(2)),    // Platform earns
+    totalPrice: Number(price.toFixed(2)),
+    raiderEarnings: Number(Math.max(0, raiderEarnings).toFixed(2)),
+    platformFee: Number(platformFee.toFixed(2)),
   };
-    }
+}
 
-// driver fee
+// Filter deductions by zone | Apply commission as % of order price
 async function calculateDriverFeeForOrder(
-    prisma: PrismaService, 
-    serviceZoneId: number
-    ): Promise<number> {
-  
-    const [standardCommissions, deductions] = await Promise.all([
-        prisma.standardCommissionRate.findMany({
-        where: { 
-            service_area_id: serviceZoneId,
-        }
-        }),
-        prisma.raiderDeductionFee.findMany({
-        })
-    ]);
-    const commissionTotal = standardCommissions.reduce(
-        (sum, rate) => sum + Number(rate.commission_rate_delivery_fee ?? 0), 
-        0
-    );
+  prisma: PrismaService,
+  serviceZoneId: number,
+  orderPrice: number,  
+ ): Promise<number> {
+  const [standardCommissions, deductions] = await Promise.all([
+    prisma.standardCommissionRate.findMany({
+      where: { service_area_id: serviceZoneId },
+    }),
+    // Filter deductions by zone to prevent applying irrelevant fees
+    prisma.raiderDeductionFee.findMany({
+      // where: { service_area_id: serviceZoneId },
+    }),
+  ]);
 
-    const deductionTotal = deductions.reduce(
-        (sum, fee) => sum + Number(fee.amount ?? 0), 
-        0
-    );
+  // commission_rate_delivery_fee is a %, apply against orderPrice
+  const commissionTotal = standardCommissions.reduce(
+    (sum, rate) =>
+      sum + (orderPrice * Number(rate.commission_rate_delivery_fee ?? 0)) / 100,
+    0,
+  );
 
-    return commissionTotal + deductionTotal;
-  }
+  const deductionTotal = deductions.reduce(
+    (sum, fee) => sum + Number(fee.amount ?? 0),
+    0,
+  );
+
+  return commissionTotal + deductionTotal;
+}
