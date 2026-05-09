@@ -59,7 +59,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy package files and install deps
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile && pnpm store prune
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy prisma and source code
 COPY prisma ./prisma
