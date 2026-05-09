@@ -2146,8 +2146,6 @@ export class OrderService {
   // admin only
   async findUserOrder(
     userId: number,
-    // page: number = 1,
-    // limit: number = 20,
     filterDto: OrderFilterDto
   ) {
 
@@ -2166,7 +2164,7 @@ export class OrderService {
       this.prisma.order.findMany({
         where,
         orderBy: { created_at: 'desc' },
-        include: { user: true },
+        include: { user: true , delivery_type:true},
         skip,
         take: limit,
       }),
