@@ -634,7 +634,6 @@ export class OrderController {
     
   @Get('web/user-history')
   @Auth()
-  // @Roles( UserRole.SUPER_ADMIN)
   @RequirePermission(Module.ORDER_HISTORY, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get logged-in user orders (admin only)' })
