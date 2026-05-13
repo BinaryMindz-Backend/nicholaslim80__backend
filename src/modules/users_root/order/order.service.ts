@@ -1481,7 +1481,8 @@ export class OrderService {
     const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
     const totalFee = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalFee, 0);
     const totalDistance = receiversWithPrice.reduce((sum, r) => sum + r.distanceKm, 0);
-    
+    const totalTime = receiversWithPrice.reduce((sum, r) => sum + r.pricing.min!, 0);
+
 
     // Step 4: Create order in transaction
     const result = await this.prisma.$transaction(async (tx) => {
@@ -1499,6 +1500,7 @@ export class OrderService {
           total_cost: parseFloat(totalCost.toFixed(2)),
           total_fee: parseFloat(totalFee.toFixed(2)),
           total_distance: parseFloat(totalDistance.toFixed(2)),
+          total_time:totalTime,
           isFixed: payload.isFixed ?? false,
           order_status: OrderStatus.PROGRESS,
         },
@@ -1595,7 +1597,9 @@ export class OrderService {
             latitude: d.latitude,
             longitude: d.longitude,
             additionalInfo: d.note_to_driver ?? null,
-
+            calculated_distance:pricing.distanceKm,
+            calculated_time:pricing.pricing.min,
+            calculated_time_txt:pricing.pricing.min_text,
             payment: {
               create: {
                 payType: PayType.COD,
