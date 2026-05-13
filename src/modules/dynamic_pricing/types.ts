@@ -26,6 +26,8 @@ export interface PricingBreakdown {
   totalPrice: number;
   distance?: number;
   distanceKm?: number;
+  min?:       number; 
+  min_text?:   string;
   isRoundTrip?: boolean;
   returnFactor?: number;
     // Driver & Platform breakdown

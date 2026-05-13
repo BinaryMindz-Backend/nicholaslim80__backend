@@ -38,7 +38,7 @@ export async function getReceiversWithIndividualPrice(
   const receiversWithPricing: ReceiverWithPricing[] = [];
 
   for (const receiver of receivers) {
-    const { km: distanceKm } = await getRoadDistance(sender, receiver);
+    const { km: distanceKm , min, min_text } = await getRoadDistance(sender, receiver);
 
     // Round trip: add return leg factor
     let finalDistanceKm = distanceKm;
@@ -75,6 +75,8 @@ export async function getReceiversWithIndividualPrice(
         platformFee: pricing.platformFee,
         distance: distanceKm,
         distanceKm,
+        min,
+        min_text,
         isRoundTrip: options?.isRoundTrip ?? false,
         returnFactor: options?.returnFactor ?? 0,
       },

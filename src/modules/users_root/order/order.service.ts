@@ -1598,6 +1598,7 @@ export class OrderService {
             latitude: d.latitude,
             longitude: d.longitude,
             additionalInfo: d.note_to_driver ?? null,
+
             payment: {
               create: {
                 payType: PayType.COD,
@@ -3065,103 +3066,6 @@ export class OrderService {
 
 
   // **HOT CAKE: recalculate order price with individual drop pricing
-  //  private async recalculateOrderPrice(orderId: number) {
-  //     const order = await this.prisma.order.findUnique({
-  //       where: { id: orderId },
-  //       include: {
-  //         orderStops: {
-  //           include: { payment: true },
-  //           orderBy: { sequence: 'asc' },
-  //         },
-  //       },
-  //     });
-
-  //     if (!order) return;
-
-  //     const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
-  //     const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
-
-  //     // No pickup or no drops yet — zero everything out
-  //     if (!pickupStop || dropStops.length === 0) {
-  //       await this.prisma.order.update({
-  //         where: { id: orderId },
-  //         data: {
-  //           total_cost: 0,
-  //           total_fee: 0,
-  //           total_raider_earnings: 0,
-  //           total_distance: 0,
-  //         },
-  //       });
-  //       return { totalCost: 0, totalFee: 0, totalRaiderEarnings: 0, totalDistance: 0 };
-  //     }
-
-  //     const zone = await this.serviceZone.findZoneByPoint(
-  //       pickupStop.latitude,
-  //       pickupStop.longitude,
-  //     );
-
-  //     if (!zone) throw new BadRequestException('Pickup address outside service zone');
-
-  //     const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
-  //     const receivers = dropStops.map((s) => ({ lat: s.latitude, lng: s.longitude }));
-
-  //     const [currentDemand, availableDrivers] = await Promise.all([
-  //       this.getCurrentDemand(zone.id),
-  //       this.getAvailableDrivers(zone.id),
-  //     ]);
-
-  //     const pricingResults = await getReceiversWithIndividualPrice(
-  //       this.prisma,
-  //       this.surgePricingRuleService,
-  //       sender,
-  //       receivers,
-  //       order.delivery_type_id,
-  //       order.vehicle_type_id ?? 1,
-  //       zone,
-  //       { isRoundTrip: order.route_type === RouteType.ROUND },
-  //       currentDemand,
-  //       availableDrivers,
-  //     );
-
-  //     const totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
-  //     const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
-  //     const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
-  //     const totalDistance = pricingResults.reduce((sum, r) => sum + r.distanceKm, 0);
-
-  //     // Persist totals to order
-  //     await this.prisma.order.update({
-  //       where: { id: orderId },
-  //       data: {
-  //         total_cost: parseFloat(totalCost.toFixed(2)),
-  //         total_fee: parseFloat(totalFee.toFixed(2)),
-  //         total_raider_earnings: parseFloat(totalRaiderEarnings.toFixed(2)),
-  //         total_distance: parseFloat(totalDistance.toFixed(2)),
-  //         serviceZoneId: zone.id,
-  //       },
-  //     });
-
-  //     // Persist per-drop payment amounts
-  //     await this.prisma.$transaction(
-  //       dropStops.map((drop, index) => {
-  //         const pricing = pricingResults[index];
-  //         return this.prisma.stopPayment.update({
-  //           where: { orderStopId: drop.id },
-  //           data: {
-  //             amount: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
-  //           },
-  //         });
-  //       }),
-  //     );
-
-  //     return {
-  //       totalCost: parseFloat(totalCost.toFixed(2)),
-  //       totalFee: parseFloat(totalFee.toFixed(2)),
-  //       totalRaiderEarnings: parseFloat(totalRaiderEarnings.toFixed(2)),
-  //       totalDistance: parseFloat(totalDistance.toFixed(2)),
-  //     };
-  //   }
-
-
   private async recalculateOrderPrice(orderId: number) {
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
@@ -3223,6 +3127,7 @@ export class OrderService {
       const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
       const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
       const totalDistance = pricingResults.reduce((sum, r) => sum + r.distanceKm, 0);
+      const tTime = pricingResults.reduce((sum, r) => sum + r.pricing.min!, 0);
 
       // Persist order totals
       await this.prisma.order.update({
@@ -3232,6 +3137,7 @@ export class OrderService {
           total_fee: parseFloat(totalFee.toFixed(2)),
           total_raider_earnings: parseFloat(totalRaiderEarnings.toFixed(2)),
           total_distance: parseFloat(totalDistance.toFixed(2)),
+          total_time: tTime,
           serviceZoneId: zone.id,
         },
       });
@@ -3244,6 +3150,8 @@ export class OrderService {
             data: {
               calculated_price: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
               calculated_distance: parseFloat(pricing.distanceKm.toFixed(2)),
+              calculated_time:pricing.pricing.min,
+              calculated_time_txt:pricing.pricing.min_text,
               payment: {
                 update: {
                   amount: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
@@ -3259,6 +3167,7 @@ export class OrderService {
         totalFee: parseFloat(totalFee.toFixed(2)),
         totalRaiderEarnings: parseFloat(totalRaiderEarnings.toFixed(2)),
         totalDistance: parseFloat(totalDistance.toFixed(2)),
+        total_time: tTime,
       };
     }
 
