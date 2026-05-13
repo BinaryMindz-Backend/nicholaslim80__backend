@@ -28,14 +28,15 @@ model OrderStop {
   is_skiped         Boolean @default(false)
 
   // price snapshot
-  calculated_price    Decimal? @default(0) @db.Decimal(12, 2)
-  calculated_distance Decimal? @default(0) @db.Decimal(10, 4)
-
+  calculated_price    Decimal?  @default(0) @db.Decimal(12, 2)
+  calculated_distance Decimal?  @default(0) @db.Decimal(10, 4)
+  calculated_time     Int?
+  calculated_time_txt String?
   // Timestamps
-  proceedAt     DateTime?
-  arrivedStepAt DateTime?
-  loadedAt      DateTime?
-  unloadedAt    DateTime?
+  proceedAt           DateTime?
+  arrivedStepAt       DateTime?
+  loadedAt            DateTime?
+  unloadedAt          DateTime?
 
   // Delivery Proof
   proofs String[] @default([])
