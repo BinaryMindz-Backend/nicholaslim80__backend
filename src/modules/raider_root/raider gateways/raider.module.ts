@@ -7,6 +7,8 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { RedisService } from 'src/modules/auth/redis/redis.service';
 import { TipModule } from 'src/modules/users_root/tip/tip.module';
 import { WalletModule } from 'src/common/wallet/wallet.module';
+import { AutoPopupWorker } from 'src/core/workers/auto-popup.worker';
+import { AutoPopupService } from '../auto_popup_services/auto-popup.service';
 
 @Module({
   imports: [
@@ -21,11 +23,14 @@ import { WalletModule } from 'src/common/wallet/wallet.module';
     RaiderGateway, 
     RaiderService,
     PrismaService,
-    RedisService
+    RedisService,
+    AutoPopupWorker,
+    AutoPopupService
   ],
   exports:[
      RaiderGateway,
-     RaiderService
+     RaiderService,
+     AutoPopupService
   ]
 })
 export class RaiderModule {}

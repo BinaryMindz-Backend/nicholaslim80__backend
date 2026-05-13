@@ -29,7 +29,7 @@ model Raider {
   active_days      Int @default(0)
 
   avg_rating        Decimal @default(0) @db.Decimal(3, 2)
-  completion_rate   Float   @default(100) // ✅ added
+  completion_rate   Float   @default(100)
   cancellation_rate Float   @default(0)
 
   // ================= GOLD PROGRAM =================
@@ -43,8 +43,11 @@ model Raider {
   raiderTierHistories RaiderTierHistory[]
 
   // ================= ACTIVITY =================
-  lastDeliveryAt      DateTime? // ✅ removed default
-  lastOrderAssignedAt DateTime? // ✅ fairness
+  lastDeliveryAt      DateTime?
+  lastOrderAssignedAt DateTime?
+
+  //auto popup
+  isAutoPopUpEnabled Boolean @default(false)
 
   // ================= RELATIONS =================
   registrations       RaiderRegistration[]
@@ -65,8 +68,3 @@ model Raider {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
-
-// ✅ Removed
-// ❌ rank (duplicate system)
-// ❌ rankScore (unused/confusing)
-// ❌ activityBoost (should be dynamic)

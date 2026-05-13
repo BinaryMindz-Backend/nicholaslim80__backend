@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Worker } from 'bullmq';
 import { PrismaService } from 'src/core/database/prisma.service';
-import { connection } from '../queues/competition.queue';
+import { connection } from '../queues/queue';
 import { OrderStatus } from '@prisma/client';
 
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
@@ -48,7 +48,7 @@ export class CompetitionWorker implements OnModuleInit {
             orderStops: true,
           },
         });
-
+        // logger 
         this.logger.log(`[ORDER FETCHED] Order: ${JSON.stringify({
           id: order?.id,
           competition_closed: order?.competition_closed,
