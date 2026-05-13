@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { ConflictException, Injectable, NotAcceptableException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotAcceptableException, NotFoundException } from '@nestjs/common';
 import { CreateRiderRegistrationDto } from './dto/create-riders_profile.dto';
 import { UpdateRidersProfileDto } from './dto/update-riders_profile.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -742,6 +742,37 @@ export class RidersProfileService {
             })
           : raider.tier,
       };
+    }
+
+    // 
+        // 
+    async updateAutoPopup(raiderId: number, enabled: boolean) {
+      const raider = await this.prisma.raider.findUnique({
+        where: { userId: raiderId },
+        include: { tier: true },
+      });
+
+      if (!raider) throw new NotFoundException('Raider not found');
+
+      // Only Gold and Platinum can enable auto popup
+      const allowedTiers = ['GOLD', 'PLATINUM'];
+      const tierCode = raider.tier?.code ?? '';
+
+      if (enabled && !allowedTiers.includes(tierCode)) {
+        throw new BadRequestException(
+          `Auto popup is only available for Gold and Platinum drivers. Your current tier is ${tierCode}.`,
+        );
+      }
+
+      return this.prisma.raider.update({
+        where: { id: raiderId },
+        data: { isAutoPopUpEnabled: enabled },
+        select: {
+          id: true,
+          isAutoPopUpEnabled: true,
+          tier: { select: { name: true, code: true } },
+        },
+      });
     }
 
 }

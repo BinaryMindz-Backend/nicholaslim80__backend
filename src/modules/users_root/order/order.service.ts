@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { NotifyRaider, PriorityOrder, UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
@@ -28,10 +28,12 @@ import { UpdateOrderDetailsDto } from './dto/update-order-details.dto';
 import { ApplyDiscountDto } from './dto/apply-discount.dto';
 import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.gateway';
 import { SurgePricingRuleService } from 'src/modules/superadmin_root/surge_pricing_rule/surge_pricing_rule.service';
+import { AutoPopupService } from 'src/modules/raider_root/auto_popup_services/auto-popup.service';
 
 
 @Injectable()
 export class OrderService {
+   private readonly logger = new Logger(OrderService.name);
   constructor(
     private prisma: PrismaService,
     private txIdService: TransactionIdService,
@@ -42,6 +44,7 @@ export class OrderService {
     private readonly walletService: WalletService,
     private raiderGateway: RaiderGateway,
     private surgePricingRuleService: SurgePricingRuleService,
+    private autoPopupService:AutoPopupService,
 
 
   ) { }
@@ -441,21 +444,18 @@ export class OrderService {
 
     const placeRes = await this.prisma.$transaction(async (tx) => {
 
-      // ── STEP 1: Freeze pricing snapshot on each drop stop BEFORE any amount changes ──
+      // ── STEP 1: Freeze pricing snapshot on each drop stop ──
       for (const drop of dropStops) {
         await tx.orderStop.update({
           where: { id: drop.id },
           data: {
-            calculated_price: parseFloat(
-              Number(drop.payment?.amount ?? 0).toFixed(2),
-            ),
+            calculated_price: parseFloat(Number(drop.payment?.amount ?? 0).toFixed(2)),
             calculated_distance: drop.calculated_distance ?? 0,
           },
         });
       }
 
       // ── STEP 2: Handle payment by type ──
-
       if (payType === PayType.WALLET) {
         const user = await tx.user.findUnique({ where: { id: userId } });
 
@@ -468,14 +468,9 @@ export class OrderService {
           data: { currentWalletBalance: { decrement: Number(order.total_cost) } },
         });
 
-        // FIX 4: Zero out AFTER snapshot is already saved above
         await tx.stopPayment.updateMany({
           where: { orderStopId: { in: order.orderStops.map((s) => s.id) } },
-          data: {
-            payType: PayType.WALLET,
-            status: PaymentStatus.PAID,
-            amount: 0,
-          },
+          data: { payType: PayType.WALLET, status: PaymentStatus.PAID, amount: 0 },
         });
       }
 
@@ -492,20 +487,14 @@ export class OrderService {
 
         if (!paid) throw new BadRequestException('Online payment failed');
 
-        // FIX 4: Zero out AFTER snapshot is already saved above
         await tx.stopPayment.updateMany({
           where: { orderStopId: { in: order.orderStops.map((s) => s.id) } },
-          data: {
-            payType: PayType.ONLINE_PAY,
-            status: PaymentStatus.PAID,
-            amount: 0,
-          },
+          data: { payType: PayType.ONLINE_PAY, status: PaymentStatus.PAID, amount: 0 },
         });
       }
 
       if (payType === PayType.COD) {
         if (codCollectFrom === 'SENDER') {
-          // Sender pays full total at pickup
           await tx.stopPayment.update({
             where: { orderStopId: pickupStop.id },
             data: {
@@ -515,7 +504,6 @@ export class OrderService {
             },
           });
 
-          // Receivers pay nothing
           for (const drop of dropStops) {
             await tx.stopPayment.update({
               where: { orderStopId: drop.id },
@@ -523,20 +511,16 @@ export class OrderService {
             });
           }
         } else {
-          // Sender pays nothing
           await tx.stopPayment.update({
             where: { orderStopId: pickupStop.id },
             data: { amount: 0, status: PaymentStatus.PAID },
           });
 
-          // FIX 5: Use individual calculated_price per drop, not flat total/count split
           for (const drop of dropStops) {
             await tx.stopPayment.update({
               where: { orderStopId: drop.id },
               data: {
-                amount: parseFloat(
-                  Number(drop.payment?.amount ?? 0).toFixed(2),
-                ),
+                amount: parseFloat(Number(drop.payment?.amount ?? 0).toFixed(2)),
                 payType: PayType.COD,
                 status: PaymentStatus.UNPAID,
               },
@@ -569,9 +553,7 @@ export class OrderService {
             raiderId: true,
             user_id: true,
             is_fav: true,
-            user: {
-              select: { username: true, id: true, email: true },
-            },
+            user: { select: { username: true, id: true, email: true } },
           },
         });
 
@@ -597,10 +579,8 @@ export class OrderService {
       return updatedOrder;
     });
 
-    // ── STEP 5: Send placement email/push notification ──
-    const isUserExist = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    // ── STEP 5: Send placement notification ──
+    const isUserExist = await this.prisma.user.findUnique({ where: { id: userId } });
 
     if (isUserExist) {
       await this.emailQueueService.queueOrderStatusNotification({
@@ -613,6 +593,22 @@ export class OrderService {
         message: `Your order ORD-${String(placeRes.id).padStart(6, '0')} has been placed with total cost $${Number(placeRes.total_cost).toFixed(2)}.`,
       });
     }
+
+    // ── STEP 6: Start auto popup chain (non-blocking) ──
+    // Runs after transaction commits so order is guaranteed in DB
+    this.autoPopupService
+      .startPopupChain(
+        placeRes.id,
+        pickupStop.latitude,
+        pickupStop.longitude,
+        order.delivery_type?.name ?? 'STANDARD',
+        5, // radius km — wire to admin config later
+      )
+      .catch((err) => {
+        this.logger.error(
+          `Auto popup failed for order ${placeRes.id}: ${err.message}`,
+        );
+      });
 
     return placeRes;
   }
