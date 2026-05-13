@@ -229,6 +229,7 @@ export class RidersProfileController {
   // 
   @Patch('settings/auto-popup')
   @Auth()
+  @ApiBearerAuth()
   @RequirePermission(Module.RAIDER, Permission.CREATE)
   async updateAutoPopup(
     @CurrentUser() raider: IUser,

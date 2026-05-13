@@ -181,6 +181,8 @@ export interface PricingBreakdown {
   totalPrice: number;
   distance?: number;
   distanceKm?: number;
+  min?: number;         
+  min_text?: string;    //
   isRoundTrip?: boolean;
   returnFactor?: number;
     // Driver & Platform breakdown
@@ -220,19 +222,6 @@ export interface OrderCompetitionData {
   competitorCount: number;
 }
 
-// Define the interface at the top
-// interface OrderWithLocation {
-//   orderId: number;
-//   riderId: number;
-//   assign_rider: {
-//     locations: {
-//       lat: number;
-//       lng: number;
-//       heading?: number;
-//     }
-//   };
-//   orderStatus: string;
-// }
 
 export interface UserRaiderMapping {
   id: number;
