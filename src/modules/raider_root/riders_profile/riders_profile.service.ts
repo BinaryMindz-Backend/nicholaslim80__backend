@@ -765,7 +765,7 @@ export class RidersProfileService {
       }
 
       return this.prisma.raider.update({
-        where: { id: raiderId },
+        where: { userId: raiderId },
         data: { isAutoPopUpEnabled: enabled },
         select: {
           id: true,
