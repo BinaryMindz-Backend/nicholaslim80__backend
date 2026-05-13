@@ -24,9 +24,9 @@ import { CommonModule } from 'src/common/ common.module';
   controllers: [QueueMonitorController],
   providers: [
     EmailQueueService,
-    EmailProcessor,        // 📧 Email processor here
-    NotificationProcessor, // 🔔 Notification processor here
+    EmailProcessor,       
+    NotificationProcessor,
   ],
-  exports: [EmailQueueService], // Export for use in other modules
+  exports: [EmailQueueService],
 })
 export class QueueModule {}

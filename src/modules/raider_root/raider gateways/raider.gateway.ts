@@ -13,9 +13,11 @@ import { Server, Socket } from 'socket.io';
 import { RaiderService } from './raider.service';
 import { OrderService } from 'src/modules/users_root/order/order.service';
 import { JwtService } from '@nestjs/jwt';
-import { SocketIOAdapter } from 'src/adapters/socket-io.adapter'; // Import the adapter
+import { SocketIOAdapter } from 'src/adapters/socket-io.adapter'; 
 import { forwardRef, Inject, Logger,  } from '@nestjs/common';
 import { OrderCompetitionData, OrderData } from 'src/types';
+import { AutoPopupService } from '../auto_popup_services/auto-popup.service';
+import { UserGateway } from 'src/modules/users_root/users/user.gateways';
 
 @WebSocketGateway({ namespace: '/raider', cors: true })
 export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -29,6 +31,10 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @Inject(forwardRef(() => OrderService))
     private orderService: OrderService,
     private jwtService: JwtService,
+    @Inject(forwardRef(() => AutoPopupService))
+    private autoPopupService: AutoPopupService,
+    private readonly userGateway: UserGateway, 
+
   ) {}
 
     //  connect to room
@@ -90,7 +96,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // );
 
       try {
-        const result = await this.raiderService.updateLocation(
+         await this.raiderService.updateLocation(
           riderId,
           payload.lat,
           payload.lng,
@@ -119,7 +125,6 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   
   // raider join throw socket to compition
-  
   @SubscribeMessage('rider:join_competition')
     async handleJoinCompetition(
     @ConnectedSocket() client: Socket,
@@ -217,7 +222,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     score: number, 
     competitorCount: number
   ) {
-    console.log(`From won 🏆 Notifying rider ${riderId} - WON competition for order ${orderId}`); // ✅ Fixed
+    console.log(`From won 🏆 Notifying rider ${riderId} - WON competition for order ${orderId}`);
     console.log(`   Score: ${score}`); 
     console.log(`   Beat ${competitorCount - 1} competitors`);
     
@@ -253,7 +258,6 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       order:OrderData
   ){
       console.log(` Notifying user fav rider ${riderId} - Ord No - ${orderId}`); 
-      // 
       this.server.to(`rider_${riderId}`).emit('rider:notify_fav_rider', { 
         orderId,
         order,
@@ -263,4 +267,97 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
   } 
 
 
+  @SubscribeMessage('rider:accept_popup')
+  async handleAcceptPopup(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { orderId: number },
+  ) {
+    const user = client.data.user;
+    if (!user) return;
+
+    const raiderId = user.raider.id;
+    const { orderId } = payload;
+
+    try {
+      this.logger.log(`✅ Rider ${raiderId} accepting popup for order ${orderId}`);
+
+      await this.autoPopupService.handleDriverAccepted(orderId, raiderId);
+
+      // Notify user that a driver accepted their order
+      const order = await this.orderService.getOrderById(orderId);
+      if (order?.userId) {
+          await this.userGateway.notifyUserRiderAssigned(
+            order.userId,
+            orderId,
+            raiderId,
+          );
+
+      }
+
+    } catch (err) {
+      this.logger.error(`❌ Accept popup failed | rider=${raiderId} order=${orderId}`, err.message);
+
+      client.emit('rider:popup_error', {
+        orderId,
+        message: err.message ?? 'Failed to accept order. It may have already been taken.',
+      });
+    }
+  }
+
+  // 
+  @SubscribeMessage('rider:decline_popup')
+  async handleDeclinePopup(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { orderId: number; reason?: string },
+  ) {
+    const user = client.data.user;
+    if (!user) return;
+
+    const raiderId = user.raider.id;
+    const { orderId } = payload;
+
+    try {
+      this.logger.log(`❌ Rider ${raiderId} declining popup for order ${orderId}`);
+
+      await this.autoPopupService.handleDriverDeclined(orderId, raiderId);
+
+      // Acknowledge decline to driver
+      client.emit('rider:popup_declined_ack', {
+        orderId,
+        message: 'Order declined.',
+      });
+
+    } catch (err) {
+      this.logger.error(`❌ Decline failed | rider=${raiderId} order=${orderId}`, err.message);
+
+      client.emit('rider:popup_error', {
+        orderId,
+        message: err.message ?? 'Failed to process decline.',
+      });
+    }
+  }
+  
+  // Optional but recommended — client sends this when their local timer runs out
+  // Prevents driver seeing stale popup if they were offline briefly
+  @SubscribeMessage('rider:popup_timeout_ack')
+  async handlePopupTimeoutAck(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { orderId: number },
+  ) {
+    const user = client.data.user;
+    if (!user) return;
+
+    const raiderId = user.raider.id;
+    const { orderId } = payload;
+
+    this.logger.log(`⏱ Rider ${raiderId} timed out on popup for order ${orderId}`);
+
+    // BullMQ will handle the actual timeout — this just clears UI on client side
+    client.emit('rider:popup_expired', {
+      orderId,
+      message: 'Popup expired. Order moved to next driver.',
+    });
+  }
+
+  
 }

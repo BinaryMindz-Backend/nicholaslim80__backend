@@ -10,3 +10,8 @@ export const connection = new IORedis({
 export const competitionQueue = new Queue('order-competition', {
   connection,
 });
+
+// NEW: Auto popup queue
+export const autoPopupQueue = new Queue('auto-popup', {
+  connection 
+})

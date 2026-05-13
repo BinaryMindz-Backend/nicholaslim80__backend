@@ -11,7 +11,7 @@ import { OrderFilterDto } from './dto/order-filter.dto';
 import { UpdateOrderStatusDto, UpdatePendingOrdersDto } from './dto/updateOrderStatusDto';
 import { TransactionIdService } from 'src/common/services/transaction-id.service';
 import { RedisService } from 'src/modules/auth/redis/redis.service';
-import { competitionQueue } from 'src/core/queues/competition.queue';
+import { competitionQueue } from 'src/core/queues/queue';
 import axios from 'axios';
 import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { ServiceZoneService } from 'src/modules/superadmin_root/service-zone/service-zone.service';
@@ -442,8 +442,6 @@ export class OrderService {
     const placeRes = await this.prisma.$transaction(async (tx) => {
 
       // ── STEP 1: Freeze pricing snapshot on each drop stop BEFORE any amount changes ──
-      // FIX 3: calculated_price & calculated_distance were never saved at placement
-      // FIX 4: Must snapshot BEFORE wallet/online zeroes out payment amounts
       for (const drop of dropStops) {
         await tx.orderStop.update({
           where: { id: drop.id },
@@ -4256,10 +4254,14 @@ export class OrderService {
       },
     });
   }
-
-
-
-
+  
+  // 
+  async getOrderById(orderId: number) {
+    return this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, userId: true },
+    });
+  }
 
 
 }
