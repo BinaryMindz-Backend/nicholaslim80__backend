@@ -12,6 +12,7 @@ import { GetRidersQueryDto } from './dto/query-riders.dto';
 import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { UpdateAutoPopupDto } from '../raider gateways/dto';
 
 
 
@@ -224,4 +225,17 @@ export class RidersProfileController {
       return ApiResponses.error(error);
     }
   }
+
+  // 
+  @Patch('settings/auto-popup')
+  @Auth()
+  @RequirePermission(Module.RAIDER, Permission.CREATE)
+  async updateAutoPopup(
+    @CurrentUser() raider: IUser,
+    @Body() dto: UpdateAutoPopupDto,
+  ) {
+    return await this.ridersProfileService.updateAutoPopup(raider.id, dto.enabled);
+  }
+
+
 }
