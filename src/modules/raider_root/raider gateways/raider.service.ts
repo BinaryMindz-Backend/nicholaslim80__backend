@@ -21,6 +21,25 @@ export class RaiderService {
     
     return raider;
   }
+    // 
+    async getRaiderById(raiderId: number) {
+      const raider = await this.prisma.raider.findFirst({
+        where: { id: raiderId },
+        include:{
+            registrations:{
+              include:{
+                vehicle_type:true
+              }
+            }
+        }
+      });
+      
+      if (!raider) {
+        return null;
+      }
+    
+    return raider;
+  }
 
   // Set rider online
    async setOnline(riderId: number) {
