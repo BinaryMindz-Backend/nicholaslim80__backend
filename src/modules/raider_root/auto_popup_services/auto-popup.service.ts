@@ -1,7 +1,7 @@
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { RaiderGateway } from '../raider gateways/raider.gateway';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, RaiderVerification } from '@prisma/client';
 import { autoPopupQueue, connection } from 'src/core/queues/queue'
 
 
@@ -65,24 +65,23 @@ export class AutoPopupService {
         is_online: true,
         isAutoPopUpEnabled: true,
         isSuspended: false,
-        raider_verificationFromAdmin: 'APPROVED',
-        tier: {
-          code: { in: GOLD_PLATINUM_CODES },
-          isActive: true,
-        },
-        // Express/Standard: only available drivers
+        raider_verificationFromAdmin: RaiderVerification.APPROVED,
+          tier: {
+              is: {
+                code: { in: GOLD_PLATINUM_CODES },
+                isActive: true,
+              },
+            },
+          // Express/Standard: only available drivers
         // Pooling: available OR on delivery (can stack)
-        ...(isPooling ? {} : { is_available: true }),
-        locations: {
-          is_active: true,
-        },
+        ...(isPooling ? {} : { is_available: false }),
       },
       include: {
         locations: true,
         tier: true,
       },
     });
-
+    console.log("Raider-->", raiders)
     const eligible: EligibleDriver[] = [];
 
     for (const raider of raiders) {
@@ -95,7 +94,7 @@ export class AutoPopupService {
         pickupLat, pickupLng,
         driverLat, driverLng,
       );
-
+    //   console.log("haversine output-->", distanceKm);
       // Filter by radius
       if (distanceKm > radiusKm) continue;
 
@@ -145,7 +144,7 @@ export class AutoPopupService {
       deliveryTypeName,
       radiusKm,
     );
-
+     console.log("eligi-->",eligibleDrivers, deliveryTypeName);
     if (eligibleDrivers.length === 0) {
       this.logger.warn(`No eligible drivers for order ${orderId} — going to public queue`);
       await this.moveToPublicQueue(orderId);

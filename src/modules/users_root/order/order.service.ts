@@ -602,7 +602,7 @@ export class OrderService {
         placeRes.id,
         pickupStop.latitude,
         pickupStop.longitude,
-        order.delivery_type?.name ?? 'STANDARD',
+        order.delivery_type.name ?? 'STANDARD',
         200000000, // radius km — wire to admin config later
       )
       .catch((err) => {
