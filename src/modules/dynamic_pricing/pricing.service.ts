@@ -73,7 +73,7 @@ export async function calculatePriceWithFee(
   /* ---------------- Platform Fee & Raider Earnings ---------------- */
   // Pass final price so commission % is applied correctly
   const platformFee = await calculateDriverFeeForOrder(prisma, zone.id, price);
-
+    console.log("platfrom fee-->", platformFee);
   const raiderEarnings = price - platformFee;
   
   /* ---------------- Final Result ---------------- */
@@ -106,7 +106,6 @@ async function calculateDriverFeeForOrder(
       // where: { service_area_id: serviceZoneId },
     }),
   ]);
-
   // commission_rate_delivery_fee is a %, apply against orderPrice
   const commissionTotal = standardCommissions.reduce(
     (sum, rate) =>
@@ -118,6 +117,8 @@ async function calculateDriverFeeForOrder(
     (sum, fee) => sum + Number(fee.amount ?? 0),
     0,
   );
+
+   console.log(standardCommissions, deductions,commissionTotal, deductionTotal);
 
   return commissionTotal + deductionTotal;
 }
