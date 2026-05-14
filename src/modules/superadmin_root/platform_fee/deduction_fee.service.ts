@@ -25,13 +25,11 @@ export class RaiderDeductionFeeService {
       throw new ConflictException("Record all-ready exist")
     }
     const r = await this.prisma.raiderDeductionFee.create({ data });
-    // const zone = await this.prisma.serviceZone.findUnique({ where: { id: data.service_area_id } });
 
     await this.logServices.createFeeLog({
       logType: FeeLogType.RAIDER_DEDUCTION_FEE,
       referenceId: r.id,
       applicableUser: r.applicable_user,
-      // serviceArea: zone?.name,
       snapshot: r,
       changedByRole,
       changedById,

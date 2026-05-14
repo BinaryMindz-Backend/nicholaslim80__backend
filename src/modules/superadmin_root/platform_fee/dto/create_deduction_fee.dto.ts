@@ -16,8 +16,9 @@ export class CreateRaiderDeductionFeeDto {
   @IsInt()
   amount?: number;
 
-  @ApiPropertyOptional({ description: 'Service area id', example: 1 })
+  @ApiPropertyOptional({ description: 'Type of fee', example: "5% or 50" , default: 0 })
   @IsOptional()
-  @IsInt()
-  service_area_id?: number;
+  @IsString()
+  type: string;
+   
 }
