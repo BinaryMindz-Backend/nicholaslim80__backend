@@ -3,7 +3,7 @@ export function evaluateRule(rule: any, context: any): boolean {
 
   const value = context[rule.rule_key];
   const ruleValue = rule.rule_value;
-  console.log("role context-->", rule, context, value, ruleValue);
+  // console.log("role context-->", rule, context, value, ruleValue);
   switch (rule.rule_operator) {
     case '=':
       return value === ruleValue;

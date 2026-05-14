@@ -41,11 +41,8 @@ export async function calculatePriceWithFee(
   const matchedFees = fees.filter(
     (fee) => fee.applies_to === 'ALL_ORDERS' || evaluateRule(fee, context)
   );
-  console.log("matched fee -->", matchedFees, fees);
   const userFeeTotal = matchedFees.reduce((sum, fee) => sum + Number(fee.amount), 0);
   price += userFeeTotal;
-    console.log("User total fee-->", userFeeTotal);
-
 
   /* ---------------- Zone Fee ---------------- */
   let zoneFee = 0;
