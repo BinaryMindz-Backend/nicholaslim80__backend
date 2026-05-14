@@ -295,23 +295,23 @@ export class RidersProfileService {
           });
       }
 
-  // LOG (non-blocking)
-  await this.prisma.activityLog.create({
-    data: {
-      action: 'UPDATE',
-      entity_type: 'Raider',
-      entity_id: raiderId,
-      user_id: userId,
-      meta: {
-        type: 'verify_rider',
-        before: before,
-        after: { verification: verify, status }
-      },
-    },
-  }).catch(err => console.error('Activity log failed:', err));
+      // LOG (non-blocking)
+      await this.prisma.activityLog.create({
+        data: {
+          action: 'UPDATE',
+          entity_type: 'rider_approval',
+          entity_id: raiderId,
+          user_id: userId,
+          meta: {
+            type: 'verify_rider',
+            before: before,
+            after: { verification: verify, status }
+          },
+        },
+      }).catch(err => console.error('Activity log failed:', err));
 
-  return updatedProfile;
-}
+      return updatedProfile;
+    }
 
   // 
   async update(id: number, dto: UpdateRidersProfileDto, userId: number) {
