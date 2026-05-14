@@ -38,13 +38,14 @@ export async function calculatePriceWithFee(
   const fees = await prisma.userFeeStructure.findMany({
     where: { is_active: true, service_area_id: zone.id },
   });
-
   const matchedFees = fees.filter(
     (fee) => fee.applies_to === 'ALL_ORDERS' || evaluateRule(fee, context)
   );
-
+  console.log("matched fee -->", matchedFees, fees);
   const userFeeTotal = matchedFees.reduce((sum, fee) => sum + Number(fee.amount), 0);
   price += userFeeTotal;
+    console.log("User total fee-->", userFeeTotal);
+
 
   /* ---------------- Zone Fee ---------------- */
   let zoneFee = 0;
@@ -52,7 +53,7 @@ export async function calculatePriceWithFee(
     zoneFee = zone.deliveryFee;
     price += zoneFee;
   }
-
+  console.log("ZONE fee-->", zoneFee);
   /* ---------------- Surge Pricing ---------------- */
   let surgeAmount = 0;
   let surgeMultiplier = 1.0;

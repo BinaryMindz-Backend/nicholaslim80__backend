@@ -104,6 +104,8 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
         );
 
         // this.logger.debug(`💾 DB updated | riderId=${riderId}`);
+         
+        const rdata = await this.raiderService.getRaiderById(riderId)
 
         const io = SocketIOAdapter.getServer();
 
@@ -111,6 +113,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
           .to('admin:live-map')
           .emit('admin:rider_location', {
             riderId,
+            vehicle_type: rdata?.registrations[0].vehicle_type,
             ...payload,
           });
 
