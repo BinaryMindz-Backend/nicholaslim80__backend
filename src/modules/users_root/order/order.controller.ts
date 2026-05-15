@@ -34,7 +34,7 @@ import { Module, Permission } from 'src/rbac/rbac.constants';
 import { BulkOrderWithDestinationsDto } from './dto/bulk-order-dto';
 import { CreateIndiOrderDto } from './dto/create_indivitual_order_dto';
 import { RaiderOrdersFilterDto } from './dto/raider-filter.dto';
-import { StopType, UserRole } from '@prisma/client';
+import { StopType } from '@prisma/client';
 import { CancelOrderDto, CompleteStopDto, FailStopDto, PlaceOrderDto } from './dto/place-cancle-order.dto';
 import type { Response } from 'express';
 import { UpdateOrderDetailsDto } from './dto/update-order-details.dto';

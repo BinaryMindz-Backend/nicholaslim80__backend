@@ -73,7 +73,6 @@ export async function calculatePriceWithFee(
   /* ---------------- Platform Fee & Raider Earnings ---------------- */
   // Pass final price so commission % is applied correctly
   const platformFee = await calculateDriverFeeForOrder(prisma, zone.id, price);
-    console.log("platfrom fee-->", platformFee);
   const raiderEarnings = price - platformFee;
   
   /* ---------------- Final Result ---------------- */
@@ -97,13 +96,13 @@ async function calculateDriverFeeForOrder(
   serviceZoneId: number,
   orderPrice: number,  
  ): Promise<number> {
+
   const [standardCommissions, deductions] = await Promise.all([
     prisma.standardCommissionRate.findMany({
       where: { service_area_id: serviceZoneId },
     }),
     // Filter deductions by zone to prevent applying irrelevant fees
     prisma.raiderDeductionFee.findMany({
-      // where: { service_area_id: serviceZoneId },
     }),
   ]);
   // commission_rate_delivery_fee is a %, apply against orderPrice
@@ -112,13 +111,23 @@ async function calculateDriverFeeForOrder(
       sum + (orderPrice * Number(rate.commission_rate_delivery_fee ?? 0)) / 100,
     0,
   );
+    //
+    let deductionTotal = 0; 
+    const fixedAmount = deductions.find(d=>d.type === "fixed_amount");
+    const percentage = deductions.find(d=>d.type === "percentage");
 
-  const deductionTotal = deductions.reduce(
-    (sum, fee) => sum + Number(fee.amount ?? 0),
-    0,
-  );
-
-   console.log(standardCommissions, deductions,commissionTotal, deductionTotal);
+      if (fixedAmount) {
+        deductionTotal = deductions.reduce(
+          (sum, fee) => sum + Number(fee.amount ?? 0),
+          0,
+        );
+      } else if (percentage) {
+        deductionTotal = deductions.reduce(
+          (sum, rate) =>
+            sum + (orderPrice * Number(rate.amount ?? 0)) / 100,
+          0,
+        );
+      }
 
   return commissionTotal + deductionTotal;
 }
