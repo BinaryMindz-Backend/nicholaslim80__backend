@@ -97,6 +97,15 @@ export class WalletService {
       },
     });
 
+      // notify user by push notification
+        await this.emailQueueService.queuePushNotification({
+          userId,
+          fcmToken: user?.fcmToken || '',
+          type: "FUNDS_CREDITED",
+          title: "Add Money Successful",
+          body: `Your add money of ${amount} was successful.`,
+        });
+
     return {
       message: 'Wallet credited successfully',
       amount,

@@ -50,10 +50,14 @@ export class NotificationProcessor extends WorkerHost {
       await this.notifyService.sendNotificationByType(
         'PUSH_NOTIFICATION',
         [{ fcmToken }],
-        type,
         title,
         body,
       );
+          // type: NotificationType,
+          // users: SendTarget[],
+          // title?: string,
+          // message?: string,
+          // imageUrl?: string,
       // save to notification history
         const notification = await this.prisma.notification.create({
             data: {
@@ -62,10 +66,10 @@ export class NotificationProcessor extends WorkerHost {
               title,
               orderId: job.data.orderId,
               message: body,
-              target_role: job.data.target_role,
               is_from_admin:false,
              },
          });
+         console.log(notification , type, );
       this.logger.log(`✅ Push notification sent to user ${userId} and saved to history with ID ${notification.id}`);
       return { success: true, userId, notificationId: notification.id };
     } catch (error) {
@@ -123,7 +127,7 @@ export class NotificationProcessor extends WorkerHost {
               type: job.data.status,
               title: job.data.title,
               message: job.data.message,
-              target_role: job.data.target_role,
+              // target_role: job.data.target_role,
               is_from_admin:false,
              },
          });
