@@ -69,7 +69,7 @@ export class NotificationProcessor extends WorkerHost {
               is_from_admin:false,
              },
          });
-         console.log(notification , type, );
+        //  console.log(notification , type, );
       this.logger.log(`✅ Push notification sent to user ${userId} and saved to history with ID ${notification.id}`);
       return { success: true, userId, notificationId: notification.id };
     } catch (error) {
@@ -162,7 +162,7 @@ export class NotificationProcessor extends WorkerHost {
               title: job.data.title,
               orderId: job.data.orderId,
               message: job.data.message,
-              target_role: job.data.target_role,
+              // target_role: job.data.target_role,
               is_from_admin:false,
              },
          });
@@ -179,7 +179,7 @@ export class NotificationProcessor extends WorkerHost {
   }
 
     private async handleOrderLostNotification(job: Job) {
-      const { raiderId, fcmToken } = job.data;
+      const { raiderId, fcmToken, orderId } = job.data;
 
       try {
         await this.notifyService.sendNotificationByType(
@@ -188,8 +188,20 @@ export class NotificationProcessor extends WorkerHost {
           'Order Taken',
           'Another rider won this order. Keep trying!',
         );
-
+                 // save to notification history
+        const notification = await this.prisma.notification.create({
+            data: {
+              userId: job.data.userId,
+              type: job.data.status,
+              title: job.data.title,
+              orderId: job.data.orderId,
+              message: job.data.message,
+              // target_role: job.data.target_role,
+              is_from_admin:false,
+             },
+         });
         this.logger.log(`✅ Order lost notification sent to raider ${raiderId}`);
+        this.logger.log(`✅ Push notification sent to raider with token ${fcmToken} for order ${orderId} and saved to history with ID ${notification.id}`);
         return { success: true, raiderId };
       } catch (error) {
         this.logger.error(`❌ Order lost notification failed for raider ${raiderId}:`, error.message);
