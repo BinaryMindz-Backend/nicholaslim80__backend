@@ -40,6 +40,7 @@ import type { Response } from 'express';
 import { UpdateOrderDetailsDto } from './dto/update-order-details.dto';
 import { ApplyDiscountDto } from './dto/apply-discount.dto';
 import { Cron } from '@nestjs/schedule';
+import { ReorderStopsDto } from './dto/reorder.dto';
 
 @ApiTags('Order (User and admin)')
 @Controller('order')
@@ -746,6 +747,29 @@ export class OrderController {
     }
   }
 
+
+  //  reorder stop
+  @Patch(':id/reorder-stops')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER, Permission.UPDATE)
+  @ApiOperation({ summary: 'Reorder order stops (Admin only)' })
+  async reorderStops(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReorderStopsDto,
+  ) {
+    const result = await this.orderService.reorderStops(
+      id,
+      dto.stops
+    );
+
+    return ApiResponses.success(
+      result,
+      'Order stops reordered successfully',
+    );
+  }
+
+
   //  
   @Patch('bulk/status/pending')
   @Auth()
@@ -763,7 +787,7 @@ export class OrderController {
       );
       return ApiResponses.success(res, 'Orders marked as PENDING');
     } catch (err) {
-      return ApiResponses.error(err.message);
+      return ApiResponses.error(err);
     }
   }
 

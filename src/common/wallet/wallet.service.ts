@@ -603,13 +603,13 @@ export class WalletService {
           }
 
       // 3. Update Balance
-      const updatedUser = await tx.user.update({
-        where: { id: userId },
-        data: {
-          totalWalletBalance: { increment: amount },
-          currentWalletBalance: { increment: amount }
-        },
-      });
+      // const updatedUser = await tx.user.update({
+      //   where: { id: userId },
+      //   data: {
+      //     totalWalletBalance: { increment: amount },
+      //     currentWalletBalance: { increment: amount }
+      //   },
+      // });
 
       // 1. Idempotency Check: Prevent duplicate processing
       const existing = await tx.walletHistory.findUnique({
@@ -629,7 +629,7 @@ export class WalletService {
         },
       });
       // 4. Notify User
-      if (updatedUser) {
+      if (user) {
         await this.userGateway.notifyAddMoney(
           userId,
           `Your wallet has been credited with ${amount} ${intent.metadata.currency?.toUpperCase()} successfully!`

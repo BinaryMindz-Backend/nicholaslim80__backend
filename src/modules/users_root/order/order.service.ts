@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
@@ -2636,7 +2635,7 @@ export class OrderService {
             pickupToDrop: pickupToDropLegs,
           };
         } catch (err) {
-          console.error('Raider leg calculation failed:', err.message);
+          console.error('Raider leg calculation failed:', err);
           raiderLeg = null;
         }
       }
@@ -3741,7 +3740,7 @@ export class OrderService {
       } catch (error) {
         return {
           success: false,
-          reason: `Geocoding failed for sender: ${error.message}`,
+          reason: `Geocoding failed for sender: ${error}`,
         };
       }
 
@@ -3770,7 +3769,7 @@ export class OrderService {
       } catch (error) {
         return {
           success: false,
-          reason: `Geocoding failed for receiver: ${error.message}`,
+          reason: `Geocoding failed for receiver: ${error}`,
         };
       }
 
@@ -4296,6 +4295,82 @@ export class OrderService {
       select: { id: true, userId: true },
     });
   }
+
+  // reorder stop
+   async reorderStops(
+      orderId: number,
+      stops: { orderStopId: number; sequence: number }[],
+    ) {
+      if (!stops?.length) {
+        throw new BadRequestException('Stops payload is empty');
+      }
+
+      const existingStops = await this.prisma.orderStop.findMany({
+        where: { orderId },
+      });
+
+      const stopMap = new Map(existingStops.map((s) => [s.id, s]));
+
+      const pickup = existingStops.find(
+        (s) => s.type === StopType.PICKUP,
+      );
+
+      if (!pickup) {
+        throw new BadRequestException('Pickup not found');
+      }
+
+      // 1. Validate stops
+      for (const s of stops) {
+        const stop = stopMap.get(s.orderStopId);
+
+        if (!stop) {
+          throw new BadRequestException(
+            `Stop ${s.orderStopId} not found`,
+          );
+        }
+
+        if (stop.type === StopType.PICKUP) {
+          throw new BadRequestException(
+            'Pickup cannot be reordered',
+          );
+        }
+      }
+
+      // 2. Normalize sequence (IMPORTANT FIX)
+      const sortedStops = stops
+        .filter((s) => s.orderStopId !== pickup.id)
+        .sort((a, b) => a.sequence - b.sequence);
+
+      // 3. Force correct sequence
+      await this.prisma.$transaction([
+        // LOCK pickup at sequence 1
+        this.prisma.orderStop.update({
+          where: { id: pickup.id },
+          data: { sequence: 1 },
+        }),
+
+        // assign correct sequence starting from 2
+        ...sortedStops.map((s, index) =>
+          this.prisma.orderStop.update({
+            where: { id: s.orderStopId },
+            data: {
+              sequence: index + 2,
+            },
+          }),
+        ),
+      ]);
+
+      const updated = await this.prisma.orderStop.findMany({
+        where: { orderId },
+        orderBy: { sequence: 'asc' },
+      });
+
+      return {
+        success: true,
+        updatedCount: stops.length,
+        stops: updated,
+      };
+    }
 
 
 }
