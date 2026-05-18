@@ -266,7 +266,7 @@ export class NotificationController {
   @ApiResponse({ status: 200, description: 'Notifications fetched successfully' })
   async findAll(@Query() query: FindNotificationsDto, @CurrentUser() user: IUser) {
     try {
-      const res = await this.notificationService.findAll(query, user);
+      const res = await this.notificationService.findAll(query,user);
       return ApiResponses.success(res, 'Notifications fetched successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to fetch notifications');
