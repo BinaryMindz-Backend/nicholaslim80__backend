@@ -383,21 +383,66 @@ export class CompetitionWorker implements OnModuleInit {
           this.logger.warn(`[EMAIL SKIP] No email address for winner raider ID: ${winner.driverId}`);
         }
 
-        if (winnerRaider.user?.fcmToken) {
-          try {
-            await this.emailQueueService.queueOrderAssignedNotificationRaider({
-              userId: winnerRaider.user.id,
-              fcmToken: winnerRaider.user.fcmToken,
-              orderId,
-              raiderName,
-            });
-            this.logger.log(`[FCM QUEUED] Push notification queued for user: ${winnerRaider.user.id}`);
-          } catch (err) {
-            this.logger.error(`[FCM ERROR] Failed to queue push notification: ${err.message}`);
+          if (winnerRaider.user?.fcmToken) {
+            try {
+              await this.emailQueueService.queueOrderAssignedNotificationRaider({
+                userId: winnerRaider.user.id,
+                fcmToken: winnerRaider.user.fcmToken,
+                orderId,
+                raiderName,
+              });
+              this.logger.log(`[FCM QUEUED] Push notification queued for user: ${winnerRaider.user.id}`);
+            } catch (err) {
+              this.logger.error(`[FCM ERROR] Failed to queue push notification: ${err.message}`);
+            }
+          } else {
+            this.logger.warn(`[FCM SKIP] No FCM token for winner raider ID: ${winner.driverId}`);
           }
-        } else {
-          this.logger.warn(`[FCM SKIP] No FCM token for winner raider ID: ${winner.driverId}`);
-        }
+          // Customer notifications
+          if (order.user) {
+              if (order.user.fcmToken) {
+                await this.emailQueueService.queueOrderAssignedNotification({
+                  userId: order.user.id,
+                  fcmToken: order.user.fcmToken,
+                  orderId,
+                  raiderName,
+                });
+                console.log('   ✅ Customer push notification queued');
+              }
+
+              if (order.user.email) {
+                await this.emailQueueService.queueOrderAssignedUserEmail({
+                  userId: order.user.id,
+                  email: order.user.email,
+                  username: order.user.username ?? undefined,
+                  orderId,
+                  raiderName,
+                  raiderRank: winnerRaider.tier?.name,
+                });
+                console.log('   ✅ Customer email queued');
+              }
+            }
+
+            // Loser push notifications            
+            if (losers.length > 0) {
+              const loserRaiders = await this.prisma.raider.findMany({
+                where: { id: { in: losers }, user: { fcmToken: { not: null } } },
+                select: { id: true, user: { select: { fcmToken: true } } },
+              });
+
+              const lostNotifications = loserRaiders
+                .filter(raider => raider.user?.fcmToken)
+                .map(raider => ({
+                  raiderId: raider.id,
+                  fcmToken: raider.user.fcmToken!,
+                  orderId,
+                }));
+
+              if (lostNotifications.length > 0) {
+                await this.emailQueueService.queueBatchOrderLostNotifications(lostNotifications);
+                console.log(`   ✅ Queued ${lostNotifications.length} loser notifications`);
+              }
+            }
 
         this.logger.log(`[COMPETITION DONE] 🏆 Winner: ${raiderName} (Raider ${winner.driverId}) | Score: ${winner.score} | Order: ${orderId}`);
       },

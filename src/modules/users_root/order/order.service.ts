@@ -4105,7 +4105,7 @@ export class OrderService {
         data: { compititor_id: { push: raider.id } },
         include: { orderStops: true, vehicle: true, user: true },
       });
-
+        
       console.log(`✅ Rider ${raider.id} joined! Total: ${updated.compititor_id.length}`);
 
       // FIRST RIDER - Start competition
