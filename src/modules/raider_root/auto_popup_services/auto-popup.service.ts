@@ -81,7 +81,7 @@ export class AutoPopupService {
         tier: true,
       },
     });
-    console.log("Raider-->", raiders)
+    // console.log("Raider-->", raiders)
     const eligible: EligibleDriver[] = [];
 
     for (const raider of raiders) {
@@ -144,7 +144,6 @@ export class AutoPopupService {
       deliveryTypeName,
       radiusKm,
     );
-     console.log("eligi-->",eligibleDrivers, deliveryTypeName);
     if (eligibleDrivers.length === 0) {
       this.logger.warn(`No eligible drivers for order ${orderId} — going to public queue`);
       await this.moveToPublicQueue(orderId);

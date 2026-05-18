@@ -752,8 +752,7 @@ export class OrderController {
   @Patch(':id/reorder-stops')
   @Auth()
   @ApiBearerAuth()
-  @RequirePermission(Module.ORDER, Permission.UPDATE)
-  @ApiOperation({ summary: 'Reorder order stops (Admin only)' })
+  @ApiOperation({ summary: 'Reorder order stops ' })
   async reorderStops(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ReorderStopsDto,
