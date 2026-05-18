@@ -432,75 +432,6 @@ export class NotificationService {
     return updated;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // ⑦ FIND ALL – for user (bell icon feed)
-  // ─────────────────────────────────────────────────────────────────────────
-  // async findAll(dto: FindNotificationsDto, user: IUser) {
-  //   const page = Number(dto.page ?? 1);
-  //   const limit = Number(dto.limit ?? 10);
-  //   const skip = (page - 1) * limit;
-
-  //   const now = new Date();
-
-  //   const where: Prisma.NotificationWhereInput = {
-  //     is_active: true,
-  //     AND: [
-  //       // Only non-expired
-  //       {
-  //         OR: [{ expiry_date: null }, { expiry_date: { gte: now } }],
-  //       },
-  //       // Audience match
-  //       {
-  //         OR: [
-  //           // Broadcast to all
-  //           { target_role: null, target_user_ids: { isEmpty: true } },
-  //           // Role-based
-  //           {
-  //             target_role: (user.roles?.[0]?.name as NotificationSentRole) ?? null,
-  //             target_user_ids: { isEmpty: true },
-  //           },
-  //           // Direct target
-  //           { target_user_ids: { has: user.id } },
-  //         ],
-  //       },
-  //     ],
-  //   };
-
-  //   if (dto.type) (where as any).type = dto.type;
-  //   if (dto.category) (where as any).category = dto.category;
-
-  //   if (dto.isRead !== undefined) {
-  //     (where as any).AND.push({
-  //       OR: [
-  //         { userId: user.id, is_read: dto.isRead === 'true' },
-  //         {
-  //           userId: null,
-  //           mark_as_read_id:
-  //             dto.isRead === 'true'
-  //               ? { has: user.id }
-  //               : { isEmpty: false }, // not read
-  //         },
-  //       ],
-  //     });
-  //   }
-  //   const [data, total] = await Promise.all([
-  //     this.prisma.notification.findMany({
-  //       where,
-  //       orderBy: { created_at: 'desc' },
-  //       skip,
-  //       take: limit,
-  //     }),
-  //     this.prisma.notification.count({ where }),
-  //   ]);
-
-  //   // Attach isRead flag per notification for easy client rendering
-  //   const enriched = data.map((n) => ({
-  //     ...n,
-  //     isReadByUser: n.userId != null ? n.is_read : n.mark_as_read_id.includes(user.id),
-  //   }));
-
-  //   return { data: enriched, total, page, limit };
-  // }
 
   async findAll(dto: FindNotificationsDto, user: IUser) {
     const page = Number(dto.page ?? 1);
@@ -509,7 +440,7 @@ export class NotificationService {
 
     const now = new Date();
     const userRole = user.roles?.[0]?.name as NotificationSentRole | undefined;
-
+      console.log(userRole);
     const where: Prisma.NotificationWhereInput = {
       is_active: true,
 

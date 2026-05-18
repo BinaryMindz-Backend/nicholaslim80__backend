@@ -284,17 +284,17 @@ export class WalletService {
     });
     // ... (Transaction logic) ...
     if (payType === PaymentType.ADD_MONEY) {
-      await this.prisma.walletHistory.create({
-        data: {
-          userId,
-          type: 'credit',
-          amount,
-          currency: lowerCurrency, // Save to DB
-          status: 'SUCCESS',
-          transactionType: WalletTransactionType.PAYMENT,
-          transactionId: paymentIntent.id,
-        },
-      });
+      // await this.prisma.walletHistory.create({
+      //   data: {
+      //     userId,
+      //     type: 'credit',
+      //     amount,
+      //     currency: lowerCurrency, // Save to DB
+      //     status: 'SUCCESS',
+      //     transactionType: WalletTransactionType.PAYMENT,
+      //     transactionId: paymentIntent.id,
+      //   },
+      // });
 
       // NOTE: Updating User Balance with different currencies is tricky.
       // Usually, a wallet has a "Base Currency" (e.g., USD).
