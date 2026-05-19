@@ -10,7 +10,6 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import {
   RouteType,
-  DeliveryTypeName,
   CollectTime,
 } from '@prisma/client';
 import { CreateDestinationDto } from '../../destination/dto/create-destination.dto';
@@ -46,39 +45,10 @@ export class CreateIndiOrderDto {
   scheduled_time?: Date;
 
 
-  // @ApiPropertyOptional({ example: 250.50 })
-  // @IsNumber()
-  // @IsOptional()
-  // total_cost: number;
-
   @ApiProperty({ example: false })
   @IsBoolean()
   @IsOptional()
   has_additional_services?: boolean;
-
-  // @ApiProperty({ example: false })
-  // @IsBoolean()
-  // @IsOptional()
-  // is_promo_used?: boolean;
-
-  // @ApiProperty({ example: false })
-  // @IsBoolean()
-  // @IsOptional()
-  // notify_favorite_raider?: boolean;
-
-  // @ApiPropertyOptional({ example: 2 })
-  // @IsInt()
-  // @IsOptional()
-  // payment_method_id?: number;
-
-  // @ApiPropertyOptional({ enum: PayType, default: PayType.COD })
-  // @IsEnum(PayType)
-  // @IsOptional()
-  // pay_type: PayType ;
-
-  // @ApiProperty({ example: ["link1", "link2"] })
-  // @IsOptional()
-  // pick_up_items?: string[];
 
   @ApiProperty({ type: [CreateDestinationDto] })
   @IsArray()
