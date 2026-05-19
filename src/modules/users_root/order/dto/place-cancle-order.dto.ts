@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { PayType } from "@prisma/client";
+import { PaymentType, PayType } from "@prisma/client";
 import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 export class PlaceOrderDto {
@@ -28,6 +28,10 @@ export class PlaceOrderDto {
   @IsEnum(['SENDER', 'RECEIVER'])
   @IsOptional()
   codCollectFrom?: 'SENDER' | 'RECEIVER';
+       
+  @ApiPropertyOptional({ enum:PaymentType, default:PaymentType.PAYMENT })
+  @IsEnum(PaymentType)
+  payType?:PaymentType
 
 }
 

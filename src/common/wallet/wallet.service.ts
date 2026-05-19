@@ -12,7 +12,6 @@ import { UserWalletHistoryQueryDto } from './dto/user-wallet-history-query.dto';
 import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.gateway';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { UserGateway } from 'src/modules/users_root/users/user.gateways';
-import { transaction_code } from 'src/utils/tr.generator';
 
 
 
@@ -277,7 +276,7 @@ export class WalletService {
 
 
     // 2. Create Payment Intent with Dynamic Currency
-    const paymentIntent = await this.stripe.paymentIntents.create({
+    await this.stripe.paymentIntents.create({
       amount: stripeAmount,
       currency: lowerCurrency, // Dynamic here
       customer: customerId,
@@ -395,10 +394,10 @@ export class WalletService {
         ],
 
         success_url:
-          'https://yourapp.com/payment-success',
+          'https://admin.zipbee.sg/success',
 
         cancel_url:
-          'https://yourapp.com/payment-cancel',
+          'https://admin.zipbee.sg/cancel',
       });
 
     return {
@@ -541,6 +540,12 @@ export class WalletService {
                   sequence: 'asc',
                 },
               },
+              assign_rider:{
+                  select:{
+                     id:true,
+                     userId:true,
+                  }
+              }
             },
           });
 
@@ -599,8 +604,8 @@ export class WalletService {
                     },
                   },
                 });
-              console.log(remainingStops);
-              let updatedOrderData:any = null;
+
+                let updatedOrderData:any = null;
 
               // complete order if all completed
               if (remainingStops === 0) {
@@ -621,7 +626,7 @@ export class WalletService {
                 data: {
                   userId: order.userId,
                   orderId,
-                  total_fee: order.total_cost,
+                  total_fee: orderStop.calculated_price,
                   redeemed_coin: order.coinsRedeemed,
                   additional_fee: order.additional_cost,
                   delivery_fee: order.total_fee,
@@ -630,7 +635,7 @@ export class WalletService {
 
                   type: TransactionType.BOOK_ORDER,
 
-                  pay_type: PayType.ONLINE_PAY,
+                  pay_type: PayType.COD,
 
                   tx_status: TransactionStatus.COMPLETED,
 
@@ -651,9 +656,21 @@ export class WalletService {
 
             title: 'Payment Successful',
 
-            body: `Your payment for order #${orderId} was successful.`,
+            body: `Your payment for orderStop #${orderStopId} was successful.`,
           });
+          // 
+          if(order?.assign_rider?.userId){
+            await this.emailQueueService.queuePushNotification({
+            userId: order.assign_rider.userId!,
+            fcmToken: order.user?.fcmToken || '',
 
+            type: 'ORDER_UPDATE',
+
+            title: 'Payment Recieved Successfully',
+
+            body: `Your recieved payment for orderstop #${orderStopId} was successful.`,
+          });
+          } 
           return updatedOrder;
         }
     
@@ -1108,7 +1125,7 @@ export class WalletService {
 
     const paymentIntent = await this.stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
-      currency: 'usd',
+      currency: 'sgd',
       customer: user.stripeCustomerId,
       payment_method: paymentMethodId,
       off_session: true,

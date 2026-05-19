@@ -154,7 +154,7 @@ export class WalletController {
             return ApiResponses.success(res, 'Payment successful');
         } catch (err) {
             console.log(err);
-            return ApiResponses.error(err.message || err, 'Payment failed');
+            return ApiResponses.error(err|| err, 'Payment failed');
         }
     }
 
@@ -191,7 +191,7 @@ export class WalletController {
 
         } catch (error) {
             console.log(error);
-            return ApiResponses.error(error.message || error, 'Failed to add money to wallet');
+            return ApiResponses.error(error, 'Failed to add money to wallet');
         }
 
     }
@@ -206,7 +206,7 @@ export class WalletController {
             return ApiResponses.success(res, 'Data retrieved successfully');
         } catch (error) {
             console.log(error);
-            return ApiResponses.error(error.message || error, 'Failed to get data');
+            return ApiResponses.error(error, 'Failed to get data');
 
         }
     }

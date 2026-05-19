@@ -28,6 +28,7 @@ export class OrderCronService {
           in: [
             OrderStatus.PENDING,
             OrderStatus.ONGOING,
+            OrderStatus.PROGRESS
           ],
         },
       },

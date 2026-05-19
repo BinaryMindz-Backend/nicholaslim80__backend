@@ -485,10 +485,11 @@ export class OrderService {
           throw new BadRequestException('Payment method ID required');
         }
 
-        const paid = await this.walletService.addMoney(
+        const paid = await this.walletService.payWithSavedCard(
           userId,
           Number(order.total_cost),
           dto.paymentMethodId,
+          dto.paymentMethod
         );
 
         if (!paid) throw new BadRequestException('Online payment failed');
