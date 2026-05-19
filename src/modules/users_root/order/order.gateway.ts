@@ -6,7 +6,6 @@ import {
   ConnectedSocket
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-// import { OrderService } from './order.service';
 import { RedisService } from 'src/modules/auth/redis/redis.service';
 import { UseGuards } from '@nestjs/common';
 import { WsJwtGuard } from 'src/guards/ws-jwt.guard';
@@ -97,16 +96,6 @@ export class OrderGateway implements OnGatewayConnection {
     console.log('Admin requested refresh');
     await this.sendAllRiderLocationToAdmin(client);
   }
-  // old**
-  // async broadcastOrderAssigned(orderId: number, riderId: number, riderName: string) {
-  //   console.log(`📣 Broadcasting: Order ${orderId} assigned to ${riderName} (${riderId})`);
-    
-  //   await this.server.to('admin:live-map').emit('admin:order_assigned', {
-  //     orderId,
-  //     riderId,
-  //     riderName,
-  //     assignedAt: new Date(),
-  //   });
-  // }
+
 
 }

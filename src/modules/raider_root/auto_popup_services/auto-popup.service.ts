@@ -353,9 +353,9 @@ export class AutoPopupService {
     if (!activeRaider || Number(activeRaider) !== raiderId) return;
 
     // Log timeout as decline
-    await this.prisma.orderDecline.create({
-      data: { orderId, raiderId },
-    }).catch(() => {}); // non-blocking
+    // await this.prisma.orderDecline.create({
+    //   data: { orderId, raiderId },
+    // }).catch(() => {}); // non-blocking
 
     this.logger.log(`Rider ${raiderId} timed out on order ${orderId} — moving to next driver`);
 
