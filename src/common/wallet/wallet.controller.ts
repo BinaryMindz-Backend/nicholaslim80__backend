@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Param, Query, Get, Delete, ParseIntPipe, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { Controller, Post, Body, Param, Query, Get, Delete, ParseIntPipe, HttpStatus, HttpCode } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiBody, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { WalletService } from './wallet.service';
 import { AddMoneyDto, addMoneyForOrderPriorityDto, PayWithSavedCardDto, WithdrawDto } from './dto/wallet.dto';
 import { Auth } from 'src/decorators/auth.decorator';
@@ -47,8 +47,53 @@ export class WalletController {
 
     return ApiResponses.success(result, 'Earning summary fetched');
     }
+     
+    @Post('checkout-session')
+    @Auth()
+    @ApiBearerAuth()
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+    summary: 'Create Stripe checkout session',
+    })
+    @ApiBody({
+    schema: {
+        type: 'object',
+        properties: {
+        orderId: {
+            type: 'number',
+            example: 31,
+        },
+        },
+        required: ['orderId'],
+    },
+    })
+    @ApiResponse({
+    status: 200,
+    description: 'Checkout session created successfully',
+    schema: {
+        example: {
+        success: true,
+        message: 'Checkout session created successfully',
+        data: {
+            sessionId: 'cs_test_a1b2c3',
+            checkoutUrl:
+            'https://checkout.stripe.com/c/pay/cs_test_a1b2c3',
+        },
+        },
+    },
+    })
+    async createCheckoutSession(@Body() body: any) {
+    const session =
+        await this.walletService.createCheckoutSession(
+        body.orderId,
+        );
 
-
+    return {
+        success: true,
+        message: 'Checkout session created successfully',
+        data: session,
+    };
+    }
 
 
     // add money for web portal

@@ -12,6 +12,7 @@ import { UserWalletHistoryQueryDto } from './dto/user-wallet-history-query.dto';
 import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.gateway';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { UserGateway } from 'src/modules/users_root/users/user.gateways';
+import { transaction_code } from 'src/utils/tr.generator';
 
 
 
@@ -346,6 +347,62 @@ export class WalletService {
 
     return { clientSecret: intent.client_secret, orderId };
   }
+   
+  //  
+   async createCheckoutSession(orderId: number) {
+    const order = await this.prisma.order.findUnique({
+      where: {
+        id: orderId,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const session =
+      await this.stripe.checkout.sessions.create({
+        mode: 'payment',
+
+        payment_method_types: ['card'],
+
+        metadata: {
+          orderId: order.id.toString(),
+          currency: 'sgd',
+        },
+
+        line_items: [
+          {
+            price_data: {
+              currency: 'sgd',
+
+              product_data: {
+                name: `Order #${order.id}`,
+              },
+
+              unit_amount: Math.round(
+                Number(order.total_cost) * 100,
+              ),
+            },
+
+            quantity: 1,
+          },
+        ],
+
+        success_url:
+          'https://yourapp.com/payment-success',
+
+        cancel_url:
+          'https://yourapp.com/payment-cancel',
+      });
+
+    return {
+      sessionId: session.id,
+      checkoutUrl: session.url,
+    };
+  }
+
+
 
 
   // payment status update by webhoo
@@ -416,6 +473,113 @@ export class WalletService {
         }
         break;
       }
+      // check out session complted
+      case 'checkout.session.completed': {
+          const session = event.data.object;
+
+          const orderId = Number(session?.metadata?.orderId);
+          const currency = session?.metadata?.currency;
+          //  
+          if (!orderId) return;
+          // Fetch order details first
+          const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  fcmToken: true
+                }
+              },
+              delivery_type: {
+                select: {
+                  name: true,
+                  id: true
+                }
+              },
+              vehicle: {
+                select: {
+                  vehicle_type: true,
+                  id: true
+                }
+              },
+              orderStops: {
+                include: {
+                  destination: true,
+                  payment: true,
+                },
+                orderBy: { sequence: 'asc' },
+              },
+            },
+          });
+
+          if (!order) return;
+
+          // Process order placement
+           await this.prisma.$transaction(async (tx) => {
+
+             await tx.stopPayment.updateMany({
+                where: { orderStopId: { in: order.orderStops.map((s) => s.id) } },
+                data: {
+                  payType: PayType.COD,
+                  status: PaymentStatus.PAID,
+                  amount: 0,
+                },
+              });
+
+            const updatedOrder = await tx.order.update({
+              where: { id: orderId },
+              data: {
+                order_status: OrderStatus.COMPLETED,
+                pay_type: PayType.COD,
+              },
+              include: {
+                orderStops: {
+                  include: {
+                    destination: true,
+                    payment: true,
+                  },
+                  orderBy: { sequence: 'asc' },
+                },
+              },
+            });
+
+            if (updatedOrder) {
+              // create transaction record
+              await this.prisma.transaction.create({
+                data: {
+                  userId:order.userId,
+                  orderId: orderId,
+                  total_fee: order.total_cost,
+                  redeemed_coin: order.coinsRedeemed,
+                  additional_fee: order.additional_cost,
+                  delivery_fee: order.total_fee,
+                  payment_status: PaymentStatus.PAID,
+                  type: TransactionType.BOOK_ORDER,
+                  pay_type: PayType.COD,
+                  tx_status: TransactionStatus.COMPLETED,
+                  transaction_code: `TX-${transaction_code}`,
+                }
+              })
+
+
+              // notify user by push notification
+              await this.emailQueueService.queuePushNotification({
+                userId:order.userId!,
+                fcmToken: order.user?.fcmToken || '',
+                type: "ORDER_UPDATE",
+                title: "Order Placed Successfully",
+                body: `Your order #${orderId} of ${Number(order.total_cost)} ${currency?.toUpperCase()} was placed successfully.`,
+                });
+              }
+
+              return updatedOrder;
+             });
+           }
+          break;
+        
+
+    
 
       case 'payment_intent.payment_failed': {
         console.log('❌ Payment failed:', event.data.object.id);
