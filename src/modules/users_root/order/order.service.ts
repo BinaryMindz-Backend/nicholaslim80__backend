@@ -646,8 +646,6 @@ export class OrderService {
 
     // 
     return r;
-
-
   }
 
   // notify rider

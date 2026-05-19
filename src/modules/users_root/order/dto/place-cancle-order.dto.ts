@@ -31,6 +31,7 @@ export class PlaceOrderDto {
        
   @ApiPropertyOptional({ enum:PaymentType, default:PaymentType.PAYMENT })
   @IsEnum(PaymentType)
+  @IsOptional()
   payType?:PaymentType
 
 }
