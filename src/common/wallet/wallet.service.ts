@@ -349,15 +349,19 @@ export class WalletService {
   }
    
   //  
-   async createCheckoutSession(orderId: number) {
-    const order = await this.prisma.order.findUnique({
+   async createCheckoutSession(orderId: number, orderStopId: number) {
+    const orderStop = await this.prisma.orderStop.findUnique({
       where: {
-        id: orderId,
+        id: orderStopId,
+        orderId
       },
+      include:{
+        payment:true,
+      }
     });
 
-    if (!order) {
-      throw new NotFoundException('Order not found');
+    if (!orderStop) {
+      throw new NotFoundException('OrderStop not found');
     }
 
     const session =
@@ -367,7 +371,8 @@ export class WalletService {
         payment_method_types: ['card'],
 
         metadata: {
-          orderId: order.id.toString(),
+          orderId: orderId.toString(),
+          orderStopId:orderStop.id.toString(),
           currency: 'sgd',
         },
 
@@ -377,11 +382,11 @@ export class WalletService {
               currency: 'sgd',
 
               product_data: {
-                name: `Order #${order.id}`,
+                name: `Order #${orderStop.id}`,
               },
 
               unit_amount: Math.round(
-                Number(order.total_cost) * 100,
+                Number(orderStop.payment?.amount) * 100,
               ),
             },
 
@@ -479,106 +484,178 @@ export class WalletService {
 
           const orderId = Number(session?.metadata?.orderId);
           const currency = session?.metadata?.currency;
-          //  
-          if (!orderId) return;
-          // Fetch order details first
+          const orderStopId = Number(session?.metadata?.orderStopId);
+
+          if (!orderId || !orderStopId) {
+            return;
+          }
+
+          const transaction_code = `TX-${Date.now()}`;
+
+          // prevent duplicate webhook processing
+          const existingTransaction =
+            await this.prisma.transaction.findFirst({
+              where: {
+                transaction_code,
+              },
+            });
+
+          if (existingTransaction) {
+            return;
+          }
+
           const order = await this.prisma.order.findUnique({
-            where: { id: orderId },
+            where: {
+              id: orderId,
+            },
+
             include: {
               user: {
                 select: {
                   id: true,
-                  fcmToken: true
-                }
+                  fcmToken: true,
+                },
               },
+
               delivery_type: {
                 select: {
+                  id: true,
                   name: true,
-                  id: true
-                }
+                },
               },
+
               vehicle: {
                 select: {
+                  id: true,
                   vehicle_type: true,
-                  id: true
-                }
+                },
               },
+
               orderStops: {
                 include: {
                   destination: true,
                   payment: true,
                 },
-                orderBy: { sequence: 'asc' },
+
+                orderBy: {
+                  sequence: 'asc',
+                },
               },
             },
           });
 
-          if (!order) return;
+          if (!order) {
+            throw new NotFoundException('Order not found');
+          }
 
-          // Process order placement
-           await this.prisma.$transaction(async (tx) => {
+          const orderStop = await this.prisma.orderStop.findFirst({
+            where: {
+              id: orderStopId,
+              orderId,
+              
+            },
 
-             await tx.stopPayment.updateMany({
-                where: { orderStopId: { in: order.orderStops.map((s) => s.id) } },
+            include: {
+              payment: true,
+            },
+          });
+          if (!orderStop) {
+            throw new NotFoundException('Order stop not found');
+          }
+
+          const updatedOrder = await this.prisma.$transaction(
+            async (tx) => {
+              // update payment
+              await tx.stopPayment.updateMany({
+                where: {
+                  orderStopId,
+                },
+
                 data: {
                   payType: PayType.COD,
                   status: PaymentStatus.PAID,
-                  amount: 0,
+                  amount: orderStop.calculated_price ?? 0,
                 },
               });
 
-            const updatedOrder = await tx.order.update({
-              where: { id: orderId },
-              data: {
-                order_status: OrderStatus.COMPLETED,
-                pay_type: PayType.COD,
-              },
-              include: {
-                orderStops: {
-                  include: {
-                    destination: true,
-                    payment: true,
-                  },
-                  orderBy: { sequence: 'asc' },
+              // update stop
+              await tx.orderStop.update({
+                where: {
+                  id: orderStopId,
                 },
-              },
-            });
 
-            if (updatedOrder) {
-              // create transaction record
-              await this.prisma.transaction.create({
                 data: {
-                  userId:order.userId,
-                  orderId: orderId,
+                  status: StopStatus.COMPLETED,
+                },
+              });
+
+              // remaining stops
+              const remainingStops =
+                await tx.orderStop.count({
+                  where: {
+                    orderId,
+                    status: {
+                      not: StopStatus.COMPLETED,
+                    },
+                  },
+                });
+              console.log(remainingStops);
+              let updatedOrderData:any = null;
+
+              // complete order if all completed
+              if (remainingStops === 0) {
+                updatedOrderData = await tx.order.update({
+                  where: {
+                    id: orderId,
+                  },
+
+                  data: {
+                    order_status: OrderStatus.COMPLETED,
+                    pay_type: PayType.COD,
+                  },
+                });
+              }
+
+              // create transaction
+              await tx.transaction.create({
+                data: {
+                  userId: order.userId,
+                  orderId,
                   total_fee: order.total_cost,
                   redeemed_coin: order.coinsRedeemed,
                   additional_fee: order.additional_cost,
                   delivery_fee: order.total_fee,
+
                   payment_status: PaymentStatus.PAID,
+
                   type: TransactionType.BOOK_ORDER,
-                  pay_type: PayType.COD,
+
+                  pay_type: PayType.ONLINE_PAY,
+
                   tx_status: TransactionStatus.COMPLETED,
-                  transaction_code: `TX-${transaction_code}`,
-                }
-              })
 
+                  transaction_code,
+                },
+              });
 
-              // notify user by push notification
-              await this.emailQueueService.queuePushNotification({
-                userId:order.userId!,
-                fcmToken: order.user?.fcmToken || '',
-                type: "ORDER_UPDATE",
-                title: "Order Placed Successfully",
-                body: `Your order #${orderId} of ${Number(order.total_cost)} ${currency?.toUpperCase()} was placed successfully.`,
-                });
-              }
+              return updatedOrderData;
+            },
+          );
 
-              return updatedOrder;
-             });
-           }
-          break;
-        
+          // push notification
+          await this.emailQueueService.queuePushNotification({
+            userId: order.userId!,
+            fcmToken: order.user?.fcmToken || '',
 
+            type: 'ORDER_UPDATE',
+
+            title: 'Payment Successful',
+
+            body: `Your payment for order #${orderId} was successful.`,
+          });
+
+          return updatedOrder;
+        }
     
 
       case 'payment_intent.payment_failed': {
