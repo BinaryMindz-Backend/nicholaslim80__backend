@@ -3830,8 +3830,8 @@ export class OrderService {
         floor_unit: row.receiver_floor_unit || defaultReceiver?.floor_unit || null,
         additionalInfo: row.receiver_note_to_driver || defaultReceiver?.note_to_driver || null,
       };
-
-      /* -------------------- Create order with destinations in transaction -------------------- */
+       
+      /* ----- --------------- Create order with destinations in transaction -------------------- */
       const order = await this.prisma.$transaction(async (tx) => {
         // 1. Create Order
         const newOrder = await tx.order.create({
@@ -3848,9 +3848,9 @@ export class OrderService {
             total_cost: parseFloat(totalCost.toFixed(2)),
             total_fee: parseFloat(totalFee.toFixed(2)),
             order_status: row.order_status || OrderStatus.PROGRESS,
-            isFixed: row.is_fixed === 'true' || row.is_fixed === true || false,
+            isFixed: row.is_fixed === '1' || row.is_fixed === true || false,
             isBulk: true,
-            raider_confirmation: row.raider_confirmation === 'true' || row.raider_confirmation === true || false,
+            raider_confirmation: row.raider_confirmation === '1' || row.raider_confirmation === true || false,
           },
         });
 
