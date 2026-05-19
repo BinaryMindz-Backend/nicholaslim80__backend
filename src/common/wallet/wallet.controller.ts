@@ -63,8 +63,12 @@ export class WalletController {
             type: 'number',
             example: 31,
         },
+        orderStopId: {
+            type: 'number',
+            example: 131,
         },
-        required: ['orderId'],
+        },
+        required: ['orderId', 'orderStopId'],
     },
     })
     @ApiResponse({
@@ -86,6 +90,7 @@ export class WalletController {
     const session =
         await this.walletService.createCheckoutSession(
         body.orderId,
+        body.orderStopId,
         );
 
     return {
