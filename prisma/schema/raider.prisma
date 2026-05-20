@@ -49,6 +49,10 @@ model Raider {
   //auto popup
   isAutoPopUpEnabled Boolean @default(false)
 
+  manualTierOverride Boolean   @default(false)
+  manualTierId       Int?
+  manualTierUntil    DateTime?
+
   // ================= RELATIONS =================
   registrations       RaiderRegistration[]
   locations           RaiderLocation?

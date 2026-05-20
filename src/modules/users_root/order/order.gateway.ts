@@ -33,7 +33,6 @@ export class OrderGateway implements OnGatewayConnection {
   }
   
   // send all online raider location to admin
-
   private async sendAllRiderLocationToAdmin(client:Socket){
     try {
       console.log('🔵 sendAllOrdersWithLocations called for client:', client.id);
