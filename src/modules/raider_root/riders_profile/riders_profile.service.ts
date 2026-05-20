@@ -686,6 +686,9 @@ export class RidersProfileService {
           where: { id: raider.id },
           data: {
             tierId: tier.id,
+              manualTierOverride: true,
+              // optional
+              // manualTierUntil: addDays(new Date(), 30),
           },
         });
       }
