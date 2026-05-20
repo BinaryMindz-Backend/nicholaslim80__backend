@@ -29,6 +29,7 @@ import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.ga
 import { SurgePricingRuleService } from 'src/modules/superadmin_root/surge_pricing_rule/surge_pricing_rule.service';
 import { AutoPopupService } from 'src/modules/raider_root/auto_popup_services/auto-popup.service';
 import { getRoadDistance } from 'src/modules/dynamic_pricing/distance.service';
+import { haversineDistance } from 'src/utils/haversine';
 
 
 @Injectable()
@@ -3104,63 +3105,324 @@ export class OrderService {
   }
 
   // feed only order
+  // async orderForFeed(userId: number, page = 1, limit = 100) {
+  //   const skip = (page - 1) * limit;
+
+  //   const raider = await this.prisma.raider.findFirst({
+  //     where: { userId, is_online: true, isSuspended: false, raider_status: RaiderStatus.ACTIVE },
+  //     select: { id: true },
+  //   });
+  //   // 
+  //   if (!raider) {
+  //     throw new ForbiddenException('Raider is offline or inactive');
+  //   }
+
+  //   const declineFilter = raider
+  //     ? {
+  //       NOT: {
+  //         declines: {
+  //           some: {
+  //             raiderId: raider.id,
+  //           },
+  //         },
+  //       },
+  //     }
+  //     : {};
+
+  //   const whereClause = {
+  //     order_status: OrderStatus.PENDING,
+  //     is_placed: true,
+  //     ...declineFilter,
+  //   };
+
+  //   const [orders, total] = await this.prisma.$transaction([
+  //     this.prisma.order.findMany({
+  //       where: whereClause,
+  //       orderBy: { created_at: 'desc' },
+  //       include: {
+  //         user: true,
+  //         vehicle: true,
+  //         orderStops: true,
+  //       },
+  //       skip,
+  //       take: limit,
+  //     }),
+
+  //     this.prisma.order.count({
+  //       where: whereClause,
+  //     }),
+  //   ]);
+
+  //   return {
+  //     data: orders,
+  //     total,
+  //     page,
+  //     limit,
+  //     totalPages: Math.ceil(total / limit),
+  //   };
+  // }
+
+   // 
   async orderForFeed(userId: number, page = 1, limit = 100) {
     const skip = (page - 1) * limit;
 
+    // ── Fetch raider with all needed fields ──
     const raider = await this.prisma.raider.findFirst({
-      where: { userId, is_online: true, isSuspended: false, raider_status: RaiderStatus.ACTIVE },
-      select: { id: true },
+      where: {
+        userId,
+        is_online: true,
+        isSuspended: false,
+        raider_status: RaiderStatus.ACTIVE,
+        raider_verificationFromAdmin: 'APPROVED',
+      },
+      include: {
+        locations: true,
+        tier: true,
+      },
     });
-    // 
+
     if (!raider) {
       throw new ForbiddenException('Raider is offline or inactive');
     }
 
-    const declineFilter = raider
-      ? {
+    // ── Performance threshold validation ──
+    // Use tier thresholds if available, else safe defaults
+    const minRating = Number(raider.tier?.minRating ?? 0);
+    const minCompletionRate = raider.tier?.minCompletionRate ?? 0;
+    const maxCancellationRate = raider.tier?.maxCancellationRate ?? 100;
+
+    const raiderRating = Number(raider.avg_rating ?? 0);
+    const completionRate = raider.completion_rate ?? 100;
+    const cancellationRate = raider.cancellation_rate ?? 0;
+
+    // New raiders skip performance checks — no history yet
+    const hasHistory = raider.completed_orders > 0;
+
+    if (hasHistory) {
+      if (raiderRating < minRating) {
+        throw new ForbiddenException(
+          `Your rating (${raiderRating}) is below the minimum required (${minRating}) for your tier.`,
+        );
+      }
+      if (completionRate < minCompletionRate) {
+        throw new ForbiddenException(
+          `Your completion rate (${completionRate}%) is below the minimum required (${minCompletionRate}%).`,
+        );
+      }
+      if (cancellationRate > maxCancellationRate) {
+        throw new ForbiddenException(
+          `Your cancellation rate (${cancellationRate}%) exceeds the maximum allowed (${maxCancellationRate}%).`,
+        );
+      }
+    }
+
+    // ── Express eligibility info for response ──
+    const isExpressEligible = raiderRating >= 4.5;
+    const expressWarning = !isExpressEligible
+      ? `Express orders require a 4.5+ rating. Your current rating is ${raiderRating}. Express orders will appear lower in your feed until you reach 4.5.`
+      : null;
+
+    // ── Fetch all pending unassigned orders ──
+    const allOrders = await this.prisma.order.findMany({
+      where: {
+        order_status: OrderStatus.PENDING,
+        is_placed: true,
+        assign_rider_id: null, // not yet assigned to anyone
         NOT: {
           declines: {
-            some: {
-              raiderId: raider.id,
+            some: { raiderId: raider.id }, // exclude orders raider already declined
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            image: true,
+            phone: true,
+          },
+        },
+        vehicle: true,
+        delivery_type: {
+          select: { id: true, name: true },
+        },
+        orderStops: {
+          orderBy: { sequence: 'asc' },
+          select: {
+            id: true,
+            type: true,
+            address: true,
+            latitude: true,
+            longitude: true,
+            sequence: true,
+            calculated_price: true,
+            calculated_distance: true,
+            calculated_time: true,
+            calculated_time_txt: true,
+            payment: {
+              select: { amount: true, payType: true, status: true },
             },
           },
         },
+      },
+    });
+
+    // ── Radius filter using Haversine ──
+    const radiusKm = this.getRadiusForTier(raider.tier?.code ?? 'BRONZE');
+
+    let filteredOrders = allOrders;
+
+    if (raider.locations) {
+      const raiderLat = Number(raider.locations.latitude);
+      const raiderLng = Number(raider.locations.longitude);
+
+      filteredOrders = allOrders.filter((order) => {
+        // Use pickup stop (sequence 1) for distance check
+        const pickup = order.orderStops.find((s) => s.type === StopType.PICKUP);
+        if (!pickup) return false;
+
+        const dist = haversineDistance(
+          raiderLat,
+          raiderLng,
+          pickup.latitude,
+          pickup.longitude,
+        );
+
+        return dist <= radiusKm;
+      });
+    }
+
+    // ── Score each order for this raider ──
+    const scored = filteredOrders.map((order) => {
+      const pickup = order.orderStops.find((s) => s.type === StopType.PICKUP);
+      const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
+
+      // Distance from raider to pickup
+      let raiderToPickupKm = 0;
+      if (raider.locations && pickup) {
+        raiderToPickupKm = haversineDistance(
+          Number(raider.locations.latitude),
+          Number(raider.locations.longitude),
+          pickup.latitude,
+          pickup.longitude,
+        );
       }
-      : {};
 
-    const whereClause = {
-      order_status: OrderStatus.PENDING,
-      is_placed: true,
-      ...declineFilter,
-    };
+      const score = this.scoreOrderForRaider(order, raider);
 
-    const [orders, total] = await this.prisma.$transaction([
-      this.prisma.order.findMany({
-        where: whereClause,
-        orderBy: { created_at: 'desc' },
-        include: {
-          user: true,
-          vehicle: true,
-          orderStops: true,
+      return {
+        ...order,
+        // Attach useful computed fields for client
+        feedMeta: {
+          raiderToPickupKm: Number(raiderToPickupKm.toFixed(2)),
+          dropCount: dropStops.length,
+          totalTimeMin: dropStops.reduce(
+            (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
+          ),
+          deliveryType: order.delivery_type?.name ?? '',
+          isExpressBoosted:
+            order.delivery_type?.name?.toUpperCase() === 'EXPRESS' && isExpressEligible,
         },
-        skip,
-        take: limit,
-      }),
+        _score: score,
+      };
+    });
 
-      this.prisma.order.count({
-        where: whereClause,
-      }),
-    ]);
+    // ── Sort by score descending ──
+    scored.sort((a, b) => b._score - a._score);
+
+    // ── Paginate after filter + sort ──
+    const total = scored.length;
+    const paginated = scored.slice(skip, skip + limit);
+
+    // ── Strip internal _score from response ──
+    const data = paginated.map(({ _score, ...order }) => order);
 
     return {
-      data: orders,
+      data,
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+      raiderInfo: {
+        tier: raider.tier?.name ?? 'BRONZE',
+        tierCode: raider.tier?.code ?? 'BRONZE',
+        radiusKm,
+        avgRating: raiderRating,
+        completionRate,
+        cancellationRate,
+        completedOrders: raider.completed_orders,
+        isExpressEligible,
+        expressWarning,
+      },
     };
   }
 
+    // ── Radius per tier ──
+    private getRadiusForTier(tierCode: string): number {
+      const radiusMap: Record<string, number> = {
+        BRONZE:   5,
+        SILVER:   8,
+        GOLD:     12,
+        PLATINUM: 20,
+      };
+      return radiusMap[tierCode] ?? 5;
+    }
+
+    // ── Score order for raider ──
+    private scoreOrderForRaider(order: any, raider: any): number {
+      let score = 0;
+
+      // Recency — newer = higher score (max 50pts)
+      const ageMinutes =
+        (Date.now() - new Date(order.created_at).getTime()) / 60000;
+      score += Math.max(0, 50 - ageMinutes);
+
+      // Total cost — higher paying = higher score (max 30pts)
+      const cost = Number(order.total_cost ?? 0);
+      score += Math.min(30, cost / 10);
+
+      // Distance — closer pickup = higher score (max 20pts)
+      const pickup = order.orderStops?.find((s: any) => s.type === StopType.PICKUP);
+      if (raider.locations && pickup) {
+        const dist = haversineDistance(
+          Number(raider.locations.latitude),
+          Number(raider.locations.longitude),
+          pickup.latitude,
+          pickup.longitude,
+        );
+        score += Math.max(0, 20 - dist * 2);
+      }
+
+      // ── Delivery type priority ──
+      const raiderRating = Number(raider.avg_rating ?? 0);
+      const deliveryTypeName = order.delivery_type?.name?.toUpperCase() ?? '';
+      const isHighRated = raiderRating >= 4.5;
+      const EXPRESS_FALLBACK_MINUTES = 3;
+      const expressOpenToAll = ageMinutes >= EXPRESS_FALLBACK_MINUTES;
+
+      if (deliveryTypeName === 'EXPRESS') {
+        if (isHighRated) {
+          score += 100; // 4.5+ always sees Express at top
+        } else if (expressOpenToAll) {
+          score += 100; // waited 3 mins — open to everyone equally
+        }
+        // else: fresh Express + low rated → natural position
+
+      } else if (deliveryTypeName === 'STANDARD') {
+        score += 30; // mid priority for all raiders
+
+      } else if (deliveryTypeName === 'SAVER') {
+        // no boost — natural sort only
+      }
+
+      // Tier priority multiplier — higher tier sees better sorted feed
+      const priorityScore = Number(raider.tier?.priorityScore ?? 1.0);
+      score *= priorityScore;
+
+      return score;
+    }
 
 
   //order decline

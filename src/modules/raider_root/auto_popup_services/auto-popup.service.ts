@@ -3,6 +3,7 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { RaiderGateway } from '../raider gateways/raider.gateway';
 import { OrderStatus, RaiderVerification } from '@prisma/client';
 import { autoPopupQueue, connection } from 'src/core/queues/queue'
+import { haversineDistance } from 'src/utils/haversine';
 
 
 // Redis key helpers — keeps all popup state in Redis, not DB
@@ -11,26 +12,9 @@ const POPUP_ACTIVE_KEY = (orderId: number) => `popup:active:${orderId}`;     // 
 const POPUP_ACCEPTED_KEY = (orderId: number) => `popup:accepted:${orderId}`; // accepted flag
 const POPUP_TIMEOUT_SEC = 15; // configurable — match your admin portal setting
 
-    // targeted codes  
-    const GOLD_PLATINUM_CODES = ['GOLD', 'PLATINUM'];
-
-  // Haversine formula — straight line distance in km between two lat/lng points
-  function haversineDistance(
-    lat1: number, lng1: number,
-    lat2: number, lng2: number,
-    ): number {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLng = ((lng2 - lng1) * Math.PI) / 180;
-    const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLng / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
-
- export interface EligibleDriver {
+  // targeted codes  
+  const GOLD_PLATINUM_CODES = ['GOLD', 'PLATINUM'];
+   export interface EligibleDriver {
     raiderId: number;
     userId: number;
     distanceKm: number;
@@ -38,8 +22,6 @@ const POPUP_TIMEOUT_SEC = 15; // configurable — match your admin portal settin
     tierCode: string;
     priorityScore: number;
     }
-
-
 @Injectable()
 export class AutoPopupService {
   private readonly logger = new Logger(AutoPopupService.name);
@@ -59,7 +41,6 @@ export class AutoPopupService {
   ): Promise<EligibleDriver[]> {
     const isPooling = deliveryTypeName.toUpperCase() === 'SAVER';
 
-    // Fetch all online raiders with auto popup enabled and Gold/Platinum tier
     const raiders = await this.prisma.raider.findMany({
       where: {
         is_online: true,
@@ -81,7 +62,7 @@ export class AutoPopupService {
         tier: true,
       },
     });
-    // console.log("Raider-->", raiders)
+
     const eligible: EligibleDriver[] = [];
 
     for (const raider of raiders) {
@@ -94,7 +75,7 @@ export class AutoPopupService {
         pickupLat, pickupLng,
         driverLat, driverLng,
       );
-    //   console.log("haversine output-->", distanceKm);
+
       // Filter by radius
       if (distanceKm > radiusKm) continue;
 

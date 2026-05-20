@@ -10,86 +10,137 @@ export class RaiderTierService {
 
   // ================= CRON =================
   @Cron(CronExpression.EVERY_3_HOURS)
-  async recalculateAllRaiders() {
-    this.logger.log('🚀 Starting driver tier recalculation...');
+    async recalculateAllRaiders() {
+      this.logger.log('🚀 Starting driver tier recalculation...');
 
-    const [raiders, tiers] = await Promise.all([
-      this.prisma.raider.findMany({
-        include: {
-          followers: { where: { is_fav: true } },
-          raider_ratings: true,
-        },
-      }),
-      this.prisma.driverTier.findMany({
-        where: { isActive: true },
-        orderBy: { priorityScore: 'desc' },
-      }),
-    ]);
+      const [raiders, tiers] = await Promise.all([
+        this.prisma.raider.findMany({
+          include: {
+            followers: {
+              where: {
+                is_fav: true,
+              },
+            },
 
-    if (!tiers.length) return;
+            raider_ratings: true,
+          },
+        }),
 
-    for (const raider of raiders) {
-      const avgRating = this.getAverageRating(raider);
-      const followersCount = raider.followers?.length ?? 0;
+        this.prisma.driverTier.findMany({
+          where: {
+            isActive: true,
+          },
 
-      const bestTier = this.findBestTier(raider, tiers, avgRating);
+          orderBy: {
+            priorityScore: 'desc',
+          },
+        }),
+      ]);
 
-      await this.prisma.raider.update({
-        where: { id: raider.id },
-        data: {
-          tierId: bestTier?.id ?? null,
-          updated_at: new Date(),
-        },
-      });
-    }
+      if (!tiers.length) return;
 
-    this.logger.log('✅ Driver tier recalculation completed');
-  }
+      for (const raider of raiders) {
 
-  // ================= FIND BEST TIER =================
-  private findBestTier(raider: any, tiers: any[], avgRating: number) {
-    const completed = raider.completed_orders ?? 0;
-    const cancelRate = raider.cancellation_rate ?? 0;
-    const hasBranding = raider.hasBranding ?? false;
-    const hasAd = raider.hasAdDecal ?? false;
+        if (raider.manualTierOverride) {
+          // permanent override
+          if (!raider.manualTierUntil) {
+            continue;
+          }
 
-    for (const tier of tiers) {
-      if (this.meetsCriteria(tier, completed, avgRating, cancelRate, hasBranding, hasAd)) {
-        return tier;
+          // temporary override still active
+          if (new Date() < raider.manualTierUntil) {
+            continue;
+          }
+
+          // expired override -> reset
+          await this.prisma.raider.update({
+            where: {
+              id: raider.id,
+            },
+
+            data: {
+              manualTierOverride: false,
+              manualTierUntil: null,
+            },
+          });
+        }
+
+        // ================= AUTO CALCULATION =================
+
+        const avgRating =  this.getAverageRating(raider);
+
+        const bestTier =  this.findBestTier(
+            raider,
+            tiers,
+            avgRating,
+          );
+
+        // avoid unnecessary update
+        if (raider.tierId === bestTier?.id) {
+          continue;
+        }
+
+        await this.prisma.raider.update({
+          where: {
+            id: raider.id,
+          },
+
+          data: {
+            tierId: bestTier?.id ?? null,
+            updated_at: new Date(),
+          },
+        });
       }
+
+      this.logger.log(
+        '✅ Driver tier recalculation completed',
+      );
     }
 
-    return tiers[tiers.length - 1]; 
-  }
+    // FIND BEST TIER 
+    private findBestTier(raider: any, tiers: any[], avgRating: number) {
+      const completed = raider.completed_orders ?? 0;
+      const cancelRate = raider.cancellation_rate ?? 0;
+      const hasBranding = raider.hasBranding ?? false;
+      const hasAd = raider.hasAdDecal ?? false;
 
-  // ================= RULE CHECK =================
-  private meetsCriteria(
-    tier: any,
-    completed: number,
-    avgRating: number,
-    cancelRate: number,
-    hasBranding: boolean,
-    hasAd: boolean,
-  ): boolean {
-    if (tier.minOrders && completed < tier.minOrders) return false;
+      for (const tier of tiers) {
+        if (this.meetsCriteria(tier, completed, avgRating, cancelRate, hasBranding, hasAd)) {
+          return tier;
+        }
+      }
 
-    if (tier.minRating && avgRating < Number(tier.minRating)) return false;
+      return tiers[tiers.length - 1]; 
+    }
 
-    if (tier.maxCancellationRate && cancelRate > Number(tier.maxCancellationRate)) return false;
+    //  RULE CHECK
+    private meetsCriteria(
+      tier: any,
+      completed: number,
+      avgRating: number,
+      cancelRate: number,
+      hasBranding: boolean,
+      hasAd: boolean,
+    ): boolean {
+      if (tier.minOrders && completed < tier.minOrders) return false;
 
-    if (tier.requiresBranding && !hasBranding) return false;
+      if (tier.minRating && avgRating < Number(tier.minRating)) return false;
 
-    if (tier.code === 'PLATINUM' && !hasAd) return false;
+      if (tier.maxCancellationRate && cancelRate > Number(tier.maxCancellationRate)) return false;
 
-    return true;
-  }
+      if (tier.requiresBranding && !hasBranding) return false;
+
+      if (tier.code === 'PLATINUM' && !hasAd) return false;
+
+      return true;
+    }
 
   // ================= RATING =================
   private getAverageRating(raider: any): number {
     if (!raider.raider_ratings?.length) return 0;
 
     const total = raider.raider_ratings.reduce(
-      (sum, r) => sum + (r.rating_star ?? 0),
+      (sum, r) => Number(sum + (r.rating_star ?? 0)),
       0,
     );
 
