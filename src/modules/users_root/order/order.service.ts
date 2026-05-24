@@ -675,91 +675,122 @@ export class OrderService {
     return r;
   }
 
+  // prioritize order
+  async priorityOrder(orderId: number, userId: number, dto: PriorityOrder) {
 
+    if (!dto.payType) {
+      throw new BadRequestException('Payment type is required for priority order');
+    }
 
-  // 
-  async priorityOrder(
-    orderId: number,
-    userId: number,
-    dto: PriorityOrder,
-  ) {
-    return await this.prisma.$transaction(async (tx) => {
-      const order = await tx.order.findFirst({
-        where: {
-          id: orderId,
-          userId,
-        },
-      });
+    if (
+      dto.payType !== PayType.WALLET &&
+      dto.payType !== PayType.ONLINE_PAY
+    ) {
+      throw new BadRequestException(
+        `Pay type ${dto.payType} is not supported for priority orders`,
+      );
+    }
 
-      if (!order) {
-        throw new NotFoundException(`ORD-${orderId} not found`);
+    if (dto.payType === PayType.ONLINE_PAY && !dto.paymentMethodId) {
+      throw new BadRequestException('Payment method ID required for online payment');
+    }
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order || order.userId !== userId) {
+      throw new NotFoundException(`ORD-${orderId} not found`);
+    }
+
+    // ── GUARD: Already prioritized ──
+    if (order.isPriorited === true) {
+      throw new BadRequestException(`ORD-${orderId} is already on priority`);
+    }
+
+    // ── GUARD: Order status ──
+    if (order.order_status === OrderStatus.PROGRESS) {
+      throw new BadRequestException('Cannot prioritize an unplaced order');
+    }
+
+    if (
+      order.order_status === OrderStatus.COMPLETED ||
+      order.order_status === OrderStatus.CANCELLED
+    ) {
+      throw new BadRequestException('Cannot prioritize a closed order');
+    }
+    // online payment
+    if (dto.payType === PayType.ONLINE_PAY) {
+      const paid = await this.walletService.payWithSavedCard(
+        userId,
+        dto.amount,
+        dto.paymentMethodId!,
+        dto.payType,
+      );
+
+      if (!paid) {
+        throw new BadRequestException('Online payment failed');
       }
+    }
 
-      if (order.isPriorited === true) {
-        throw new BadRequestException(`ORD-${orderId} is already on priority`);
-      }
-
-      // ───────────────── WALLET PAYMENT ─────────────────
+    // ── TRANSACTION ──
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      // ── WALLET PAYMENT ──
       if (dto.payType === PayType.WALLET) {
-        const user = await tx.user.findUnique({
-          where: { id: userId },
-        });
+        const user = await tx.user.findUnique({ where: { id: userId } });
 
-        if (
-          !user ||
-          Number(user.currentWalletBalance) < Number(5)
-        ) {
-          throw new BadRequestException('Insufficient wallet balance minimum priory amount 5');
+        if (!user || Number(user.currentWalletBalance) < dto.amount) {
+          throw new BadRequestException(
+            `Insufficient wallet balance. Priority fee is $${dto.amount}`,
+          );
         }
-        // 
+
         await tx.user.update({
           where: { id: userId },
           data: {
-            currentWalletBalance: {
-              decrement: Number(order.total_cost),
-            },
+            currentWalletBalance: { decrement: dto.amount },
           },
         });
       }
 
-      // ───────────────── ONLINE PAYMENT ─────────────────
-      if (dto.payType === PayType.ONLINE_PAY) {
-        if (!dto.paymentMethodId) {
-          throw new BadRequestException('Payment method ID required');
-        }
+      // ── UPDATE ORDER ──
+      // Freeze originalCost if not already set (same pattern as additionalService)
+      const originalCost =
+        Number(order.originalCost) !== 0
+          ? Number(order.originalCost)
+          : Number(order.total_cost);
 
-        const paid = await this.walletService.addMoney(
-          userId,
-          Number(order.total_cost),
-          dto.paymentMethodId,
-        );
+        return tx.order.update({
+          where: { id: orderId },
+          data: {
+            isPriorited: true,
+            priorityAt: new Date(),
+            priority_fee: dto.amount,
+            originalCost,
+            total_cost: parseFloat((Number(order.total_cost) + dto.amount).toFixed(2)),
+            total_raider_earnings: parseFloat(
+              (Number(order.total_raider_earnings) + dto.amount).toFixed(2)
+            ),
+          },
+        });
+    });
 
-        if (!paid) {
-          throw new BadRequestException('Online payment failed');
-        }
-      }
+    // ── NOTIFICATION (outside tx — side-effects after commit) ──
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
-      const isUserExist = await this.prisma.user.findUnique({ where: { id: userId } });
-      // Send notification to user
+    if (user) {
       await this.emailQueueService.queueOrderStatusNotification({
-        userId: userId,
-        fcmToken: isUserExist?.fcmToken ?? '',
-        orderId: order.id,
-        orderNumber: `ORD-${String(order.id).padStart(6, '0')}`,
+        userId: user.id,
+        fcmToken: user.fcmToken ?? '',
+        orderId: updatedOrder.id,
+        orderNumber: `ORD-${String(updatedOrder.id).padStart(6, '0')}`,
         status: NotificationType.ORDER_UPDATE,
         title: 'Order Prioritized Successfully',
-        message: `Your order ORD-${String(order.id).padStart(6, '0')} has been prioritized with total cost $${order.total_cost.toFixed(2)}.`,
+        message: `Your order ORD-${String(updatedOrder.id).padStart(6, '0')} has been prioritized. Priority fee of $${dto.amount.toFixed(2)} applied. New total: $${Number(updatedOrder.total_cost).toFixed(2)}.`,
       });
+    }
 
-      // ───────────────── UPDATE ORDER PRIORITY ─────────────────
-      return tx.order.update({
-        where: { id: orderId },
-        data: {
-          isPriorited: true,
-          priorityAt: new Date(),
-        },
-      });
-    });
+    return updatedOrder;
   }
 
 
@@ -2511,311 +2542,312 @@ export class OrderService {
 
 
   //  get order details 
- async getOrderDetails(orderId: number, callerId?: number) {
-     const p = await this.prisma.raider.findFirst({
-        where:{
-            userId:callerId,
-        },
-        include:{
-             user:{
-                 select:{
-                      roles:true
-                 }
-             } 
-        }
-     })
-    const callerRole = p?.user.roles.find(r=>r.name == UserRole.RAIDER);
-    // 
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        delivery_type: {
-          include: {
-            vehicle_types: {
-              include: { vehicle_type: true },
-            },
-          },
-        },
-        user: true,
-        orderStops: {
-          include: {
-            destination: true,
-            payment: true,
-          },
-          orderBy: { sequence: 'asc' },
-        },
-        assign_rider: {
-          include: {
-            registrations: {
-              select: {
-                id: true,
-                raider_name: true,
-                contact_number: true,
-                email_address: true,
-                current_postal_code: true,
-                current_unit: true,
-                current_address: true,
-                current_country: true,
-                driver_photos: true,
-              },
-            },
-            tier: true,
-            locations: true,
-          },
-        },
-      },
-    });
+//  async getOrderDetails(orderId: number, callerId?: number) {
+//      const p = await this.prisma.raider.findFirst({
+//         where:{
+//             userId:callerId,
+//         },
+//         include:{
+//              user:{
+//                  select:{
+//                       roles:true
+//                  }
+//              } 
+//         }
+//      })
+//     const callerRole = p?.user.roles.find(r=>r.name == UserRole.RAIDER);
+//     // 
+//     const order = await this.prisma.order.findUnique({
+//       where: { id: orderId },
+//       include: {
+//         delivery_type: {
+//           include: {
+//             vehicle_types: {
+//               include: { vehicle_type: true },
+//             },
+//           },
+//         },
+//         user: true,
+//         orderStops: {
+//           include: {
+//             destination: true,
+//             payment: true,
+//           },
+//           orderBy: { sequence: 'asc' },
+//         },
+        
+//         assign_rider: {
+//           include: {
+//             registrations: {
+//               select: {
+//                 id: true,
+//                 raider_name: true,
+//                 contact_number: true,
+//                 email_address: true,
+//                 current_postal_code: true,
+//                 current_unit: true,
+//                 current_address: true,
+//                 current_country: true,
+//                 driver_photos: true,
+//               },
+//             },
+//             tier: true,
+//             locations: true,
+//           },
+//         },
+//       },
+//     });
 
-    if (!order) throw new NotFoundException('Order not found');
+//     if (!order) throw new NotFoundException('Order not found');
 
-    const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
-    const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
+//     const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
+//     const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
 
-    // Rating
-    const avgRating = await this.prisma.rateRaider.aggregate({
-      where: { raiderId: order.assign_rider_id },
-      _avg: { rating_star: true },
-      _count: { id: true },
-    });
+//     // Rating
+//     const avgRating = await this.prisma.rateRaider.aggregate({
+//       where: { raiderId: order.assign_rider_id },
+//       _avg: { rating_star: true },
+//       _count: { id: true },
+//     });
 
-    const formattedAverage = avgRating._avg.rating_star
-      ? Number(avgRating._avg.rating_star.toFixed(2))
-      : 5;
+//     const formattedAverage = avgRating._avg.rating_star
+//       ? Number(avgRating._avg.rating_star.toFixed(2))
+//       : 5;
 
-     // Only calculated when caller is a raider and has a known location
-     // ── Raider leg: raider location → pickup → each drop ──
-      let raiderLeg: {
-        raiderToPickup: {
-          distanceKm: number;
-          durationMin: number;
-          durationText: string;
-        } | null;
-        pickupToDrop: Array<{
-          stopId: number;
-          address: string;
-          distanceKm: number;
-          durationMin: number;
-          durationText: string;
-        }>;
-      } | null = null;
+//      // Only calculated when caller is a raider and has a known location
+//      // ── Raider leg: raider location → pickup → each drop ──
+//       let raiderLeg: {
+//         raiderToPickup: {
+//           distanceKm: number;
+//           durationMin: number;
+//           durationText: string;
+//         } | null;
+//         pickupToDrop: Array<{
+//           stopId: number;
+//           address: string;
+//           distanceKm: number;
+//           durationMin: number;
+//           durationText: string;
+//         }>;
+//       } | null = null;
 
-      if (pickupStop) {
-        const pickupPos = { lat: pickupStop.latitude, lng: pickupStop.longitude };
+//       if (pickupStop) {
+//         const pickupPos = { lat: pickupStop.latitude, lng: pickupStop.longitude };
 
-  // ── PLACED ORDER: use assign_rider.locations (already included in query) ──
-  // ── UNPLACED ORDER: fetch raider by callerId if caller is RAIDER ──
-      let raiderLocation: { lat: number; lng: number } | null = null;
+//   // ── PLACED ORDER: use assign_rider.locations (already included in query) ──
+//   // ── UNPLACED ORDER: fetch raider by callerId if caller is RAIDER ──
+//       let raiderLocation: { lat: number; lng: number } | null = null;
 
-      if (order.is_placed && order.assign_rider?.locations) {
-        // Assigned raider's current live location
-        raiderLocation = {
-          lat: Number(order.assign_rider.locations.latitude),
-          lng: Number(order.assign_rider.locations.longitude),
-        };
-      } else if (!order.is_placed && callerRole && callerId) {
-        // Browsing raider (not yet assigned) — fetch their location
-        const raider = await this.prisma.raider.findFirst({
-          where: { userId: callerId },
-          include: { locations: true },
-        });
+//       if (order.is_placed && order.assign_rider?.locations) {
+//         // Assigned raider's current live location
+//         raiderLocation = {
+//           lat: Number(order.assign_rider.locations.latitude),
+//           lng: Number(order.assign_rider.locations.longitude),
+//         };
+//       } else if (!order.is_placed && callerRole && callerId) {
+//         // Browsing raider (not yet assigned) — fetch their location
+//         const raider = await this.prisma.raider.findFirst({
+//           where: { userId: callerId },
+//           include: { locations: true },
+//         });
 
-        if (raider?.locations) {
-          raiderLocation = {
-            lat: Number(raider.locations.latitude),
-            lng: Number(raider.locations.longitude),
-          };
-        }
-      }
+//         if (raider?.locations) {
+//           raiderLocation = {
+//             lat: Number(raider.locations.latitude),
+//             lng: Number(raider.locations.longitude),
+//           };
+//         }
+//       }
 
-      // Calculate legs only if we have a raider position
-      if (raiderLocation) {
-        try {
-          const raiderToPickup = await getRoadDistance(raiderLocation, pickupPos);
+//       // Calculate legs only if we have a raider position
+//       if (raiderLocation) {
+//         try {
+//           const raiderToPickup = await getRoadDistance(raiderLocation, pickupPos);
 
-          const pickupToDropLegs = await Promise.all(
-            dropStops.map(async (drop) => {
-              const dropPos = { lat: drop.latitude, lng: drop.longitude };
-              const leg = await getRoadDistance(pickupPos, dropPos);
-              return {
-                stopId: drop.id,
-                address: drop.address,
-                distanceKm: Number(leg.km.toFixed(2)),
-                durationMin: Number(leg.min.toFixed(1)),
-                durationText: leg.min_text,
-              };
-            }),
-          );
+//           const pickupToDropLegs = await Promise.all(
+//             dropStops.map(async (drop) => {
+//               const dropPos = { lat: drop.latitude, lng: drop.longitude };
+//               const leg = await getRoadDistance(pickupPos, dropPos);
+//               return {
+//                 stopId: drop.id,
+//                 address: drop.address,
+//                 distanceKm: Number(leg.km.toFixed(2)),
+//                 durationMin: Number(leg.min.toFixed(1)),
+//                 durationText: leg.min_text,
+//               };
+//             }),
+//           );
 
-          raiderLeg = {
-            raiderToPickup: {
-              distanceKm: Number(raiderToPickup.km.toFixed(2)),
-              durationMin: Number(raiderToPickup.min.toFixed(1)),
-              durationText: raiderToPickup.min_text,
-            },
-            pickupToDrop: pickupToDropLegs,
-          };
-        } catch (err) {
-          console.error('Raider leg calculation failed:', err);
-          raiderLeg = null;
-        }
-      }
-    }
+//           raiderLeg = {
+//             raiderToPickup: {
+//               distanceKm: Number(raiderToPickup.km.toFixed(2)),
+//               durationMin: Number(raiderToPickup.min.toFixed(1)),
+//               durationText: raiderToPickup.min_text,
+//             },
+//             pickupToDrop: pickupToDropLegs,
+//           };
+//         } catch (err) {
+//           console.error('Raider leg calculation failed:', err);
+//           raiderLeg = null;
+//         }
+//       }
+//     }
 
-    // ── ORDER IS PLACED → snapshot from DB ──
-    if (order.is_placed) {
-      const totalDistance = Number(order.total_distance ?? 0);
-      const totalCost = Number(order.total_cost ?? 0);
-      const totalFee = Number(order.total_fee ?? 0);
-      const totalRaiderEarnings = Number(order.total_raider_earnings ?? 0);
+//     // ── ORDER IS PLACED → snapshot from DB ──
+//     if (order.is_placed) {
+//       const totalDistance = Number(order.total_distance ?? 0);
+//       const totalCost = Number(order.total_cost ?? 0);
+//       const totalFee = Number(order.total_fee ?? 0);
+//       const totalRaiderEarnings = Number(order.total_raider_earnings ?? 0);
 
-      // Total time = sum of all drop calculated_time
-      const totalTimeMin = dropStops.reduce(
-        (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
-      );
+//       // Total time = sum of all drop calculated_time
+//       const totalTimeMin = dropStops.reduce(
+//         (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
+//       );
 
-      return {
-        ...order,
-        formattedAverage,
-        raiderLeg,
-        pricingSummary: {
-          totalDistance: Number(totalDistance.toFixed(2)),
-          totalCost: Number(totalCost.toFixed(2)),
-          totalFee: Number(totalFee.toFixed(2)),
-          totalRaiderEarnings: Number(totalRaiderEarnings.toFixed(2)),
-          totalPlatformFee: Number((totalCost - totalRaiderEarnings).toFixed(2)),
-          totalTimeMin: Number(totalTimeMin.toFixed(1)),
-          basePrice: 0,
-          deliveryTypeCharge: 0,
-          additionServiceFee: Number(order.additional_cost ?? 0),
-          dropCount: dropStops.length,
-          surgeApplied: false,
-          perDropBreakdown: dropStops.map((s) => ({
-            price: Number(Number(s.calculated_price ?? s.payment?.amount ?? 0).toFixed(2)),
-            raiderEarnings: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
-            distance: Number(Number(s.calculated_distance ?? 0).toFixed(2)),
-            durationMin: Number(Number(s.calculated_time ?? 0).toFixed(1)),
-            durationText: s.calculated_time_txt ?? '',
-            surgeMultiplier: 1,
-          })),
-        },
-      };
-    }
+//       return {
+//         ...order,
+//         formattedAverage,
+//         raiderLeg,
+//         pricingSummary: {
+//           totalDistance: Number(totalDistance.toFixed(2)),
+//           totalCost: Number(totalCost.toFixed(2)),
+//           totalFee: Number(totalFee.toFixed(2)),
+//           totalRaiderEarnings: Number(totalRaiderEarnings.toFixed(2)),
+//           totalPlatformFee: Number((totalCost - totalRaiderEarnings).toFixed(2)),
+//           totalTimeMin: Number(totalTimeMin.toFixed(1)),
+//           basePrice: 0,
+//           deliveryTypeCharge: 0,
+//           additionServiceFee: Number(order.additional_cost ?? 0),
+//           dropCount: dropStops.length,
+//           surgeApplied: false,
+//           perDropBreakdown: dropStops.map((s) => ({
+//             price: Number(Number(s.calculated_price ?? s.payment?.amount ?? 0).toFixed(2)),
+//             raiderEarnings: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+//             distance: Number(Number(s.calculated_distance ?? 0).toFixed(2)),
+//             durationMin: Number(Number(s.calculated_time ?? 0).toFixed(1)),
+//             durationText: s.calculated_time_txt ?? '',
+//             surgeMultiplier: 1,
+//           })),
+//         },
+//       };
+//     }
 
-    // ── ORDER NOT PLACED → live pricing ──
-    let pricingResults: ReceiverWithPricing[] = [];
-    let totalDistance = 0;
+//     // ── ORDER NOT PLACED → live pricing ──
+//     let pricingResults: ReceiverWithPricing[] = [];
+//     let totalDistance = 0;
 
-    if (pickupStop && dropStops.length > 0) {
-      const zone = await this.serviceZone.findZoneByPoint(
-        pickupStop.latitude,
-        pickupStop.longitude,
-      );
+//     if (pickupStop && dropStops.length > 0) {
+//       const zone = await this.serviceZone.findZoneByPoint(
+//         pickupStop.latitude,
+//         pickupStop.longitude,
+//       );
 
-      if (zone) {
-        const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
-        const receivers = dropStops.map((s) => ({ lat: s.latitude, lng: s.longitude }));
+//       if (zone) {
+//         const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
+//         const receivers = dropStops.map((s) => ({ lat: s.latitude, lng: s.longitude }));
 
-        const [demand, availableDrivers] = await Promise.all([
-          this.getCurrentDemand(zone.id),
-          this.getAvailableDrivers(zone.id),
-        ]);
+//         const [demand, availableDrivers] = await Promise.all([
+//           this.getCurrentDemand(zone.id),
+//           this.getAvailableDrivers(zone.id),
+//         ]);
 
-        try {
-          pricingResults = await getReceiversWithIndividualPrice(
-            this.prisma,
-            this.surgePricingRuleService,
-            sender,
-            receivers,
-            order.delivery_type_id,
-            order.vehicle_type_id ?? 1,
-            zone,
-            { isRoundTrip: order.route_type === RouteType.ROUND },
-            demand,
-            availableDrivers,
-          );
+//         try {
+//           pricingResults = await getReceiversWithIndividualPrice(
+//             this.prisma,
+//             this.surgePricingRuleService,
+//             sender,
+//             receivers,
+//             order.delivery_type_id,
+//             order.vehicle_type_id ?? 1,
+//             zone,
+//             { isRoundTrip: order.route_type === RouteType.ROUND },
+//             demand,
+//             availableDrivers,
+//           );
 
-          totalDistance = pricingResults.reduce(
-            (total, result) => total + result.distanceKm, 0,
-          );
-        } catch (error) {
-          console.error('Live pricing calculation failed:', error);
-          pricingResults = [];
-        }
-      }
-    }
+//           totalDistance = pricingResults.reduce(
+//             (total, result) => total + result.distanceKm, 0,
+//           );
+//         } catch (error) {
+//           console.error('Live pricing calculation failed:', error);
+//           pricingResults = [];
+//         }
+//       }
+//     }
 
-    // FALLBACK → stored DB values
-    if (pricingResults.length === 0) {
-      const totalTimeMin = dropStops.reduce(
-        (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
-      );
+//     // FALLBACK → stored DB values
+//     if (pricingResults.length === 0) {
+//       const totalTimeMin = dropStops.reduce(
+//         (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
+//       );
 
-      return {
-        ...order,
-        formattedAverage,
-        raiderLeg,
-        pricingSummary: {
-          totalDistance: Number(Number(order.total_distance ?? 0).toFixed(2)),
-          totalCost: Number(Number(order.total_cost ?? 0).toFixed(2)),
-          totalFee: Number(Number(order.total_fee ?? 0).toFixed(2)),
-          totalRaiderEarnings: Number(Number(order.total_raider_earnings ?? 0).toFixed(2)),
-          totalPlatformFee: 0,
-          totalTimeMin: Number(totalTimeMin.toFixed(1)),
-          basePrice: 0,
-          deliveryTypeCharge: 0,
-          additionServiceFee: Number(order.additional_cost ?? 0),
-          dropCount: dropStops.length,
-          surgeApplied: false,
-          perDropBreakdown: dropStops.map((s) => ({
-            price: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
-            raiderEarnings: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
-            distance: Number(Number(s.calculated_distance ?? 0).toFixed(2)),
-            durationMin: Number(Number(s.calculated_time ?? 0).toFixed(1)),
-            durationText: s.calculated_time_txt ?? '',
-            surgeMultiplier: 1,
-          })),
-        },
-      };
-    }
+//       return {
+//         ...order,
+//         formattedAverage,
+//         raiderLeg,
+//         pricingSummary: {
+//           totalDistance: Number(Number(order.total_distance ?? 0).toFixed(2)),
+//           totalCost: Number(Number(order.total_cost ?? 0).toFixed(2)),
+//           totalFee: Number(Number(order.total_fee ?? 0).toFixed(2)),
+//           totalRaiderEarnings: Number(Number(order.total_raider_earnings ?? 0).toFixed(2)),
+//           totalPlatformFee: 0,
+//           totalTimeMin: Number(totalTimeMin.toFixed(1)),
+//           basePrice: 0,
+//           deliveryTypeCharge: 0,
+//           additionServiceFee: Number(order.additional_cost ?? 0),
+//           dropCount: dropStops.length,
+//           surgeApplied: false,
+//           perDropBreakdown: dropStops.map((s) => ({
+//             price: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+//             raiderEarnings: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+//             distance: Number(Number(s.calculated_distance ?? 0).toFixed(2)),
+//             durationMin: Number(Number(s.calculated_time ?? 0).toFixed(1)),
+//             durationText: s.calculated_time_txt ?? '',
+//             surgeMultiplier: 1,
+//           })),
+//         },
+//       };
+//     }
 
-    // Live pricing totals
-    const totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
-    const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
-    const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
-    const totalPlatformFee = pricingResults.reduce((sum, r) => sum + r.pricing.platformFee, 0);
-    const totalTimeMin = pricingResults.reduce((sum, r) => sum + (r.pricing.min ?? 0), 0);
-    const basePrice = pricingResults[0]?.pricing.basePrice ?? 0;
-    const deliveryTypeCharge = pricingResults.reduce(
-      (sum, r) => sum + r.pricing.deliveryTypeCharge, 0,
-    );
+//     // Live pricing totals
+//     const totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
+//     const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+//     const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
+//     const totalPlatformFee = pricingResults.reduce((sum, r) => sum + r.pricing.platformFee, 0);
+//     const totalTimeMin = pricingResults.reduce((sum, r) => sum + (r.pricing.min ?? 0), 0);
+//     const basePrice = pricingResults[0]?.pricing.basePrice ?? 0;
+//     const deliveryTypeCharge = pricingResults.reduce(
+//       (sum, r) => sum + r.pricing.deliveryTypeCharge, 0,
+//     );
 
-    return {
-      ...order,
-      formattedAverage,
-      raiderLeg,
-      pricingSummary: {
-        totalDistance: Number(totalDistance.toFixed(2)),
-        totalCost: Number(totalCost.toFixed(2)),
-        totalFee: Number(totalFee.toFixed(2)),
-        totalRaiderEarnings: Number(totalRaiderEarnings.toFixed(2)),
-        totalPlatformFee: Number(totalPlatformFee.toFixed(2)),
-        totalTimeMin: Number(totalTimeMin.toFixed(1)),
-        basePrice: Number(basePrice.toFixed(2)),
-        deliveryTypeCharge: Number(deliveryTypeCharge.toFixed(2)),
-        additionServiceFee: Number(order.additional_cost ?? 0),
-        dropCount: dropStops.length,
-        surgeApplied: pricingResults.some((r) => r.pricing.surgeMultiplier > 1),
-        perDropBreakdown: pricingResults.map((r) => ({
-          price: Number(r.pricing.totalPrice.toFixed(2)),
-          raiderEarnings: Number(r.pricing.raiderEarnings.toFixed(2)),
-          distance: Number(r.distanceKm.toFixed(2)),
-          durationMin: Number((r.pricing.min ?? 0).toFixed(1)),
-          durationText: r.pricing.min_text ?? '',
-          surgeMultiplier: r.pricing.surgeMultiplier,
-        })),
-      },
-    };
-  }
+//     return {
+//       ...order,
+//       formattedAverage,
+//       raiderLeg,
+//       pricingSummary: {
+//         totalDistance: Number(totalDistance.toFixed(2)),
+//         totalCost: Number(totalCost.toFixed(2)),
+//         totalFee: Number(totalFee.toFixed(2)),
+//         totalRaiderEarnings: Number(totalRaiderEarnings.toFixed(2)),
+//         totalPlatformFee: Number(totalPlatformFee.toFixed(2)),
+//         totalTimeMin: Number(totalTimeMin.toFixed(1)),
+//         basePrice: Number(basePrice.toFixed(2)),
+//         deliveryTypeCharge: Number(deliveryTypeCharge.toFixed(2)),
+//         additionServiceFee: Number(order.additional_cost ?? 0),
+//         dropCount: dropStops.length,
+//         surgeApplied: pricingResults.some((r) => r.pricing.surgeMultiplier > 1),
+//         perDropBreakdown: pricingResults.map((r) => ({
+//           price: Number(r.pricing.totalPrice.toFixed(2)),
+//           raiderEarnings: Number(r.pricing.raiderEarnings.toFixed(2)),
+//           distance: Number(r.distanceKm.toFixed(2)),
+//           durationMin: Number((r.pricing.min ?? 0).toFixed(1)),
+//           durationText: r.pricing.min_text ?? '',
+//           surgeMultiplier: r.pricing.surgeMultiplier,
+//         })),
+//       },
+//     };
+//   }
  
  
  
@@ -3072,6 +3104,7 @@ export class OrderService {
         assign_rider_id: riderId,
         order_status: OrderStatus.ONGOING,
         competition_closed: true,
+        assign_at : new Date(),
       },
     });
   }
@@ -3577,21 +3610,417 @@ export class OrderService {
     }
 
 
-  //Promo code applay discount
-  async applyDiscount(
-    orderId: number,
-    userId: number,
-    dto: ApplyDiscountDto,
-  ) {
+  // //Promo code applay discount
+  // async applyDiscount(
+  //   orderId: number,
+  //   userId: number,
+  //   dto: ApplyDiscountDto,
+  // ) {
+  //   const order = await this.prisma.order.findUnique({
+  //     where: { id: orderId, userId },
+  //     include: {
+  //       orderStops: {
+  //         include: {
+  //           payment: true
+  //         }
+  //       },
+  //     }
+  //   });
+
+  //   if (!order) throw new NotFoundException('Order not found');
+
+  //   if (order.order_status !== OrderStatus.PROGRESS) {
+  //     throw new BadRequestException('Cannot apply discount to placed order');
+  //   }
+
+
+  //   let totalDiscount = 0;
+  //   let coinsUsed = 0;
+  //   let promoDiscount = 0;
+
+  //   await this.prisma.$transaction(async (tx) => {
+  //     // 1. Apply Coins (e.g., 100 coins = ৳10)
+  //     if (dto.useCoins && dto.coinsAmount) {
+  //       const userWallet = await tx.user.findUnique({
+  //         where: { id: userId },
+  //       });
+  //       // calculate total coin
+  //       const coinBalance = Number(userWallet?.current_coin_balance) + Number(userWallet?.reward_points);
+  //       // 
+  //       if (!userWallet || coinBalance < dto.coinsAmount) {
+  //         throw new BadRequestException('Insufficient coins');
+  //       }
+
+  //       // Convert coins to money (e.g., 1 coins = ৳1)
+  //       const result = await tx.coin.aggregate({
+  //         _avg: {
+  //           coin_value_in_cent: true,
+  //         },
+  //       });
+
+  //       const avgPrice = Number(result._avg.coin_value_in_cent ?? 0);
+  //       const coinValue = dto.coinsAmount * avgPrice;
+
+
+  //       if (Number(order.total_cost) < coinValue) {
+  //         throw new BadRequestException('Coins amount is greater than order total cost');
+  //       }
+
+  //       // Deduct coins
+  //       await tx.user.update({
+  //         where: { id: userId },
+  //         data: { current_coin_balance: { decrement: dto.coinsAmount } },
+  //       });
+
+  //       totalDiscount += coinValue;
+  //       coinsUsed = dto.coinsAmount;
+  //     }
+
+  //     // 2. Apply Promo Code
+  //     if (dto.promoCode) {
+  //       const promo = await tx.promoCode.findUnique({
+  //         where: { promoCode: dto.promoCode, isActive: true },
+  //       });
+
+  //       if (!promo) {
+  //         throw new BadRequestException('Invalid promo code');
+  //       }
+
+  //       // Check expiry
+  //       if (promo.expires_at && promo.expires_at < new Date()) {
+  //         throw new BadRequestException('Promo code expired');
+  //       }
+
+  //       // Calculate discount
+  //       if (promo.discountType === 'PERCENTAGE') {
+  //         promoDiscount = (Number(order.total_cost) * promo.discountValue) / 100;
+
+  //         // Apply max cap if exists
+  //         // if (promo.maxDiscount && promoDiscount > promo.maxDiscount) {
+  //         //   promoDiscount = promo.maxDiscount;
+  //         // }
+  //       } else {
+  //         // Fixed amount
+  //         promoDiscount = promo.discountValue;
+  //       }
+
+  //       totalDiscount += promoDiscount;
+
+  //       // Mark promo as used
+  //       await tx.promaCodeUses.create({
+  //         data: {
+  //           promoCodeId: promo.id,
+  //           userId,
+  //           orderId,
+  //           discountAmount: promoDiscount,
+  //           discounttype: promo.discountType,
+  //         },
+  //       });
+  //     }
+
+  //     // 3. Update Order
+  //     const finalCost = Math.max(
+  //       Number(order.total_cost) - totalDiscount,
+  //       0, // Never go below 0
+  //     );
+
+  //     await tx.order.update({
+  //       where: { id: orderId },
+  //       data: {
+  //         originalCost: order.total_cost,
+  //         discountAmount: totalDiscount,
+  //         coinsRedeemed: coinsUsed,
+  //         promoCode: dto.promoCode || null,
+  //         promoDiscount,
+  //         total_cost: finalCost,
+  //       },
+  //     });
+  //     //Problem: discount need to split if order is COD and multiple drop // solved
+  //     // if order is cod
+  //     if (order.pay_type === PayType.COD) {
+  //       //find sender and reciever
+  //       const senders = order.orderStops.filter(
+  //         s => s.type === 'PICKUP' && s.payment?.status === 'UNPAID'
+  //       );
+
+  //       const receivers = order.orderStops.filter(
+  //         r => r.type === 'DROP' && r.payment?.status === 'UNPAID'
+  //       );
+  //       // find payers
+  //       const payers = senders.length > 0 ? senders : receivers;
+  //       if (payers.length === 0) return;
+
+  //       const total = Number(totalDiscount);
+  //       const baseSplit = Math.floor((total / payers.length) * 100) / 100;
+  //       let remainder = +(total - baseSplit * payers.length).toFixed(2);
+
+  //       for (const stop of payers) {
+  //         const discount =
+  //           remainder > 0 ? +(baseSplit + 0.01).toFixed(2) : baseSplit;
+
+  //         remainder = +(remainder - 0.01).toFixed(2);
+
+  //         await tx.stopPayment.update({
+  //           where: { id: stop.payment?.id },
+  //           data: {
+  //             discount,
+  //             amount: {
+  //               decrement: discount
+  //             }
+  //           },
+  //         });
+  //       }
+  //     }
+
+  //   });
+
+  //   return this.getOrderDetails(orderId);
+  // }
+
+  // // Remove discount
+  // async removeDiscount(orderId: number, userId: number, type: string) {
+  //   const order = await this.prisma.order.findUnique({
+  //     where: { id: orderId, userId },
+  //     include: {
+  //       orderStops: {
+  //         include: {
+  //           payment: true,
+  //         }
+  //       }
+  //     }
+  //   });
+
+  //   if (!order) throw new NotFoundException('Order not found');
+
+  //   await this.prisma.$transaction(async (tx) => {
+  //     // Refund coins
+  //     if (order.coinsRedeemed > 0 && type === 'coin') {
+  //       await tx.user.update({
+  //         where: { id: userId },
+  //         data: { current_coin_balance: { increment: order.coinsRedeemed } },
+  //       });
+  //     }
+
+  //     // Remove promo usage
+  //     if (order.promoCode && type === 'promo') {
+  //       await tx.promaCodeUses.deleteMany({
+  //         where: { orderId },
+  //       });
+  //     }
+
+
+  //     const discountAmount = type === 'coin' ? Number(order.discountAmount) - Number(order.coinsRedeemed) : Number(order.discountAmount) - Number(order.promoDiscount);
+  //     const coinsRedeemed = type === 'coin' ? Number(order.coinsRedeemed) - Number(order.coinsRedeemed) : Number(order.coinsRedeemed);
+  //     const promoDiscount = type === 'promo' ? Number(order.promoDiscount) - Number(order.promoDiscount) : Number(order.promoDiscount);
+
+  //     // Restore original price
+  //     await tx.order.update({
+  //       where: { id: orderId },
+  //       data: {
+  //         total_cost: order.originalCost,
+  //         discountAmount: discountAmount,
+  //         coinsRedeemed: coinsRedeemed,
+  //         promoCode: type === 'promo' && order.promoCode ? null : order.promoCode,
+  //         promoDiscount: promoDiscount,
+  //       },
+  //     });
+
+  //     //  remove discount from order stop
+  //     if (order.pay_type === PayType.COD) {
+  //       //  Find unpaid PICKUP (sender) and DROP (receiver)
+  //       const senders = order.orderStops.filter(
+  //         s => s.type === 'PICKUP' && s.payment?.status === 'UNPAID'
+  //       );
+
+  //       const receivers = order.orderStops.filter(
+  //         r => r.type === 'DROP' && r.payment?.status === 'UNPAID'
+  //       );
+
+  //       // Decide who gets discount removed
+  //       const backPayers = senders.length > 0 ? senders : receivers;
+  //       if (backPayers.length === 0) return;
+
+  //       //  Re-split discount (same logic used when applying)
+  //       const total = Number(order.discountAmount);
+  //       const count = backPayers.length;
+
+  //       const base = Math.floor((total / count) * 100) / 100;
+  //       let remainder = +(total - base * count).toFixed(2);
+
+  //       // Reverse discount (add back)
+  //       for (const stop of backPayers) {
+  //         const restore =
+  //           remainder > 0 ? +(base + 0.01).toFixed(2) : base;
+
+  //         remainder = +(remainder - 0.01).toFixed(2);
+
+  //         await tx.stopPayment.update({
+  //           where: { id: stop.payment?.id },
+  //           data: {
+  //             discount: {
+  //               decrement: restore, // discount removed
+  //             },
+  //             amount: {
+  //               increment: restore, // money added back
+  //             },
+  //           },
+  //         });
+  //       }
+  //     }
+
+
+  //   });
+
+  //   return this.getOrderDetails(orderId);
+  // }
+  // // add additional price
+  // async additionalService(orderId: number, userId: number, serviceId: number) {
+  //   return await this.prisma.$transaction(async (tx) => {
+  //     const order = await tx.order.findUnique({
+  //       where: { id: orderId, userId },
+  //     });
+
+  //     if (!order) throw new NotFoundException('Order not found');
+  //     if (order.order_status !== OrderStatus.PROGRESS) {
+  //       throw new BadRequestException('Cannot add services to this order');
+  //     }
+
+  //     const service = await tx.additionalServices.findUnique({
+  //       where: { id: serviceId, isActive: true },
+  //     });
+
+  //     if (!service) {
+  //       throw new NotFoundException('Additional service not found');
+  //     }
+
+  //     const existingServices: any[] = Array.isArray(order.additional_services)
+  //       ? order.additional_services
+  //       : [];
+
+  //     // ❗ Prevent duplicate service
+  //     const alreadyAdded = existingServices.some(
+  //       s => s.id === service.id,
+  //     );
+  //     if (alreadyAdded) {
+  //       throw new BadRequestException('Service already added to this order');
+  //     }
+
+  //     const serviceValue = Number(service.value);
+  //     const prevAdditional = Number(order.additional_cost ?? 0);
+  //     //  addition fix
+  //     const originalCost =
+  //       Number(order.originalCost) !== 0
+  //         ? Number(order.originalCost)
+  //         : Number(order.total_cost);
+  //     // console.log(originalCost, prevAdditional, serviceValue);
+  //     // const updatedOrder = await tx.order.update({
+  //     //   where: { id: orderId, userId },
+  //     //   data: {
+  //     //     originalCost,
+  //     //     additional_cost: prevAdditional + serviceValue,
+  //     //     total_cost: originalCost + prevAdditional + serviceValue,
+  //     //     has_additional_services: true,
+
+ 
+  //     //   },
+  //     // });
+  //     const prevRaiderEarnings = Number(order.total_raider_earnings ?? 0);
+
+  //         const updatedOrder = await tx.order.update({
+  //           where:{
+
+  //           },
+  //           data: {
+  //             originalCost,
+  //             additional_cost: prevAdditional + serviceValue,
+  //             total_cost: parseFloat((originalCost + prevAdditional + serviceValue + priorityFee).toFixed(2)),
+  //             total_raider_earnings: parseFloat((prevRaiderEarnings + serviceValue).toFixed(2)),
+  //             has_additional_services: true,
+  //               // JSON append
+  //               additional_services: [
+  //                 ...existingServices,
+  //                 {
+  //                   id: service.id,
+  //                   name: service.service_name,
+  //                   desc: service.desc,
+  //                   price: serviceValue,
+  //                 },
+  //               ],
+  //           },
+  //         });
+  //     return updatedOrder;
+  //   });
+  // }
+
+
+  // // remove additional services
+  // async removeAdditionalService(orderId: number, userId: number, serviceId: number) {
+  //   return await this.prisma.$transaction(async (tx) => {
+  //     const order = await tx.order.findUnique({
+  //       where: { id: orderId, userId },
+  //     });
+
+  //     if (!order) throw new NotFoundException('Order not found');
+  //     if (order.order_status !== OrderStatus.PROGRESS) {
+  //       throw new BadRequestException('Cannot remove services from this order');
+  //     }
+
+  //     const existingServices: any[] = Array.isArray(order.additional_services)
+  //       ? order.additional_services
+  //       : [];
+
+  //     // ❗ Check if service exists in JSON
+  //     const serviceExists = existingServices.some(
+  //       s => s.id === serviceId,
+  //     );
+
+  //     if (!serviceExists) {
+  //       throw new BadRequestException('Service not applied to this order');
+  //     }
+
+  //     //  Remove service from JSON
+  //     const filteredServices = existingServices.filter(
+  //       s => s.id !== serviceId,
+  //     );
+
+  //     // Recalculate additional cost from JSON
+  //     const newAdditional = filteredServices.reduce(
+  //       (sum: number, s) => sum + Number(s.price),
+  //       0,
+  //     );
+
+  //     const baseCost =
+  //       Number(order.originalCost) !== 0
+  //         ? Number(order.originalCost)
+  //         : Number(order.total_cost);
+
+  //     // Update order
+  //     const updatedOrder = await tx.order.update({
+  //       where: { id: orderId, userId },
+  //       data: {
+  //         additional_services: filteredServices,
+  //         additional_cost: newAdditional,
+  //         total_cost: baseCost + newAdditional,
+  //         has_additional_services: filteredServices.length > 0,
+  //       },
+  //     });
+
+  //     return updatedOrder;
+  //   });
+  // }
+
+
+
+  // APPLY DISCOUNT
+  async applyDiscount(orderId: number, userId: number, dto: ApplyDiscountDto) {
+    
     const order = await this.prisma.order.findUnique({
       where: { id: orderId, userId },
       include: {
         orderStops: {
-          include: {
-            payment: true
-          }
+          include: { payment: true },
         },
-      }
+      },
     });
 
     if (!order) throw new NotFoundException('Order not found');
@@ -3600,40 +4029,50 @@ export class OrderService {
       throw new BadRequestException('Cannot apply discount to placed order');
     }
 
+    // ── Guard: prevent double-applying same type ──
+    if (dto.useCoins && order.coinsRedeemed > 0) {
+      throw new BadRequestException('Coins already applied. Remove them first.');
+    }
+    if (dto.promoCode && order.promoCode) {
+      throw new BadRequestException('A promo code is already applied. Remove it first.');
+    }
+
+    // ── Use originalCost as base for all calculations ──
+    // If originalCost not yet set, freeze current total_cost as the base
+    const baseCost =
+      Number(order.originalCost) !== 0
+        ? Number(order.originalCost)
+        : Number(order.total_cost);
 
     let totalDiscount = 0;
     let coinsUsed = 0;
     let promoDiscount = 0;
 
     await this.prisma.$transaction(async (tx) => {
-      // 1. Apply Coins (e.g., 100 coins = ৳10)
+      // ── 1. Apply Coins ──
       if (dto.useCoins && dto.coinsAmount) {
-        const userWallet = await tx.user.findUnique({
-          where: { id: userId },
-        });
-        // calculate total coin
-        const coinBalance = Number(userWallet?.current_coin_balance) + Number(userWallet?.reward_points);
-        // 
+        const userWallet = await tx.user.findUnique({ where: { id: userId } });
+
+        const coinBalance =
+          Number(userWallet?.current_coin_balance) +
+          Number(userWallet?.reward_points);
+
         if (!userWallet || coinBalance < dto.coinsAmount) {
           throw new BadRequestException('Insufficient coins');
         }
 
-        // Convert coins to money (e.g., 1 coins = ৳1)
         const result = await tx.coin.aggregate({
-          _avg: {
-            coin_value_in_cent: true,
-          },
+          _avg: { coin_value_in_cent: true },
         });
 
         const avgPrice = Number(result._avg.coin_value_in_cent ?? 0);
         const coinValue = dto.coinsAmount * avgPrice;
 
-
-        if (Number(order.total_cost) < coinValue) {
-          throw new BadRequestException('Coins amount is greater than order total cost');
+        // Validate against baseCost not total_cost (which may already be discounted)
+        if (baseCost < coinValue) {
+          throw new BadRequestException('Coins amount exceeds order base cost');
         }
 
-        // Deduct coins
         await tx.user.update({
           where: { id: userId },
           data: { current_coin_balance: { decrement: dto.coinsAmount } },
@@ -3643,37 +4082,27 @@ export class OrderService {
         coinsUsed = dto.coinsAmount;
       }
 
-      // 2. Apply Promo Code
+      // ── 2. Apply Promo Code ──
       if (dto.promoCode) {
         const promo = await tx.promoCode.findUnique({
           where: { promoCode: dto.promoCode, isActive: true },
         });
 
-        if (!promo) {
-          throw new BadRequestException('Invalid promo code');
-        }
+        if (!promo) throw new BadRequestException('Invalid promo code');
 
-        // Check expiry
         if (promo.expires_at && promo.expires_at < new Date()) {
           throw new BadRequestException('Promo code expired');
         }
 
-        // Calculate discount
+        // Always calculate percentage off baseCost, not already-discounted total_cost
         if (promo.discountType === 'PERCENTAGE') {
-          promoDiscount = (Number(order.total_cost) * promo.discountValue) / 100;
-
-          // Apply max cap if exists
-          // if (promo.maxDiscount && promoDiscount > promo.maxDiscount) {
-          //   promoDiscount = promo.maxDiscount;
-          // }
+          promoDiscount = (baseCost * promo.discountValue) / 100;
         } else {
-          // Fixed amount
           promoDiscount = promo.discountValue;
         }
 
         totalDiscount += promoDiscount;
 
-        // Mark promo as used
         await tx.promaCodeUses.create({
           data: {
             promoCodeId: promo.id,
@@ -3685,35 +4114,37 @@ export class OrderService {
         });
       }
 
-      // 3. Update Order
-      const finalCost = Math.max(
-        Number(order.total_cost) - totalDiscount,
-        0, // Never go below 0
+      // ── 3. Calculate final cost ──
+      // Discount only reduces user-facing total_cost
+      // raider_earnings and total_fee are NEVER touched (platform absorbs discount)
+      const existingDiscount = Number(order.discountAmount ?? 0);
+      const newTotalDiscount = existingDiscount + totalDiscount;
+
+      const finalCost = parseFloat(
+        Math.max(baseCost - newTotalDiscount, 0).toFixed(2),
       );
 
       await tx.order.update({
         where: { id: orderId },
         data: {
-          originalCost: order.total_cost,
-          discountAmount: totalDiscount,
-          coinsRedeemed: coinsUsed,
-          promoCode: dto.promoCode || null,
-          promoDiscount,
+          originalCost: baseCost,           
+          discountAmount: newTotalDiscount,
+          coinsRedeemed: { increment: coinsUsed },
+          promoCode: dto.promoCode || order.promoCode || null,
+          promoDiscount: Number(order.promoDiscount ?? 0) + promoDiscount,
           total_cost: finalCost,
         },
       });
-      //Problem: discount need to split if order is COD and multiple drop // solved
-      // if order is cod
+
+      // ── 4. Split discount across COD stop payments ──
       if (order.pay_type === PayType.COD) {
-        //find sender and reciever
         const senders = order.orderStops.filter(
-          s => s.type === 'PICKUP' && s.payment?.status === 'UNPAID'
+          (s) => s.type === 'PICKUP' && s.payment?.status === 'UNPAID',
+        );
+        const receivers = order.orderStops.filter(
+          (r) => r.type === 'DROP' && r.payment?.status === 'UNPAID',
         );
 
-        const receivers = order.orderStops.filter(
-          r => r.type === 'DROP' && r.payment?.status === 'UNPAID'
-        );
-        // find payers
         const payers = senders.length > 0 ? senders : receivers;
         if (payers.length === 0) return;
 
@@ -3724,128 +4155,127 @@ export class OrderService {
         for (const stop of payers) {
           const discount =
             remainder > 0 ? +(baseSplit + 0.01).toFixed(2) : baseSplit;
-
           remainder = +(remainder - 0.01).toFixed(2);
 
           await tx.stopPayment.update({
             where: { id: stop.payment?.id },
             data: {
               discount,
-              amount: {
-                decrement: discount
-              }
+              amount: { decrement: discount },
             },
           });
         }
       }
-
     });
 
     return this.getOrderDetails(orderId);
   }
 
-  // Remove discount
-  async removeDiscount(orderId: number, userId: number, type: string) {
+
+  // REMOVE DISCOUNT
+  async removeDiscount(orderId: number, userId: number, type: 'coin' | 'promo') {
+
     const order = await this.prisma.order.findUnique({
       where: { id: orderId, userId },
       include: {
-        orderStops: {
-          include: {
-            payment: true,
-          }
-        }
-      }
+        orderStops: { include: { payment: true } },
+      },
     });
 
     if (!order) throw new NotFoundException('Order not found');
 
+    if (order.order_status !== OrderStatus.PROGRESS) {
+      throw new BadRequestException('Cannot modify a placed order');
+    }
+
     await this.prisma.$transaction(async (tx) => {
-      // Refund coins
-      if (order.coinsRedeemed > 0 && type === 'coin') {
+      // ── 1. Refund coins ──
+      if (type === 'coin' && order.coinsRedeemed > 0) {
         await tx.user.update({
           where: { id: userId },
           data: { current_coin_balance: { increment: order.coinsRedeemed } },
         });
       }
 
-      // Remove promo usage
-      if (order.promoCode && type === 'promo') {
-        await tx.promaCodeUses.deleteMany({
-          where: { orderId },
-        });
+      // ── 2. Remove promo usage ──
+      if (type === 'promo' && order.promoCode) {
+        await tx.promaCodeUses.deleteMany({ where: { orderId } });
       }
 
+      // ── 3. Recalculate discount totals ──
+      const newCoinsRedeemed  = type === 'coin'  ? 0 : Number(order.coinsRedeemed);
+      const newPromoDiscount  = type === 'promo' ? 0 : Number(order.promoDiscount);
+      const newDiscountAmount = newCoinsRedeemed + newPromoDiscount;  // clean recalculation
 
-      const discountAmount = type === 'coin' ? Number(order.discountAmount) - Number(order.coinsRedeemed) : Number(order.discountAmount) - Number(order.promoDiscount);
-      const coinsRedeemed = type === 'coin' ? Number(order.coinsRedeemed) - Number(order.coinsRedeemed) : Number(order.coinsRedeemed);
-      const promoDiscount = type === 'promo' ? Number(order.promoDiscount) - Number(order.promoDiscount) : Number(order.promoDiscount);
+      // ── 4. Restore total_cost = originalCost + extras - remaining discount ──
+      // Must include additional_cost and priority_fee — they are still on the order
+      const restoredCost = parseFloat(
+        Math.max(
+          Number(order.originalCost) +
+            Number(order.additional_cost ?? 0) +
+            Number(order.priority_fee ?? 0) -
+            newDiscountAmount,
+          0,
+        ).toFixed(2),
+      );
 
-      // Restore original price
       await tx.order.update({
         where: { id: orderId },
         data: {
-          total_cost: order.originalCost,
-          discountAmount: discountAmount,
-          coinsRedeemed: coinsRedeemed,
-          promoCode: type === 'promo' && order.promoCode ? null : order.promoCode,
-          promoDiscount: promoDiscount,
+          total_cost: restoredCost,
+          discountAmount: newDiscountAmount,
+          coinsRedeemed: newCoinsRedeemed,
+          promoDiscount: newPromoDiscount,
+          promoCode: type === 'promo' ? null : order.promoCode,
         },
       });
 
-      //  remove discount from order stop
+      // ── 5. Reverse discount split on COD stop payments ──
       if (order.pay_type === PayType.COD) {
-        //  Find unpaid PICKUP (sender) and DROP (receiver)
         const senders = order.orderStops.filter(
-          s => s.type === 'PICKUP' && s.payment?.status === 'UNPAID'
+          (s) => s.type === 'PICKUP' && s.payment?.status === 'UNPAID',
         );
-
         const receivers = order.orderStops.filter(
-          r => r.type === 'DROP' && r.payment?.status === 'UNPAID'
+          (r) => r.type === 'DROP' && r.payment?.status === 'UNPAID',
         );
 
-        // Decide who gets discount removed
         const backPayers = senders.length > 0 ? senders : receivers;
         if (backPayers.length === 0) return;
 
-        //  Re-split discount (same logic used when applying)
-        const total = Number(order.discountAmount);
+        // Use the amount being removed — not the full discountAmount
+        const removedDiscount =
+          type === 'coin'
+            ? Number(order.coinsRedeemed)
+            : Number(order.promoDiscount);
+
         const count = backPayers.length;
+        const base = Math.floor((removedDiscount / count) * 100) / 100;
+        let remainder = +(removedDiscount - base * count).toFixed(2);
 
-        const base = Math.floor((total / count) * 100) / 100;
-        let remainder = +(total - base * count).toFixed(2);
-
-        // Reverse discount (add back)
         for (const stop of backPayers) {
-          const restore =
-            remainder > 0 ? +(base + 0.01).toFixed(2) : base;
-
+          const restore = remainder > 0 ? +(base + 0.01).toFixed(2) : base;
           remainder = +(remainder - 0.01).toFixed(2);
 
           await tx.stopPayment.update({
             where: { id: stop.payment?.id },
             data: {
-              discount: {
-                decrement: restore, // discount removed
-              },
-              amount: {
-                increment: restore, // money added back
-              },
+              discount: { decrement: restore },
+              amount:   { increment: restore },
             },
           });
         }
       }
-
-
     });
 
     return this.getOrderDetails(orderId);
   }
-  // add additional price
+
+
+  // ADD ADDITIONAL SERVICE
   async additionalService(orderId: number, userId: number, serviceId: number) {
+
     return await this.prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({
-        where: { id: orderId, userId },
-      });
+      const order = await tx.order.findUnique({ where: { id: orderId, userId } });
 
       if (!order) throw new NotFoundException('Order not found');
       if (order.order_status !== OrderStatus.PROGRESS) {
@@ -3855,62 +4285,69 @@ export class OrderService {
       const service = await tx.additionalServices.findUnique({
         where: { id: serviceId, isActive: true },
       });
-
-      if (!service) {
-        throw new NotFoundException('Additional service not found');
-      }
+      if (!service) throw new NotFoundException('Additional service not found');
 
       const existingServices: any[] = Array.isArray(order.additional_services)
         ? order.additional_services
         : [];
 
-      // ❗ Prevent duplicate service
-      const alreadyAdded = existingServices.some(
-        s => s.id === service.id,
-      );
-      if (alreadyAdded) {
+      if (existingServices.some((s) => s.id === service.id)) {
         throw new BadRequestException('Service already added to this order');
       }
 
-      const serviceValue = Number(service.value);
-      const prevAdditional = Number(order.additional_cost ?? 0);
-      //  addition fix
+      const serviceValue     = Number(service.value);
+      const prevAdditional   = Number(order.additional_cost ?? 0);
+      const priorityFee      = Number(order.priority_fee ?? 0);
+      const discountAmount   = Number(order.discountAmount ?? 0);
+      const prevRaiderEarnings = Number(order.total_raider_earnings ?? 0);
+
+      // Freeze originalCost if not already set
       const originalCost =
         Number(order.originalCost) !== 0
           ? Number(order.originalCost)
           : Number(order.total_cost);
-      // console.log(originalCost, prevAdditional, serviceValue);
-      const updatedOrder = await tx.order.update({
+
+      // total_cost = originalCost + all additional fees + priority - discount
+      const newTotalCost = parseFloat(
+        Math.max(
+          originalCost + prevAdditional + serviceValue + priorityFee - discountAmount,
+          0,
+        ).toFixed(2),
+      );
+
+      // Additional service fee goes to raider
+      const newRaiderEarnings = parseFloat(
+        (prevRaiderEarnings + serviceValue).toFixed(2),
+      );
+
+      return tx.order.update({
         where: { id: orderId, userId },
         data: {
           originalCost,
           additional_cost: prevAdditional + serviceValue,
-          total_cost: originalCost + prevAdditional + serviceValue,
+          total_cost: newTotalCost,
+          total_raider_earnings: newRaiderEarnings,  
           has_additional_services: true,
-
-          // JSON append
           additional_services: [
             ...existingServices,
             {
-              id: service.id,
-              name: service.service_name,
-              desc: service.desc,
+              id:    service.id,
+              name:  service.service_name,
+              desc:  service.desc,
               price: serviceValue,
             },
           ],
         },
       });
-      return updatedOrder;
     });
   }
 
 
-  // remove additional services
+  // REMOVE ADDITIONAL SERVICE
   async removeAdditionalService(orderId: number, userId: number, serviceId: number) {
+
     return await this.prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({
-        where: { id: orderId, userId },
-      });
+      const order = await tx.order.findUnique({ where: { id: orderId, userId } });
 
       if (!order) throw new NotFoundException('Order not found');
       if (order.order_status !== OrderStatus.PROGRESS) {
@@ -3921,45 +4358,380 @@ export class OrderService {
         ? order.additional_services
         : [];
 
-      // ❗ Check if service exists in JSON
-      const serviceExists = existingServices.some(
-        s => s.id === serviceId,
-      );
-
-      if (!serviceExists) {
+      const serviceToRemove = existingServices.find((s) => s.id === serviceId);
+      if (!serviceToRemove) {
         throw new BadRequestException('Service not applied to this order');
       }
 
-      //  Remove service from JSON
-      const filteredServices = existingServices.filter(
-        s => s.id !== serviceId,
-      );
+      const removedPrice = Number(serviceToRemove.price);
+      const filteredServices = existingServices.filter((s) => s.id !== serviceId);
 
-      // Recalculate additional cost from JSON
       const newAdditional = filteredServices.reduce(
         (sum: number, s) => sum + Number(s.price),
         0,
       );
+
+      const priorityFee    = Number(order.priority_fee ?? 0);
+      const discountAmount = Number(order.discountAmount ?? 0);
+      const prevRaiderEarnings = Number(order.total_raider_earnings ?? 0);
 
       const baseCost =
         Number(order.originalCost) !== 0
           ? Number(order.originalCost)
           : Number(order.total_cost);
 
-      // Update order
-      const updatedOrder = await tx.order.update({
+      // total_cost = base + remaining additional + priority - discount
+      const newTotalCost = parseFloat(
+        Math.max(
+          baseCost + newAdditional + priorityFee - discountAmount,
+          0,
+        ).toFixed(2),
+      );
+
+      // Remove service value from raider earnings
+      const newRaiderEarnings = parseFloat(
+        Math.max(prevRaiderEarnings - removedPrice, 0).toFixed(2),
+      );
+
+      return tx.order.update({
         where: { id: orderId, userId },
         data: {
-          additional_services: filteredServices,
-          additional_cost: newAdditional,
-          total_cost: baseCost + newAdditional,
+          additional_services:  filteredServices,
+          additional_cost:      newAdditional,
+          total_cost:           newTotalCost,
+          total_raider_earnings: newRaiderEarnings, 
           has_additional_services: filteredServices.length > 0,
         },
       });
-
-      return updatedOrder;
     });
   }
+
+  // GET ORDER DETAILS
+  async getOrderDetails(orderId: number, callerId?: number) {
+    const p = await this.prisma.raider.findFirst({
+      where: { userId: callerId },
+      include: { user: { select: { roles: true } } },
+    });
+    const callerRole = p?.user.roles.find((r) => r.name === UserRole.RAIDER);
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        delivery_type: {
+          include: {
+            vehicle_types: { include: { vehicle_type: true } },
+          },
+        },
+        user: true,
+        orderStops: {
+          include: { destination: true, payment: true },
+          orderBy: { sequence: 'asc' },
+        },
+        assign_rider: {
+          include: {
+            registrations: {
+              select: {
+                id: true,
+                raider_name: true,
+                contact_number: true,
+                email_address: true,
+                current_postal_code: true,
+                current_unit: true,
+                current_address: true,
+                current_country: true,
+                driver_photos: true,
+              },
+            },
+            tier: true,
+            locations: true,
+          },
+        },
+      },
+    });
+
+    if (!order) throw new NotFoundException('Order not found');
+
+    const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
+    const dropStops  = order.orderStops.filter((s) => s.type === StopType.DROP);
+
+    const avgRating = await this.prisma.rateRaider.aggregate({
+      where: { raiderId: order.assign_rider_id },
+      _avg: { rating_star: true },
+      _count: { id: true },
+    });
+
+    const formattedAverage = avgRating._avg.rating_star
+      ? Number(avgRating._avg.rating_star.toFixed(2))
+      : 5;
+
+    // ── Raider leg calculation ──
+    let raiderLeg: {
+      raiderToPickup: {
+        distanceKm: number;
+        durationMin: number;
+        durationText: string;
+      } | null;
+      pickupToDrop: Array<{
+        stopId: number;
+        address: string;
+        distanceKm: number;
+        durationMin: number;
+        durationText: string;
+      }>;
+    } | null = null;
+
+    if (pickupStop) {
+      const pickupPos = { lat: pickupStop.latitude, lng: pickupStop.longitude };
+      let raiderLocation: { lat: number; lng: number } | null = null;
+
+      if (order.is_placed && order.assign_rider?.locations) {
+        raiderLocation = {
+          lat: Number(order.assign_rider.locations.latitude),
+          lng: Number(order.assign_rider.locations.longitude),
+        };
+      } else if (!order.is_placed && callerRole && callerId) {
+        const raider = await this.prisma.raider.findFirst({
+          where: { userId: callerId },
+          include: { locations: true },
+        });
+        if (raider?.locations) {
+          raiderLocation = {
+            lat: Number(raider.locations.latitude),
+            lng: Number(raider.locations.longitude),
+          };
+        }
+      }
+
+      if (raiderLocation) {
+        try {
+          const raiderToPickup = await getRoadDistance(raiderLocation, pickupPos);
+
+          const pickupToDropLegs = await Promise.all(
+            dropStops.map(async (drop) => {
+              const dropPos = { lat: drop.latitude, lng: drop.longitude };
+              const leg = await getRoadDistance(pickupPos, dropPos);
+              return {
+                stopId:      drop.id,
+                address:     drop.address,
+                distanceKm:  Number(leg.km.toFixed(2)),
+                durationMin: Number(leg.min.toFixed(1)),
+                durationText: leg.min_text,
+              };
+            }),
+          );
+
+          raiderLeg = {
+            raiderToPickup: {
+              distanceKm:  Number(raiderToPickup.km.toFixed(2)),
+              durationMin: Number(raiderToPickup.min.toFixed(1)),
+              durationText: raiderToPickup.min_text,
+            },
+            pickupToDrop: pickupToDropLegs,
+          };
+        } catch (err) {
+          console.error('Raider leg calculation failed:', err);
+          raiderLeg = null;
+        }
+      }
+    }
+
+    // ── Shared fee fields used by all return paths ──
+    const additionalServiceFee = Number(order.additional_cost ?? 0);
+    const priorityFee          = Number(order.priority_fee ?? 0);
+    const discountAmount       = Number(order.discountAmount ?? 0);
+    const promoDiscount        = Number(order.promoDiscount ?? 0);
+    const coinsRedeemed        = Number(order.coinsRedeemed ?? 0);
+
+    // ─────────────────────────────────────────────
+    // PATH 1: ORDER IS PLACED — snapshot from DB
+    // (only path reachable after priorityOrder)
+    // ─────────────────────────────────────────────
+    if (order.is_placed) {
+      const totalDistance      = Number(order.total_distance ?? 0);
+      const totalCost          = Number(order.total_cost ?? 0);         // includes additional + priority - discount
+      const totalFee           = Number(order.total_fee ?? 0);          // original platform fee, unchanged
+      const totalRaiderEarnings = Number(order.total_raider_earnings ?? 0); // includes additional service fee
+
+      const totalTimeMin = dropStops.reduce(
+        (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
+      );
+
+      return {
+        ...order,
+        formattedAverage,
+        raiderLeg,
+        pricingSummary: {
+          totalDistance:       Number(totalDistance.toFixed(2)),
+          totalCost,                                                     // what user pays
+          totalFee,                                                      // original platform fee
+          totalRaiderEarnings,                                           // base + additional service
+          totalPlatformFee:    Number((totalFee - discountAmount).toFixed(2)), // net after absorbing discount
+          totalTimeMin:        Number(totalTimeMin.toFixed(1)),
+          basePrice:           0,
+          deliveryTypeCharge:  0,
+          additionalServiceFee,                                          // goes to raider
+          priorityFee,                                                   // goes to platform
+          discountAmount,                                                // total platform absorbed
+          promoDiscount,
+          coinsRedeemed,
+          dropCount:    dropStops.length,
+          surgeApplied: false,
+          perDropBreakdown: dropStops.map((s) => ({
+            price:           Number(Number(s.calculated_price ?? s.payment?.amount ?? 0).toFixed(2)),
+            raiderEarnings:  Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+            distance:        Number(Number(s.calculated_distance ?? 0).toFixed(2)),
+            durationMin:     Number(Number(s.calculated_time ?? 0).toFixed(1)),
+            durationText:    s.calculated_time_txt ?? '',
+            surgeMultiplier: 1,
+          })),
+        },
+      };
+    }
+
+    // ─────────────────────────────────────────────
+    // PATH 2: NOT PLACED — live pricing
+    // ─────────────────────────────────────────────
+    let pricingResults: ReceiverWithPricing[] = [];
+    let totalDistance = 0;
+
+    if (pickupStop && dropStops.length > 0) {
+      const zone = await this.serviceZone.findZoneByPoint(
+        pickupStop.latitude,
+        pickupStop.longitude,
+      );
+
+      if (zone) {
+        const sender    = { lat: pickupStop.latitude,  lng: pickupStop.longitude };
+        const receivers = dropStops.map((s) => ({ lat: s.latitude, lng: s.longitude }));
+
+        const [demand, availableDrivers] = await Promise.all([
+          this.getCurrentDemand(zone.id),
+          this.getAvailableDrivers(zone.id),
+        ]);
+
+        try {
+          pricingResults = await getReceiversWithIndividualPrice(
+            this.prisma,
+            this.surgePricingRuleService,
+            sender,
+            receivers,
+            order.delivery_type_id,
+            order.vehicle_type_id ?? 1,
+            zone,
+            { isRoundTrip: order.route_type === RouteType.ROUND },
+            demand,
+            availableDrivers,
+          );
+
+          totalDistance = pricingResults.reduce(
+            (total, result) => total + result.distanceKm, 0,
+          );
+        } catch (error) {
+          console.error('Live pricing calculation failed:', error);
+          pricingResults = [];
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────
+    // PATH 3: FALLBACK — live pricing failed, use DB
+    // ─────────────────────────────────────────────
+    if (pricingResults.length === 0) {
+      const totalTimeMin = dropStops.reduce(
+        (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
+      );
+      const totalCost          = Number(order.total_cost ?? 0);
+      const totalFee           = Number(order.total_fee ?? 0);
+      const totalRaiderEarnings = Number(order.total_raider_earnings ?? 0);
+
+      return {
+        ...order,
+        formattedAverage,
+        raiderLeg,
+        pricingSummary: {
+          totalDistance:       Number(Number(order.total_distance ?? 0).toFixed(2)),
+          totalCost,
+          totalFee,
+          totalRaiderEarnings,
+          totalPlatformFee:    Number((totalFee - discountAmount).toFixed(2)),
+          totalTimeMin:        Number(totalTimeMin.toFixed(1)),
+          basePrice:           0,
+          deliveryTypeCharge:  0,
+          additionalServiceFee,
+          priorityFee,
+          discountAmount,
+          promoDiscount,
+          coinsRedeemed,
+          dropCount:    dropStops.length,
+          surgeApplied: false,
+          perDropBreakdown: dropStops.map((s) => ({
+            price:           Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+            raiderEarnings:  Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+            distance:        Number(Number(s.calculated_distance ?? 0).toFixed(2)),
+            durationMin:     Number(Number(s.calculated_time ?? 0).toFixed(1)),
+            durationText:    s.calculated_time_txt ?? '',
+            surgeMultiplier: 1,
+          })),
+        },
+      };
+    }
+
+    // ─────────────────────────────────────────────
+    // PATH 2 CONTINUED — live pricing totals
+    // ─────────────────────────────────────────────
+    const liveBaseTotal       = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
+    const totalFee            = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+    const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
+    const totalPlatformFee    = pricingResults.reduce((sum, r) => sum + r.pricing.platformFee, 0);
+    const totalTimeMin        = pricingResults.reduce((sum, r) => sum + (r.pricing.min ?? 0), 0);
+    const basePrice           = pricingResults[0]?.pricing.basePrice ?? 0;
+    const deliveryTypeCharge  = pricingResults.reduce((sum, r) => sum + r.pricing.deliveryTypeCharge, 0);
+
+    // Add additional + priority, subtract discount
+    const totalCost = parseFloat(
+      Math.max(
+        liveBaseTotal + additionalServiceFee + priorityFee - discountAmount,
+        0,
+      ).toFixed(2),
+    );
+
+    // Raider gets base earnings + additional service fee
+    const totalRaiderEarningsWithAdditional = parseFloat(
+      (totalRaiderEarnings + additionalServiceFee + priorityFee).toFixed(2),
+    );
+
+    return {
+      ...order,
+      formattedAverage,
+      raiderLeg,
+      pricingSummary: {
+        totalDistance:       Number(totalDistance.toFixed(2)),
+        totalCost,                                                        // base + additional + priority - discount
+        totalFee:            Number(totalFee.toFixed(2)),
+        totalRaiderEarnings: totalRaiderEarningsWithAdditional,           // base + additional service
+        totalPlatformFee:    Number((totalPlatformFee - discountAmount).toFixed(2)), // net after discount
+        totalTimeMin:        Number(totalTimeMin.toFixed(1)),
+        basePrice:           Number(basePrice.toFixed(2)),
+        deliveryTypeCharge:  Number(deliveryTypeCharge.toFixed(2)),
+        additionalServiceFee,                                             // goes to raider
+        priorityFee,                                                      // goes to platform
+        discountAmount,                                                   // platform absorbed
+        promoDiscount,
+        coinsRedeemed,
+        dropCount:    dropStops.length,
+        surgeApplied: pricingResults.some((r) => r.pricing.surgeMultiplier > 1),
+        perDropBreakdown: pricingResults.map((r) => ({
+          price:           Number(r.pricing.totalPrice.toFixed(2)),
+          raiderEarnings:  Number(r.pricing.raiderEarnings.toFixed(2)),
+          distance:        Number(r.distanceKm.toFixed(2)),
+          durationMin:     Number((r.pricing.min ?? 0).toFixed(1)),
+          durationText:    r.pricing.min_text ?? '',
+          surgeMultiplier: r.pricing.surgeMultiplier,
+        })),
+      },
+    };
+  }
+
 
 
   // **HOT CAKE: process and create bulk order
