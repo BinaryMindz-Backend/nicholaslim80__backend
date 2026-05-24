@@ -901,191 +901,258 @@ export class OrderService {
   /**
   * COMPLETE STOP (Raider)
   */
-  async completeStop(
-    orderStopId: number,
-    raiderId: number,
-    dto: {
-      proofFiles: string[];
-      codCollected?: number;
-      notes?: string;
-    },
-  ) {
-    //  check if raider exist
-    const raider = await this.prisma.raider.findUnique({
-      where: {
-        userId: raiderId
-      },
-      include: {
-        user: true,
-      }
-    })
-    // 
-    if (!raider) {
-      throw new NotFoundException('Aunauthprized raider');
-    }
-
-    // 
-    const stop = await this.prisma.orderStop.findUnique({
-      where: { id: orderStopId },
-      include: {
-        payment: true,
-        order: true,
-      },
-    });
-
-    if (!stop) throw new NotFoundException('Stop not found');
-    if (stop.status === StopStatus.COMPLETED) {
-      throw new BadRequestException('Stop already completed');
-    }
-
-    return await this.prisma.$transaction(async (tx) => {
-      const requiresPayment = stop.payment && Number(stop.payment.amount) > 0;
-
-      // Validate COD collection
-      if (requiresPayment) {
-        if (!dto.codCollected) {
-          throw new BadRequestException('COD collection required');
-        }
-
-        const expected = Number(stop.payment!.amount);
-        if (dto.codCollected < expected) {
-          throw new BadRequestException(
-            `Insufficient payment. Expected: ${expected}, Received: ${dto.codCollected}`,
-          );
-        }
-
-        // Mark payment as PAID
-        await tx.stopPayment.update({
-          where: { id: stop.payment!.id },
-          data: {
-            amount: dto.codCollected,
-            status: PaymentStatus.PAID,
-            collectedAt: new Date(),
-            collectedBy: raiderId,
-          },
-        });
-      }
-
-      // Mark stop as COMPLETED
-      await tx.orderStop.update({
-        where: { id: orderStopId },
-        data: {
-          proofs: dto.proofFiles,
-          notes: dto.notes,
-          status: StopStatus.COMPLETED,
-          completedAt: new Date(),
+   async completeStop(
+        orderStopId: number,
+        raiderId: number,
+        dto: {
+          proofFiles: string[];
+          codCollected?: number;
+          notes?: string;
         },
-      });
+      ) {
 
-      // Check if all stops completed
-      const incompleteStops = await tx.orderStop.findMany({
-        where: {
-          orderId: stop.orderId,
-          OR: [
-            { status: { in: [StopStatus.PENDING, StopStatus.FAILED] } },
-            {
-              payment: {
-                status: PaymentStatus.UNPAID,
-                amount: { gt: 0 },
+        const raider = await this.prisma.raider.findUnique({
+          where: { userId: raiderId },
+          include: { user: true },
+        });
+
+        if (!raider) throw new NotFoundException('Raider not found');
+
+        const stop = await this.prisma.orderStop.findUnique({
+          where: { id: orderStopId },
+          include: {
+            payment: true,
+            order: {
+              select: {
+                id: true,
+                userId: true,
+                total_cost: true,
+                total_raider_earnings: true,
+                pay_type: true,
+                order_status: true,
+                assign_rider_id: true,
               },
             },
-          ],
-        },
-      });
-
-      // Auto-complete order if everything done
-      if (incompleteStops.length === 0) {
-        await tx.order.update({
-          where: { id: stop.orderId },
-          data: { order_status: OrderStatus.COMPLETED },
+          },
         });
 
-        await tx.raider.update({
-          where: { userId: raiderId },
-          data: { completed_orders: { increment: 1 } },
-        });
-        // need to calculate driver fees
-        const orderTotal = Number(stop.order.total_cost);
-        const driverFee = await this.calculateDriverFee(stop.orderId, orderTotal);
+        if (!stop) throw new NotFoundException('Stop not found');
 
-        let driverCredit: number;
-        let platformLoss: number;
-
-        if (orderTotal >= driverFee) {
-          driverCredit = orderTotal - driverFee;
-          platformLoss = 0;
-        } else {
-          driverCredit = 0;               // driver gets nothing
-          platformLoss = driverFee - orderTotal; // platform absorbs remaining fee
+        if (stop.order.assign_rider_id !== raider.id) {
+          throw new BadRequestException('You are not assigned to this order');
         }
 
-        // Update driver wallet
-        await tx.user.update({
-          where: { id: raiderId },
-          data: {
-            totalWalletBalance: { increment: driverCredit },
-            currentWalletBalance: { increment: driverCredit }
-          },
-        });
-        // 
-        await tx.walletHistory.create({
-          data: {
-            userId: raiderId,
-            amount: driverCredit,
-            type: 'credit',
-            transactionId: `TRX-earning-${stop.orderId}`,
-            transactionType: WalletTransactionType.EARNING,
-            status: WalletTransactionStatus.SUCCESS,
-            currency: 'SGD',
-          },
+        if (
+          stop.order.order_status !== OrderStatus.PENDING &&
+          stop.order.order_status !== OrderStatus.PROGRESS
+        ) {
+          throw new BadRequestException('Order is not in a valid state to complete stops');
+        }
+
+        if (stop.status === StopStatus.COMPLETED) {
+          throw new BadRequestException('Stop already completed');
+        }
+
+        const orderUser = await this.prisma.user.findUnique({
+          where: { id: stop.order.userId! },
+          select: { id: true, fcmToken: true },
         });
 
-        // 
-        await tx.transaction.update({
-          where: { id: stop.orderId },
-          data: {
-            payment_status: PaymentStatus.PAID,
-            tx_status: TransactionStatus.COMPLETED,
-            pay_type: stop.order.pay_type,
-            total_fee: stop.order.total_cost,
-            delivery_fee: stop.order.total_cost,
+        const result = await this.prisma.$transaction(async (tx) => {
+          // ── COD payment validation and collection ──
+          const requiresPayment = stop.payment && Number(stop.payment.amount) > 0;
 
+          if (requiresPayment) {
+            if (!dto.codCollected) {
+              throw new BadRequestException('COD collection required');
+            }
+
+            const expected = Number(stop.payment!.amount);
+            if (dto.codCollected < expected) {
+              throw new BadRequestException(
+                `Insufficient payment. Expected: ${expected}, Received: ${dto.codCollected}`,
+              );
+            }
+
+            await tx.stopPayment.update({
+              where: { id: stop.payment!.id },
+              data: {
+                amount: dto.codCollected,
+                status: PaymentStatus.PAID,
+                collectedAt: new Date(),
+                collectedBy: raiderId,
+              },
+            });
           }
-        })
+
+          // ── Mark stop as COMPLETED ──
+          await tx.orderStop.update({
+            where: { id: orderStopId },
+            data: {
+              proofs: dto.proofFiles,
+              notes: dto.notes,
+              status: StopStatus.COMPLETED,
+              completedAt: new Date(),
+            },
+          });
+
+          // ── Check if all stops completed ──
+          const incompleteStops = await tx.orderStop.findMany({
+            where: {
+              orderId: stop.orderId,
+              OR: [
+                { status: { in: [StopStatus.PENDING, StopStatus.FAILED] } },
+                {
+                  payment: {
+                    status: PaymentStatus.UNPAID,
+                    amount: { gt: 0 },
+                  },
+                },
+              ],
+            },
+          });
+
+          // ── Auto-complete order if all stops done ──
+          if (incompleteStops.length === 0) {
+            await tx.order.update({
+              where: { id: stop.orderId },
+              data: { order_status: OrderStatus.COMPLETED },
+            });
+
+            await tx.raider.update({
+              where: { userId: raiderId },
+              data: { completed_orders: { increment: 1 } },
+            });
+
+            // ── Driver earnings: calculated from total_raider_earnings not total_cost ──
+            const raiderEarnings = Number(stop.order.total_raider_earnings);
+            const driverFee = await this.calculateDriverFee(stop.orderId, raiderEarnings);
+
+            let driverCredit: number;
+            let platformLoss: number;
+
+            if (raiderEarnings >= driverFee) {
+              driverCredit = parseFloat((raiderEarnings - driverFee).toFixed(2));
+              platformLoss = 0;
+            } else {
+              driverCredit = 0;
+              platformLoss = parseFloat((driverFee - raiderEarnings).toFixed(2));
+            }
+
+            // ── Credit driver wallet ──
+            await tx.user.update({
+              where: { id: raiderId },
+              data: {
+                totalWalletBalance:   { increment: driverCredit },
+                currentWalletBalance: { increment: driverCredit },
+              },
+            });
+
+            await tx.walletHistory.create({
+              data: {
+                userId:          raiderId,
+                amount:          driverCredit,
+                type:            'credit',
+                transactionId:   `TRX-earning-${stop.orderId}`,
+                transactionType: WalletTransactionType.EARNING,
+                status:          WalletTransactionStatus.SUCCESS,
+                currency:        'SGD',
+              },
+            });
+
+            // ── Update transaction record — find by orderId not stop.orderId as id ──
+            const txRecord = await tx.transaction.findFirst({
+              where: { orderId: stop.orderId },
+            });
+
+            if (txRecord) {
+              await tx.transaction.update({
+                where: { id: txRecord.id },
+                data: {
+                  payment_status: PaymentStatus.PAID,
+                  tx_status:      TransactionStatus.COMPLETED,
+                  pay_type:       stop.order.pay_type,
+                  total_fee:      stop.order.total_cost,
+                  delivery_fee:   stop.order.total_cost,
+                },
+              });
+            }
+
+            return {
+              orderCompleted:  true,
+              remainingStops:  0,
+              driverCredit,
+              platformLoss,
+            };
+          }
+
+          return {
+            orderCompleted: false,
+            remainingStops: incompleteStops.length,
+            driverCredit:   null,
+            platformLoss:   null,
+          };
+        });
+
+        // ── 8. Notifications after transaction commits (never inside tx) ──
+        const orderNumber = `ORD-${String(stop.orderId).padStart(6, '0')}`;
+        const totalCostFormatted = Number(stop.order.total_cost).toFixed(2);
+
+        if (result.orderCompleted) {
+          // Notify user — order fully completed
+          if (orderUser) {
+            await this.emailQueueService.queueOrderStatusNotification({
+              userId:      orderUser.id,
+              fcmToken:    orderUser.fcmToken ?? '',
+              orderId:     stop.orderId,
+              orderNumber,
+              status:      NotificationType.ORDER_UPDATE,
+              title:       'Order Completed Successfully',
+              message:     `Your order ${orderNumber} has been completed with total cost $${totalCostFormatted}.`,
+            });
+          }
+
+          // Notify raider — order fully completed
+          await this.emailQueueService.queueOrderStatusNotification({
+            userId:      raider.userId,
+            fcmToken:    raider.user.fcmToken ?? '',
+            orderId:     stop.orderId,
+            orderNumber,
+            status:      NotificationType.ORDER_UPDATE,
+            title:       'Order Completed Successfully',
+            message:     `Order ${orderNumber} has been completed. Your earnings of $${result.driverCredit?.toFixed(2)} have been credited to your wallet.`,
+          });
+
+          return {
+            message:       'Stop completed. Order fully completed!',
+            orderCompleted: true,
+          };
+        }
+
+        // Notify user — individual stop completed, more remaining
+        if (orderUser) {
+          await this.emailQueueService.queueOrderStatusNotification({
+            userId:      orderUser.id,
+            fcmToken:    orderUser.fcmToken ?? '',
+            orderId:     stop.orderId,
+            orderNumber,
+            status:      NotificationType.ORDER_UPDATE,
+            title:       'Stop Completed',
+            message:     `A stop on your order ${orderNumber} has been completed. ${result.remainingStops} stop(s) remaining.`,
+          });
+        }
 
         return {
-          message: 'Stop completed. Order fully completed!',
-          orderCompleted: true,
+          message:        'Stop completed successfully',
+          orderCompleted: false,
+          remainingStops: result.remainingStops,
         };
       }
-      const isUserExist = await this.prisma.user.findUnique({ where: { id: stop.order.userId! } });
-      // Send notification to user
-      await this.emailQueueService.queueOrderStatusNotification({
-        userId: stop.order.userId!,
-        fcmToken: isUserExist?.fcmToken ?? '',
-        orderId: stop.orderId,
-        orderNumber: `ORD-${String(stop.orderId).padStart(6, '0')}`,
-        status: NotificationType.ORDER_UPDATE,
-        title: 'Order Completed Successfully',
-        message: `Your order ORD-${String(stop.orderId).padStart(6, '0')} has been completed with total cost $${stop.order.total_cost.toFixed(2)}.`,
-      });
-      // Send notification to raider
-      await this.emailQueueService.queueOrderStatusNotification({
-        userId: raider.userId,
-        fcmToken: raider.user.fcmToken ?? '',
-        orderId: stop.orderId,
-        orderNumber: `ORD-${String(stop.orderId).padStart(6, '0')}`,
-        status: NotificationType.ORDER_UPDATE,
-        title: 'Order Completed Successfully',
-        message: `Your order ORD-${String(stop.orderId).padStart(6, '0')} has been completed with total cost $${stop.order.total_cost.toFixed(2)}.`,
-      });
-      return {
-        message: 'Stop completed successfully',
-        orderCompleted: false,
-        remainingStops: incompleteStops.length,
-      };
-    });
-  }
+
+
+
+
+
   // calculate driver fee
   private async calculateDriverFee(
     serviceZoneId: number,
