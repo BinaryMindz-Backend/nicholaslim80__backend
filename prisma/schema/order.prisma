@@ -43,9 +43,11 @@ model Order {
   competition_closed     Boolean   @default(false)
 
   assign_rider_id Int?
-  assign_rider    Raider? @relation("AssignedRaider", fields: [assign_rider_id], references: [id], onDelete: SetNull)
+  assign_rider    Raider?   @relation("AssignedRaider", fields: [assign_rider_id], references: [id], onDelete: SetNull)
+  assign_at       DateTime?
 
   //
+  priority_fee         Decimal        @default(0) @db.Decimal(12, 2)
   isPriorited          Boolean        @default(false)
   priorityAt           DateTime?
   raider_confirmation  Boolean        @default(false)

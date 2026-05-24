@@ -9,6 +9,7 @@ import {
   Query,
   ParseIntPipe,
   Res,
+  BadRequestException,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -154,12 +155,22 @@ export class OrderController {
   @RequirePermission(Module.ORDER, Permission.CREATE)
   @ApiOperation({ summary: 'Remove discount from order' })
   @ApiParam({ name: 'order_id', description: 'Order ID', required: true })
-  @ApiQuery({ name: 'type', description: 'Discount type', required: true, example: 'coin or promo' })
+  @ApiQuery({
+    name: 'type',
+    description: 'Discount type to remove',
+    required: true,
+    enum: ['coin', 'promo'],   
+    example: 'coin',
+  })
   async removeDiscount(
-    @Query('type') type: string,
+    @Query('type') type: 'coin' | 'promo',  
     @Param('order_id', ParseIntPipe) orderId: number,
     @CurrentUser() user: IUser,
   ) {
+    if (type !== 'coin' && type !== 'promo') {
+      throw new BadRequestException("type must be 'coin' or 'promo'");
+    }
+
     const order = await this.orderService.removeDiscount(orderId, user.id, type);
     return ApiResponses.success(order, 'Discount removed');
   }
