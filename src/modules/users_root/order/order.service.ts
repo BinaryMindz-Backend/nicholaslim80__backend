@@ -2167,39 +2167,42 @@ export class OrderService {
     userId: number,
     filterDto: OrderFilterDto
   ) {
-
     const page = filterDto.page ?? 1;
     const limit = filterDto.limit ?? 10;
-
 
     const skip = (page - 1) * limit;
 
     const where = {
-      order_status: filterDto.status,
-      userId
-    }
-
-    const [orders, total] = await this.prisma.$transaction([
-      this.prisma.order.findMany({
-        where,
-        orderBy: { created_at: 'desc' },
-        include: { user: true , delivery_type:true},
-        skip,
-        take: limit,
-      }),
-
-      this.prisma.order.count({
-        where
-      }),
-    ]);
-
-    return {
-      data: orders,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      userId,
+      order_status: {
+        not: OrderStatus.PROGRESS,
+      },
     };
+
+  const [orders, total] = await this.prisma.$transaction([
+    this.prisma.order.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      include: {
+        user: true,
+        delivery_type: true,
+      },
+      skip,
+      take: limit,
+    }),
+
+    this.prisma.order.count({
+      where,
+    }),
+  ]);
+
+  return {
+    data: orders,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
   }
 
 
@@ -2316,18 +2319,20 @@ export class OrderService {
     // Search by order ID
     if (search) {
       const orderId = parseInt(search.replace(/\D/g, ''), 10);
+
       if (!isNaN(orderId)) {
         where.id = orderId;
       }
     }
 
-    // Filter by status if provided
+    // Filter by status
     if (status) {
       where.order_status = status;
     } else {
-      // Exclude PROGRESS orders if no specific status is provided
-      where.order_status = { not: OrderStatus.PROGRESS };
-      where.order_status = OrderStatus.PENDING || OrderStatus.ONGOING;
+      // Show only pending and ongoing
+      where.order_status = {
+        in: [OrderStatus.PENDING, OrderStatus.ONGOING],
+      };
     }
 
     // Filter by category
@@ -2338,8 +2343,14 @@ export class OrderService {
     // Filter by date range
     if (startDate || endDate) {
       where.created_at = {};
-      if (startDate) where.created_at.gte = new Date(startDate);
-      if (endDate) where.created_at.lte = new Date(endDate);
+
+      if (startDate) {
+        where.created_at.gte = new Date(startDate);
+      }
+
+      if (endDate) {
+        where.created_at.lte = new Date(endDate);
+      }
     }
 
     const [orders, total] = await this.prisma.$transaction([
@@ -2380,7 +2391,10 @@ export class OrderService {
         skip,
         take: limit,
       }),
-      this.prisma.order.count({ where }),
+
+      this.prisma.order.count({
+        where,
+      }),
     ]);
 
     return {
