@@ -16,6 +16,7 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { SendMessageSimpleDto } from 'src/modules/message/dto/simple-message.dto';
 import Redis from 'ioredis';
 import { MessagesService } from './message.service';
+import { EmailQueueService } from '../queue/services/email-queue.service';
 
 @Injectable()
 @WebSocketGateway({
@@ -42,6 +43,8 @@ export class MessagesGateway
     private readonly prisma: PrismaService,
     private readonly messagesService: MessagesService,
     private readonly configService: ConfigService,
+    private readonly emailQueueService: EmailQueueService,
+    
   ) {
     const redisUrl = this.configService.get('REDIS_URL') || 'redis://redis:6379';
     this.redis = new Redis(redisUrl);
@@ -118,31 +121,105 @@ export class MessagesGateway
   // ---------------------------
   // SEND MESSAGE
   // ---------------------------
+
   @SubscribeMessage('send_message')
   async sendMessage(
     @MessageBody() dto: SendMessageSimpleDto,
     @ConnectedSocket() client: Socket,
   ) {
     if (!dto.receiverId) {
-      this.logger.error('Missing receiverId in DTO');
+      this.logger.error('Missing receiverId');
       return;
     }
 
+    // sender id from redis
     const senderId = await this.redis.get(`socket:${client.id}`);
-    const receiverSocketId = await this.redis.get(`user:${dto.receiverId}`);
-    if (!receiverSocketId) {
-      this.logger.warn(`Receiver ${dto.receiverId} not online`);
 
+    if (!senderId) {
+      this.logger.error('Sender not found');
+      return;
     }
-     await this.messagesService.sendMessage(String(senderId), dto);
-    this.server.to(receiverSocketId as string).emit('receive_message', {
-      ...dto,
-      senderId,
-      status: 'Message delivered via socket',
-    });
 
-    this.logger.log(
-      `Message sent from ${senderId} -> ${dto.receiverId}`,
+    // SAVE MESSAGE
+    const message = await this.messagesService.sendMessage(
+      String(senderId),
+      dto,
     );
+
+    // CHECK RECEIVER ONLINE
+    const receiverSocketId = await this.redis.get(
+      `user:${dto.receiverId}`,
+    );
+
+    // USER ONLINE
+    if (receiverSocketId) {
+      this.server.to(receiverSocketId).emit('receive_message', {
+        ...message,
+        status: 'delivered',
+      });
+
+      this.logger.log(
+        `Message sent via socket ${senderId} -> ${dto.receiverId}`,
+      );
+    }
+
+    // USER OFFLINE
+     else {
+      this.logger.warn(
+        `Receiver ${dto.receiverId} offline, sending push notification`,
+      );
+
+      const receiver = await this.prisma.user.findUnique({
+        where: {
+          id: Number(dto.receiverId),
+        },
+        select: {
+          id: true,
+          fcmToken: true,
+        },
+      });
+
+       await this.prisma.user.findUnique({
+        where: {
+          id: Number(senderId),
+        },
+        select: {
+          id: true,
+          email: true,
+          profile:{
+              select:{
+                firstName:true,
+              }
+          }
+        },
+      });
+
+      if (receiver?.fcmToken) {
+           await this.emailQueueService.queuePushNotification({
+                userId: receiver.id,
+                fcmToken: receiver.fcmToken,
+                type: 'NEW_MESSAGE',
+                title: '💬 New message',
+                body: 'You received a new message',
+
+                data: {
+                  orderId: String(dto.orderId),
+                  conversationId: String(message.conversationId),
+                  senderId: String(senderId),
+                  type: 'chat',
+                },
+              });
+            this.logger.log(
+              `Push notification sent to ${receiver.id}`,
+            );
+        }
+    }
+
+      // optional ack to sender
+      return {
+        success: true,
+        message,
+      };
   }
-}
+
+  }

@@ -98,32 +98,37 @@ export class EmailQueueService {
   }
 
   // PUSH NOTIFICATIONS
-  async queuePushNotification(data: {
-    userId: number;
-    fcmToken: string;
-    type: string;
-    title: string;
-    body: string;
-  }) {
-    try {
-      const job = await this.notificationQueue.add(
-        NotificationJobType.PUSH_NOTIFICATION,
-        data,
-        {
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 1000 },
-          removeOnComplete: { age: 24 * 3600, count: 500 },
-          removeOnFail: { age: 7 * 24 * 3600 },
-        },
-      );
+   async queuePushNotification(data: {
+      userId: number;
+      fcmToken: string;
+      type: string;
+      title: string;
+      body: string;
 
-      this.logger.log(`Push notification queued for user ${data.userId}, Job ID: ${job.id}`);
-      return job;
-    } catch (error) {
-      this.logger.error('Failed to queue push notification:', error);
-      throw error;
+      data?: Record<string, string>;
+    }) {
+      try {
+        const job = await this.notificationQueue.add(
+          NotificationJobType.PUSH_NOTIFICATION,
+          data,
+          {
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 1000 },
+            removeOnComplete: { age: 24 * 3600, count: 500 },
+            removeOnFail: { age: 7 * 24 * 3600 },
+          },
+        );
+
+        this.logger.log(
+          `Push notification queued for user ${data.userId}, Job ID: ${job.id}`,
+        );
+
+        return job;
+      } catch (error) {
+        this.logger.error('Failed to queue push notification:', error);
+        throw error;
+      }
     }
-  }
 
   // ORDER MANAGEMENT - PENDING ORDERS  
   async queueOrderPendingEmail(data: {
