@@ -17,11 +17,19 @@ export async function calculatePriceWithFee(
     availableDrivers = 0,
   } = params;
 
+
+// client requirements: 
+// Delivery Fee = 
+// (BaseVehicle + DistanceRate x  Distance) 
+// x DeliveryTypeMultiplier (e.g. SAVER, STANDARD, PRIORITY)
+// x ServiceAreaMultiplier (e.g. SubUrban, City)
+// x SurgePricingRules (e.g. This is the complex one where formula needs to be applied)
+
+
   /* ---------------- Base Cost ---------------- */
   //
   const extraDistance = Math.max(0, distanceKm - Number(vehicle.base_distance ?? 0));
-  const basePrice = Number(vehicle.base_price ?? 0) +
-    Number(vehicle.per_km_price ?? 0) * extraDistance;
+  const basePrice = Number(vehicle.base_price ?? 0) +  Number(vehicle.per_km_price ?? 0) * extraDistance;
 
   // deliveryTypeCharge is the delta, price = basePrice × multiplier
   const multiplier = Number(deliveryType.price_multiplier ?? 1);
@@ -44,19 +52,19 @@ export async function calculatePriceWithFee(
   const userFeeTotal = matchedFees.reduce((sum, fee) => sum + Number(fee.amount), 0);
   price += userFeeTotal;
 
-  /* ---------------- Zone Fee ---------------- */
+   /* ---------------- Zone Fee ---------------- */
   let zoneFee = 0;
-  if ((zone.priority === 1 || zone.priority === 2) && price < zone.minOrderAmmount) {
-    zoneFee = zone.deliveryFee;
-    price += zoneFee;
-  }
-  console.log("ZONE fee-->", zoneFee);
+  zoneFee = zone.deliveryFee;  // this is a multiplier, e.g. 1.0 for no change, 1.2 for +20% fee, etc.
+  price *= zoneFee;
+
+    console.log("ZONE fee-->", zoneFee);
   /* ---------------- Surge Pricing ---------------- */
   let surgeAmount = 0;
   let surgeMultiplier = 1.0;
 
   try {
     const demandRatio = availableDrivers > 0 ? demand / availableDrivers : 0;
+    
     const surgeResult = await surgePricingRuleService.resolveSurge({
       ratio: Number(demandRatio.toFixed(4)),
       serviceZoneId: zone.id,
