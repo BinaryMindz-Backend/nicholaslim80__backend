@@ -3,7 +3,7 @@ model serviceZone {
   name            String
   zoneName        String
   coordinates     Json
-  deliveryFee     Float
+  deliveryFee     Float // multiplier
   priority        Int?
   color           String?
   minOrderAmmount Float?
@@ -13,14 +13,14 @@ model serviceZone {
   updatedAt       DateTime @updatedAt
 
   // 
-  orders          Order[]
+  orders                  Order[]
   standardCommissionRates StandardCommissionRate[]
   raiderCompensationRoles RaiderCompensationRole[]
-  userFeeStructures UserFeeStructure[]
-   // Incentives linked to this zone
-  incentives      Incentive[]  @relation("IncentiveZones")
+  userFeeStructures       UserFeeStructure[]
+  // Incentives linked to this zone
+  incentives              Incentive[]              @relation("IncentiveZones")
   //
-  surgePricingRules SurgePricingRuleZone[]
+  surgePricingRules       SurgePricingRuleZone[]
 
-  destinations    Destination[]
+  destinations Destination[]
 }
