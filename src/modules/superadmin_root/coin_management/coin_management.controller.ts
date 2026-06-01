@@ -209,7 +209,7 @@ export class CoinManagementController {
   // @Auth()
   // @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @RequirePermission(Module.CUSTOMER_REWARDS, Permission.READ)
+  // @RequirePermission(Module.CUSTOMER_REWARDS, Permission.READ)
   async userWalletHistory(@Param('userId') userId: string) {
     try {
       const data = await this.coinManagementService.coinAccHistory(+userId);
