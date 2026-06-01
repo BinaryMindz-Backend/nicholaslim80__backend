@@ -2,6 +2,20 @@ import { PricingBreakdown, CalculatePriceParams } from './types';
 import { evaluateRule } from './fee.helper';
 import { PrismaService } from 'src/core/database/prisma.service';
 
+
+/**
+ * 
+ * @param params 
+    client requirements: 
+    Delivery Fee = 
+    (BaseVehicle + DistanceRate x  Distance) 
+    x DeliveryTypeMultiplier (e.g. SAVER, STANDARD, PRIORITY)
+    x ServiceAreaMultiplier (e.g. SubUrban, City)
+    x SurgePricingRules (e.g. This is the complex one where formula needs to be applied)
+ * @returns 
+ */
+
+
 export async function calculatePriceWithFee(
   params: CalculatePriceParams
 ): Promise<PricingBreakdown> {
@@ -18,18 +32,10 @@ export async function calculatePriceWithFee(
   } = params;
 
 
-// client requirements: 
-// Delivery Fee = 
-// (BaseVehicle + DistanceRate x  Distance) 
-// x DeliveryTypeMultiplier (e.g. SAVER, STANDARD, PRIORITY)
-// x ServiceAreaMultiplier (e.g. SubUrban, City)
-// x SurgePricingRules (e.g. This is the complex one where formula needs to be applied)
-
-
   /* ---------------- Base Cost ---------------- */
-  //
   const extraDistance = Math.max(0, distanceKm - Number(vehicle.base_distance ?? 0));
-  const basePrice = Number(vehicle.base_price ?? 0) +  Number(vehicle.per_km_price ?? 0) * extraDistance;
+  const basePrice = Number(vehicle.base_price ?? 0) + 
+   Number(vehicle.per_km_price ?? 0) * extraDistance;
 
   // deliveryTypeCharge is the delta, price = basePrice × multiplier
   const multiplier = Number(deliveryType.price_multiplier ?? 1);

@@ -9,6 +9,7 @@ import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
 import bcrypt from "bcrypt"
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { EmailJobType } from 'src/modules/queue/interfaces/queue-job.interface';
+import Verify from 'twilio/lib/rest/Verify';
 
 
 // 
@@ -298,7 +299,7 @@ export class RidersProfileService {
       // LOG (non-blocking)
       await this.prisma.activityLog.create({
         data: {
-          action: 'UPDATE',
+          action: verify.toUpperCase(),
           entity_type: 'rider_approval',
           entity_id: raiderId,
           user_id: userId,

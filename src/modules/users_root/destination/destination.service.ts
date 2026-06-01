@@ -51,6 +51,7 @@ export class DestinationService {
       data: {
         address: dto.address,
         addressFromApr: geo.formattedAddress,
+        shortName: dto.shortName,
         floor_unit: dto.floor_unit,
         contact_name: dto.contact_name,
         contact_number: dto.contact_number,
