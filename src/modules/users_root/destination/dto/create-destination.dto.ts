@@ -19,6 +19,11 @@ export class CreateDestinationDto {
   @IsString()
   addressFromApr?: string;
 
+  @ApiProperty({ example: 'Short Name' })
+  @IsOptional()
+  @IsString()
+  shortName?: string;
+
   @ApiProperty({ example: '5A' })
   @IsOptional()
   @IsString()

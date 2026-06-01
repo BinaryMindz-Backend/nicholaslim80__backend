@@ -119,70 +119,6 @@ export class SurgePricingRuleService {
     return rule;
   }
 
-  // ─── Update ────────────────────────────────────────────────────────────────
-
-  //  async update(id: number, dto: UpdateSurgePricingRuleDto, userId: number) {
-  //     const existing = await this.findOne(id);
-
-  //     if (dto.ratioFrom !== undefined || dto.ratioTo !== undefined) {
-  //       const from = dto.ratioFrom ?? Number(existing.ratioFrom);
-  //       const to   = dto.ratioTo   ?? Number(existing.ratioTo);
-  //       await this.validateRatioOverlap(from, to, id);
-  //     }
-
-  //     if (dto.serviceZoneIds?.length) {
-  //       await this.validateServiceZoneIds(dto.serviceZoneIds);
-  //     }
-
-  //     if (dto.deliveryTypeIds?.length) {
-  //       await this.validateDeliveryTypeIds(dto.deliveryTypeIds);
-  //     }
-
-  //     return this.prisma.$transaction(async (tx) => {
-  //       const updated = await tx.surgePricingRule.update({
-  //         where: { id },
-  //         data: {
-  //           ...(dto.ruleName && { ruleName: dto.ruleName }),
-  //           ...(dto.ratioFrom && { ratioFrom: dto.ratioFrom }),
-  //           ...(dto.ratioTo && { ratioTo: dto.ratioTo }),
-  //           ...(dto.priceMultiplier && { priceMultiplier: dto.priceMultiplier }),
-  //           ...(dto.maxCap !== undefined && { maxCap: dto.maxCap }),
-  //           ...(dto.status && { status: dto.status }),
-
-  //           ...(dto.serviceZoneIds !== undefined && {
-  //             serviceZones: {
-  //               deleteMany: {},
-  //               create: dto.serviceZoneIds.map((id) => ({
-  //                 serviceZone: { connect: { id } },
-  //               })),
-  //             },
-  //           }),
-
-  //           ...(dto.deliveryTypeIds !== undefined && {
-  //             deliveryTypes: {
-  //               deleteMany: {},
-  //               create: dto.deliveryTypeIds.map((id) => ({
-  //                 deliveryType: { connect: { id } },
-  //               })),
-  //             },
-  //           }),
-  //         },
-  //       });
-
-  //       await this.logActivity(tx, {
-  //         action: 'UPDATE',
-  //         entityType: 'SurgePricingRule',
-  //         entityId: id,
-  //         userId,
-  //         meta: {
-  //           before: existing,
-  //           after: updated,
-  //         },
-  //       });
-
-  //       return updated;
-  //     });
-  //   }
 
   // ─── Update ────────────────────────────────────────────────────────────────
     async update(id: number, dto: UpdateSurgePricingRuleDto, userId: number) {
@@ -303,75 +239,6 @@ export class SurgePricingRuleService {
     });
   }
 
-  // ─── Resolve Surge (Engine) ────────────────────────────────────────────────
-  /**
-   * Finds the best matching ACTIVE rule for a live demand/driver ratio.
-   * Priority: rules scoped to both zone+type > zone only > type only > global (no scope).
-   * Returns multiplier = 1.0 (no surge) when no rule matches.
-   */
-  //  async resolveSurge(dto: ResolveSurgeDto) {
-  //     const { ratio, serviceZoneId, deliveryTypeId } = dto;
-
-  //     const candidates = await this.prisma.surgePricingRule.findMany({
-  //       where: {
-  //         status: SurgePricingStatus.ACTIVE,
-  //         ratioFrom: { lte: ratio },
-  //         ratioTo: { gte: ratio },
-  //         AND: [
-  //           serviceZoneId
-  //             ? { serviceZones: { some: { serviceZoneId } } }
-  //             : {},
-  //           deliveryTypeId
-  //             ? { deliveryTypes: { some: { deliveryTypeId } } }
-  //             : {},
-  //         ],
-  //       },
-  //       include: {
-  //         serviceZones: true,
-  //         deliveryTypes: true,
-  //       },
-  //     });
-
-  //     if (!candidates.length) {
-  //       return { matched: false, multiplier: 1.0, rule: null };
-  //     }
-
-  //     const getScore = (rule: any) => {
-  //       let score = 0;
-
-  //       const hasZoneMatch = serviceZoneId
-  //         ? rule.serviceZones.some(z => z.serviceZoneId === serviceZoneId)
-  //         : false;
-
-  //       const hasTypeMatch = deliveryTypeId
-  //         ? rule.deliveryTypes.some(t => t.deliveryTypeId === deliveryTypeId)
-  //         : false;
-
-  //       // Priority scoring
-  //       if (hasZoneMatch && hasTypeMatch) score = 3;
-  //       else if (hasZoneMatch) score = 2;
-  //       else if (hasTypeMatch) score = 1;
-  //       else score = 0;
-
-  //       return score;
-  //     };
-
-  //     const rule = candidates
-  //       .map(r => ({ ...r, score: getScore(r) }))
-  //       .sort((a, b) => b.score - a.score)[0];
-
-  //     let multiplier = Number(rule.priceMultiplier);
-
-  //     if (rule.maxCap && multiplier > Number(rule.maxCap)) {
-  //       multiplier = Number(rule.maxCap);
-  //     }
-
-  //     return {
-  //       matched: true,
-  //       multiplier,
-  //       rule,
-  //     };
-  //   }
 
 // ─── Resolve Surge (Engine) ────────────────────────────────────────────────
 /**
@@ -492,24 +359,24 @@ export class SurgePricingRuleService {
     }
   }
 
-private async validateDeliveryTypeIds(ids: number[]) {
-  const types = await this.prisma.deliveryType.findMany({
-    where: { id: { in: ids } },
-    select: { id: true },
-  });
+  private async validateDeliveryTypeIds(ids: number[]) {
+    const types = await this.prisma.deliveryType.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
 
-  const existingIds = types.map(t => t.id);
+    const existingIds = types.map(t => t.id);
 
-  const invalidIds = ids.filter(id => !existingIds.includes(id));
+    const invalidIds = ids.filter(id => !existingIds.includes(id));
 
-  if (invalidIds.length) {
-    throw new BadRequestException(
-      `Invalid deliveryTypeIds: ${invalidIds.join(', ')}`
-    );
+    if (invalidIds.length) {
+      throw new BadRequestException(
+        `Invalid deliveryTypeIds: ${invalidIds.join(', ')}`
+      );
+    }
   }
-}
 
-// 
+  // 
   private async logActivity(tx: any, data: {
     action: string;
     entityType: string;

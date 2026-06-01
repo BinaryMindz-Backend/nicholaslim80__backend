@@ -191,12 +191,14 @@ export class CoinManagementService {
     });
 
     const basePrice = Number(baseCoin._avg.coin_value_in_cent ?? 0);
-
-    // deduct safely
+    const totalValue = (coinAmount * basePrice)/ 100; // convert cents to dollars
+    // deduct and update safely
     await tx.user.update({
       where: { id: user.id },
       data: {
         current_coin_balance: { decrement: coinAmount },
+        totalWalletBalance: { increment: totalValue },
+        currentWalletBalance:{increment: totalValue},
       },
     });
 
@@ -309,40 +311,40 @@ export class CoinManagementService {
   
   // find all logs
     async findAllLogs(filterDto: DateByFilterDto) {
-  const {
-    fromDate,
-    toDate,
-    page = 1,
-    limit = 10,
-    search,
-  } = filterDto;
+    const {
+      fromDate,
+      toDate,
+      page = 1,
+      limit = 10,
+      search,
+    } = filterDto;
 
-  const skip = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-  const where: any = {
-    createdAt: {
-      gte: fromDate ? new Date(`${fromDate}T00:00:00.000Z`) : undefined,
-      lte: toDate ? new Date(`${toDate}T23:59:59.999Z`) : undefined,
-    },
-  };
-
-  // Optional search (adjust fields based on your schema)
-  if (search) {
-    where.OR = [
-      {
-        action: {
-          contains: search,
-          mode: 'insensitive',
-        },
+    const where: any = {
+      createdAt: {
+        gte: fromDate ? new Date(`${fromDate}T00:00:00.000Z`) : undefined,
+        lte: toDate ? new Date(`${toDate}T23:59:59.999Z`) : undefined,
       },
-      {
-        description: {
-          contains: search,
-          mode: 'insensitive',
+    };
+
+    // Optional search (adjust fields based on your schema)
+    if (search) {
+      where.OR = [
+        {
+          action: {
+            contains: search,
+            mode: 'insensitive',
+          },
         },
-      },
-    ];
-  }
+        {
+          description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
 
   const [data, total] = await this.prisma.$transaction([
     this.prisma.coinLog.findMany({

@@ -14,6 +14,11 @@ export class UpsertDestinationDto extends PartialType(CreateDestinationDto) {
   @IsString()
   addressFromApr?: string;
 
+  @ApiProperty({ example: 'Short Name' })
+  @IsOptional()
+  @IsString()
+  shortName?: string;
+
   @ApiProperty({ example: '5A', required: false })
   @IsOptional()
   @IsString()

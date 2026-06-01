@@ -1,41 +1,39 @@
 model Destination {
-  id                 Int       @id @default(autoincrement())
-  address            String?  
-  addressFromApr     String?
-  postal_code        String?
-  floor_unit         String?   @db.VarChar(100)
-  contact_name       String?   @db.VarChar(100)
-  contact_number     String?   @db.VarChar(20)
-  note_to_driver     String?
-  is_saved           Boolean   @default(false)
+  id             Int              @id @default(autoincrement())
+  address        String?
+  addressFromApr String?
+  shortName      String?          @db.VarChar(200)
+  postal_code    String?
+  floor_unit     String?          @db.VarChar(100)
+  contact_name   String?          @db.VarChar(100)
+  contact_number String?          @db.VarChar(20)
+  note_to_driver String?
+  is_saved       Boolean          @default(false)
   // type
-  type               DestinationType?
-  latitude           Float?
-  longitude          Float?
-  accuracy  Float?
-  additionalInfo  String?          // "Ring doorbell", "Gate code: 1234"
-  
+  type           DestinationType?
+  latitude       Float?
+  longitude      Float?
+  accuracy       Float?
+  additionalInfo String? // "Ring doorbell", "Gate code: 1234"
+
   // Ownership
-  userId          Int
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Usage Tracking (for "frequently used" feature)
-  lastUsedAt      DateTime?
-  useCount        Int              @default(0)
-  
+  lastUsedAt DateTime?
+  useCount   Int       @default(0)
+
   // Relations
-  orderStops      OrderStop[]      // Many orders can use this destination
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-   
-  service_zoneId     Int?
-  serviceZone        serviceZone? @relation(fields: [service_zoneId], references: [id])
-   
+  orderStops OrderStop[] // Many orders can use this destination
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  service_zoneId Int?
+  serviceZone    serviceZone? @relation(fields: [service_zoneId], references: [id])
 
   @@index([userId, lastUsedAt])
   @@index([userId, useCount])
   @@map("destinations")
 }
-
-
