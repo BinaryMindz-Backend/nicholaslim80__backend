@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/core/database/prisma.service";
 import { CreateRatingDto, RatingType } from "./dto/create-rating.dto";
@@ -73,34 +72,21 @@ export class RatingService {
     // throw new BadRequestException('Invalid rating type');
   }
 
-  async findAll(type: RatingType, userId: number) {
-     
-    const rider = await this.prisma.raider.findFirst({
-      where: {
-        userId: userId
-       },
-       select:{
-        id:true
-       }
-    })
-
-    if (!rider) {
-      throw new NotFoundException('Raider profile not found');
-    }
-
-
+  async findAll(type: RatingType, raiderId: number) {
+    
     if (type === RatingType.RAIDER) {
+
       const [totalCount, stats, data] = await Promise.all([
         this.prisma.rateRaider.count(
            {
              where: {
-              raiderId: rider.id
+              raiderId: raiderId
             }
            }
         ),
         this.prisma.rateRaider.aggregate({
           where:{
-             raiderId: rider.id
+             raiderId: raiderId
           },
           _avg: {
             rating_star: true,
@@ -108,7 +94,7 @@ export class RatingService {
         }),
         this.prisma.rateRaider.findMany({
           where: {
-            raiderId: rider.id
+            raiderId: raiderId
           },
           include: {
             order: true,
@@ -130,6 +116,15 @@ export class RatingService {
     }
 
     if (type === RatingType.CUSTOMER) {
+        const rider = await this.prisma.raider.findFirst({
+            select:{
+              id:true
+            }
+          })
+
+      if (!rider) {
+        throw new NotFoundException('Raider profile not found');
+      }
       const [totalCount, stats, data] = await Promise.all([
         this.prisma.rateCustomer.count(),
         this.prisma.rateCustomer.aggregate({
