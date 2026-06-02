@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { OrderStatus } from '@prisma/client';
 import { PrismaService } from "src/core/database/prisma.service";
 import { RedisService } from "src/modules/auth/redis/redis.service";
 
@@ -68,11 +69,19 @@ export class RaiderService {
 
     // Redis (short TTL heartbeat)
     await this.redis.set(`rider:${riderId}:status`, 'ONLINE', 60);
+    
+    const ongoingOrder : any = await this.prisma.order.findFirst({
+         where:{
+          assign_rider_id:riderId,
+          order_status:OrderStatus.ONGOING
+          },
+    })
 
+   const isAvailable : boolean = !ongoingOrder;
     // Update DB status
     await this.prisma.raider.update({
-      where: { id: riderId },
-      data: { is_online: true },
+      where: { id: riderId  },
+      data: { is_online: true , is_available:isAvailable},
     });
   }
 
@@ -108,7 +117,7 @@ export class RaiderService {
     // Update DB
     await this.prisma.raider.update({
       where: { id: riderId },
-      data: { is_online: false },
+      data: { is_online: false, is_available: false },
     });
   }
 

@@ -73,16 +73,43 @@ export class RatingService {
     // throw new BadRequestException('Invalid rating type');
   }
 
-  async findAll(type: RatingType) {
+  async findAll(type: RatingType, userId: number) {
+     
+    const rider = await this.prisma.raider.findFirst({
+      where: {
+        userId: userId
+       },
+       select:{
+        id:true
+       }
+    })
+
+    if (!rider) {
+      throw new NotFoundException('Raider profile not found');
+    }
+
+
     if (type === RatingType.RAIDER) {
       const [totalCount, stats, data] = await Promise.all([
-        this.prisma.rateRaider.count(),
+        this.prisma.rateRaider.count(
+           {
+             where: {
+              raiderId: rider.id
+            }
+           }
+        ),
         this.prisma.rateRaider.aggregate({
+          where:{
+             raiderId: rider.id
+          },
           _avg: {
             rating_star: true,
           },
         }),
         this.prisma.rateRaider.findMany({
+          where: {
+            raiderId: rider.id
+          },
           include: {
             order: true,
             raider: true,
