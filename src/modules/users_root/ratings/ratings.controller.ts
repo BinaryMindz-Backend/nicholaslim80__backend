@@ -14,6 +14,8 @@ import { UpdateRatingDto } from './dto/update-rating.dto';
 import { Auth } from 'src/decorators/auth.decorator';
 import { RatingService } from './ratings.service';
 import { ApiResponses } from 'src/common/apiResponse';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import type { IUser } from 'src/types';
 
 
 
@@ -25,24 +27,28 @@ export class RatingController {
   constructor(private readonly service: RatingService) { }
 
   @Post()
+  @Auth()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create rating (raider or customer)' })
   async create(@Body() dto: CreateRatingDto) {
     try {
       const res = await this.service.create(dto);
       return ApiResponses.success(res, 'Rating created successfully');
     } catch (error) {
-      return ApiResponses.error(error.message ?? error);
+      return ApiResponses.error(error ?? error);
     }
   }
 
   @Get()
+  @Auth()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all ratings by type' })
-  async findAll(@Query('type') type: RatingType) {
+  async findAll(@Query('type') type: RatingType, @CurrentUser() user: IUser) {
     try {
-      const res = await this.service.findAll(type);
+      const res = await this.service.findAll(type, user.id);
       return ApiResponses.success(res, 'Ratings fetched successfully');
     } catch (error) {
-      return ApiResponses.error(error.message ?? error);
+      return ApiResponses.error(error?? error);
     }
   }
 
@@ -56,7 +62,7 @@ export class RatingController {
       const res = await this.service.findOne(type, +id);
       return ApiResponses.success(res, 'Rating fetched successfully');
     } catch (error) {
-      return ApiResponses.error(error.message ?? error);
+      return ApiResponses.error(error ?? error);
     }
   }
 
@@ -71,7 +77,7 @@ export class RatingController {
       const res = await this.service.update(type, +id, dto);
       return ApiResponses.success(res, 'Rating updated successfully');
     } catch (error) {
-      return ApiResponses.error(error.message ?? error);
+      return ApiResponses.error(error ?? error);
     }
   }
 
@@ -85,7 +91,7 @@ export class RatingController {
       const res = await this.service.remove(type, +id);
       return ApiResponses.success(res, 'Rating deleted successfully');
     } catch (error) {
-      return ApiResponses.error(error.message ?? error);
+      return ApiResponses.error(error?? error);
     }
   }
 }
