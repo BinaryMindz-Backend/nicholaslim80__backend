@@ -310,9 +310,17 @@ export class CompetitionWorker implements OnModuleInit {
             assign_rider_id: winner.driverId,
             competition_closed: true,
             order_status: OrderStatus.ONGOING,
+            assign_at: new Date(), 
+          },
+        });
+        this.prisma.raider.update({
+          where: { id: winner.driverId },
+          data: {
+            is_available: false,
           },
         });
 
+        //  
         this.logger.log(`[DB UPDATE SUCCESS] Order ${orderId} assigned to raider ${winner.driverId}`);
         this.logger.log(`[WINNER RAIDER FULL] ${JSON.stringify(winnerRaider)}`);
 
