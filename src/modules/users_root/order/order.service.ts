@@ -4511,18 +4511,15 @@ export class OrderService {
             },
             tier: true,
             locations: true,
-            raider_ratings:{
-                select:{
-                   id:true,
-                }
-            },
-            customer_ratings:{
-               select:{
-                  id:true,
-               }
-            }
+            
           },
         },
+        rate_raiders:{
+              select: {id:true,rating_star:true}
+        },
+        rate_customers:{
+              select: {id:true,rating_star:true}
+        }
       },
     });
 
