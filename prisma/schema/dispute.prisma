@@ -33,6 +33,7 @@ model Dispute {
   riderPercent   Int?
 
   resolvedAt DateTime?
+  adminNote  String?
 
   is_closed Boolean @default(false)
 

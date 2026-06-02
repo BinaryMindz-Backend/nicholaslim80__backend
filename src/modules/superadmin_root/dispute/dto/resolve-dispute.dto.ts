@@ -47,4 +47,14 @@ export class ResolveDisputeDto {
   })
   @IsInt()
   adminId: number;
+
+
+  @ApiProperty({
+    example: 'Customer requested a refund due to late delivery.',
+    required: false,
+    description: 'Optional note from admin about the resolution',
+  })
+  @IsOptional()
+  @IsString()
+  adminNote?: string;
 }
