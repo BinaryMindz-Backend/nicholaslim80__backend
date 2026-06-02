@@ -14,8 +14,6 @@ import { UpdateRatingDto } from './dto/update-rating.dto';
 import { Auth } from 'src/decorators/auth.decorator';
 import { RatingService } from './ratings.service';
 import { ApiResponses } from 'src/common/apiResponse';
-import { CurrentUser } from 'src/decorators/current-user.decorator';
-import type { IUser } from 'src/types';
 
 
 
@@ -43,9 +41,9 @@ export class RatingController {
   @Auth()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all ratings by type' })
-  async findAll(@Query('type') type: RatingType, @CurrentUser() user: IUser) {
+  async findAll(@Query('type') type: RatingType, @Query('raiderId') raiderId: number) {
     try {
-      const res = await this.service.findAll(type, user.id);
+      const res = await this.service.findAll(type, raiderId);
       return ApiResponses.success(res, 'Ratings fetched successfully');
     } catch (error) {
       return ApiResponses.error(error?? error);
