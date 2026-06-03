@@ -4,6 +4,7 @@ import { CreateTipDto } from "./dto/create-tip.dto";
 import { OrderStatus, PaymentStatus, PayType, TransactionStatus, TransactionType, WalletTransactionStatus, WalletTransactionType } from "@prisma/client";
 import { WalletService } from "src/common/wallet/wallet.service";
 import { EmailQueueService } from "src/modules/queue/services/email-queue.service";
+import { TransactionIdService } from "src/common/services/transaction-id.service";
 
 @Injectable()
 export class TipService {
@@ -11,6 +12,7 @@ export class TipService {
     private readonly prisma: PrismaService,
     private readonly walletService: WalletService,
     private readonly emailQueueService: EmailQueueService,
+    private readonly txIdService: TransactionIdService,
   ) { }
 
   //  
@@ -76,6 +78,7 @@ export class TipService {
             currentWalletBalance: { decrement: Number(dto.amount) },
           },
         });
+
       }
 
       if (dto.paymentMethod === PayType.ONLINE_PAY) {
@@ -152,13 +155,13 @@ export class TipService {
           userId: raider.id,
           amount: Number(dto.amount),
           type: 'credit',
-          transactionId: `TRX-tip-${orderId}`,
+          transactionId: this.txIdService.generate(),
           transactionType: WalletTransactionType.EARNING,
           status: WalletTransactionStatus.SUCCESS,
           currency: 'SGD',
         },
       });
-
+      
       // 7. Create transaction record
       const txCode = `TIP-${orderId}-${Date.now()}`;
       await tx.transaction.create({

@@ -479,6 +479,19 @@ export class OrderService {
           where: { orderStopId: { in: order.orderStops.map((s) => s.id) } },
           data: { payType: PayType.WALLET, status: PaymentStatus.PAID, amount: 0 },
         });
+        // transaction history
+         await tx.walletHistory.create({
+          data: {
+            userId,
+            amount: order.total_cost,
+            transactionId: this.txIdService.generate(),
+            transactionType: WalletTransactionType.PAYMENT,
+            status: WalletTransactionStatus.SUCCESS,
+            type: 'credit',
+          },
+        });
+
+
       }
 
       if (payType === PayType.ONLINE_PAY) {
