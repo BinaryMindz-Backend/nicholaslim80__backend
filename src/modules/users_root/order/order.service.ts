@@ -4641,6 +4641,16 @@ export class OrderService {
     const promoDiscount        = Number(order.promoDiscount ?? 0);
     const coinsRedeemed        = Number(order.coinsRedeemed ?? 0);
 
+    // if order is placed and assign to rider
+    const isFav =
+      (await this.prisma.myRaider.count({
+        where: {
+          find_by:
+            order.assign_rider?.registrations?.[0]?.contact_number ||
+            order.assign_rider?.registrations?.[0]?.email_address,
+        },
+      })) > 0;
+
     // ─────────────────────────────────────────────
     // PATH 1: ORDER IS PLACED — snapshot from DB
     // (only path reachable after priorityOrder)
@@ -4657,6 +4667,7 @@ export class OrderService {
 
       return {
         ...order,
+        isFav,
         formattedAverage,
         raiderLeg,
         pricingSummary: {
@@ -4745,6 +4756,7 @@ export class OrderService {
 
       return {
         ...order,
+        isFav,
         formattedAverage,
         raiderLeg,
         pricingSummary: {
@@ -4801,6 +4813,7 @@ export class OrderService {
 
     return {
       ...order,
+      isFav,
       formattedAverage,
       raiderLeg,
       pricingSummary: {
