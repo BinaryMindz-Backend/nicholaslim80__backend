@@ -764,6 +764,18 @@ export class OrderService {
             currentWalletBalance: { decrement: dto.amount },
           },
         });
+        // need to add transaction history for wallet payment
+        await tx.walletHistory.create({
+          data: {
+            userId: userId,
+            amount: Number(dto.amount),
+            type: 'debit',
+            transactionId: this.txIdService.generate(),
+            transactionType: WalletTransactionType.PAYMENT,
+            status: WalletTransactionStatus.SUCCESS,
+            currency: 'SGD',
+          },
+        });
       }
 
       // ── UPDATE ORDER ──
