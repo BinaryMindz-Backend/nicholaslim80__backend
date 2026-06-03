@@ -67,6 +67,7 @@ export class NotificationProcessor extends WorkerHost {
               orderId: job.data.orderId,
               message: body,
               is_from_admin:false,
+              
              },
          });
         //  console.log(notification , type, );
