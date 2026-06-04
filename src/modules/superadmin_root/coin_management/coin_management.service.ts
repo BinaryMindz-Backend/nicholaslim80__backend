@@ -218,7 +218,7 @@ export class CoinManagementService {
       await tx.walletHistory.create({
         data: {
           userId: user.id,
-          amount: Number(totalValue),
+          amount: Number(totalValue).toFixed(2),
           type: 'credit',
           transactionId: this.txIdService.generate(),
           transactionType: WalletTransactionType.EARNING,
@@ -234,7 +234,7 @@ export class CoinManagementService {
         fcmToken: userRecord.fcmToken,
         type: "COIN_REDEEMED",
         title: 'Coins Redeemed',
-        body: `You have redeemed ${coinAmount} coins for a value of ${coinAmount * basePrice} cents.`,
+        body: `You have redeemed ${coinAmount} coins for a value of ${((coinAmount * basePrice)/100).toFixed(2)} SGD.`,
       });
     }
 
