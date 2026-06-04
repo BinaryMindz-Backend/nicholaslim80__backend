@@ -4,15 +4,18 @@ import { PrismaService } from 'src/core/database/prisma.service';
 import { ApiResponses } from 'src/common/apiResponse';
 import { IUser } from 'src/types';
 import { CreateCoinDto } from './dto/create-coin_management.dto';
-import { CoinHistoryType, UserRole } from '@prisma/client';
+import { CoinHistoryType, UserRole, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { DateByFilterDto } from '../customer_order_confirmation/dto/date-filter.dto';
 import { GiftCoinsDto } from './dto/gift_coin.dto';
+import { TransactionIdService } from 'src/common/services/transaction-id.service';
 
 @Injectable()
 export class CoinManagementService {
-  constructor(private readonly prisma: PrismaService,
-    private readonly emailQueueService: EmailQueueService
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailQueueService: EmailQueueService,
+    private readonly txIdService:TransactionIdService
   ) { }
 
   // 
@@ -203,14 +206,26 @@ export class CoinManagementService {
     });
 
       await tx.coinHistory.create({
-      data: {
-        userId: user.id,
-        role_triggered: 'REDEEM',
-        coin_acc_amount: coinAmount,
-        type: CoinHistoryType.APPLICATION,
-        source: 'REDEEM',
-      },
+        data: {
+          userId: user.id,
+          role_triggered: 'REDEEM',
+          coin_acc_amount: coinAmount,
+          type: CoinHistoryType.APPLICATION,
+          source: 'REDEEM',
+        },
     });
+
+      await tx.walletHistory.create({
+        data: {
+          userId: user.id,
+          amount: Number(totalValue),
+          type: 'credit',
+          transactionId: this.txIdService.generate(),
+          transactionType: WalletTransactionType.EARNING,
+          status: WalletTransactionStatus.SUCCESS,
+          currency: 'SGD',
+        },
+      });
 
     //  notification
     if (userRecord.fcmToken) {
