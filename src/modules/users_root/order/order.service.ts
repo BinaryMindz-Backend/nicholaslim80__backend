@@ -4642,7 +4642,7 @@ export class OrderService {
     const coinsRedeemed        = Number(order.coinsRedeemed ?? 0);
 
     // if order is placed and assign to rider
-    const savedRider =  await this.prisma.myRaider.count({
+    const savedRider =  await this.prisma.myRaider.findFirst({
         where: {
           find_by:
             order.assign_rider?.registrations?.[0]?.contact_number ||
