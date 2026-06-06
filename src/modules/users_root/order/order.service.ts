@@ -51,9 +51,18 @@ export class OrderService {
   ) { }
 
   //  
-
-
-
+  async getActiveOrdersByRider(riderId: number) {
+    return this.prisma.order.findMany({
+      where: {
+        assign_rider_id: riderId,
+        order_status: OrderStatus.ONGOING,
+      },
+      select: {
+        id: true,
+        userId: true,
+      },
+    });
+  }
 
   // first order checker
   async firstOrderChecker(userId: number, orderId: number) {
@@ -1047,7 +1056,15 @@ export class OrderService {
             await tx.raider.update({
               where: { userId: raiderId },
               data: { completed_orders: { increment: 1 } },
+              
             });
+
+            if (stop.order.assign_rider_id) {
+                await this.redisService.hdel(
+                  `rider:${stop.order.assign_rider_id}:active_order_users`,
+                  stop.order.id.toString(),
+                );
+              }
 
             // ── Driver earnings: calculated from total_raider_earnings not total_cost ──
             const raiderEarnings = Number(stop.order.total_raider_earnings);
@@ -1276,6 +1293,12 @@ export class OrderService {
         },
       });
 
+      if (cancelledOrder.assign_rider_id) {
+        await this.redisService.hdel(
+          `rider:${cancelledOrder.assign_rider_id}:active_order_users`,
+          cancelledOrder.id.toString(),
+        );
+      }
       // Update transaction if exists
       const transaction = await tx.transaction.findFirst({
         where: { orderId },
@@ -3188,6 +3211,17 @@ export class OrderService {
     if (riderAlreadyAssigned) {
       throw new ConflictException('This rider is already assigned to another active order');
     }
+    if(order.userId && order.id){
+        await this.redisService.hset(
+          `rider:${raider.id}:active_order_users`,
+          order.id.toString(),
+          order?.userId.toString(),
+        );
+      } 
+
+      this.logger.log(
+        `[REDIS] Added tracking mapping rider:${raider.id}:active_order_users -> ${order.id}:${order.userId}`,
+      );
 
     //  Save rider to order
     return this.prisma.order.update({
@@ -3199,8 +3233,10 @@ export class OrderService {
         assign_at : new Date(),
       },
     });
-  }
 
+
+  }
+  
 
 
   //  stats dashboard

@@ -16,7 +16,7 @@ import { RaiderWithLocation } from 'src/types';
 @UseGuards(WsJwtGuard)
 export class OrderGateway implements OnGatewayConnection {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   constructor(
     private redisService: RedisService,
@@ -71,7 +71,7 @@ export class OrderGateway implements OnGatewayConnection {
                 console.log(`✓ Pushing Raider data:`, raiderData);
                 raidersWithLocation.push(raiderData);
                 }
-             catch (err) {
+             catch (err : any) {
                 console.error(`❌ Error parsing location for rider ${raider.id}:`, err.message);
             }
           }
@@ -84,7 +84,7 @@ export class OrderGateway implements OnGatewayConnection {
           client.emit('admin:loc_raider', raidersWithLocation);
        
           console.log(`✅ Emitted admin:all_raider event`);
-    } catch (error) {
+    } catch (error : any) {
        console.error(`❌ Error parsing location for rider error.message ${error.message}`);
     }
   }
