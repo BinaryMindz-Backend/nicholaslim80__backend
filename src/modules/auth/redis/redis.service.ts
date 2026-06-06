@@ -27,32 +27,55 @@ export class RedisService {
     return this.client.get(key);
   }
 
-  /** Delete key */
-  async del(key: string) {
-    return this.client.del(key);
-  }
-  
+    /** Delete key */
+    async del(key: string) {
+      return this.client.del(key);
+    }
+    
 
-  // aquirelock for order timing 
-  async acquireLock(key: string, ttlMs = 5000): Promise<boolean> {
-    const result = await this.client.set(key, '1', {
-      PX: ttlMs,
-      NX: true,
-    });
+    // aquirelock for order timing 
+    async acquireLock(key: string, ttlMs = 5000): Promise<boolean> {
+      const result = await this.client.set(key, '1', {
+        PX: ttlMs,
+        NX: true,
+      });
 
-    return result === 'OK';
-  }
-  
-  // release lock
-  async releaseLock(key: string): Promise<void> {
-    await this.client.del(key);
-  }
-  
-  // keys pattern
-  async keys(pattern: string) {
-    return this.client.keys(pattern);
-  }
+      return result === 'OK';
+    }
+    
+    // release lock
+    async releaseLock(key: string): Promise<void> {
+      await this.client.del(key);
+    }
+    
+    // keys pattern
+    async keys(pattern: string) {
+      return this.client.keys(pattern);
+    }
+      /** Hash Set */
+    async hset(key: string, field: string, value: string) {
+      return this.client.hSet(key, field, value);
+    }
 
+    /** Hash Get */
+    async hget(key: string, field: string) {
+      return this.client.hGet(key, field);
+    }
+
+    /** Hash Get All */
+    async hgetall(key: string) {
+      return this.client.hGetAll(key);
+    }
+
+    /** Hash Delete Field */
+    async hdel(key: string, field: string) {
+      return this.client.hDel(key, field);
+    }
+
+    /** Check Hash Exists */
+    async hexists(key: string, field: string) {
+      return this.client.hExists(key, field);
+    }
 
 
 }

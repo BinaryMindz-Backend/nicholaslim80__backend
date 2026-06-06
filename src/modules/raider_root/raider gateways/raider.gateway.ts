@@ -18,13 +18,14 @@ import { forwardRef, Inject, Logger,  } from '@nestjs/common';
 import { OrderCompetitionData, OrderData } from 'src/types';
 import { AutoPopupService } from '../auto_popup_services/auto-popup.service';
 import { UserGateway } from 'src/modules/users_root/users/user.gateways';
+import { RedisService } from 'src/modules/auth/redis/redis.service';
 
 @WebSocketGateway({ namespace: '/raider', cors: true })
 export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
    private readonly logger = new Logger(RaiderGateway.name);
 
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   constructor(
     private raiderService: RaiderService,
@@ -34,6 +35,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @Inject(forwardRef(() => AutoPopupService))
     private autoPopupService: AutoPopupService,
     private readonly userGateway: UserGateway, 
+    private readonly redisService:RedisService,
 
   ) {}
 
@@ -59,7 +61,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.log(`✅ Rider connected: ${raider.id}`);
       await this.raiderService.setOnline(raider.id);
       
-    } catch (err) {
+    } catch (err: any) {
       console.log('❌ Invalid token:', err.message);
       client.disconnect();
     }
@@ -73,13 +75,53 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
         await this.raiderService.setOffline(riderId);
         console.log('Rider set offline:', riderId);
       }
-    } catch (err) {
+    } catch (err :any) {
       console.log('Error during disconnect:', err.message);
     }
   }
   
     // update loaction in every move
-    @SubscribeMessage('rider:location')
+    // @SubscribeMessage('rider:location')
+    // async handleLocation(
+    //   @ConnectedSocket() client: Socket,
+    //   @MessageBody() payload: { lat: number; lng: number; heading?: number },
+    // ) {
+    //   const riderId = client.data.user?.id;
+
+    //   if (!riderId) {
+    //     this.logger.warn('⚠️ Location update without riderId');
+    //     return;
+    //   }
+
+    //   try {
+    //      await this.raiderService.updateLocation(
+    //       riderId,
+    //       payload.lat,
+    //       payload.lng,
+    //       payload.heading,
+    //     );
+         
+    //     const rdata = await this.raiderService.getRaiderById(riderId)
+
+    //     const io = SocketIOAdapter.getServer();
+
+    //     io.of('/admin')
+    //       .to('admin:live-map')
+    //       .emit('admin:rider_location', {
+    //         riderId,
+    //         vehicle_type: rdata?.registrations[0].vehicle_type,
+    //         ...payload,
+    //       });
+
+    //   } catch (err) {
+    //     this.logger.error(
+    //       `❌ Location update failed | riderId=${riderId}`,
+    //       err.stack,
+    //     );
+    //   }
+    // }
+
+   @SubscribeMessage('rider:location')
     async handleLocation(
       @ConnectedSocket() client: Socket,
       @MessageBody() payload: { lat: number; lng: number; heading?: number },
@@ -91,21 +133,87 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      // this.logger.debug(
-      //   `📍 Location update | riderId=${riderId} | ${payload.lat},${payload.lng}`,
-      // );
-
       try {
-         await this.raiderService.updateLocation(
+        // Save latest location
+        await this.raiderService.updateLocation(
           riderId,
           payload.lat,
           payload.lng,
           payload.heading,
         );
+        // USER LIVE TRACKING
+        let activeOrders: Record<string, string> = {};
 
-        // this.logger.debug(`💾 DB updated | riderId=${riderId}`);
-         
-        const rdata = await this.raiderService.getRaiderById(riderId)
+        try {
+          activeOrders = await this.redisService.hgetall(
+            `rider:${riderId}:active_order_users`,
+          );
+
+          // Redis miss -> fallback to DB
+          if (Object.keys(activeOrders).length === 0) {
+            this.logger.warn(
+              `[REDIS MISS] No active orders for rider ${riderId}`,
+            );
+
+            const dbOrders =
+              await this.orderService.getActiveOrdersByRider(riderId);
+
+            for (const order of dbOrders) {
+              if (order.userId == null) {
+                this.logger.warn(
+                  `[DB WARNING] Skipping active order ${order.id} with null userId`,
+                );
+                continue;
+              }
+
+              await this.redisService.hset(
+                `rider:${riderId}:active_order_users`,
+                order.id.toString(),
+                order.userId.toString(),
+              );
+
+              activeOrders[order.id.toString()] =
+                order.userId.toString();
+            }
+          }
+        } catch (redisError) {
+          this.logger.error(
+            `[REDIS ERROR] Falling back to database`,
+            redisError instanceof Error
+              ? redisError.stack
+              : String(redisError),
+          );
+
+          const dbOrders =
+            await this.orderService.getActiveOrdersByRider(riderId);
+
+          for (const order of dbOrders) {
+            if (order.userId == null) {
+              this.logger.warn(
+                `[DB WARNING] Skipping active order ${order.id} with null userId`,
+              );
+              continue;
+            }
+
+            activeOrders[order.id.toString()] =
+              order.userId.toString();
+          }
+        }
+
+        // Send rider location to all users
+        for (const [orderId, userId] of Object.entries(activeOrders)) {
+          await this.userGateway.notifyRiderLocation(
+            Number(userId),
+            Number(orderId),
+            riderId,
+            payload.lat,
+            payload.lng,
+            payload.heading,
+          );
+        }
+
+        // ADMIN LIVE MAP
+        const rdata = await this.raiderService.getRaiderById(riderId);
 
         const io = SocketIOAdapter.getServer();
 
@@ -113,20 +221,20 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
           .to('admin:live-map')
           .emit('admin:rider_location', {
             riderId,
-            vehicle_type: rdata?.registrations[0].vehicle_type,
+            vehicle_type: rdata?.registrations?.[0]?.vehicle_type,
             ...payload,
           });
 
-        // this.logger.log(`📡 Broadcasted location | riderId=${riderId}`);
       } catch (err) {
         this.logger.error(
           `❌ Location update failed | riderId=${riderId}`,
-          err.stack,
+          err instanceof Error ? err.stack : String(err),
         );
       }
     }
-
   
+
+
   // raider join throw socket to compition
   @SubscribeMessage('rider:join_competition')
     async handleJoinCompetition(
@@ -169,7 +277,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }
       }
       
-    } catch (err) {
+    } catch (err :any) {
       console.error('❌ Join error:', err.message);
       client.emit('rider:competition_error', {
         orderId: payload.orderId,
@@ -297,7 +405,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       }
 
-    } catch (err) {
+    } catch (err : any) {
       this.logger.error(`❌ Accept popup failed | rider=${raiderId} order=${orderId}`, err.message);
 
       client.emit('rider:popup_error', {
@@ -330,7 +438,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
         message: 'Order declined.',
       });
 
-    } catch (err) {
+    } catch (err: any) {
       this.logger.error(`❌ Decline failed | rider=${raiderId} order=${orderId}`, err.message);
 
       client.emit('rider:popup_error', {

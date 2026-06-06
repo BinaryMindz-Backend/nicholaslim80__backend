@@ -6,11 +6,11 @@ import { Server, Socket } from "socket.io";
 @WebSocketGateway({ namespace: '/user', cors: true })
 export class UserGateway implements OnGatewayConnection {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   constructor(private jwtService: JwtService) {}
 
-  async handleConnection(client: Socket) {
+    async handleConnection(client: Socket) {
     const token = client.handshake.auth?.token;
     if (!token) return client.disconnect();
 
@@ -28,7 +28,7 @@ export class UserGateway implements OnGatewayConnection {
     } catch {
       client.disconnect();
     }
-  }
+    }
 
     async handleDisconnect(client: Socket) {
         try {
@@ -37,7 +37,7 @@ export class UserGateway implements OnGatewayConnection {
             console.log('User disconnecting:', userId);
             console.log('User set offline:', userId);
         }
-        } catch (err) {
+        } catch (err : any) {
         console.log('Error during disconnect:', err.message);
         }
     }
@@ -112,6 +112,28 @@ export class UserGateway implements OnGatewayConnection {
             message
             });
 
-          }
+    }
+
+    // notify order/rider location by rider
+    async notifyRiderLocation(
+      userId: number,
+      orderId: number,
+      riderId: number,
+      lat: number,
+      lng: number,
+      heading?: number,
+    ) {
+      this.server.to(`user_${userId}`).emit(
+        'user:rider_location',
+        {
+          orderId,
+          riderId,
+          lat,
+          lng,
+          heading,
+          timestamp: Date.now(),
+        },
+      );
+    }
     
     }
