@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { CoinEvent } from "@prisma/client";
+import { CoinEvent, UserRole } from "@prisma/client";
 import { PrismaService } from "src/core/database/prisma.service";
 import { EmailQueueService } from "../queue/services/email-queue.service";
 import { CoinUtils } from "src/utils/coin.utils";
@@ -19,6 +19,17 @@ export class LoginRewardService {
 
       const endOfDay = new Date();
       endOfDay.setHours(23, 59, 59, 999);
+      // not for driver and admin
+      const role = await this.prisma.role.findFirst({
+          where:{
+              users:{
+                  some:{
+                     id:userId
+                  }
+              }
+          }
+      })
+      if(!role?.isStatic || !(role.name=== UserRole.USER)) return;
 
       const alreadyRewarded = await this.prisma.coinHistory.findFirst({
       where: {
