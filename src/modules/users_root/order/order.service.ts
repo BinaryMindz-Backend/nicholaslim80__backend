@@ -3317,7 +3317,16 @@ export class OrderService {
         include: {
           user: true,
           vehicle: true,
-          orderStops: true,
+          orderStops: {
+             include:{ 
+                destination:{
+                   select:{
+                      address:true,
+                      shortName:true
+                   }
+                }
+             }
+          },
         },
         skip,
         take: limit,
