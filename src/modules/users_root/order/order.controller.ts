@@ -399,6 +399,23 @@ export class OrderController {
     }
   }
 
+  @Patch('user-confirmation/:order_id')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Raider Confirmation upadate' })
+  @ApiParam({ name: 'order_id', description: 'Order ID', example: 201 })
+  @ApiResponse({ status: 200, description: 'User confirmation updated ' })
+  async userCallConfirmation(
+    @Param('order_id', ParseIntPipe) orderId: number
+  ) {
+    try {
+      const result = await this.orderService.userCallConfirmation(orderId);
+      return ApiResponses.success(result, 'User confirmation updated succesfully ');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to user confirmation updated');
+    }
+  }
+
   // CANCEL ORDER
   @Patch(':order_id/cancel')
   @Auth()

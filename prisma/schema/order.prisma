@@ -52,8 +52,10 @@ model Order {
   priorityAt           DateTime?
   raider_confirmation  Boolean        @default(false)
   is_auto_confirmation Boolean        @default(false)
+  user_confirmation_at DateTime?
   is_reviewed          Boolean        @default(false)
   is_placed            Boolean        @default(false)
+  placed_at            DateTime?
   is_pickup            Boolean        @default(false)
   order_status         OrderStatus    @default(PROGRESS)
   is_out_for_delivery  Boolean        @default(false)

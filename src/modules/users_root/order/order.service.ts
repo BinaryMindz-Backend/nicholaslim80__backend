@@ -420,6 +420,7 @@ export class OrderService {
       paymentMethod?: PayType;
       paymentMethodId?: string;
       codCollectFrom?: 'SENDER' | 'RECEIVER';
+      placedAt?: string; 
     },
   ) {
     const order = await this.prisma.order.findUnique({
@@ -566,6 +567,7 @@ export class OrderService {
           order_status: OrderStatus.PENDING,
           is_placed: true,
           pay_type: payType,
+          placed_at: dto.placedAt,
         },
         include: {
           orderStops: {
@@ -1401,7 +1403,7 @@ export class OrderService {
   /**
    * Fail a stop (Rule #4: Receiver not available)
    */
-  async failStop(stopId: number, reason: string) {
+  async failStop(stopId: number, reason?: string) {
     const stop = await this.prisma.orderStop.findUnique({
       where: { id: stopId },
       include: {
@@ -1547,6 +1549,30 @@ export class OrderService {
     })
     return x;
   }
+
+  async userCallConfirmation(orderId: number){
+      
+    const exist = await this.prisma.order.findFirst({
+      where: { id: orderId},
+    })
+    
+   if(!exist){
+       throw new NotFoundException("Order Not found by this id")
+   }
+  //  
+  if(!exist.raider_confirmation) throw new NotFoundException("Raider confirmation not found")
+  if(exist.user_confirmation_at) throw new NotFoundException("All ready confirm by user")
+  //  
+    const x = await this.prisma.order.update({
+      where: { id: orderId},
+      data:{
+        raider_confirmation:true,
+        user_confirmation_at:new Date()
+      }
+    })
+    return x;
+  }
+
 
 
   /**
