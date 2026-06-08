@@ -178,7 +178,7 @@ export class IncentiveCronService {
                 transactionId:   txId,
                 userId:          user.id,
                 amount:          rewardAmount,
-                transactionType: WalletTransactionType.PAYMENT,
+                transactionType: WalletTransactionType.EARNING,
                 type:            'credit',
                 status:          WalletTransactionStatus.SUCCESS,
               },
