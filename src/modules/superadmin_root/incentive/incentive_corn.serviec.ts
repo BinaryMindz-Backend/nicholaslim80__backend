@@ -164,14 +164,21 @@ export class IncentiveCronService {
             });
             await tx.user.update({
               where: { id: user.id },
-              data:  { totalWalletBalance: { increment: rewardAmount } },
+              data:  { 
+                totalWalletBalance: {
+                   increment: rewardAmount
+                   },
+                currentWalletBalance:{
+                    increment:rewardAmount,
+                } 
+              },
             });
             await tx.walletHistory.create({
               data: {
                 transactionId:   txId,
                 userId:          user.id,
                 amount:          rewardAmount,
-                transactionType: WalletTransactionType.PAYMENT,
+                transactionType: WalletTransactionType.EARNING,
                 type:            'credit',
                 status:          WalletTransactionStatus.SUCCESS,
               },
@@ -179,7 +186,7 @@ export class IncentiveCronService {
           });
 
           this.logger.log(`Incentive ${incentive.id} collected for user ${user.id}`);
-        } catch (error) {
+        } catch (error : any) {
           this.logger.error(`Error processing user ${user.id}: ${error.message}`);
         }
       }
