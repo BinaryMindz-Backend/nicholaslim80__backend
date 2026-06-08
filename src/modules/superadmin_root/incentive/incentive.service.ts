@@ -269,7 +269,14 @@ export class IncentiveService {
         driver_types: { some: { id: rider.registrations[0].vehicle_type.id } },
         serviceZones: {},
       },
-      include: { rules: true },
+      include: { rules: true, collected_incentives:{
+          select:{
+            id:true,
+            userId:true,
+            is_collected:true,
+            incentiveId:true,
+          }
+      } },
     });
 
     if (!res || res.length === 0) {
@@ -496,14 +503,16 @@ export class IncentiveService {
       });
       const user = await tx.user.update({
         where: { id: userId },
-        data:  { totalWalletBalance: { increment: rewardAmount } },
+        data:  { totalWalletBalance: { increment: rewardAmount },
+         currentWalletBalance: { increment: rewardAmount }
+      },
       });
       const walletHistory = await tx.walletHistory.create({
         data: {
           transactionId:   txId,
           userId,
           amount:          rewardAmount,
-          transactionType: WalletTransactionType.PAYMENT,
+          transactionType: WalletTransactionType.EARNING,
           type:            'credit',
           status:          WalletTransactionStatus.SUCCESS,
         },
