@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { PaymentType, PayType } from "@prisma/client";
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 export class PlaceOrderDto {
   @ApiPropertyOptional({
@@ -33,6 +33,18 @@ export class PlaceOrderDto {
   @IsEnum(PaymentType)
   @IsOptional()
   payType?:PaymentType
+  
+
+
+  @ApiPropertyOptional({
+    example: '2026-01-10',
+    description: 'End date filter (YYYY-MM-DD)',
+  }) 
+  @IsOptional()
+  @IsDateString()
+  placedAt?:string;
+
+
 
 }
 
@@ -78,5 +90,5 @@ export class FailStopDto {
   })
   @IsString()
   @IsNotEmpty()
-  reason: string;
+  reason?: string;
 }

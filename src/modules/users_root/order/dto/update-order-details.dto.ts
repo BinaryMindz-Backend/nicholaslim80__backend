@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { CollectTime, DeliveryTypeName, RouteType } from "@prisma/client";
+import { CollectTime, RouteType } from "@prisma/client";
 import { IsBoolean, IsDateString, IsEnum, IsNumber, IsOptional } from "class-validator";
 
 export class UpdateOrderDetailsDto {
