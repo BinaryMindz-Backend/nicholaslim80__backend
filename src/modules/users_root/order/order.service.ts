@@ -497,7 +497,7 @@ export class OrderService {
             transactionId: this.txIdService.generate(),
             transactionType: WalletTransactionType.PAYMENT,
             status: WalletTransactionStatus.SUCCESS,
-            type: 'credit',
+            type: 'debit',
           },
         });
 
@@ -978,10 +978,10 @@ export class OrderService {
           throw new BadRequestException('You are not assigned to this order');
         }
 
-        if (
-          stop.order.order_status !== OrderStatus.PENDING &&
-          stop.order.order_status !== OrderStatus.PROGRESS
-        ) {
+        //  
+        const allowedStatuses = ["PENDING","PROGRESS","ONGOING"];
+
+        if (!allowedStatuses.includes(stop.order.order_status)) {
           throw new BadRequestException('Order is not in a valid state to complete stops');
         }
 

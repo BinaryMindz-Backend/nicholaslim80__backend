@@ -124,6 +124,7 @@ async findAll(userId: number, dto: PaginationDto) {
       raider_name: true,
       contact_number: true,
       email_address: true,
+      driver_photos:true,
     },
   });
 

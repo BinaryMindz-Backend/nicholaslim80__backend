@@ -438,7 +438,7 @@ export class WalletService {
       console.log("7. ✅ Event constructed successfully!");
       console.log("8. Event Type:", event.type);
       console.log("9. Event ID:", event.id);
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ Webhook Signature Verification Failed!");
       console.error("Error Type:", err.type);
       console.error("Error Message:", err.message);
