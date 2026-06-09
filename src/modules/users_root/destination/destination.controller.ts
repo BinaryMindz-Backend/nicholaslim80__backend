@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { DestinationService } from './destination.service';
 import { CreateDestinationDto } from './dto/create-destination.dto';
@@ -53,15 +54,23 @@ export class DestinationController {
 
   // FIND ALL
   @Get()
-  @ApiOperation({ summary: 'Get all destinations(only users)' })
-  async findAll(@CurrentUser() user: IUser) {
+  @ApiOperation({ summary: 'Get all destinations (only user)' })
+  async findAll(
+    @CurrentUser() user: IUser,
+    @Query() query: any,
+  ) {
     try {
-      const result = await this.service.findAll(user);
-      return ApiResponses.success(result, 'Destinations retrieved successfully');
+      const result = await this.service.findAll(user, query);
+
+      return ApiResponses.success(
+        result,
+        'Destinations retrieved successfully',
+      );
     } catch (err) {
       return ApiResponses.error(err, 'Failed to fetch destinations');
     }
   }
+
 
   // FIND ONE
   @Get(':id')
