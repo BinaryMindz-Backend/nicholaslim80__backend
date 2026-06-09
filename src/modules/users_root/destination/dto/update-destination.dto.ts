@@ -1,7 +1,8 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsEnum, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsEnum, IsNumber, IsIn } from 'class-validator';
 import { DestinationType } from '@prisma/client';
 import { CreateDestinationDto } from './create-destination.dto';
+import { Type } from 'class-transformer';
 
 export class UpsertDestinationDto extends PartialType(CreateDestinationDto) {
   @ApiProperty({ example: '123 Street, Dhaka', required: false })
@@ -73,4 +74,19 @@ export class UpsertDestinationDto extends PartialType(CreateDestinationDto) {
   @IsOptional()
   @IsNumber()
   service_zoneId?: number;
+}
+
+
+export class FindDestinationsQueryDto {
+  @IsOptional()
+  @IsIn(['recent', 'saved', 'frequent'])
+  filter?: 'recent' | 'saved' | 'frequent';
+
+  @IsOptional()
+  @Type(() => Number)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  limit?: number;
 }

@@ -25,7 +25,7 @@ import type { IUser } from 'src/types';
 import { ApiResponses } from 'src/common/apiResponse';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
-import { UpsertDestinationDto } from './dto/update-destination.dto';
+import { FindDestinationsQueryDto, UpsertDestinationDto } from './dto/update-destination.dto';
 
 
 
@@ -57,7 +57,8 @@ export class DestinationController {
   @ApiOperation({ summary: 'Get all destinations (only user)' })
   async findAll(
     @CurrentUser() user: IUser,
-    @Query() query: any,
+    @Query() query: FindDestinationsQueryDto,
+
   ) {
     try {
       const result = await this.service.findAll(user, query);

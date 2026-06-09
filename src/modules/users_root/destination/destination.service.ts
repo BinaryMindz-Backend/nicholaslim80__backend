@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateDestinationDto } from './dto/create-destination.dto';
-import { UpsertDestinationDto } from './dto/update-destination.dto';
+import { FindDestinationsQueryDto, UpsertDestinationDto } from './dto/update-destination.dto';
 import { PrismaService } from 'src/core/database/prisma.service';
 import type { IUser } from 'src/types';
 import { GeoService } from 'src/utils/geo-location.utils';
@@ -90,7 +90,7 @@ export class DestinationService {
   }
   
   // 
-    async findAll(user: IUser, query: any) {
+    async findAll(user: IUser, query: FindDestinationsQueryDto) {
       const { filter = "recent", page = 1, limit = 20 } = query;
 
       const where: any = {
