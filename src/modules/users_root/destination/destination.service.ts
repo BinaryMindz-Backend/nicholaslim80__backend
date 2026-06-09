@@ -6,6 +6,13 @@ import type { IUser } from 'src/types';
 import { GeoService } from 'src/utils/geo-location.utils';
 import { DestinationType } from '@prisma/client';
 
+  // 
+  type GeoResult = {
+  lat: number;
+  lng: number;
+  formattedAddress: string;
+} | null;
+
 @Injectable()
 export class DestinationService {
   constructor(
@@ -81,17 +88,39 @@ export class DestinationService {
       result
     }
   }
+  
   // 
+    async findAll(user: IUser, query: any) {
+      const { filter = "recent", page = 1, limit = 20 } = query;
 
+      const where: any = {
+        userId: user.id,
+      };
 
-  //
-  async findAll(user: IUser) {
-    return this.prisma.destination.findMany({
-      where: {
-        userId: user.id
+      // FILTER LOGIC
+      if (filter === "saved") {
+        where.is_saved = true;
       }
-    });
-  }
+
+      return this.prisma.destination.findMany({
+        where,
+
+        skip: (page - 1) * limit,
+        take: Number(limit),
+
+        orderBy:
+          filter === "frequent"
+            ? [
+                { useCount: "desc" },
+                { lastUsedAt: "desc",
+                  updatedAt:'desc',
+                 },
+              ]
+            : filter === "recent"
+            ? { updatedAt: "desc" }
+            : { updatedAt: "desc" }, 
+      });
+    }
 
   // 
   async findOne(id: number) {
@@ -101,41 +130,46 @@ export class DestinationService {
 
   // 
   async update(id: number, dto: UpsertDestinationDto, user: IUser) {
-    //  
     if (!id) {
-      throw new NotFoundException("destination id not found")
-    }
-    // 
-    const isUserExist = this.prisma.user.findUnique({
-      where: {
-        id: user?.id,
-      }
-    })
-    if (isUserExist === null) throw new UnauthorizedException("You Are Not Authorize")
-    const geo = await this.geoServices.getLatLngFromAddress(dto.address ?? '');
-    // 
-    const isExist = await this.prisma.destination.findUnique({
-      where: {
-        id
-      }
-    })
-    // 
-    if (!isExist) {
-      throw new ConflictException("Destination is already exists")
+      throw new BadRequestException("Destination id is required");
     }
 
-    // 
-    return await this.prisma.destination.update({
+    const existing = await this.prisma.destination.findFirst({
+      where: {
+        id,
+        userId: user.id,
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException("Destination not found");
+    }
+
+    let geo: GeoResult = null;
+
+    if (dto.address) {
+      geo = await this.geoServices.getLatLngFromAddress(dto.address);
+    }
+
+    return this.prisma.destination.update({
       where: { id },
       data: {
         ...dto,
-        latitude: geo.lat,
-        longitude: geo.lng,
-        addressFromApr: geo.formattedAddress,
+
+        ...(geo && {
+          latitude: geo.lat,
+          longitude: geo.lng,
+          addressFromApr: geo.formattedAddress,
+        }),
+
+        lastUsedAt: new Date(),
+
+        useCount: {
+          increment: 1,
+        },
       },
     });
   }
-
   // 
   async remove(id: number, user: IUser) {
     //  
