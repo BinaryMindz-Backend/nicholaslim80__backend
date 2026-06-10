@@ -69,9 +69,6 @@ export class MessagesService {
   }
 
 
-
-
-
   async getConversations(userId: number, orderId?: string) {
     this.logger.log(`Retrieving conversations for user ${userId}`);
 

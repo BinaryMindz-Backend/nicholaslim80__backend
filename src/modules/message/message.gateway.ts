@@ -31,7 +31,7 @@ export class MessagesGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
 
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   private logger = new Logger(MessagesGateway.name);
   private redis: Redis;
