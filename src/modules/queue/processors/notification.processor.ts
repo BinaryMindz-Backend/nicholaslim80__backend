@@ -44,7 +44,7 @@ export class NotificationProcessor extends WorkerHost {
 
   // GENERAL NOTIFICATIONS  
   private async handlePushNotification(job: Job) {
-    const { userId, fcmToken, type, title, body } = job.data;
+    const { userId, fcmToken, type, title, body, data } = job.data;
     // 
     try {
       await this.notifyService.sendNotificationByType(
@@ -53,27 +53,21 @@ export class NotificationProcessor extends WorkerHost {
         title,
         body,
       );
-          // type: NotificationType,
-          // users: SendTarget[],
-          // title?: string,
-          // message?: string,
-          // imageUrl?: string,
       // save to notification history
         const notification = await this.prisma.notification.create({
             data: {
               userId,
               type,
               title,
-              orderId: job.data.orderId,
+              orderId: Number(data.orderId),
               message: body,
               is_from_admin:false,
-              
              },
          });
         //  console.log(notification , type, );
       this.logger.log(`✅ Push notification sent to user ${userId} and saved to history with ID ${notification.id}`);
       return { success: true, userId, notificationId: notification.id };
-    } catch (error) {
+    } catch (error : any) {
       this.logger.error(`❌ Push notification failed for user ${userId}:`, error.message);
       throw error;
     }
@@ -104,7 +98,7 @@ export class NotificationProcessor extends WorkerHost {
         });
       this.logger.log(`✅ Order status notification sent to user ${userId} for order ${orderId} and saved to history with ID ${notification.id}`);
       return { success: true, userId, orderId, notificationId: notification.id };
-    } catch (error) {
+    } catch (error : any) {
       this.logger.error(`❌ Order status notification failed for user ${userId}:`, error.message);
       throw error;
     }
@@ -134,7 +128,7 @@ export class NotificationProcessor extends WorkerHost {
          });
       this.logger.log(`✅ Order assigned notification sent to user ${userId} and saved to history with ID ${notification.id}`);
       return { success: true, userId, orderId, notificationId: notification.id };
-    } catch (error) {
+    } catch (error  : any) {
       this.logger.error(`❌ Order assigned notification failed for user ${userId}:`, error.message);
       throw error;
     }
@@ -173,7 +167,7 @@ export class NotificationProcessor extends WorkerHost {
       this.logger.log(`✅ Push notification sent to raider with token ${fcmToken} for order ${orderId} and saved to history with ID ${notification.id}`);
 
       return { success: true, fcmToken, orderId, notificationId: notification.id, timestamp: new Date() };
-    } catch (error) {
+    } catch (error  : any) {
       this.logger.error(`❌ Failed to send push notification for order ${orderId}:`, error.message);
       throw error;
     }
@@ -204,7 +198,7 @@ export class NotificationProcessor extends WorkerHost {
         this.logger.log(`✅ Order lost notification sent to raider ${raiderId}`);
         this.logger.log(`✅ Push notification sent to raider with token ${fcmToken} for order ${orderId} and saved to history with ID ${notification.id}`);
         return { success: true, raiderId };
-      } catch (error) {
+      } catch (error  : any) {
         this.logger.error(`❌ Order lost notification failed for raider ${raiderId}:`, error.message);
         throw error;
       }

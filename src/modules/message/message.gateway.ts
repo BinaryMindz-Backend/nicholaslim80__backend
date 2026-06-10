@@ -127,30 +127,37 @@ export class MessagesGateway
     @MessageBody() dto: SendMessageSimpleDto,
     @ConnectedSocket() client: Socket,
   ) {
-    if (!dto.receiverId) {
-      this.logger.error('Missing receiverId');
-      return;
-    }
+   console.log('1. event received');
 
-    // sender id from redis
-    const senderId = await this.redis.get(`socket:${client.id}`);
+      if (!dto.receiverId) {
+        console.log('2. receiverId missing');
+        return;
+      }
 
-    if (!senderId) {
-      this.logger.error('Sender not found');
-      return;
-    }
+      const senderId = await this.redis.get(`socket:${client.id}`);
+      console.log('3. senderId', senderId);
 
-    // SAVE MESSAGE
-    const message = await this.messagesService.sendMessage(
-      String(senderId),
-      dto,
-    );
+      if (!senderId) {
+        console.log('4. sender not found');
+        return;
+      }
 
-    // CHECK RECEIVER ONLINE
-    const receiverSocketId = await this.redis.get(
-      `user:${dto.receiverId}`,
-    );
+      console.log('5. before save message');
 
+      const message = await this.messagesService.sendMessage(
+        String(senderId),
+        dto,
+      );
+
+      console.log('6. message saved', dto);
+
+      console.log('7. before receiver redis lookup');
+
+      const receiverSocketId = await this.redis.get(
+        `user:${dto.receiverId}`,
+      );
+
+      console.log('8. receiverSocketId', receiverSocketId);
     // USER ONLINE
     if (receiverSocketId) {
       this.server.to(receiverSocketId).emit('receive_message', {
@@ -193,7 +200,7 @@ export class MessagesGateway
           }
         },
       });
-
+      console.log('rciever-0-.',receiver);
       if (receiver?.fcmToken) {
            await this.emailQueueService.queuePushNotification({
                 userId: receiver.id,
