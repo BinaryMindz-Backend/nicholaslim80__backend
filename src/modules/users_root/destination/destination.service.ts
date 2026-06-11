@@ -112,9 +112,8 @@ export class DestinationService {
           filter === "frequent"
             ? [
                 { useCount: "desc" },
-                { lastUsedAt: "desc",
-                  updatedAt:'desc',
-                 },
+                { lastUsedAt: "desc"},
+                { updatedAt:'desc'}                 
               ]
             : filter === "recent"
             ? { updatedAt: "desc" }
