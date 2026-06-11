@@ -14,16 +14,25 @@ export enum RatingType {
   CUSTOMER = 'customer',
 }
 
+export class RatingQueryDto {
+  @IsEnum(RatingType)
+  type!: RatingType;
+
+  @IsOptional()
+  @IsEnum(DeliveryQuality)
+  deliveryQuality?: DeliveryQuality;
+}
+
 // 
 
 export class CreateRatingDto {
   @ApiProperty({ enum: RatingType })
   @IsEnum(RatingType)
-  type: RatingType;
+  type!: RatingType;
 
   @ApiProperty({ example: 101 })
   @IsInt()
-  orderId: number;
+  orderId!: number;
 
   @ApiPropertyOptional({ example: 12 })
   @IsOptional()
@@ -39,7 +48,7 @@ export class CreateRatingDto {
   @IsInt()
   @Min(1)
   @Max(5)
-  rating_star: number;
+  rating_star!: number;
 
   @ApiPropertyOptional({ example: 'Very polite and fast delivery' })
   @IsOptional()

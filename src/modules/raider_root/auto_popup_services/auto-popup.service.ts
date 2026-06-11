@@ -283,6 +283,7 @@ export class AutoPopupService {
         assign_rider_id: raiderId,
         order_status: OrderStatus.ONGOING,
         raider_confirmation: true,
+        assign_at:new Date(),
       },
     });
 

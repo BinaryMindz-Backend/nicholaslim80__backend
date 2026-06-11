@@ -37,18 +37,30 @@ export class RatingController {
     }
   }
 
+  // 
   @Get()
   @Auth()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all ratings by type' })
-  async findAll(@Query('type') type: RatingType, @Query('raiderId') raiderId: number) {
+  async findAll(
+    @Query('type') type: RatingType,
+    @Query('raiderId') raiderId: number,
+  ) {
     try {
-      const res = await this.service.findAll(type, raiderId);
-      return ApiResponses.success(res, 'Ratings fetched successfully');
+      const res = await this.service.findAll(
+        type,
+        Number(raiderId),
+      );
+
+      return ApiResponses.success(
+        res,
+        'Ratings fetched successfully',
+      );
     } catch (error) {
-      return ApiResponses.error(error?? error);
+      return ApiResponses.error(error ?? error);
     }
   }
+// 
 
   @Get(':type/:id')
   @ApiOperation({ summary: 'Get rating by ID and type' })

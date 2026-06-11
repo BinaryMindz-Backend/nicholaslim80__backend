@@ -4,7 +4,6 @@ import { CreateRatingDto, RatingType } from "./dto/create-rating.dto";
 import { UpdateRatingDto } from "./dto/update-rating.dto";
 
 
-
 @Injectable()
 export class RatingService {
   constructor(private prisma: PrismaService) { }
@@ -71,68 +70,122 @@ export class RatingService {
     return
     // throw new BadRequestException('Invalid rating type');
   }
+  // 
+  async findAll(
+    type: RatingType,
+    raiderId: number,
+  ) {
 
-  async findAll(type: RatingType, raiderId: number) {
-    
-    if (type === RatingType.RAIDER) {
+     if (type === RatingType.RAIDER) {
+        const [totalCount, stats, data, qualityStats] = await Promise.all([
+          this.prisma.rateRaider.count({
+            where: {
+              raiderId,
+            },
+          }),
 
-      const [totalCount, stats, data] = await Promise.all([
-        this.prisma.rateRaider.count(
-           {
-             where: {
-              raiderId: raiderId
-            }
-           }
-        ),
-        this.prisma.rateRaider.aggregate({
-          where:{
-             raiderId: raiderId
-          },
-          _avg: {
-            rating_star: true,
-          },
-        }),
-        this.prisma.rateRaider.findMany({
-          where: {
-            raiderId: raiderId
-          },
-          include: {
-            order: true,
-            raider: true,
-            user: true,
-          },
-          orderBy: {
-            id: 'desc',
-          },
-        }),
-      ]);
+          this.prisma.rateRaider.aggregate({
+            where: {
+              raiderId,
+            },
+            _avg: {
+              rating_star: true,
+            },
+          }),
 
-      return {
-        type,
-        totalCount,
-        averageRating: stats._avg.rating_star ?? 0,
-        data,
-      };
-    }
+          this.prisma.rateRaider.findMany({
+            where: {
+              raiderId,
+            },
+            include: {
+              order: {
+                select : {
+                    id:true,
+                    total_cost:true,
+                    assign_rider_id:true,
+                }
+              },
+              raider: {
+                 select:{
+                   id:true,
+                   avg_rating:true,
+                   userId:true,
+                 }
+              },
+              user: {
+                 select:{
+                    id:true,
+                    image:true,
+                    email:true,
+                    username:true,
+                    profile:{
+                      select:{
+                        avatarUrl:true,
+                        firstName:true,
+                        lastName:true
+                      }
+                    }
+                 }
+              },
+            },
+            orderBy: {
+              id: 'desc',
+            },
+          }),
+
+          this.prisma.rateRaider.groupBy({
+            by: ['delivery_quality'],
+            where: {
+              raiderId,
+            },
+            _count: {
+              delivery_quality: true,
+            },
+          }),
+        ]);
+
+        const deliveryQualityStats = {
+          EXCELLENT: 0,
+          GOOD: 0,
+          AVERAGE: 0,
+          POOR: 0,
+        };
+
+        qualityStats.forEach((item) => {
+          deliveryQualityStats[item.delivery_quality] =
+            item._count.delivery_quality;
+        });
+
+        return {
+          type,
+          totalCount,
+          averageRating: stats._avg.rating_star?.toFixed(2) ?? 0,
+          deliveryQualityStats,
+          data,
+        };
+      }
 
     if (type === RatingType.CUSTOMER) {
-        const rider = await this.prisma.raider.findFirst({
-            select:{
-              id:true
-            }
-          })
-
-      if (!rider) {
-        throw new NotFoundException('Raider profile not found');
-      }
       const [totalCount, stats, data] = await Promise.all([
-        this.prisma.rateCustomer.count(),
+        this.prisma.rateCustomer.count({
+          where: {
+            raiderId,
+          },
+        }),
+
         this.prisma.rateCustomer.aggregate({
+          where: {
+            raiderId,
+          },
           _avg: {
             rating_star: true,
           },
         }),
+
         this.prisma.rateCustomer.findMany({
+          where: {
+            raiderId,
+          },
           include: {
             order: true,
             raider: true,
