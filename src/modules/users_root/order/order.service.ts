@@ -538,13 +538,13 @@ export class OrderService {
           for (const drop of dropStops) {
             await tx.stopPayment.update({
               where: { orderStopId: drop.id },
-              data: { amount: 0, status: PaymentStatus.PAID },
+              data: { amount: 0, status: PaymentStatus.PAID , payType: PayType.COD},
             });
           }
         } else {
           await tx.stopPayment.update({
             where: { orderStopId: pickupStop.id },
-            data: { amount: 0, status: PaymentStatus.PAID },
+            data: { amount: 0, status: PaymentStatus.PAID, payType: PayType.COD },
           });
 
           for (const drop of dropStops) {

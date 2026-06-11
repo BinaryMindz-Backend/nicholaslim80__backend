@@ -1,4 +1,4 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { IsString, IsOptional, IsBoolean, IsEnum, IsNumber, IsIn } from 'class-validator';
 import { DestinationType } from '@prisma/client';
 import { CreateDestinationDto } from './create-destination.dto';
@@ -78,14 +78,29 @@ export class UpsertDestinationDto extends PartialType(CreateDestinationDto) {
 
 
 export class FindDestinationsQueryDto {
+  @ApiPropertyOptional({
+    description: 'Filter destinations',
+    enum: ['recent', 'saved', 'frequent'],
+    example: 'recent',
+  })
   @IsOptional()
   @IsIn(['recent', 'saved', 'frequent'])
   filter?: 'recent' | 'saved' | 'frequent';
 
+  @ApiPropertyOptional({
+    description: 'Page number',
+    example: 1,
+    default: 1,
+  })
   @IsOptional()
   @Type(() => Number)
   page?: number;
 
+  @ApiPropertyOptional({
+    description: 'Items per page',
+    example: 10,
+    default: 10,
+  })
   @IsOptional()
   @Type(() => Number)
   limit?: number;
