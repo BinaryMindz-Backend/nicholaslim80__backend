@@ -15,7 +15,7 @@ export class HealthController {
   @Public()
   check() {
     return this.health.check([
-      () => this.http.pingCheck('nicholas_lim80_Server', 'http://0.0.0.0:3000/api/v1'),
+      () => this.http.pingCheck('Zipbee_Server', 'https://api.zipbee.sg/api/v1'),
     ]);
   }
 }
