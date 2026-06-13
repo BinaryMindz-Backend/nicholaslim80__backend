@@ -63,6 +63,7 @@ import { SurgePricingRuleModule } from './modules/superadmin_root/surge_pricing_
 import { DisputeTypeModule } from './modules/superadmin_root/dispute-type/dispute-type.module';
 import { DriverTierModule } from './modules/superadmin_root/driver_tier_roles/driver_tier.roles.module';
 import { WalletAdjustmentModule } from './modules/superadmin_root/wallet_adjustment/wallte_adjustment.module';
+import { DisputeAppealModule } from './modules/raider_root/dispute_appeal/dispute_appeal.module';
 
 
 
@@ -126,6 +127,7 @@ import { WalletAdjustmentModule } from './modules/superadmin_root/wallet_adjustm
     ServiceZoneModule,
     DisputeModule,
     DisputeTypeModule,
+    DisputeAppealModule,
     LiveMapFleetTrackModule,
     TransactionsModule,
     WalletModule,

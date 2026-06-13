@@ -20,6 +20,8 @@ model Dispute {
   disputeTypeId String
   disputeType   DisputeType @relation(fields: [disputeTypeId], references: [id])
 
+  disputeAppeals DisputeAppeal[]
+
   description String?
 
   priority DisputePriority

@@ -1,0 +1,16 @@
+model DisputeAppeal {
+    id             Int      @id @default(autoincrement())
+    orderDisputeId Int
+    orderId        Int
+    reason         String   @db.Text
+    fileUrl        String?
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+
+    orderDispute Dispute @relation(fields: [orderDisputeId], references: [id], onDelete: Cascade)
+    order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+    @@index([orderDisputeId])
+    @@index([orderId])
+    @@map("dispute_appeals")
+}
