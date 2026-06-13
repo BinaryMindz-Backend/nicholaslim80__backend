@@ -498,6 +498,7 @@ export class OrderService {
             transactionType: WalletTransactionType.PAYMENT,
             status: WalletTransactionStatus.SUCCESS,
             type: 'debit',
+            message: `Payment for order #${orderId}.`,
           },
         });
 
@@ -785,6 +786,7 @@ export class OrderService {
             transactionType: WalletTransactionType.PAYMENT,
             status: WalletTransactionStatus.SUCCESS,
             currency: 'SGD',
+            message: `Priority fee payment for order #${orderId}.`,
           },
         });
       }
@@ -1101,6 +1103,7 @@ export class OrderService {
                 transactionType: WalletTransactionType.EARNING,
                 status:          WalletTransactionStatus.SUCCESS,
                 currency:        'SGD',
+                message:         `Earnings from order #${stop.orderId}.`,
               },
             });
 

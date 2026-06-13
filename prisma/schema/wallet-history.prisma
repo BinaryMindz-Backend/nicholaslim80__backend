@@ -4,6 +4,7 @@ model WalletHistory {
   transactionType WalletTransactionType
   userId          Int
   user            User                    @relation(fields: [userId], references: [id])
+  message         String?
   type            String // "credit" | "debit"
   amount          Decimal
   status          WalletTransactionStatus

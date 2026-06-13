@@ -85,6 +85,7 @@ export class WalletService {
         status: 'SUCCESS',
         transactionType: WalletTransactionType.PAYMENT,
         transactionId: paymentIntent.id,
+        message: `Deposited $${amount} (Test) successfully.`,
       },
     });
 
@@ -97,14 +98,14 @@ export class WalletService {
       },
     });
 
-      // notify user by push notification
-        await this.emailQueueService.queuePushNotification({
-          userId,
-          fcmToken: user?.fcmToken || '',
-          type: "FUNDS_CREDITED",
-          title: "Add Money Successful",
-          body: `Your add money of ${amount} was successful.`,
-        });
+    // notify user by push notification
+    await this.emailQueueService.queuePushNotification({
+      userId,
+      fcmToken: user?.fcmToken || '',
+      type: "FUNDS_CREDITED",
+      title: "Add Money Successful",
+      body: `Your add money of ${amount} was successful.`,
+    });
 
     return {
       message: 'Wallet credited successfully',
@@ -302,6 +303,7 @@ export class WalletService {
       //     status: 'SUCCESS',
       //     transactionType: WalletTransactionType.PAYMENT,
       //     transactionId: paymentIntent.id,
+      //     message: `Deposited ${amount} ${lowerCurrency.toUpperCase()} successfully.`,
       //   },
       // });
 
@@ -346,16 +348,16 @@ export class WalletService {
 
     return { clientSecret: intent.client_secret, orderId };
   }
-   
+
   //  
-   async createCheckoutSession(orderId: number, orderStopId: number) {
+  async createCheckoutSession(orderId: number, orderStopId: number) {
     const orderStop = await this.prisma.orderStop.findUnique({
       where: {
         id: orderStopId,
         orderId
       },
-      include:{
-        payment:true,
+      include: {
+        payment: true,
       }
     });
 
@@ -371,7 +373,7 @@ export class WalletService {
 
         metadata: {
           orderId: orderId.toString(),
-          orderStopId:orderStop.id.toString(),
+          orderStopId: orderStop.id.toString(),
           currency: 'sgd',
         },
 
@@ -479,188 +481,188 @@ export class WalletService {
       }
       // check out session complted
       case 'checkout.session.completed': {
-          const session = event.data.object;
+        const session = event.data.object;
 
-          const orderId = Number(session?.metadata?.orderId);
-          const currency = session?.metadata?.currency;
-          const orderStopId = Number(session?.metadata?.orderStopId);
+        const orderId = Number(session?.metadata?.orderId);
+        const currency = session?.metadata?.currency;
+        const orderStopId = Number(session?.metadata?.orderStopId);
 
-          if (!orderId || !orderStopId) {
-            return;
-          }
+        if (!orderId || !orderStopId) {
+          return;
+        }
 
-          const transaction_code = `TX-${Date.now()}`;
+        const transaction_code = `TX-${Date.now()}`;
 
-          // prevent duplicate webhook processing
-          const existingTransaction =
-            await this.prisma.transaction.findFirst({
+        // prevent duplicate webhook processing
+        const existingTransaction =
+          await this.prisma.transaction.findFirst({
+            where: {
+              transaction_code,
+            },
+          });
+
+        if (existingTransaction) {
+          return;
+        }
+
+        const order = await this.prisma.order.findUnique({
+          where: {
+            id: orderId,
+          },
+
+          include: {
+            user: {
+              select: {
+                id: true,
+                fcmToken: true,
+              },
+            },
+
+            delivery_type: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+
+            vehicle: {
+              select: {
+                id: true,
+                vehicle_type: true,
+              },
+            },
+
+            orderStops: {
+              include: {
+                destination: true,
+                payment: true,
+              },
+
+              orderBy: {
+                sequence: 'asc',
+              },
+            },
+            assign_rider: {
+              select: {
+                id: true,
+                userId: true,
+              }
+            }
+          },
+        });
+
+        if (!order) {
+          throw new NotFoundException('Order not found');
+        }
+
+        const orderStop = await this.prisma.orderStop.findFirst({
+          where: {
+            id: orderStopId,
+            orderId,
+
+          },
+
+          include: {
+            payment: true,
+          },
+        });
+        if (!orderStop) {
+          throw new NotFoundException('Order stop not found');
+        }
+
+        const updatedOrder = await this.prisma.$transaction(
+          async (tx) => {
+            // update payment
+            await tx.stopPayment.updateMany({
               where: {
+                orderStopId,
+              },
+
+              data: {
+                payType: PayType.COD,
+                status: PaymentStatus.PAID,
+                amount: orderStop.calculated_price ?? 0,
+              },
+            });
+
+            // update stop
+            await tx.orderStop.update({
+              where: {
+                id: orderStopId,
+              },
+
+              data: {
+                status: StopStatus.COMPLETED,
+              },
+            });
+
+            // remaining stops
+            const remainingStops =
+              await tx.orderStop.count({
+                where: {
+                  orderId,
+                  status: {
+                    not: StopStatus.COMPLETED,
+                  },
+                },
+              });
+
+            let updatedOrderData: any = null;
+
+            // complete order if all completed
+            if (remainingStops === 0) {
+              updatedOrderData = await tx.order.update({
+                where: {
+                  id: orderId,
+                },
+
+                data: {
+                  order_status: OrderStatus.COMPLETED,
+                  pay_type: PayType.COD,
+                },
+              });
+            }
+
+            // create transaction
+            await tx.transaction.create({
+              data: {
+                userId: order.userId,
+                orderId,
+                total_fee: orderStop.calculated_price,
+                redeemed_coin: order.coinsRedeemed,
+                additional_fee: order.additional_cost,
+                delivery_fee: order.total_fee,
+
+                payment_status: PaymentStatus.PAID,
+
+                type: TransactionType.BOOK_ORDER,
+
+                pay_type: PayType.COD,
+
+                tx_status: TransactionStatus.COMPLETED,
+
                 transaction_code,
               },
             });
 
-          if (existingTransaction) {
-            return;
-          }
+            return updatedOrderData;
+          },
+        );
 
-          const order = await this.prisma.order.findUnique({
-            where: {
-              id: orderId,
-            },
+        // push notification
+        await this.emailQueueService.queuePushNotification({
+          userId: order.userId!,
+          fcmToken: order.user?.fcmToken || '',
 
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  fcmToken: true,
-                },
-              },
+          type: 'ORDER_UPDATE',
 
-              delivery_type: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
+          title: 'Payment Successful',
 
-              vehicle: {
-                select: {
-                  id: true,
-                  vehicle_type: true,
-                },
-              },
-
-              orderStops: {
-                include: {
-                  destination: true,
-                  payment: true,
-                },
-
-                orderBy: {
-                  sequence: 'asc',
-                },
-              },
-              assign_rider:{
-                  select:{
-                     id:true,
-                     userId:true,
-                  }
-              }
-            },
-          });
-
-          if (!order) {
-            throw new NotFoundException('Order not found');
-          }
-
-          const orderStop = await this.prisma.orderStop.findFirst({
-            where: {
-              id: orderStopId,
-              orderId,
-              
-            },
-
-            include: {
-              payment: true,
-            },
-          });
-          if (!orderStop) {
-            throw new NotFoundException('Order stop not found');
-          }
-
-          const updatedOrder = await this.prisma.$transaction(
-            async (tx) => {
-              // update payment
-              await tx.stopPayment.updateMany({
-                where: {
-                  orderStopId,
-                },
-
-                data: {
-                  payType: PayType.COD,
-                  status: PaymentStatus.PAID,
-                  amount: orderStop.calculated_price ?? 0,
-                },
-              });
-
-              // update stop
-              await tx.orderStop.update({
-                where: {
-                  id: orderStopId,
-                },
-
-                data: {
-                  status: StopStatus.COMPLETED,
-                },
-              });
-
-              // remaining stops
-              const remainingStops =
-                await tx.orderStop.count({
-                  where: {
-                    orderId,
-                    status: {
-                      not: StopStatus.COMPLETED,
-                    },
-                  },
-                });
-
-                let updatedOrderData:any = null;
-
-              // complete order if all completed
-              if (remainingStops === 0) {
-                updatedOrderData = await tx.order.update({
-                  where: {
-                    id: orderId,
-                  },
-
-                  data: {
-                    order_status: OrderStatus.COMPLETED,
-                    pay_type: PayType.COD,
-                  },
-                });
-              }
-
-              // create transaction
-              await tx.transaction.create({
-                data: {
-                  userId: order.userId,
-                  orderId,
-                  total_fee: orderStop.calculated_price,
-                  redeemed_coin: order.coinsRedeemed,
-                  additional_fee: order.additional_cost,
-                  delivery_fee: order.total_fee,
-
-                  payment_status: PaymentStatus.PAID,
-
-                  type: TransactionType.BOOK_ORDER,
-
-                  pay_type: PayType.COD,
-
-                  tx_status: TransactionStatus.COMPLETED,
-
-                  transaction_code,
-                },
-              });
-
-              return updatedOrderData;
-            },
-          );
-
-          // push notification
+          body: `Your payment for orderStop #${orderStopId} was successful.`,
+        });
+        // 
+        if (order?.assign_rider?.userId) {
           await this.emailQueueService.queuePushNotification({
-            userId: order.userId!,
-            fcmToken: order.user?.fcmToken || '',
-
-            type: 'ORDER_UPDATE',
-
-            title: 'Payment Successful',
-
-            body: `Your payment for orderStop #${orderStopId} was successful.`,
-          });
-          // 
-          if(order?.assign_rider?.userId){
-            await this.emailQueueService.queuePushNotification({
             userId: order.assign_rider.userId!,
             fcmToken: order.user?.fcmToken || '',
 
@@ -670,10 +672,10 @@ export class WalletService {
 
             body: `Your recieved payment for orderstop #${orderStopId} was successful.`,
           });
-          } 
-          return updatedOrder;
         }
-    
+        return updatedOrder;
+      }
+
 
       case 'payment_intent.payment_failed': {
         console.log('❌ Payment failed:', event.data.object.id);
@@ -707,6 +709,7 @@ export class WalletService {
                 status: WalletTransactionStatus.FAILED,
                 transactionType: WalletTransactionType.PAYMENT,
                 transactionId: `TX-${intent.id}`,
+                message: `Deposit of ${parseFloat(intent.metadata.amount)} ${intent.metadata.currency?.toUpperCase() || 'SGD'} failed.`,
               },
             });
             // notify user about failed payment
@@ -849,16 +852,16 @@ export class WalletService {
     await this.prisma.$transaction(async (tx) => {
 
       const userWithProfile = await tx.user.findUnique({
-            where: { id: userId },
-            include: { raiderProfile: true },
-          });
+        where: { id: userId },
+        include: { raiderProfile: true },
+      });
 
-          if (userWithProfile?.raiderProfile && userWithProfile?.raiderProfile?.is_deposit_made===false) {
-            await tx.raider.update({
-              where: { userId },
-              data: { is_deposit_made: true },
-            });
-          }
+      if (userWithProfile?.raiderProfile && userWithProfile?.raiderProfile?.is_deposit_made === false) {
+        await tx.raider.update({
+          where: { userId },
+          data: { is_deposit_made: true },
+        });
+      }
 
       // 3. Update Balance
       // const updatedUser = await tx.user.update({
@@ -884,6 +887,7 @@ export class WalletService {
           transactionType: WalletTransactionType.PAYMENT,
           status: WalletTransactionStatus.SUCCESS,
           type: 'credit',
+          message: `Deposited ${amount} ${intent.metadata.currency?.toUpperCase() || 'SGD'} successfully.`,
         },
       });
       // 4. Notify User
@@ -1142,6 +1146,7 @@ export class WalletService {
           status: 'SUCCESS',
           transactionType: WalletTransactionType.PAYMENT,
           transactionId: paymentIntent.id,
+          message: `Deposited ${amount} SGD successfully via saved card.`,
         },
       });
 
@@ -1281,6 +1286,7 @@ export class WalletService {
           transactionType: WalletTransactionType.PAYOUT,
           transactionId: transfer.id,
           currency: currency,
+          message: `Withdrawal of ${amount} ${currency.toUpperCase()} successful.`,
         },
       });
     }

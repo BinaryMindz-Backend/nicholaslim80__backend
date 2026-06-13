@@ -159,6 +159,7 @@ export class TipService {
           transactionType: WalletTransactionType.EARNING,
           status: WalletTransactionStatus.SUCCESS,
           currency: 'SGD',
+          message: `Tip of ${Number(dto.amount)} SGD received from ${tip.user.username || 'Customer'} for order #${orderId}.`,
         },
       });
       
