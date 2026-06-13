@@ -127,9 +127,6 @@ export class RaiderService {
     const value = JSON.stringify({ lat, lng, heading, updatedAt: Date.now() });
     
     await this.redis.set(key, value, 30);
-    // 
-    console.log(`✅ Rider ${riderId} location updated:`, { lat, lng, heading });
-    console.log(`✅ Redis key set: ${key}`);
     }
     // 
     async getOnlineRidersInZone(compititiorIds: number[]) {
