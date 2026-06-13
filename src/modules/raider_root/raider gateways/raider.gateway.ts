@@ -43,15 +43,12 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(client: Socket) {
     const token = client.handshake.auth?.token;
     if (!token) return client.disconnect();
-    console.log('Rider connected - token:', token);
     try {
       const payload = this.jwtService.verify(token, { secret: process.env.JWT_SECRET });
-      console.log('Rider connected - payload:', payload);
       const userId = Number(payload.sub);
 
       const raider = await this.raiderService.getRaiderByUserId(userId);
       if (!raider) {
-        console.log('❌ Raider not found:', userId);
         return client.disconnect();
       }
 
@@ -60,10 +57,8 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const vehicleType = fullRaider?.registrations?.[0]?.vehicle_type || null;
 
       client.data.user = { id: raider.id, userId: userId, raider, vehicleType };
-      console.log('Rider connected - userId:', userId, 'raiderId:', raider.id);
       client.join(`rider_${raider.id}`);
 
-      console.log(`✅ Rider connected: ${raider.id}`);
       await this.raiderService.setOnline(raider.id);
 
       // Pre-populate/Sync active orders in Redis upon connection
@@ -101,14 +96,10 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const riderId = client.data.user?.id;
       if (riderId) {
-        console.log('Rider disconnecting:', riderId);
         await this.raiderService.setOffline(riderId);
-
         // Clean up Redis keys to avoid memory leaks
         await this.redisService.del(`rider:${riderId}:active_order_users`);
         await this.redisService.del(`rider:${riderId}:active_order_users_loaded`);
-
-        console.log('Rider set offline:', riderId);
       }
     } catch (err: any) {
       console.log('Error during disconnect:', err.message);
