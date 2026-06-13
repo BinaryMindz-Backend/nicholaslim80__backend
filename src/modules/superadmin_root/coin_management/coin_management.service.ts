@@ -224,6 +224,7 @@ export class CoinManagementService {
           transactionType: WalletTransactionType.EARNING,
           status: WalletTransactionStatus.SUCCESS,
           currency: 'SGD',
+          message: `Redeemed ${coinAmount} coins for ${Number(totalValue).toFixed(2)} SGD.`,
         },
       });
 

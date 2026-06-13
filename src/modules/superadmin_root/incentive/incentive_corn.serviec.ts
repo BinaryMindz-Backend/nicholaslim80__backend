@@ -181,6 +181,7 @@ export class IncentiveCronService {
                 transactionType: WalletTransactionType.EARNING,
                 type:            'credit',
                 status:          WalletTransactionStatus.SUCCESS,
+                message:         `Incentive reward: ${incentive.name}`,
               },
             });
           });

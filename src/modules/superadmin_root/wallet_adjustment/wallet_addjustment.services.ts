@@ -96,6 +96,9 @@ async adjustWallet(dto: WalletAdjustmentDto, adminId: number) {
             ? 'credit'
             : 'debit',
         status: 'SUCCESS',
+        message: dto.adjustmentAction === AdjustmentAction.ADD_CREDIT_FUNDS
+          ? `Admin adjustment: Credit of ${amount} added (Reason: ${dto.reason || 'None'}${dto.additionalNotes ? ` - ${dto.additionalNotes}` : ''})`
+          : `Admin adjustment: Debit of ${amount} deducted (Reason: ${dto.reason || 'None'}${dto.additionalNotes ? ` - ${dto.additionalNotes}` : ''})`,
       },
     });
 

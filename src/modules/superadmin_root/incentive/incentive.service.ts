@@ -515,6 +515,7 @@ export class IncentiveService {
           transactionType: WalletTransactionType.EARNING,
           type:            'credit',
           status:          WalletTransactionStatus.SUCCESS,
+          message:         `Incentive reward: ${rec.name}`,
         },
       });
       return { collectedIncentive: collected, user, walletHistory };
