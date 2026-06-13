@@ -18,6 +18,7 @@ import type { IUser } from 'src/types';
 import { CreateDisputeAppealDto } from './dto/create-dispute_appeal.dto';
 import { DisputeAppealQueryDto } from './dto/dispute-appeal-query.dto';
 import { DisputeAppealService } from './dispute_appeal.service';
+import { ResolveDisputeAppealDto } from './dto/resolve_dispute.dto';
 
 @ApiTags('Dispute Appeals')
 @Controller('dispute-appeals')
@@ -41,6 +42,15 @@ export class DisputeAppealController {
       if (error instanceof HttpException) throw error;
       return ApiResponses.error(error, 'Failed to file appeal');
     }
+  }
+
+  @Post('resolve')
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Resolve an appeal (Admin)' })
+  async resolveAppeal(@Body() dto: ResolveDisputeAppealDto) {
+    const res = await this.service.resolveAppeal(dto);
+    return ApiResponses.success(res, 'Appeal resolved successfully');
   }
 
   @Get()

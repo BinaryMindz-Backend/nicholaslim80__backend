@@ -19,6 +19,7 @@ model Dispute {
   // Dynamic dispute type
   disputeTypeId String
   disputeType   DisputeType @relation(fields: [disputeTypeId], references: [id])
+  hasAppeal     Boolean     @default(false)
 
   disputeAppeals DisputeAppeal[]
 

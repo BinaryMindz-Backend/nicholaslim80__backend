@@ -28,7 +28,7 @@ export class DisputeService {
     private readonly prisma: PrismaService,
     private readonly emailQueueService: EmailQueueService,
     private readonly activityLogService: ActivityLogService,
-  ) {}
+  ) { }
 
   // -------------------------
   async create(dto: CreateDisputeDto, user: IUser) {
@@ -84,73 +84,79 @@ export class DisputeService {
   }
 
   // -------------------------
-   async findAll(dto: DisputeQueryDto) {
-      const page = dto.page ?? 1;
-      const limit = dto.limit ?? 10;
-      const skip = (page - 1) * limit;
+  async findAll(dto: DisputeQueryDto) {
+    const page = dto.page ?? 1;
+    const limit = dto.limit ?? 10;
+    const skip = (page - 1) * limit;
 
-      const where: any = {
-        is_closed: false,
-      };
+    const where: any = {
+      is_closed: false,
+    };
 
-      if (dto.status) where.status = dto.status;
-      if (dto.orderId) where.orderId = dto.orderId;
-      if (dto.userId) where.userId = dto.userId;
-      if (dto.riderId) where.riderId = dto.riderId;
+    if (dto.status) where.status = dto.status;
+    if (dto.orderId) where.orderId = dto.orderId;
+    if (dto.userId) where.userId = dto.userId;
+    if (dto.riderId) where.riderId = dto.riderId;
 
-      // dispute type filter
-      if (dto.disputeTypeId) {
-        where.disputeTypeId = dto.disputeTypeId;
-      }
-
-      // date range filter
-      if (dto.fromDate || dto.toDate) {
-        where.created_at = {};
-
-        if (dto.fromDate) {
-          where.created_at.gte = new Date(dto.fromDate);
-        }
-
-        if (dto.toDate) {
-          where.created_at.lte = new Date(dto.toDate);
-        }
-      }
-
-      // participant type filter
-      if (String(dto.participantType) === 'user') {
-        where.userId = { not: null };
-      } else if (String(dto.participantType) === 'rider') {
-        where.riderId = { not: null };
-      }
-      // 'all'
-      const [data, total] = await this.prisma.$transaction([
-        this.prisma.dispute.findMany({
-          where,
-          include: {
-            user: true,
-            rider: true,
-            disputeType: true,
-          },
-          skip,
-          take: limit,
-          orderBy: { created_at: 'desc' },
-        }),
-        this.prisma.dispute.count({ where }),
-      ]);
-
-      return {
-        data,
-        meta: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
+    // dispute type filter
+    if (dto.disputeTypeId) {
+      where.disputeTypeId = dto.disputeTypeId;
     }
 
+    // date range filter
+    if (dto.fromDate || dto.toDate) {
+      where.created_at = {};
+
+      if (dto.fromDate) {
+        where.created_at.gte = new Date(dto.fromDate);
+      }
+
+      if (dto.toDate) {
+        where.created_at.lte = new Date(dto.toDate);
+      }
+    }
+
+    // participant type filter
+    if (String(dto.participantType) === 'user') {
+      where.userId = { not: null };
+    } else if (String(dto.participantType) === 'rider') {
+      where.riderId = { not: null };
+    }
+    // 'all'
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.dispute.findMany({
+        where,
+        include: {
+          user: true,
+          rider: true,
+          disputeType: true,
+          disputeAppeals: true,
+          _count: {
+            select: {
+              disputeAppeals: true,
+            },
+          }
+        },
+        skip,
+        take: limit,
+        orderBy: { created_at: 'desc' },
+      }),
+      this.prisma.dispute.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   // -------------------------
-  private async creditWallet(
+  async creditWallet(
     tx,
     userId: number,
     amount: number,
@@ -193,9 +199,9 @@ export class DisputeService {
     });
 
     if (!order) throw new NotFoundException('Order not found');
-     if(!order.assign_rider_id){
-       throw new NotFoundException("Raider Not Assigned on this order");
-     } 
+    if (!order.assign_rider_id) {
+      throw new NotFoundException("Raider Not Assigned on this order");
+    }
     const rider = await this.prisma.user.findFirst({
       where: {
         raiderProfile: {

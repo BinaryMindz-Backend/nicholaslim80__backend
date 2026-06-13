@@ -500,3 +500,10 @@ enum AdjustmentStatus {
   COMPLETED
   CANCELLED
 }
+
+enum AppealStatus {
+  PENDING
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+}

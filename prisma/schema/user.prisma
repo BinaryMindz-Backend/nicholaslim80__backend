@@ -75,13 +75,15 @@ model User {
   riderDisputes Dispute[] @relation("RiderDisputes")
 
   // Admin resolved disputes
-  resolvedDisputes Dispute[]          @relation("ResolvedDisputes")
+  resolvedDisputes       Dispute[]          @relation("ResolvedDisputes")
+  resolvedDisputeAppeals DisputeAppeal[]    @relation("ResolvedDisputeAppeals")
   // this for admin wallet adjustments(user only)
-  adjustments      WalletAdjustment[]
+  adjustments            WalletAdjustment[]
 
   // 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+  disputeAppeals DisputeAppeal[]
 
   @@map("users")
 }
