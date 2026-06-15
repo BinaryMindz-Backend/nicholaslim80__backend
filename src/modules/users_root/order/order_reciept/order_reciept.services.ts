@@ -43,7 +43,7 @@ export class ReceiptPdfService {
 
             content: [
                 {
-                    text: 'ZB DELIVERY',
+                    text: 'ZIPBEE DELIVERY',
                     style: 'header',
                 },
 
