@@ -30,11 +30,13 @@ import { SurgePricingRuleService } from 'src/modules/superadmin_root/surge_prici
 import { AutoPopupService } from 'src/modules/raider_root/auto_popup_services/auto-popup.service';
 import { getRoadDistance } from 'src/modules/dynamic_pricing/distance.service';
 import { haversineDistance } from 'src/utils/haversine';
+import { ReceiptPdfService } from './order_reciept/order_reciept.services';
+import { uploadReceiptPdf } from 'src/common/fileUpload/file';
 
 
 @Injectable()
 export class OrderService {
-   private readonly logger = new Logger(OrderService.name);
+  private readonly logger = new Logger(OrderService.name);
   constructor(
     private prisma: PrismaService,
     private txIdService: TransactionIdService,
@@ -45,7 +47,9 @@ export class OrderService {
     private readonly walletService: WalletService,
     private raiderGateway: RaiderGateway,
     private surgePricingRuleService: SurgePricingRuleService,
-    private autoPopupService:AutoPopupService,
+    private autoPopupService: AutoPopupService,
+    private readonly receiptPdfService: ReceiptPdfService,
+
 
 
   ) { }
@@ -80,7 +84,7 @@ export class OrderService {
       isFirstOrder: orders[0].id === orderId ? true : false
     };
   }
-  
+
   // create 
   async create(dto: CreateOrderDto, user: IUser) {
     if (!user) throw new NotFoundException('Authenticated user not found');
@@ -99,23 +103,23 @@ export class OrderService {
         data: {
           userId: user.id,
           total_cost: 0,
-          isFixed:dto.isFixed,
+          isFixed: dto.isFixed,
           pay_type: undefined,
           delivery_type_id: dto.delivery_type_id,
           vehicle_type_id: deliveryType.vehicle_types[0].vehicle_type_id,
           route_type: dto.route_type ?? RouteType.ONE_WAY,
           order_status: OrderStatus.PROGRESS,
         },
-        include:{
-           delivery_type:{
-              include:{ 
-                 vehicle_types:{
-                    include:{
-                       vehicle_type:true
-                    }
-                 }
+        include: {
+          delivery_type: {
+            include: {
+              vehicle_types: {
+                include: {
+                  vehicle_type: true
+                }
               }
-           }
+            }
+          }
         }
       });
 
@@ -273,142 +277,142 @@ export class OrderService {
   * REMOVE DESTINATION FROM ORDER
   */
   async removeDestinationFromOrder(orderId: number, orderStopId: number, userId: number) {
-      const order = await this.prisma.order.findUnique({
-        where: { id: orderId },
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order || order.userId !== userId) {
+      throw new BadRequestException('Order not found or unauthorized');
+    }
+
+    if (order.order_status !== OrderStatus.PROGRESS) {
+      throw new BadRequestException('Cannot modify placed order');
+    }
+
+    const orderStop = await this.prisma.orderStop.findUnique({
+      where: { id: orderStopId },
+    });
+
+    if (!orderStop || orderStop.orderId !== orderId) {
+      throw new BadRequestException('Order stop not found');
+    }
+
+    // Prevent removing the only pickup stop
+    if (orderStop.type === StopType.PICKUP) {
+      const dropCount = await this.prisma.orderStop.count({
+        where: { orderId, type: StopType.DROP },
       });
-
-      if (!order || order.userId !== userId) {
-        throw new BadRequestException('Order not found or unauthorized');
-      }
-
-      if (order.order_status !== OrderStatus.PROGRESS) {
-        throw new BadRequestException('Cannot modify placed order');
-      }
-
-      const orderStop = await this.prisma.orderStop.findUnique({
-        where: { id: orderStopId },
-      });
-
-      if (!orderStop || orderStop.orderId !== orderId) {
-        throw new BadRequestException('Order stop not found');
-      }
-
-      // Prevent removing the only pickup stop
-      if (orderStop.type === StopType.PICKUP) {
-        const dropCount = await this.prisma.orderStop.count({
-          where: { orderId, type: StopType.DROP },
-        });
-        if (dropCount > 0) {
-          throw new BadRequestException(
-            'Cannot remove pickup while drop stops exist. Remove drop stops first.',
-          );
-        }
-      }
-
-      // Delete stop (cascades to payment)
-      await this.prisma.orderStop.delete({ where: { id: orderStopId } });
-
-      // Resequence in a single transaction instead of N individual updates
-      const remainingStops = await this.prisma.orderStop.findMany({
-        where: { orderId },
-        orderBy: { sequence: 'asc' },
-      });
-
-      if (remainingStops.length > 0) {
-        await this.prisma.$transaction(
-          remainingStops.map((stop, index) =>
-            this.prisma.orderStop.update({
-              where: { id: stop.id },
-              data: { sequence: index + 1 },
-            }),
-          ),
+      if (dropCount > 0) {
+        throw new BadRequestException(
+          'Cannot remove pickup while drop stops exist. Remove drop stops first.',
         );
       }
-
-      // Recalculate price
-      await this.recalculateOrderPrice(orderId);
-
-      return { message: 'Destination removed from order' };
     }
- 
+
+    // Delete stop (cascades to payment)
+    await this.prisma.orderStop.delete({ where: { id: orderStopId } });
+
+    // Resequence in a single transaction instead of N individual updates
+    const remainingStops = await this.prisma.orderStop.findMany({
+      where: { orderId },
+      orderBy: { sequence: 'asc' },
+    });
+
+    if (remainingStops.length > 0) {
+      await this.prisma.$transaction(
+        remainingStops.map((stop, index) =>
+          this.prisma.orderStop.update({
+            where: { id: stop.id },
+            data: { sequence: index + 1 },
+          }),
+        ),
+      );
+    }
+
+    // Recalculate price
+    await this.recalculateOrderPrice(orderId);
+
+    return { message: 'Destination removed from order' };
+  }
+
 
   // Update order and recalculate price
   async updateOrderDetails(
-      orderId: number,
-      userId: number,
-      dto: UpdateOrderDetailsDto,
-    ) {
-      const order = await this.prisma.order.findUnique({
-        where: { id: orderId, userId },
-      });
+    orderId: number,
+    userId: number,
+    dto: UpdateOrderDetailsDto,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId, userId },
+    });
 
-      if (!order) throw new NotFoundException('Order not found');
+    if (!order) throw new NotFoundException('Order not found');
 
-      if (order.order_status !== OrderStatus.PROGRESS) {
-        throw new BadRequestException('Cannot update placed order');
-      }
-
-      // FIX 1 & 3: Validate vehicle ↔ delivery type compatibility whenever either changes
-      // Use the incoming value if provided, otherwise fall back to current order value
-      const effectiveDeliveryTypeId = dto.delivery_type_id ?? order.delivery_type_id;
-      const effectiveVehicleTypeId = dto.vehicle_type_id ?? order.vehicle_type_id;
-
-      if (dto.delivery_type_id !== undefined || dto.vehicle_type_id !== undefined) {
-        const deliveryType = await this.prisma.deliveryType.findUnique({
-          where: { id: effectiveDeliveryTypeId },
-        });
-
-        if (!deliveryType) {
-          throw new BadRequestException('Delivery type not found');
-        }
-
-        const vehicleType = await this.prisma.vehicleType.findUnique({
-          where: { id: effectiveVehicleTypeId! },
-          include: { delivery_types: true },
-        });
-
-        if (!vehicleType) {
-          throw new BadRequestException('Vehicle type not found');
-        }
-
-        // FIX 3: Validates against effective delivery type (not just the incoming one)
-        if (
-          !vehicleType.delivery_types.some(
-            (item) => item.delivery_type_id === effectiveDeliveryTypeId,
-          )
-        ) {
-          throw new BadRequestException(
-            'Vehicle type not available for this delivery type',
-          );
-        }
-      }
-
-      // FIX 2: Only recalculate when fields that actually affect price change
-      const needsRecalculation =
-        dto.delivery_type_id !== undefined ||
-        dto.vehicle_type_id !== undefined ||
-        dto.route_type !== undefined;
-
-      // Update order
-      await this.prisma.order.update({
-        where: { id: orderId },
-        data: {
-          ...(dto.delivery_type_id !== undefined && { delivery_type_id: dto.delivery_type_id }),
-          ...(dto.isFixed !== undefined && { isFixed: dto.isFixed }),
-          ...(dto.route_type !== undefined && { route_type: dto.route_type }),
-          ...(dto.collect_time !== undefined && { collect_time: dto.collect_time }),
-          ...(dto.scheduled_time !== undefined && { scheduled_time: dto.scheduled_time }),
-          ...(dto.vehicle_type_id !== undefined && { vehicle_type_id: dto.vehicle_type_id }),
-        },
-      });
-
-      // Recalculate price only when relevant fields changed
-      if (needsRecalculation) {
-        await this.recalculateOrderPrice(orderId);
-      }
-
-      return await this.getOrderDetails(orderId);
+    if (order.order_status !== OrderStatus.PROGRESS) {
+      throw new BadRequestException('Cannot update placed order');
     }
+
+    // FIX 1 & 3: Validate vehicle ↔ delivery type compatibility whenever either changes
+    // Use the incoming value if provided, otherwise fall back to current order value
+    const effectiveDeliveryTypeId = dto.delivery_type_id ?? order.delivery_type_id;
+    const effectiveVehicleTypeId = dto.vehicle_type_id ?? order.vehicle_type_id;
+
+    if (dto.delivery_type_id !== undefined || dto.vehicle_type_id !== undefined) {
+      const deliveryType = await this.prisma.deliveryType.findUnique({
+        where: { id: effectiveDeliveryTypeId },
+      });
+
+      if (!deliveryType) {
+        throw new BadRequestException('Delivery type not found');
+      }
+
+      const vehicleType = await this.prisma.vehicleType.findUnique({
+        where: { id: effectiveVehicleTypeId! },
+        include: { delivery_types: true },
+      });
+
+      if (!vehicleType) {
+        throw new BadRequestException('Vehicle type not found');
+      }
+
+      // FIX 3: Validates against effective delivery type (not just the incoming one)
+      if (
+        !vehicleType.delivery_types.some(
+          (item) => item.delivery_type_id === effectiveDeliveryTypeId,
+        )
+      ) {
+        throw new BadRequestException(
+          'Vehicle type not available for this delivery type',
+        );
+      }
+    }
+
+    // FIX 2: Only recalculate when fields that actually affect price change
+    const needsRecalculation =
+      dto.delivery_type_id !== undefined ||
+      dto.vehicle_type_id !== undefined ||
+      dto.route_type !== undefined;
+
+    // Update order
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        ...(dto.delivery_type_id !== undefined && { delivery_type_id: dto.delivery_type_id }),
+        ...(dto.isFixed !== undefined && { isFixed: dto.isFixed }),
+        ...(dto.route_type !== undefined && { route_type: dto.route_type }),
+        ...(dto.collect_time !== undefined && { collect_time: dto.collect_time }),
+        ...(dto.scheduled_time !== undefined && { scheduled_time: dto.scheduled_time }),
+        ...(dto.vehicle_type_id !== undefined && { vehicle_type_id: dto.vehicle_type_id }),
+      },
+    });
+
+    // Recalculate price only when relevant fields changed
+    if (needsRecalculation) {
+      await this.recalculateOrderPrice(orderId);
+    }
+
+    return await this.getOrderDetails(orderId);
+  }
 
   /**
  * PLACE ORDER (Lock and configure payments)
@@ -420,7 +424,7 @@ export class OrderService {
       paymentMethod?: PayType;
       paymentMethodId?: string;
       codCollectFrom?: 'SENDER' | 'RECEIVER';
-      placedAt?: string; 
+      placedAt?: string;
     },
   ) {
     const order = await this.prisma.order.findUnique({
@@ -490,7 +494,7 @@ export class OrderService {
           data: { payType: PayType.WALLET, status: PaymentStatus.PAID, amount: 0 },
         });
         // transaction history
-         await tx.walletHistory.create({
+        await tx.walletHistory.create({
           data: {
             userId,
             amount: order.total_cost,
@@ -539,7 +543,7 @@ export class OrderService {
           for (const drop of dropStops) {
             await tx.stopPayment.update({
               where: { orderStopId: drop.id },
-              data: { amount: 0, status: PaymentStatus.PAID , payType: PayType.COD},
+              data: { amount: 0, status: PaymentStatus.PAID, payType: PayType.COD },
             });
           }
         } else {
@@ -657,7 +661,7 @@ export class OrderService {
       }
     })
     //  
-    if (!isOrderExist ) {
+    if (!isOrderExist) {
       throw new NotFoundException(`Order Not found`)
     }
     //  
@@ -798,19 +802,19 @@ export class OrderService {
           ? Number(order.originalCost)
           : Number(order.total_cost);
 
-        return tx.order.update({
-          where: { id: orderId },
-          data: {
-            isPriorited: true,
-            priorityAt: new Date(),
-            priority_fee: dto.amount,
-            originalCost,
-            total_cost: parseFloat((Number(order.total_cost) + dto.amount).toFixed(2)),
-            total_raider_earnings: parseFloat(
-              (Number(order.total_raider_earnings) + dto.amount).toFixed(2)
-            ),
-          },
-        });
+      return tx.order.update({
+        where: { id: orderId },
+        data: {
+          isPriorited: true,
+          priorityAt: new Date(),
+          priority_fee: dto.amount,
+          originalCost,
+          total_cost: parseFloat((Number(order.total_cost) + dto.amount).toFixed(2)),
+          total_raider_earnings: parseFloat(
+            (Number(order.total_raider_earnings) + dto.amount).toFixed(2)
+          ),
+        },
+      });
     });
 
     // ── NOTIFICATION (outside tx — side-effects after commit) ──
@@ -834,367 +838,367 @@ export class OrderService {
 
   // stop progress
   async updateStopProgress(
-      orderStopId: number,
-      raiderId: number,
-      step: 'PROCEED' | 'ARRIVED' | 'LOADED' | 'UNLOADED',
-    ) {
-      const raider = await this.prisma.raider.findUnique({
-        where: { userId: raiderId },
-      });
+    orderStopId: number,
+    raiderId: number,
+    step: 'PROCEED' | 'ARRIVED' | 'LOADED' | 'UNLOADED',
+  ) {
+    const raider = await this.prisma.raider.findUnique({
+      where: { userId: raiderId },
+    });
 
-      if (!raider) {
-        throw new NotFoundException('Unauthorized raider');
-      }
-
-      const stop = await this.prisma.orderStop.findUnique({
-        where: { id: orderStopId },
-      });
-
-      if (!stop) throw new NotFoundException('Stop not found');
-
-      if (stop.status === StopStatus.COMPLETED) {
-        throw new BadRequestException('Stop already completed');
-      }
-
-      const now = new Date();
-
-      let data: any = {};
-
-      // Controlled transitions
-      switch (step) {
-        case 'PROCEED':
-          if (stop.proceed_to_pickup) {
-            throw new BadRequestException('Already proceeded');
-          }
-          data = {
-            proceed_to_pickup: true,
-            proceedAt: now,
-          };
-          break;
-
-        case 'ARRIVED':
-          if (!stop.proceed_to_pickup) {
-            throw new BadRequestException('Must proceed first');
-          }
-          if (stop.is_arrived) {
-            throw new BadRequestException('Already arrived');
-          }
-          data = {
-            is_arrived: true,
-            arrivedStepAt: now,
-            // arrivedAt: now, // sync main timestamp
-          };
-          break;
-
-        case 'LOADED':
-          if (!stop.is_arrived) {
-            throw new BadRequestException('Must arrive first');
-          }
-          if (stop.is_load) {
-            throw new BadRequestException('Already loaded');
-          }
-          data = {
-            is_load: true,
-            loadedAt: now,
-          };
-          break;
-
-          case 'UNLOADED':
-               if (stop.type !== 'DROP' && !stop.is_load) {
-                  throw new BadRequestException(
-                    'You must complete loading before unloading at this stop'
-                  );
-                }
-
-            if (stop.type === 'DROP') {
-              // No load requirement for DROP
-            }
-
-            if (stop.is_unload) {
-              throw new BadRequestException('Already unloaded');
-            }
-
-            data = {
-              is_unload: true,
-              unloadedAt: now,
-            };
-            break;
-
-        default:
-          throw new BadRequestException('Invalid step');
-      }
-
-      const updated = await this.prisma.orderStop.update({
-        where: { id: orderStopId },
-        data,
-      });
-
-      return {
-        message: `Step ${step} updated successfully`,
-        stop: updated,
-      };
+    if (!raider) {
+      throw new NotFoundException('Unauthorized raider');
     }
+
+    const stop = await this.prisma.orderStop.findUnique({
+      where: { id: orderStopId },
+    });
+
+    if (!stop) throw new NotFoundException('Stop not found');
+
+    if (stop.status === StopStatus.COMPLETED) {
+      throw new BadRequestException('Stop already completed');
+    }
+
+    const now = new Date();
+
+    let data: any = {};
+
+    // Controlled transitions
+    switch (step) {
+      case 'PROCEED':
+        if (stop.proceed_to_pickup) {
+          throw new BadRequestException('Already proceeded');
+        }
+        data = {
+          proceed_to_pickup: true,
+          proceedAt: now,
+        };
+        break;
+
+      case 'ARRIVED':
+        if (!stop.proceed_to_pickup) {
+          throw new BadRequestException('Must proceed first');
+        }
+        if (stop.is_arrived) {
+          throw new BadRequestException('Already arrived');
+        }
+        data = {
+          is_arrived: true,
+          arrivedStepAt: now,
+          // arrivedAt: now, // sync main timestamp
+        };
+        break;
+
+      case 'LOADED':
+        if (!stop.is_arrived) {
+          throw new BadRequestException('Must arrive first');
+        }
+        if (stop.is_load) {
+          throw new BadRequestException('Already loaded');
+        }
+        data = {
+          is_load: true,
+          loadedAt: now,
+        };
+        break;
+
+      case 'UNLOADED':
+        if (stop.type !== 'DROP' && !stop.is_load) {
+          throw new BadRequestException(
+            'You must complete loading before unloading at this stop'
+          );
+        }
+
+        if (stop.type === 'DROP') {
+          // No load requirement for DROP
+        }
+
+        if (stop.is_unload) {
+          throw new BadRequestException('Already unloaded');
+        }
+
+        data = {
+          is_unload: true,
+          unloadedAt: now,
+        };
+        break;
+
+      default:
+        throw new BadRequestException('Invalid step');
+    }
+
+    const updated = await this.prisma.orderStop.update({
+      where: { id: orderStopId },
+      data,
+    });
+
+    return {
+      message: `Step ${step} updated successfully`,
+      stop: updated,
+    };
+  }
 
 
   /**
   * COMPLETE STOP (Raider)
   */
-   async completeStop(
-        orderStopId: number,
-        raiderId: number,
-        dto: {
-          proofFiles: string[];
-          codCollected?: number;
-          notes?: string;
+  async completeStop(
+    orderStopId: number,
+    raiderId: number,
+    dto: {
+      proofFiles: string[];
+      codCollected?: number;
+      notes?: string;
+    },
+  ) {
+
+    const raider = await this.prisma.raider.findUnique({
+      where: { userId: raiderId },
+      include: { user: true },
+    });
+
+    if (!raider) throw new NotFoundException('Raider not found');
+
+    const stop = await this.prisma.orderStop.findUnique({
+      where: { id: orderStopId },
+      include: {
+        payment: true,
+        order: {
+          select: {
+            id: true,
+            userId: true,
+            total_cost: true,
+            total_raider_earnings: true,
+            pay_type: true,
+            order_status: true,
+            assign_rider_id: true,
+          },
         },
-      ) {
+      },
+    });
 
-        const raider = await this.prisma.raider.findUnique({
-          where: { userId: raiderId },
-          include: { user: true },
+    if (!stop) throw new NotFoundException('Stop not found');
+
+    if (stop.order.assign_rider_id !== raider.id) {
+      throw new BadRequestException('You are not assigned to this order');
+    }
+
+    //  
+    const allowedStatuses = ["PENDING", "PROGRESS", "ONGOING"];
+
+    if (!allowedStatuses.includes(stop.order.order_status)) {
+      throw new BadRequestException('Order is not in a valid state to complete stops');
+    }
+
+    if (stop.status === StopStatus.COMPLETED) {
+      throw new BadRequestException('Stop already completed');
+    }
+
+    const orderUser = await this.prisma.user.findUnique({
+      where: { id: stop.order.userId! },
+      select: { id: true, fcmToken: true },
+    });
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // ── COD payment validation and collection ──
+      const requiresPayment = stop.payment && Number(stop.payment.amount) > 0;
+
+      if (requiresPayment) {
+        if (!dto.codCollected) {
+          throw new BadRequestException('COD collection required');
+        }
+
+        const expected = Number(stop.payment!.amount);
+        if (dto.codCollected < expected) {
+          throw new BadRequestException(
+            `Insufficient payment. Expected: ${expected}, Received: ${dto.codCollected}`,
+          );
+        }
+
+        await tx.stopPayment.update({
+          where: { id: stop.payment!.id },
+          data: {
+            amount: dto.codCollected,
+            status: PaymentStatus.PAID,
+            collectedAt: new Date(),
+            collectedBy: raiderId,
+          },
         });
+      }
 
-        if (!raider) throw new NotFoundException('Raider not found');
+      // ── Mark stop as COMPLETED ──
+      await tx.orderStop.update({
+        where: { id: orderStopId },
+        data: {
+          proofs: dto.proofFiles,
+          notes: dto.notes,
+          status: StopStatus.COMPLETED,
+          completedAt: new Date(),
+        },
+      });
 
-        const stop = await this.prisma.orderStop.findUnique({
-          where: { id: orderStopId },
-          include: {
-            payment: true,
-            order: {
-              select: {
-                id: true,
-                userId: true,
-                total_cost: true,
-                total_raider_earnings: true,
-                pay_type: true,
-                order_status: true,
-                assign_rider_id: true,
+      // ── Check if all stops completed ──
+      const incompleteStops = await tx.orderStop.findMany({
+        where: {
+          orderId: stop.orderId,
+          OR: [
+            { status: { in: [StopStatus.PENDING, StopStatus.FAILED] } },
+            {
+              payment: {
+                status: PaymentStatus.UNPAID,
+                amount: { gt: 0 },
               },
             },
+          ],
+        },
+      });
+
+      // ── Auto-complete order if all stops done ──
+      if (incompleteStops.length === 0) {
+        await tx.order.update({
+          where: { id: stop.orderId },
+          data: { order_status: OrderStatus.COMPLETED },
+        });
+
+        await tx.raider.update({
+          where: { userId: raiderId },
+          data: { completed_orders: { increment: 1 } },
+
+        });
+
+        if (stop.order.assign_rider_id) {
+          await this.redisService.hdel(
+            `rider:${stop.order.assign_rider_id}:active_order_users`,
+            stop.order.id.toString(),
+          );
+        }
+
+        // ── Driver earnings: calculated from total_raider_earnings not total_cost ──
+        const raiderEarnings = Number(stop.order.total_raider_earnings);
+        const driverFee = await this.calculateDriverFee(stop.orderId, raiderEarnings);
+
+        let driverCredit: number;
+        let platformLoss: number;
+
+        if (raiderEarnings >= driverFee) {
+          driverCredit = parseFloat((raiderEarnings - driverFee).toFixed(2));
+          platformLoss = 0;
+        } else {
+          driverCredit = 0;
+          platformLoss = parseFloat((driverFee - raiderEarnings).toFixed(2));
+        }
+
+        // ── Credit driver wallet ──
+        await tx.user.update({
+          where: { id: raiderId },
+          data: {
+            totalWalletBalance: { increment: driverCredit },
+            currentWalletBalance: { increment: driverCredit },
           },
         });
 
-        if (!stop) throw new NotFoundException('Stop not found');
-
-        if (stop.order.assign_rider_id !== raider.id) {
-          throw new BadRequestException('You are not assigned to this order');
-        }
-
-        //  
-        const allowedStatuses = ["PENDING","PROGRESS","ONGOING"];
-
-        if (!allowedStatuses.includes(stop.order.order_status)) {
-          throw new BadRequestException('Order is not in a valid state to complete stops');
-        }
-
-        if (stop.status === StopStatus.COMPLETED) {
-          throw new BadRequestException('Stop already completed');
-        }
-
-        const orderUser = await this.prisma.user.findUnique({
-          where: { id: stop.order.userId! },
-          select: { id: true, fcmToken: true },
+        await tx.walletHistory.create({
+          data: {
+            userId: raiderId,
+            amount: driverCredit,
+            type: 'credit',
+            transactionId: `TRX-earning-${stop.orderId}`,
+            transactionType: WalletTransactionType.EARNING,
+            status: WalletTransactionStatus.SUCCESS,
+            currency: 'SGD',
+            message: `Earnings from order #${stop.orderId}.`,
+          },
         });
 
-        const result = await this.prisma.$transaction(async (tx) => {
-          // ── COD payment validation and collection ──
-          const requiresPayment = stop.payment && Number(stop.payment.amount) > 0;
+        // ── Update transaction record — find by orderId not stop.orderId as id ──
+        const txRecord = await tx.transaction.findFirst({
+          where: { orderId: stop.orderId },
+        });
 
-          if (requiresPayment) {
-            if (!dto.codCollected) {
-              throw new BadRequestException('COD collection required');
-            }
-
-            const expected = Number(stop.payment!.amount);
-            if (dto.codCollected < expected) {
-              throw new BadRequestException(
-                `Insufficient payment. Expected: ${expected}, Received: ${dto.codCollected}`,
-              );
-            }
-
-            await tx.stopPayment.update({
-              where: { id: stop.payment!.id },
-              data: {
-                amount: dto.codCollected,
-                status: PaymentStatus.PAID,
-                collectedAt: new Date(),
-                collectedBy: raiderId,
-              },
-            });
-          }
-
-          // ── Mark stop as COMPLETED ──
-          await tx.orderStop.update({
-            where: { id: orderStopId },
+        if (txRecord) {
+          await tx.transaction.update({
+            where: { id: txRecord.id },
             data: {
-              proofs: dto.proofFiles,
-              notes: dto.notes,
-              status: StopStatus.COMPLETED,
-              completedAt: new Date(),
+              payment_status: PaymentStatus.PAID,
+              tx_status: TransactionStatus.COMPLETED,
+              pay_type: stop.order.pay_type,
+              total_fee: stop.order.total_cost,
+              delivery_fee: stop.order.total_cost,
             },
-          });
-
-          // ── Check if all stops completed ──
-          const incompleteStops = await tx.orderStop.findMany({
-            where: {
-              orderId: stop.orderId,
-              OR: [
-                { status: { in: [StopStatus.PENDING, StopStatus.FAILED] } },
-                {
-                  payment: {
-                    status: PaymentStatus.UNPAID,
-                    amount: { gt: 0 },
-                  },
-                },
-              ],
-            },
-          });
-
-          // ── Auto-complete order if all stops done ──
-          if (incompleteStops.length === 0) {
-            await tx.order.update({
-              where: { id: stop.orderId },
-              data: { order_status: OrderStatus.COMPLETED },
-            });
-
-            await tx.raider.update({
-              where: { userId: raiderId },
-              data: { completed_orders: { increment: 1 } },
-              
-            });
-
-            if (stop.order.assign_rider_id) {
-                await this.redisService.hdel(
-                  `rider:${stop.order.assign_rider_id}:active_order_users`,
-                  stop.order.id.toString(),
-                );
-              }
-
-            // ── Driver earnings: calculated from total_raider_earnings not total_cost ──
-            const raiderEarnings = Number(stop.order.total_raider_earnings);
-            const driverFee = await this.calculateDriverFee(stop.orderId, raiderEarnings);
-
-            let driverCredit: number;
-            let platformLoss: number;
-
-            if (raiderEarnings >= driverFee) {
-              driverCredit = parseFloat((raiderEarnings - driverFee).toFixed(2));
-              platformLoss = 0;
-            } else {
-              driverCredit = 0;
-              platformLoss = parseFloat((driverFee - raiderEarnings).toFixed(2));
-            }
-
-            // ── Credit driver wallet ──
-            await tx.user.update({
-              where: { id: raiderId },
-              data: {
-                totalWalletBalance:   { increment: driverCredit },
-                currentWalletBalance: { increment: driverCredit },
-              },
-            });
-
-            await tx.walletHistory.create({
-              data: {
-                userId:          raiderId,
-                amount:          driverCredit,
-                type:            'credit',
-                transactionId:   `TRX-earning-${stop.orderId}`,
-                transactionType: WalletTransactionType.EARNING,
-                status:          WalletTransactionStatus.SUCCESS,
-                currency:        'SGD',
-                message:         `Earnings from order #${stop.orderId}.`,
-              },
-            });
-
-            // ── Update transaction record — find by orderId not stop.orderId as id ──
-            const txRecord = await tx.transaction.findFirst({
-              where: { orderId: stop.orderId },
-            });
-
-            if (txRecord) {
-              await tx.transaction.update({
-                where: { id: txRecord.id },
-                data: {
-                  payment_status: PaymentStatus.PAID,
-                  tx_status:      TransactionStatus.COMPLETED,
-                  pay_type:       stop.order.pay_type,
-                  total_fee:      stop.order.total_cost,
-                  delivery_fee:   stop.order.total_cost,
-                },
-              });
-            }
-
-            return {
-              orderCompleted:  true,
-              remainingStops:  0,
-              driverCredit,
-              platformLoss,
-            };
-          }
-
-          return {
-            orderCompleted: false,
-            remainingStops: incompleteStops.length,
-            driverCredit:   null,
-            platformLoss:   null,
-          };
-        });
-
-        // ── 8. Notifications after transaction commits (never inside tx) ──
-        const orderNumber = `ORD-${String(stop.orderId).padStart(6, '0')}`;
-        const totalCostFormatted = Number(stop.order.total_cost).toFixed(2);
-
-        if (result.orderCompleted) {
-          // Notify user — order fully completed
-          if (orderUser) {
-            await this.emailQueueService.queueOrderStatusNotification({
-              userId:      orderUser.id,
-              fcmToken:    orderUser.fcmToken ?? '',
-              orderId:     stop.orderId,
-              orderNumber,
-              status:      NotificationType.ORDER_UPDATE,
-              title:       'Order Completed Successfully',
-              message:     `Your order ${orderNumber} has been completed with total cost $${totalCostFormatted}.`,
-            });
-          }
-
-          // Notify raider — order fully completed
-          await this.emailQueueService.queueOrderStatusNotification({
-            userId:      raider.userId,
-            fcmToken:    raider.user.fcmToken ?? '',
-            orderId:     stop.orderId,
-            orderNumber,
-            status:      NotificationType.ORDER_UPDATE,
-            title:       'Order Completed Successfully',
-            message:     `Order ${orderNumber} has been completed. Your earnings of $${result.driverCredit?.toFixed(2)} have been credited to your wallet.`,
-          });
-
-          return {
-            message:       'Stop completed. Order fully completed!',
-            orderCompleted: true,
-          };
-        }
-
-        // Notify user — individual stop completed, more remaining
-        if (orderUser) {
-          await this.emailQueueService.queueOrderStatusNotification({
-            userId:      orderUser.id,
-            fcmToken:    orderUser.fcmToken ?? '',
-            orderId:     stop.orderId,
-            orderNumber,
-            status:      NotificationType.ORDER_UPDATE,
-            title:       'Stop Completed',
-            message:     `A stop on your order ${orderNumber} has been completed. ${result.remainingStops} stop(s) remaining.`,
           });
         }
 
         return {
-          message:        'Stop completed successfully',
-          orderCompleted: false,
-          remainingStops: result.remainingStops,
+          orderCompleted: true,
+          remainingStops: 0,
+          driverCredit,
+          platformLoss,
         };
       }
+
+      return {
+        orderCompleted: false,
+        remainingStops: incompleteStops.length,
+        driverCredit: null,
+        platformLoss: null,
+      };
+    });
+
+    // ── 8. Notifications after transaction commits (never inside tx) ──
+    const orderNumber = `ORD-${String(stop.orderId).padStart(6, '0')}`;
+    const totalCostFormatted = Number(stop.order.total_cost).toFixed(2);
+
+    if (result.orderCompleted) {
+      // Notify user — order fully completed
+      if (orderUser) {
+        await this.emailQueueService.queueOrderStatusNotification({
+          userId: orderUser.id,
+          fcmToken: orderUser.fcmToken ?? '',
+          orderId: stop.orderId,
+          orderNumber,
+          status: NotificationType.ORDER_UPDATE,
+          title: 'Order Completed Successfully',
+          message: `Your order ${orderNumber} has been completed with total cost $${totalCostFormatted}.`,
+        });
+      }
+
+      // Notify raider — order fully completed
+      await this.emailQueueService.queueOrderStatusNotification({
+        userId: raider.userId,
+        fcmToken: raider.user.fcmToken ?? '',
+        orderId: stop.orderId,
+        orderNumber,
+        status: NotificationType.ORDER_UPDATE,
+        title: 'Order Completed Successfully',
+        message: `Order ${orderNumber} has been completed. Your earnings of $${result.driverCredit?.toFixed(2)} have been credited to your wallet.`,
+      });
+
+      return {
+        message: 'Stop completed. Order fully completed!',
+        orderCompleted: true,
+      };
+    }
+
+    // Notify user — individual stop completed, more remaining
+    if (orderUser) {
+      await this.emailQueueService.queueOrderStatusNotification({
+        userId: orderUser.id,
+        fcmToken: orderUser.fcmToken ?? '',
+        orderId: stop.orderId,
+        orderNumber,
+        status: NotificationType.ORDER_UPDATE,
+        title: 'Stop Completed',
+        message: `A stop on your order ${orderNumber} has been completed. ${result.remainingStops} stop(s) remaining.`,
+      });
+    }
+
+    return {
+      message: 'Stop completed successfully',
+      orderCompleted: false,
+      remainingStops: result.remainingStops,
+    };
+  }
 
 
 
@@ -1203,41 +1207,41 @@ export class OrderService {
   // calculate driver fee
   private async calculateDriverFee(
     serviceZoneId: number,
-    orderPrice : number
-    ): Promise<number> {
+    orderPrice: number
+  ): Promise<number> {
 
     const [standardCommissions, deductions] = await Promise.all([
-        this.prisma.standardCommissionRate.findMany({
-        where: { 
-            service_area_id: serviceZoneId,
+      this.prisma.standardCommissionRate.findMany({
+        where: {
+          service_area_id: serviceZoneId,
         }
-        }),
-        this.prisma.raiderDeductionFee.findMany({
-        })
+      }),
+      this.prisma.raiderDeductionFee.findMany({
+      })
     ]);
 
     const commissionTotal = standardCommissions.reduce(
-          (sum, rate) =>
-            sum + (orderPrice * Number(rate.commission_rate_delivery_fee ?? 0)) / 100,
-          0,
-        );
+      (sum, rate) =>
+        sum + (orderPrice * Number(rate.commission_rate_delivery_fee ?? 0)) / 100,
+      0,
+    );
 
-    let deductionTotal = 0; 
-    const fixedAmount = deductions.find(d=>d.type === "fixed_amount");
-    const percentage = deductions.find(d=>d.type === "percentage");
+    let deductionTotal = 0;
+    const fixedAmount = deductions.find(d => d.type === "fixed_amount");
+    const percentage = deductions.find(d => d.type === "percentage");
 
-      if (fixedAmount) {
-        deductionTotal = deductions.reduce(
-          (sum, fee) => sum + Number(fee.amount ?? 0),
-          0,
-        );
-      } else if (percentage) {
-        deductionTotal = deductions.reduce(
-          (sum, rate) =>
-            sum + (orderPrice * Number(rate.amount ?? 0)) / 100,
-          0,
-        );
-      }
+    if (fixedAmount) {
+      deductionTotal = deductions.reduce(
+        (sum, fee) => sum + Number(fee.amount ?? 0),
+        0,
+      );
+    } else if (percentage) {
+      deductionTotal = deductions.reduce(
+        (sum, rate) =>
+          sum + (orderPrice * Number(rate.amount ?? 0)) / 100,
+        0,
+      );
+    }
 
     return commissionTotal + deductionTotal;
   }
@@ -1352,56 +1356,56 @@ export class OrderService {
     });
   }
 
-    // skiped
-    async skippedStop(stopId: number) {
-      const exist = await this.prisma.orderStop.findFirst({
-        where: { id: stopId },
-      });
+  // skiped
+  async skippedStop(stopId: number) {
+    const exist = await this.prisma.orderStop.findFirst({
+      where: { id: stopId },
+    });
 
-      if (!exist) {
-        throw new NotFoundException('Stop not found for the provided ID');
-      }
-
-      const order = await this.prisma.order.findFirst({
-        where: { id: exist.orderId },
-        include: {
-          orderStops: true,
-        },
-      });
-
-      if (!order) {
-        throw new NotFoundException('Order not found for this stop');
-      }
-
-      if (order.isFixed) {
-        throw new BadRequestException(
-          'You can only skip stops for Non Fixed orders'
-        );
-      }
-
-      const dropStops = order.orderStops.filter(
-        (i) => i.type === 'DROP' && !i.is_skiped
-      );
-
-      if (dropStops.length <= 1) {
-        throw new BadRequestException(
-          'At least one active drop stop must remain. Cannot skip this stop.'
-        );
-      }
-
-      if (exist.is_skiped) {
-        throw new BadRequestException('This stop has already been skipped');
-      }
-
-      const stop = await this.prisma.orderStop.update({
-        where: { id: stopId },
-        data: {
-          is_skiped: true,
-        },
-      });
-
-      return stop;
+    if (!exist) {
+      throw new NotFoundException('Stop not found for the provided ID');
     }
+
+    const order = await this.prisma.order.findFirst({
+      where: { id: exist.orderId },
+      include: {
+        orderStops: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found for this stop');
+    }
+
+    if (order.isFixed) {
+      throw new BadRequestException(
+        'You can only skip stops for Non Fixed orders'
+      );
+    }
+
+    const dropStops = order.orderStops.filter(
+      (i) => i.type === 'DROP' && !i.is_skiped
+    );
+
+    if (dropStops.length <= 1) {
+      throw new BadRequestException(
+        'At least one active drop stop must remain. Cannot skip this stop.'
+      );
+    }
+
+    if (exist.is_skiped) {
+      throw new BadRequestException('This stop has already been skipped');
+    }
+
+    const stop = await this.prisma.orderStop.update({
+      where: { id: stopId },
+      data: {
+        is_skiped: true,
+      },
+    });
+
+    return stop;
+  }
 
   /**
    * Fail a stop (Rule #4: Receiver not available)
@@ -1535,42 +1539,42 @@ export class OrderService {
     };
   }
 
-   async orderCallConfirmation(orderId: number){
-      
+  async orderCallConfirmation(orderId: number) {
+
     const exist = await this.prisma.order.findFirst({
-      where: { id: orderId},
+      where: { id: orderId },
     })
-   if(!exist){
-       throw new NotFoundException("Order Not found by this id")
-   }
-  //  
+    if (!exist) {
+      throw new NotFoundException("Order Not found by this id")
+    }
+    //  
     const x = await this.prisma.order.update({
-      where: { id: orderId},
-      data:{
-        raider_confirmation:true
+      where: { id: orderId },
+      data: {
+        raider_confirmation: true
       }
     })
     return x;
   }
 
-  async userCallConfirmation(orderId: number){
-      
+  async userCallConfirmation(orderId: number) {
+
     const exist = await this.prisma.order.findFirst({
-      where: { id: orderId},
+      where: { id: orderId },
     })
-    
-   if(!exist){
-       throw new NotFoundException("Order Not found by this id")
-   }
-  //  
-  if(!exist.raider_confirmation) throw new NotFoundException("Raider confirmation not found")
-  if(exist.user_confirmation_at) throw new NotFoundException("All ready confirm by user")
-  //  
+
+    if (!exist) {
+      throw new NotFoundException("Order Not found by this id")
+    }
+    //  
+    if (!exist.raider_confirmation) throw new NotFoundException("Raider confirmation not found")
+    if (exist.user_confirmation_at) throw new NotFoundException("All ready confirm by user")
+    //  
     const x = await this.prisma.order.update({
-      where: { id: orderId},
-      data:{
-        raider_confirmation:true,
-        user_confirmation_at:new Date()
+      where: { id: orderId },
+      data: {
+        raider_confirmation: true,
+        user_confirmation_at: new Date()
       }
     })
     return x;
@@ -1650,15 +1654,15 @@ export class OrderService {
 
 
     // Fetch real-time demand and drivers for surge calculation
-      const [demand, availableDrivers] = await Promise.all([
-        this.getCurrentDemand(orderServiceZone.id),
-        this.getAvailableDrivers(orderServiceZone.id),
-      ]);
+    const [demand, availableDrivers] = await Promise.all([
+      this.getCurrentDemand(orderServiceZone.id),
+      this.getAvailableDrivers(orderServiceZone.id),
+    ]);
 
     // Step 3: Calculate individual pricing per drop
     const receiversWithPrice = await getReceiversWithIndividualPrice(
       this.prisma,
-      this.surgePricingRuleService,  
+      this.surgePricingRuleService,
       sender,
       receiverDestinations.map((d) => ({ lat: d.latitude, lng: d.longitude })),
       payload.delivery_type_id,
@@ -1668,8 +1672,8 @@ export class OrderService {
         isRoundTrip: payload.route_type === RouteType.ROUND,
         returnFactor: 0.5,
       },
-      demand,                            
-      availableDrivers,  
+      demand,
+      availableDrivers,
     );
 
     const totalCost = receiversWithPrice.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
@@ -1694,20 +1698,20 @@ export class OrderService {
           total_cost: parseFloat(totalCost.toFixed(2)),
           total_fee: parseFloat(totalFee.toFixed(2)),
           total_distance: parseFloat(totalDistance.toFixed(2)),
-          total_time:totalTime,
+          total_time: totalTime,
           isFixed: payload.isFixed ?? false,
           order_status: OrderStatus.PROGRESS,
         },
-        include:{
-           delivery_type:{
-              include:{ 
-                 vehicle_types:{
-                    include:{
-                       vehicle_type:true
-                    }
-                 }
+        include: {
+          delivery_type: {
+            include: {
+              vehicle_types: {
+                include: {
+                  vehicle_type: true
+                }
               }
-           }
+            }
+          }
         },
       });
 
@@ -1725,6 +1729,7 @@ export class OrderService {
           latitude: senderDestination.latitude,
           longitude: senderDestination.longitude,
           additionalInfo: senderDestination.note_to_driver ?? null,
+          note_to_driver: senderDestination.note_to_driver ?? null,
           type: DestinationType.SENDER,
           is_saved: senderDestination.is_saved ?? false,
           lastUsedAt: new Date(),
@@ -1772,6 +1777,7 @@ export class OrderService {
             latitude: d.latitude,
             longitude: d.longitude,
             additionalInfo: d.note_to_driver ?? null,
+            note_to_driver: d.note_to_driver ?? null,
             type: DestinationType.RECEIVER,
             is_saved: d.is_saved ?? false,
             lastUsedAt: new Date(),
@@ -1791,9 +1797,9 @@ export class OrderService {
             latitude: d.latitude,
             longitude: d.longitude,
             additionalInfo: d.note_to_driver ?? null,
-            calculated_distance:pricing.distanceKm,
-            calculated_time:pricing.pricing.min,
-            calculated_time_txt:pricing.pricing.min_text,
+            calculated_distance: pricing.distanceKm,
+            calculated_time: pricing.pricing.min,
+            calculated_time_txt: pricing.pricing.min_text,
             payment: {
               create: {
                 payType: PayType.COD,
@@ -2308,8 +2314,8 @@ export class OrderService {
         },
         orderBy: { created_at: 'desc' },
         include: {
-          delivery_type:true,
-          vehicle:true,
+          delivery_type: true,
+          vehicle: true,
           user: true, transactions: true, orderStops: {
             include: {
               destination: true,
@@ -2354,30 +2360,30 @@ export class OrderService {
       },
     };
 
-  const [orders, total] = await this.prisma.$transaction([
-    this.prisma.order.findMany({
-      where,
-      orderBy: { created_at: 'desc' },
-      include: {
-        user: true,
-        delivery_type: true,
-      },
-      skip,
-      take: limit,
-    }),
+    const [orders, total] = await this.prisma.$transaction([
+      this.prisma.order.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        include: {
+          user: true,
+          delivery_type: true,
+        },
+        skip,
+        take: limit,
+      }),
 
-    this.prisma.order.count({
-      where,
-    }),
-  ]);
+      this.prisma.order.count({
+        where,
+      }),
+    ]);
 
-  return {
-    data: orders,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-  };
+    return {
+      data: orders,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
 
@@ -2620,7 +2626,7 @@ export class OrderService {
           order_status: true,
           is_out_for_delivery: true,
           created_at: true,
-          vehicle:true,
+          vehicle: true,
           // If you want some relations, add them:
           user: {
             select: {
@@ -2686,315 +2692,315 @@ export class OrderService {
 
 
   //  get order details 
-//  async getOrderDetails(orderId: number, callerId?: number) {
-//      const p = await this.prisma.raider.findFirst({
-//         where:{
-//             userId:callerId,
-//         },
-//         include:{
-//              user:{
-//                  select:{
-//                       roles:true
-//                  }
-//              } 
-//         }
-//      })
-//     const callerRole = p?.user.roles.find(r=>r.name == UserRole.RAIDER);
-//     // 
-//     const order = await this.prisma.order.findUnique({
-//       where: { id: orderId },
-//       include: {
-//         delivery_type: {
-//           include: {
-//             vehicle_types: {
-//               include: { vehicle_type: true },
-//             },
-//           },
-//         },
-//         user: true,
-//         orderStops: {
-//           include: {
-//             destination: true,
-//             payment: true,
-//           },
-//           orderBy: { sequence: 'asc' },
-//         },
-        
-//         assign_rider: {
-//           include: {
-//             registrations: {
-//               select: {
-//                 id: true,
-//                 raider_name: true,
-//                 contact_number: true,
-//                 email_address: true,
-//                 current_postal_code: true,
-//                 current_unit: true,
-//                 current_address: true,
-//                 current_country: true,
-//                 driver_photos: true,
-//               },
-//             },
-//             tier: true,
-//             locations: true,
-//           },
-//         },
-//       },
-//     });
+  //  async getOrderDetails(orderId: number, callerId?: number) {
+  //      const p = await this.prisma.raider.findFirst({
+  //         where:{
+  //             userId:callerId,
+  //         },
+  //         include:{
+  //              user:{
+  //                  select:{
+  //                       roles:true
+  //                  }
+  //              } 
+  //         }
+  //      })
+  //     const callerRole = p?.user.roles.find(r=>r.name == UserRole.RAIDER);
+  //     // 
+  //     const order = await this.prisma.order.findUnique({
+  //       where: { id: orderId },
+  //       include: {
+  //         delivery_type: {
+  //           include: {
+  //             vehicle_types: {
+  //               include: { vehicle_type: true },
+  //             },
+  //           },
+  //         },
+  //         user: true,
+  //         orderStops: {
+  //           include: {
+  //             destination: true,
+  //             payment: true,
+  //           },
+  //           orderBy: { sequence: 'asc' },
+  //         },
 
-//     if (!order) throw new NotFoundException('Order not found');
+  //         assign_rider: {
+  //           include: {
+  //             registrations: {
+  //               select: {
+  //                 id: true,
+  //                 raider_name: true,
+  //                 contact_number: true,
+  //                 email_address: true,
+  //                 current_postal_code: true,
+  //                 current_unit: true,
+  //                 current_address: true,
+  //                 current_country: true,
+  //                 driver_photos: true,
+  //               },
+  //             },
+  //             tier: true,
+  //             locations: true,
+  //           },
+  //         },
+  //       },
+  //     });
 
-//     const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
-//     const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
+  //     if (!order) throw new NotFoundException('Order not found');
 
-//     // Rating
-//     const avgRating = await this.prisma.rateRaider.aggregate({
-//       where: { raiderId: order.assign_rider_id },
-//       _avg: { rating_star: true },
-//       _count: { id: true },
-//     });
+  //     const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
+  //     const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
 
-//     const formattedAverage = avgRating._avg.rating_star
-//       ? Number(avgRating._avg.rating_star.toFixed(2))
-//       : 5;
+  //     // Rating
+  //     const avgRating = await this.prisma.rateRaider.aggregate({
+  //       where: { raiderId: order.assign_rider_id },
+  //       _avg: { rating_star: true },
+  //       _count: { id: true },
+  //     });
 
-//      // Only calculated when caller is a raider and has a known location
-//      // ── Raider leg: raider location → pickup → each drop ──
-//       let raiderLeg: {
-//         raiderToPickup: {
-//           distanceKm: number;
-//           durationMin: number;
-//           durationText: string;
-//         } | null;
-//         pickupToDrop: Array<{
-//           stopId: number;
-//           address: string;
-//           distanceKm: number;
-//           durationMin: number;
-//           durationText: string;
-//         }>;
-//       } | null = null;
+  //     const formattedAverage = avgRating._avg.rating_star
+  //       ? Number(avgRating._avg.rating_star.toFixed(2))
+  //       : 5;
 
-//       if (pickupStop) {
-//         const pickupPos = { lat: pickupStop.latitude, lng: pickupStop.longitude };
+  //      // Only calculated when caller is a raider and has a known location
+  //      // ── Raider leg: raider location → pickup → each drop ──
+  //       let raiderLeg: {
+  //         raiderToPickup: {
+  //           distanceKm: number;
+  //           durationMin: number;
+  //           durationText: string;
+  //         } | null;
+  //         pickupToDrop: Array<{
+  //           stopId: number;
+  //           address: string;
+  //           distanceKm: number;
+  //           durationMin: number;
+  //           durationText: string;
+  //         }>;
+  //       } | null = null;
 
-//   // ── PLACED ORDER: use assign_rider.locations (already included in query) ──
-//   // ── UNPLACED ORDER: fetch raider by callerId if caller is RAIDER ──
-//       let raiderLocation: { lat: number; lng: number } | null = null;
+  //       if (pickupStop) {
+  //         const pickupPos = { lat: pickupStop.latitude, lng: pickupStop.longitude };
 
-//       if (order.is_placed && order.assign_rider?.locations) {
-//         // Assigned raider's current live location
-//         raiderLocation = {
-//           lat: Number(order.assign_rider.locations.latitude),
-//           lng: Number(order.assign_rider.locations.longitude),
-//         };
-//       } else if (!order.is_placed && callerRole && callerId) {
-//         // Browsing raider (not yet assigned) — fetch their location
-//         const raider = await this.prisma.raider.findFirst({
-//           where: { userId: callerId },
-//           include: { locations: true },
-//         });
+  //   // ── PLACED ORDER: use assign_rider.locations (already included in query) ──
+  //   // ── UNPLACED ORDER: fetch raider by callerId if caller is RAIDER ──
+  //       let raiderLocation: { lat: number; lng: number } | null = null;
 
-//         if (raider?.locations) {
-//           raiderLocation = {
-//             lat: Number(raider.locations.latitude),
-//             lng: Number(raider.locations.longitude),
-//           };
-//         }
-//       }
+  //       if (order.is_placed && order.assign_rider?.locations) {
+  //         // Assigned raider's current live location
+  //         raiderLocation = {
+  //           lat: Number(order.assign_rider.locations.latitude),
+  //           lng: Number(order.assign_rider.locations.longitude),
+  //         };
+  //       } else if (!order.is_placed && callerRole && callerId) {
+  //         // Browsing raider (not yet assigned) — fetch their location
+  //         const raider = await this.prisma.raider.findFirst({
+  //           where: { userId: callerId },
+  //           include: { locations: true },
+  //         });
 
-//       // Calculate legs only if we have a raider position
-//       if (raiderLocation) {
-//         try {
-//           const raiderToPickup = await getRoadDistance(raiderLocation, pickupPos);
+  //         if (raider?.locations) {
+  //           raiderLocation = {
+  //             lat: Number(raider.locations.latitude),
+  //             lng: Number(raider.locations.longitude),
+  //           };
+  //         }
+  //       }
 
-//           const pickupToDropLegs = await Promise.all(
-//             dropStops.map(async (drop) => {
-//               const dropPos = { lat: drop.latitude, lng: drop.longitude };
-//               const leg = await getRoadDistance(pickupPos, dropPos);
-//               return {
-//                 stopId: drop.id,
-//                 address: drop.address,
-//                 distanceKm: Number(leg.km.toFixed(2)),
-//                 durationMin: Number(leg.min.toFixed(1)),
-//                 durationText: leg.min_text,
-//               };
-//             }),
-//           );
+  //       // Calculate legs only if we have a raider position
+  //       if (raiderLocation) {
+  //         try {
+  //           const raiderToPickup = await getRoadDistance(raiderLocation, pickupPos);
 
-//           raiderLeg = {
-//             raiderToPickup: {
-//               distanceKm: Number(raiderToPickup.km.toFixed(2)),
-//               durationMin: Number(raiderToPickup.min.toFixed(1)),
-//               durationText: raiderToPickup.min_text,
-//             },
-//             pickupToDrop: pickupToDropLegs,
-//           };
-//         } catch (err) {
-//           console.error('Raider leg calculation failed:', err);
-//           raiderLeg = null;
-//         }
-//       }
-//     }
+  //           const pickupToDropLegs = await Promise.all(
+  //             dropStops.map(async (drop) => {
+  //               const dropPos = { lat: drop.latitude, lng: drop.longitude };
+  //               const leg = await getRoadDistance(pickupPos, dropPos);
+  //               return {
+  //                 stopId: drop.id,
+  //                 address: drop.address,
+  //                 distanceKm: Number(leg.km.toFixed(2)),
+  //                 durationMin: Number(leg.min.toFixed(1)),
+  //                 durationText: leg.min_text,
+  //               };
+  //             }),
+  //           );
 
-//     // ── ORDER IS PLACED → snapshot from DB ──
-//     if (order.is_placed) {
-//       const totalDistance = Number(order.total_distance ?? 0);
-//       const totalCost = Number(order.total_cost ?? 0);
-//       const totalFee = Number(order.total_fee ?? 0);
-//       const totalRaiderEarnings = Number(order.total_raider_earnings ?? 0);
+  //           raiderLeg = {
+  //             raiderToPickup: {
+  //               distanceKm: Number(raiderToPickup.km.toFixed(2)),
+  //               durationMin: Number(raiderToPickup.min.toFixed(1)),
+  //               durationText: raiderToPickup.min_text,
+  //             },
+  //             pickupToDrop: pickupToDropLegs,
+  //           };
+  //         } catch (err) {
+  //           console.error('Raider leg calculation failed:', err);
+  //           raiderLeg = null;
+  //         }
+  //       }
+  //     }
 
-//       // Total time = sum of all drop calculated_time
-//       const totalTimeMin = dropStops.reduce(
-//         (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
-//       );
+  //     // ── ORDER IS PLACED → snapshot from DB ──
+  //     if (order.is_placed) {
+  //       const totalDistance = Number(order.total_distance ?? 0);
+  //       const totalCost = Number(order.total_cost ?? 0);
+  //       const totalFee = Number(order.total_fee ?? 0);
+  //       const totalRaiderEarnings = Number(order.total_raider_earnings ?? 0);
 
-//       return {
-//         ...order,
-//         formattedAverage,
-//         raiderLeg,
-//         pricingSummary: {
-//           totalDistance: Number(totalDistance.toFixed(2)),
-//           totalCost: Number(totalCost.toFixed(2)),
-//           totalFee: Number(totalFee.toFixed(2)),
-//           totalRaiderEarnings: Number(totalRaiderEarnings.toFixed(2)),
-//           totalPlatformFee: Number((totalCost - totalRaiderEarnings).toFixed(2)),
-//           totalTimeMin: Number(totalTimeMin.toFixed(1)),
-//           basePrice: 0,
-//           deliveryTypeCharge: 0,
-//           additionServiceFee: Number(order.additional_cost ?? 0),
-//           dropCount: dropStops.length,
-//           surgeApplied: false,
-//           perDropBreakdown: dropStops.map((s) => ({
-//             price: Number(Number(s.calculated_price ?? s.payment?.amount ?? 0).toFixed(2)),
-//             raiderEarnings: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
-//             distance: Number(Number(s.calculated_distance ?? 0).toFixed(2)),
-//             durationMin: Number(Number(s.calculated_time ?? 0).toFixed(1)),
-//             durationText: s.calculated_time_txt ?? '',
-//             surgeMultiplier: 1,
-//           })),
-//         },
-//       };
-//     }
+  //       // Total time = sum of all drop calculated_time
+  //       const totalTimeMin = dropStops.reduce(
+  //         (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
+  //       );
 
-//     // ── ORDER NOT PLACED → live pricing ──
-//     let pricingResults: ReceiverWithPricing[] = [];
-//     let totalDistance = 0;
+  //       return {
+  //         ...order,
+  //         formattedAverage,
+  //         raiderLeg,
+  //         pricingSummary: {
+  //           totalDistance: Number(totalDistance.toFixed(2)),
+  //           totalCost: Number(totalCost.toFixed(2)),
+  //           totalFee: Number(totalFee.toFixed(2)),
+  //           totalRaiderEarnings: Number(totalRaiderEarnings.toFixed(2)),
+  //           totalPlatformFee: Number((totalCost - totalRaiderEarnings).toFixed(2)),
+  //           totalTimeMin: Number(totalTimeMin.toFixed(1)),
+  //           basePrice: 0,
+  //           deliveryTypeCharge: 0,
+  //           additionServiceFee: Number(order.additional_cost ?? 0),
+  //           dropCount: dropStops.length,
+  //           surgeApplied: false,
+  //           perDropBreakdown: dropStops.map((s) => ({
+  //             price: Number(Number(s.calculated_price ?? s.payment?.amount ?? 0).toFixed(2)),
+  //             raiderEarnings: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+  //             distance: Number(Number(s.calculated_distance ?? 0).toFixed(2)),
+  //             durationMin: Number(Number(s.calculated_time ?? 0).toFixed(1)),
+  //             durationText: s.calculated_time_txt ?? '',
+  //             surgeMultiplier: 1,
+  //           })),
+  //         },
+  //       };
+  //     }
 
-//     if (pickupStop && dropStops.length > 0) {
-//       const zone = await this.serviceZone.findZoneByPoint(
-//         pickupStop.latitude,
-//         pickupStop.longitude,
-//       );
+  //     // ── ORDER NOT PLACED → live pricing ──
+  //     let pricingResults: ReceiverWithPricing[] = [];
+  //     let totalDistance = 0;
 
-//       if (zone) {
-//         const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
-//         const receivers = dropStops.map((s) => ({ lat: s.latitude, lng: s.longitude }));
+  //     if (pickupStop && dropStops.length > 0) {
+  //       const zone = await this.serviceZone.findZoneByPoint(
+  //         pickupStop.latitude,
+  //         pickupStop.longitude,
+  //       );
 
-//         const [demand, availableDrivers] = await Promise.all([
-//           this.getCurrentDemand(zone.id),
-//           this.getAvailableDrivers(zone.id),
-//         ]);
+  //       if (zone) {
+  //         const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
+  //         const receivers = dropStops.map((s) => ({ lat: s.latitude, lng: s.longitude }));
 
-//         try {
-//           pricingResults = await getReceiversWithIndividualPrice(
-//             this.prisma,
-//             this.surgePricingRuleService,
-//             sender,
-//             receivers,
-//             order.delivery_type_id,
-//             order.vehicle_type_id ?? 1,
-//             zone,
-//             { isRoundTrip: order.route_type === RouteType.ROUND },
-//             demand,
-//             availableDrivers,
-//           );
+  //         const [demand, availableDrivers] = await Promise.all([
+  //           this.getCurrentDemand(zone.id),
+  //           this.getAvailableDrivers(zone.id),
+  //         ]);
 
-//           totalDistance = pricingResults.reduce(
-//             (total, result) => total + result.distanceKm, 0,
-//           );
-//         } catch (error) {
-//           console.error('Live pricing calculation failed:', error);
-//           pricingResults = [];
-//         }
-//       }
-//     }
+  //         try {
+  //           pricingResults = await getReceiversWithIndividualPrice(
+  //             this.prisma,
+  //             this.surgePricingRuleService,
+  //             sender,
+  //             receivers,
+  //             order.delivery_type_id,
+  //             order.vehicle_type_id ?? 1,
+  //             zone,
+  //             { isRoundTrip: order.route_type === RouteType.ROUND },
+  //             demand,
+  //             availableDrivers,
+  //           );
 
-//     // FALLBACK → stored DB values
-//     if (pricingResults.length === 0) {
-//       const totalTimeMin = dropStops.reduce(
-//         (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
-//       );
+  //           totalDistance = pricingResults.reduce(
+  //             (total, result) => total + result.distanceKm, 0,
+  //           );
+  //         } catch (error) {
+  //           console.error('Live pricing calculation failed:', error);
+  //           pricingResults = [];
+  //         }
+  //       }
+  //     }
 
-//       return {
-//         ...order,
-//         formattedAverage,
-//         raiderLeg,
-//         pricingSummary: {
-//           totalDistance: Number(Number(order.total_distance ?? 0).toFixed(2)),
-//           totalCost: Number(Number(order.total_cost ?? 0).toFixed(2)),
-//           totalFee: Number(Number(order.total_fee ?? 0).toFixed(2)),
-//           totalRaiderEarnings: Number(Number(order.total_raider_earnings ?? 0).toFixed(2)),
-//           totalPlatformFee: 0,
-//           totalTimeMin: Number(totalTimeMin.toFixed(1)),
-//           basePrice: 0,
-//           deliveryTypeCharge: 0,
-//           additionServiceFee: Number(order.additional_cost ?? 0),
-//           dropCount: dropStops.length,
-//           surgeApplied: false,
-//           perDropBreakdown: dropStops.map((s) => ({
-//             price: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
-//             raiderEarnings: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
-//             distance: Number(Number(s.calculated_distance ?? 0).toFixed(2)),
-//             durationMin: Number(Number(s.calculated_time ?? 0).toFixed(1)),
-//             durationText: s.calculated_time_txt ?? '',
-//             surgeMultiplier: 1,
-//           })),
-//         },
-//       };
-//     }
+  //     // FALLBACK → stored DB values
+  //     if (pricingResults.length === 0) {
+  //       const totalTimeMin = dropStops.reduce(
+  //         (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
+  //       );
 
-//     // Live pricing totals
-//     const totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
-//     const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
-//     const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
-//     const totalPlatformFee = pricingResults.reduce((sum, r) => sum + r.pricing.platformFee, 0);
-//     const totalTimeMin = pricingResults.reduce((sum, r) => sum + (r.pricing.min ?? 0), 0);
-//     const basePrice = pricingResults[0]?.pricing.basePrice ?? 0;
-//     const deliveryTypeCharge = pricingResults.reduce(
-//       (sum, r) => sum + r.pricing.deliveryTypeCharge, 0,
-//     );
+  //       return {
+  //         ...order,
+  //         formattedAverage,
+  //         raiderLeg,
+  //         pricingSummary: {
+  //           totalDistance: Number(Number(order.total_distance ?? 0).toFixed(2)),
+  //           totalCost: Number(Number(order.total_cost ?? 0).toFixed(2)),
+  //           totalFee: Number(Number(order.total_fee ?? 0).toFixed(2)),
+  //           totalRaiderEarnings: Number(Number(order.total_raider_earnings ?? 0).toFixed(2)),
+  //           totalPlatformFee: 0,
+  //           totalTimeMin: Number(totalTimeMin.toFixed(1)),
+  //           basePrice: 0,
+  //           deliveryTypeCharge: 0,
+  //           additionServiceFee: Number(order.additional_cost ?? 0),
+  //           dropCount: dropStops.length,
+  //           surgeApplied: false,
+  //           perDropBreakdown: dropStops.map((s) => ({
+  //             price: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+  //             raiderEarnings: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+  //             distance: Number(Number(s.calculated_distance ?? 0).toFixed(2)),
+  //             durationMin: Number(Number(s.calculated_time ?? 0).toFixed(1)),
+  //             durationText: s.calculated_time_txt ?? '',
+  //             surgeMultiplier: 1,
+  //           })),
+  //         },
+  //       };
+  //     }
 
-//     return {
-//       ...order,
-//       formattedAverage,
-//       raiderLeg,
-//       pricingSummary: {
-//         totalDistance: Number(totalDistance.toFixed(2)),
-//         totalCost: Number(totalCost.toFixed(2)),
-//         totalFee: Number(totalFee.toFixed(2)),
-//         totalRaiderEarnings: Number(totalRaiderEarnings.toFixed(2)),
-//         totalPlatformFee: Number(totalPlatformFee.toFixed(2)),
-//         totalTimeMin: Number(totalTimeMin.toFixed(1)),
-//         basePrice: Number(basePrice.toFixed(2)),
-//         deliveryTypeCharge: Number(deliveryTypeCharge.toFixed(2)),
-//         additionServiceFee: Number(order.additional_cost ?? 0),
-//         dropCount: dropStops.length,
-//         surgeApplied: pricingResults.some((r) => r.pricing.surgeMultiplier > 1),
-//         perDropBreakdown: pricingResults.map((r) => ({
-//           price: Number(r.pricing.totalPrice.toFixed(2)),
-//           raiderEarnings: Number(r.pricing.raiderEarnings.toFixed(2)),
-//           distance: Number(r.distanceKm.toFixed(2)),
-//           durationMin: Number((r.pricing.min ?? 0).toFixed(1)),
-//           durationText: r.pricing.min_text ?? '',
-//           surgeMultiplier: r.pricing.surgeMultiplier,
-//         })),
-//       },
-//     };
-//   }
- 
- 
- 
+  //     // Live pricing totals
+  //     const totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
+  //     const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+  //     const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
+  //     const totalPlatformFee = pricingResults.reduce((sum, r) => sum + r.pricing.platformFee, 0);
+  //     const totalTimeMin = pricingResults.reduce((sum, r) => sum + (r.pricing.min ?? 0), 0);
+  //     const basePrice = pricingResults[0]?.pricing.basePrice ?? 0;
+  //     const deliveryTypeCharge = pricingResults.reduce(
+  //       (sum, r) => sum + r.pricing.deliveryTypeCharge, 0,
+  //     );
+
+  //     return {
+  //       ...order,
+  //       formattedAverage,
+  //       raiderLeg,
+  //       pricingSummary: {
+  //         totalDistance: Number(totalDistance.toFixed(2)),
+  //         totalCost: Number(totalCost.toFixed(2)),
+  //         totalFee: Number(totalFee.toFixed(2)),
+  //         totalRaiderEarnings: Number(totalRaiderEarnings.toFixed(2)),
+  //         totalPlatformFee: Number(totalPlatformFee.toFixed(2)),
+  //         totalTimeMin: Number(totalTimeMin.toFixed(1)),
+  //         basePrice: Number(basePrice.toFixed(2)),
+  //         deliveryTypeCharge: Number(deliveryTypeCharge.toFixed(2)),
+  //         additionServiceFee: Number(order.additional_cost ?? 0),
+  //         dropCount: dropStops.length,
+  //         surgeApplied: pricingResults.some((r) => r.pricing.surgeMultiplier > 1),
+  //         perDropBreakdown: pricingResults.map((r) => ({
+  //           price: Number(r.pricing.totalPrice.toFixed(2)),
+  //           raiderEarnings: Number(r.pricing.raiderEarnings.toFixed(2)),
+  //           distance: Number(r.distanceKm.toFixed(2)),
+  //           durationMin: Number((r.pricing.min ?? 0).toFixed(1)),
+  //           durationText: r.pricing.min_text ?? '',
+  //           surgeMultiplier: r.pricing.surgeMultiplier,
+  //         })),
+  //       },
+  //     };
+  //   }
+
+
+
   async updateOrderStatus(
     orderId: number,
     userId: number,
@@ -3240,17 +3246,17 @@ export class OrderService {
     if (riderAlreadyAssigned) {
       throw new ConflictException('This rider is already assigned to another active order');
     }
-    if(order.userId && order.id){
-        await this.redisService.hset(
-          `rider:${raider.id}:active_order_users`,
-          order.id.toString(),
-          order?.userId.toString(),
-        );
-      } 
-
-      this.logger.log(
-        `[REDIS] Added tracking mapping rider:${raider.id}:active_order_users -> ${order.id}:${order.userId}`,
+    if (order.userId && order.id) {
+      await this.redisService.hset(
+        `rider:${raider.id}:active_order_users`,
+        order.id.toString(),
+        order?.userId.toString(),
       );
+    }
+
+    this.logger.log(
+      `[REDIS] Added tracking mapping rider:${raider.id}:active_order_users -> ${order.id}:${order.userId}`,
+    );
 
     //  Save rider to order
     return this.prisma.order.update({
@@ -3259,13 +3265,13 @@ export class OrderService {
         assign_rider_id: riderId,
         order_status: OrderStatus.ONGOING,
         competition_closed: true,
-        assign_at : new Date(),
+        assign_at: new Date(),
       },
     });
 
 
   }
-  
+
 
 
   //  stats dashboard
@@ -3273,11 +3279,11 @@ export class OrderService {
     const [totalOrders, ongoing, scheduled, pending] = await this.prisma.$transaction([
       // Total Orders
       this.prisma.order.count(
-          {
-            where:{
-                order_status:OrderStatus.PROGRESS
-            }
+        {
+          where: {
+            order_status: OrderStatus.PROGRESS
           }
+        }
       ),
 
       // Ongoing Orders (progressing states)
@@ -3347,14 +3353,14 @@ export class OrderService {
           user: true,
           vehicle: true,
           orderStops: {
-             include:{ 
-                destination:{
-                   select:{
-                      address:true,
-                      shortName:true
-                   }
+            include: {
+              destination: {
+                select: {
+                  address: true,
+                  shortName: true
                 }
-             }
+              }
+            }
           },
         },
         skip,
@@ -3375,7 +3381,7 @@ export class OrderService {
     };
   }
 
-   // 
+  // 
   // async orderForFeed(userId: number, page = 1, limit = 100) {
   //   const skip = (page - 1) * limit;
 
@@ -3572,70 +3578,70 @@ export class OrderService {
   //   };
   // }
 
-    // ── Radius per tier ──
-    private getRadiusForTier(tierCode: string): number {
-      const radiusMap: Record<string, number> = {
-        BRONZE:   5,
-        SILVER:   8,
-        GOLD:     12,
-        PLATINUM: 20,
-      };
-      return radiusMap[tierCode] ?? 5;
+  // ── Radius per tier ──
+  private getRadiusForTier(tierCode: string): number {
+    const radiusMap: Record<string, number> = {
+      BRONZE: 5,
+      SILVER: 8,
+      GOLD: 12,
+      PLATINUM: 20,
+    };
+    return radiusMap[tierCode] ?? 5;
+  }
+
+  // ── Score order for raider ──
+  private scoreOrderForRaider(order: any, raider: any): number {
+    let score = 0;
+
+    // Recency — newer = higher score (max 50pts)
+    const ageMinutes =
+      (Date.now() - new Date(order.created_at).getTime()) / 60000;
+    score += Math.max(0, 50 - ageMinutes);
+
+    // Total cost — higher paying = higher score (max 30pts)
+    const cost = Number(order.total_cost ?? 0);
+    score += Math.min(30, cost / 10);
+
+    // Distance — closer pickup = higher score (max 20pts)
+    const pickup = order.orderStops?.find((s: any) => s.type === StopType.PICKUP);
+    if (raider.locations && pickup) {
+      const dist = haversineDistance(
+        Number(raider.locations.latitude),
+        Number(raider.locations.longitude),
+        pickup.latitude,
+        pickup.longitude,
+      );
+      score += Math.max(0, 20 - dist * 2);
     }
 
-    // ── Score order for raider ──
-    private scoreOrderForRaider(order: any, raider: any): number {
-      let score = 0;
+    // ── Delivery type priority ──
+    const raiderRating = Number(raider.avg_rating ?? 0);
+    const deliveryTypeName = order.delivery_type?.name?.toUpperCase() ?? '';
+    const isHighRated = raiderRating >= 4.5;
+    const EXPRESS_FALLBACK_MINUTES = 3;
+    const expressOpenToAll = ageMinutes >= EXPRESS_FALLBACK_MINUTES;
 
-      // Recency — newer = higher score (max 50pts)
-      const ageMinutes =
-        (Date.now() - new Date(order.created_at).getTime()) / 60000;
-      score += Math.max(0, 50 - ageMinutes);
-
-      // Total cost — higher paying = higher score (max 30pts)
-      const cost = Number(order.total_cost ?? 0);
-      score += Math.min(30, cost / 10);
-
-      // Distance — closer pickup = higher score (max 20pts)
-      const pickup = order.orderStops?.find((s: any) => s.type === StopType.PICKUP);
-      if (raider.locations && pickup) {
-        const dist = haversineDistance(
-          Number(raider.locations.latitude),
-          Number(raider.locations.longitude),
-          pickup.latitude,
-          pickup.longitude,
-        );
-        score += Math.max(0, 20 - dist * 2);
+    if (deliveryTypeName === 'EXPRESS') {
+      if (isHighRated) {
+        score += 100; // 4.5+ always sees Express at top
+      } else if (expressOpenToAll) {
+        score += 100; // waited 3 mins — open to everyone equally
       }
+      // else: fresh Express + low rated → natural position
 
-      // ── Delivery type priority ──
-      const raiderRating = Number(raider.avg_rating ?? 0);
-      const deliveryTypeName = order.delivery_type?.name?.toUpperCase() ?? '';
-      const isHighRated = raiderRating >= 4.5;
-      const EXPRESS_FALLBACK_MINUTES = 3;
-      const expressOpenToAll = ageMinutes >= EXPRESS_FALLBACK_MINUTES;
+    } else if (deliveryTypeName === 'STANDARD') {
+      score += 30; // mid priority for all raiders
 
-      if (deliveryTypeName === 'EXPRESS') {
-        if (isHighRated) {
-          score += 100; // 4.5+ always sees Express at top
-        } else if (expressOpenToAll) {
-          score += 100; // waited 3 mins — open to everyone equally
-        }
-        // else: fresh Express + low rated → natural position
-
-      } else if (deliveryTypeName === 'STANDARD') {
-        score += 30; // mid priority for all raiders
-
-      } else if (deliveryTypeName === 'SAVER') {
-        // no boost — natural sort only
-      }
-
-      // Tier priority multiplier — higher tier sees better sorted feed
-      const priorityScore = Number(raider.tier?.priorityScore ?? 1.0);
-      score *= priorityScore;
-
-      return score;
+    } else if (deliveryTypeName === 'SAVER') {
+      // no boost — natural sort only
     }
+
+    // Tier priority multiplier — higher tier sees better sorted feed
+    const priorityScore = Number(raider.tier?.priorityScore ?? 1.0);
+    score *= priorityScore;
+
+    return score;
+  }
 
 
   //order decline
@@ -3671,109 +3677,109 @@ export class OrderService {
 
   // **HOT CAKE: recalculate order price with individual drop pricing
   private async recalculateOrderPrice(orderId: number) {
-      const order = await this.prisma.order.findUnique({
-        where: { id: orderId },
-        include: {
-          orderStops: {
-            include: { payment: true },
-            orderBy: { sequence: 'asc' },
-          },
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        orderStops: {
+          include: { payment: true },
+          orderBy: { sequence: 'asc' },
         },
-      });
+      },
+    });
 
-      if (!order) return;
+    if (!order) return;
 
-      const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
-      const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
+    const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
+    const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
 
-      if (!pickupStop || dropStops.length === 0) {
-        await this.prisma.order.update({
-          where: { id: orderId },
-          data: {
-            total_cost: 0,
-            total_fee: 0,
-            total_raider_earnings: 0,
-            total_distance: 0,
-          },
-        });
-        return { totalCost: 0, totalFee: 0, totalRaiderEarnings: 0, totalDistance: 0 };
-      }
-
-      const zone = await this.serviceZone.findZoneByPoint(
-        pickupStop.latitude,
-        pickupStop.longitude,
-      );
-
-      if (!zone) throw new BadRequestException('Pickup address outside service zone');
-
-      const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
-      const receivers = dropStops.map((s) => ({ lat: s.latitude, lng: s.longitude }));
-
-      const [currentDemand, availableDrivers] = await Promise.all([
-        this.getCurrentDemand(zone.id),
-        this.getAvailableDrivers(zone.id),
-      ]);
-
-      const pricingResults = await getReceiversWithIndividualPrice(
-        this.prisma,
-        this.surgePricingRuleService,
-        sender,
-        receivers,
-        order.delivery_type_id,
-        order.vehicle_type_id ?? 1,
-        zone,
-        { isRoundTrip: order.route_type === RouteType.ROUND },
-        currentDemand,
-        availableDrivers,
-      );
-
-      const totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
-      const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
-      const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
-      const totalDistance = pricingResults.reduce((sum, r) => sum + r.distanceKm, 0);
-      const tTime = pricingResults.reduce((sum, r) => sum + r.pricing.min!, 0);
-
-      // Persist order totals
+    if (!pickupStop || dropStops.length === 0) {
       await this.prisma.order.update({
         where: { id: orderId },
         data: {
-          total_cost: parseFloat(totalCost.toFixed(2)),
-          total_fee: parseFloat(totalFee.toFixed(2)),
-          total_raider_earnings: parseFloat(totalRaiderEarnings.toFixed(2)),
-          total_distance: parseFloat(totalDistance.toFixed(2)),
-          total_time: tTime,
-          serviceZoneId: zone.id,
+          total_cost: 0,
+          total_fee: 0,
+          total_raider_earnings: 0,
+          total_distance: 0,
         },
       });
-      //  Persist per-drop payment amounts
-       await this.prisma.$transaction(
-        dropStops.map((drop, index) => {
-          const pricing = pricingResults[index];
-          return this.prisma.orderStop.update({
-            where: { id: drop.id },
-            data: {
-              calculated_price: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
-              calculated_distance: parseFloat(pricing.distanceKm.toFixed(2)),
-              calculated_time:pricing.pricing.min,
-              calculated_time_txt:pricing.pricing.min_text,
-              payment: {
-                update: {
-                  amount: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
-                },
+      return { totalCost: 0, totalFee: 0, totalRaiderEarnings: 0, totalDistance: 0 };
+    }
+
+    const zone = await this.serviceZone.findZoneByPoint(
+      pickupStop.latitude,
+      pickupStop.longitude,
+    );
+
+    if (!zone) throw new BadRequestException('Pickup address outside service zone');
+
+    const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
+    const receivers = dropStops.map((s) => ({ lat: s.latitude, lng: s.longitude }));
+
+    const [currentDemand, availableDrivers] = await Promise.all([
+      this.getCurrentDemand(zone.id),
+      this.getAvailableDrivers(zone.id),
+    ]);
+
+    const pricingResults = await getReceiversWithIndividualPrice(
+      this.prisma,
+      this.surgePricingRuleService,
+      sender,
+      receivers,
+      order.delivery_type_id,
+      order.vehicle_type_id ?? 1,
+      zone,
+      { isRoundTrip: order.route_type === RouteType.ROUND },
+      currentDemand,
+      availableDrivers,
+    );
+
+    const totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
+    const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+    const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
+    const totalDistance = pricingResults.reduce((sum, r) => sum + r.distanceKm, 0);
+    const tTime = pricingResults.reduce((sum, r) => sum + r.pricing.min!, 0);
+
+    // Persist order totals
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        total_cost: parseFloat(totalCost.toFixed(2)),
+        total_fee: parseFloat(totalFee.toFixed(2)),
+        total_raider_earnings: parseFloat(totalRaiderEarnings.toFixed(2)),
+        total_distance: parseFloat(totalDistance.toFixed(2)),
+        total_time: tTime,
+        serviceZoneId: zone.id,
+      },
+    });
+    //  Persist per-drop payment amounts
+    await this.prisma.$transaction(
+      dropStops.map((drop, index) => {
+        const pricing = pricingResults[index];
+        return this.prisma.orderStop.update({
+          where: { id: drop.id },
+          data: {
+            calculated_price: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
+            calculated_distance: parseFloat(pricing.distanceKm.toFixed(2)),
+            calculated_time: pricing.pricing.min,
+            calculated_time_txt: pricing.pricing.min_text,
+            payment: {
+              update: {
+                amount: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
               },
             },
-          });
-        }),
-      );
+          },
+        });
+      }),
+    );
 
-      return {
-        totalCost: parseFloat(totalCost.toFixed(2)),
-        totalFee: parseFloat(totalFee.toFixed(2)),
-        totalRaiderEarnings: parseFloat(totalRaiderEarnings.toFixed(2)),
-        totalDistance: parseFloat(totalDistance.toFixed(2)),
-        total_time: tTime,
-      };
-    }
+    return {
+      totalCost: parseFloat(totalCost.toFixed(2)),
+      totalFee: parseFloat(totalFee.toFixed(2)),
+      totalRaiderEarnings: parseFloat(totalRaiderEarnings.toFixed(2)),
+      totalDistance: parseFloat(totalDistance.toFixed(2)),
+      total_time: tTime,
+    };
+  }
 
 
   // //Promo code applay discount
@@ -4087,7 +4093,7 @@ export class OrderService {
   //     //     total_cost: originalCost + prevAdditional + serviceValue,
   //     //     has_additional_services: true,
 
- 
+
   //     //   },
   //     // });
   //     const prevRaiderEarnings = Number(order.total_raider_earnings ?? 0);
@@ -4179,7 +4185,7 @@ export class OrderService {
 
   // APPLY DISCOUNT
   async applyDiscount(orderId: number, userId: number, dto: ApplyDiscountDto) {
-    
+
     const order = await this.prisma.order.findUnique({
       where: { id: orderId, userId },
       include: {
@@ -4293,7 +4299,7 @@ export class OrderService {
       await tx.order.update({
         where: { id: orderId },
         data: {
-          originalCost: baseCost,           
+          originalCost: baseCost,
           discountAmount: newTotalDiscount,
           coinsRedeemed: { increment: coinsUsed },
           promoCode: dto.promoCode || order.promoCode || null,
@@ -4369,8 +4375,8 @@ export class OrderService {
       }
 
       // ── 3. Recalculate discount totals ──
-      const newCoinsRedeemed  = type === 'coin'  ? 0 : Number(order.coinsRedeemed);
-      const newPromoDiscount  = type === 'promo' ? 0 : Number(order.promoDiscount);
+      const newCoinsRedeemed = type === 'coin' ? 0 : Number(order.coinsRedeemed);
+      const newPromoDiscount = type === 'promo' ? 0 : Number(order.promoDiscount);
       const newDiscountAmount = newCoinsRedeemed + newPromoDiscount;  // clean recalculation
 
       // ── 4. Restore total_cost = originalCost + extras - remaining discount ──
@@ -4378,9 +4384,9 @@ export class OrderService {
       const restoredCost = parseFloat(
         Math.max(
           Number(order.originalCost) +
-            Number(order.additional_cost ?? 0) +
-            Number(order.priority_fee ?? 0) -
-            newDiscountAmount,
+          Number(order.additional_cost ?? 0) +
+          Number(order.priority_fee ?? 0) -
+          newDiscountAmount,
           0,
         ).toFixed(2),
       );
@@ -4426,7 +4432,7 @@ export class OrderService {
             where: { id: stop.payment?.id },
             data: {
               discount: { decrement: restore },
-              amount:   { increment: restore },
+              amount: { increment: restore },
             },
           });
         }
@@ -4461,10 +4467,10 @@ export class OrderService {
         throw new BadRequestException('Service already added to this order');
       }
 
-      const serviceValue     = Number(service.value);
-      const prevAdditional   = Number(order.additional_cost ?? 0);
-      const priorityFee      = Number(order.priority_fee ?? 0);
-      const discountAmount   = Number(order.discountAmount ?? 0);
+      const serviceValue = Number(service.value);
+      const prevAdditional = Number(order.additional_cost ?? 0);
+      const priorityFee = Number(order.priority_fee ?? 0);
+      const discountAmount = Number(order.discountAmount ?? 0);
       const prevRaiderEarnings = Number(order.total_raider_earnings ?? 0);
 
       // Freeze originalCost if not already set
@@ -4492,14 +4498,14 @@ export class OrderService {
           originalCost,
           additional_cost: prevAdditional + serviceValue,
           total_cost: newTotalCost,
-          total_raider_earnings: newRaiderEarnings,  
+          total_raider_earnings: newRaiderEarnings,
           has_additional_services: true,
           additional_services: [
             ...existingServices,
             {
-              id:    service.id,
-              name:  service.service_name,
-              desc:  service.desc,
+              id: service.id,
+              name: service.service_name,
+              desc: service.desc,
               price: serviceValue,
             },
           ],
@@ -4537,7 +4543,7 @@ export class OrderService {
         0,
       );
 
-      const priorityFee    = Number(order.priority_fee ?? 0);
+      const priorityFee = Number(order.priority_fee ?? 0);
       const discountAmount = Number(order.discountAmount ?? 0);
       const prevRaiderEarnings = Number(order.total_raider_earnings ?? 0);
 
@@ -4562,10 +4568,10 @@ export class OrderService {
       return tx.order.update({
         where: { id: orderId, userId },
         data: {
-          additional_services:  filteredServices,
-          additional_cost:      newAdditional,
-          total_cost:           newTotalCost,
-          total_raider_earnings: newRaiderEarnings, 
+          additional_services: filteredServices,
+          additional_cost: newAdditional,
+          total_cost: newTotalCost,
+          total_raider_earnings: newRaiderEarnings,
           has_additional_services: filteredServices.length > 0,
         },
       });
@@ -4610,14 +4616,14 @@ export class OrderService {
             },
             tier: true,
             locations: true,
-            
+
           },
         },
-        rate_raiders:{
-              select: {id:true,rating_star:true}
+        rate_raiders: {
+          select: { id: true, rating_star: true }
         },
-        rate_customers:{
-              select: {id:true,rating_star:true}
+        rate_customers: {
+          select: { id: true, rating_star: true }
         }
       },
     });
@@ -4625,7 +4631,7 @@ export class OrderService {
     if (!order) throw new NotFoundException('Order not found');
 
     const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
-    const dropStops  = order.orderStops.filter((s) => s.type === StopType.DROP);
+    const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
 
     const avgRating = await this.prisma.rateRaider.aggregate({
       where: { raiderId: order.assign_rider_id },
@@ -4684,9 +4690,9 @@ export class OrderService {
               const dropPos = { lat: drop.latitude, lng: drop.longitude };
               const leg = await getRoadDistance(pickupPos, dropPos);
               return {
-                stopId:      drop.id,
-                address:     drop.address,
-                distanceKm:  Number(leg.km.toFixed(2)),
+                stopId: drop.id,
+                address: drop.address,
+                distanceKm: Number(leg.km.toFixed(2)),
                 durationMin: Number(leg.min.toFixed(1)),
                 durationText: leg.min_text,
               };
@@ -4695,7 +4701,7 @@ export class OrderService {
 
           raiderLeg = {
             raiderToPickup: {
-              distanceKm:  Number(raiderToPickup.km.toFixed(2)),
+              distanceKm: Number(raiderToPickup.km.toFixed(2)),
               durationMin: Number(raiderToPickup.min.toFixed(1)),
               durationText: raiderToPickup.min_text,
             },
@@ -4710,28 +4716,28 @@ export class OrderService {
 
     // ── Shared fee fields used by all return paths ──
     const additionalServiceFee = Number(order.additional_cost ?? 0);
-    const priorityFee          = Number(order.priority_fee ?? 0);
-    const discountAmount       = Number(order.discountAmount ?? 0);
-    const promoDiscount        = Number(order.promoDiscount ?? 0);
-    const coinsRedeemed        = Number(order.coinsRedeemed ?? 0);
+    const priorityFee = Number(order.priority_fee ?? 0);
+    const discountAmount = Number(order.discountAmount ?? 0);
+    const promoDiscount = Number(order.promoDiscount ?? 0);
+    const coinsRedeemed = Number(order.coinsRedeemed ?? 0);
 
     // if order is placed and assign to rider
-    const savedRider =  await this.prisma.myRaider.findFirst({
-        where: {
-          find_by:
-            order.assign_rider?.registrations?.[0]?.contact_number ||
-            order.assign_rider?.registrations?.[0]?.email_address,
-        },
-      });
+    const savedRider = await this.prisma.myRaider.findFirst({
+      where: {
+        find_by:
+          order.assign_rider?.registrations?.[0]?.contact_number ||
+          order.assign_rider?.registrations?.[0]?.email_address,
+      },
+    });
 
     // ─────────────────────────────────────────────
     // PATH 1: ORDER IS PLACED — snapshot from DB
     // (only path reachable after priorityOrder)
     // ─────────────────────────────────────────────
     if (order.is_placed) {
-      const totalDistance      = Number(order.total_distance ?? 0);
-      const totalCost          = Number(order.total_cost ?? 0);         // includes additional + priority - discount
-      const totalFee           = Number(order.total_fee ?? 0);          // original platform fee, unchanged
+      const totalDistance = Number(order.total_distance ?? 0);
+      const totalCost = Number(order.total_cost ?? 0);         // includes additional + priority - discount
+      const totalFee = Number(order.total_fee ?? 0);          // original platform fee, unchanged
       const totalRaiderEarnings = Number(order.total_raider_earnings ?? 0); // includes additional service fee
 
       const totalTimeMin = dropStops.reduce(
@@ -4744,27 +4750,27 @@ export class OrderService {
         formattedAverage,
         raiderLeg,
         pricingSummary: {
-          totalDistance:       Number(totalDistance.toFixed(2)),
+          totalDistance: Number(totalDistance.toFixed(2)),
           totalCost,                                                     // what user pays
           totalFee,                                                      // original platform fee
           totalRaiderEarnings,                                           // base + additional service
-          totalPlatformFee:    Number((totalFee - discountAmount).toFixed(2)), // net after absorbing discount
-          totalTimeMin:        Number(totalTimeMin.toFixed(1)),
-          basePrice:           0,
-          deliveryTypeCharge:  0,
+          totalPlatformFee: Number((totalFee - discountAmount).toFixed(2)), // net after absorbing discount
+          totalTimeMin: Number(totalTimeMin.toFixed(1)),
+          basePrice: 0,
+          deliveryTypeCharge: 0,
           additionalServiceFee,                                          // goes to raider
           priorityFee,                                                   // goes to platform
           discountAmount,                                                // total platform absorbed
           promoDiscount,
           coinsRedeemed,
-          dropCount:    dropStops.length,
+          dropCount: dropStops.length,
           surgeApplied: false,
           perDropBreakdown: dropStops.map((s) => ({
-            price:           Number(Number(s.calculated_price ?? s.payment?.amount ?? 0).toFixed(2)),
-            raiderEarnings:  Number(Number(s.payment?.amount ?? 0).toFixed(2)),
-            distance:        Number(Number(s.calculated_distance ?? 0).toFixed(2)),
-            durationMin:     Number(Number(s.calculated_time ?? 0).toFixed(1)),
-            durationText:    s.calculated_time_txt ?? '',
+            price: Number(Number(s.calculated_price ?? s.payment?.amount ?? 0).toFixed(2)),
+            raiderEarnings: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+            distance: Number(Number(s.calculated_distance ?? 0).toFixed(2)),
+            durationMin: Number(Number(s.calculated_time ?? 0).toFixed(1)),
+            durationText: s.calculated_time_txt ?? '',
             surgeMultiplier: 1,
           })),
         },
@@ -4784,7 +4790,7 @@ export class OrderService {
       );
 
       if (zone) {
-        const sender    = { lat: pickupStop.latitude,  lng: pickupStop.longitude };
+        const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
         const receivers = dropStops.map((s) => ({ lat: s.latitude, lng: s.longitude }));
 
         const [demand, availableDrivers] = await Promise.all([
@@ -4823,8 +4829,8 @@ export class OrderService {
       const totalTimeMin = dropStops.reduce(
         (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
       );
-      const totalCost          = Number(order.total_cost ?? 0);
-      const totalFee           = Number(order.total_fee ?? 0);
+      const totalCost = Number(order.total_cost ?? 0);
+      const totalFee = Number(order.total_fee ?? 0);
       const totalRaiderEarnings = Number(order.total_raider_earnings ?? 0);
 
       return {
@@ -4833,27 +4839,27 @@ export class OrderService {
         formattedAverage,
         raiderLeg,
         pricingSummary: {
-          totalDistance:       Number(Number(order.total_distance ?? 0).toFixed(2)),
+          totalDistance: Number(Number(order.total_distance ?? 0).toFixed(2)),
           totalCost,
           totalFee,
           totalRaiderEarnings,
-          totalPlatformFee:    Number((totalFee - discountAmount).toFixed(2)),
-          totalTimeMin:        Number(totalTimeMin.toFixed(1)),
-          basePrice:           0,
-          deliveryTypeCharge:  0,
+          totalPlatformFee: Number((totalFee - discountAmount).toFixed(2)),
+          totalTimeMin: Number(totalTimeMin.toFixed(1)),
+          basePrice: 0,
+          deliveryTypeCharge: 0,
           additionalServiceFee,
           priorityFee,
           discountAmount,
           promoDiscount,
           coinsRedeemed,
-          dropCount:    dropStops.length,
+          dropCount: dropStops.length,
           surgeApplied: false,
           perDropBreakdown: dropStops.map((s) => ({
-            price:           Number(Number(s.payment?.amount ?? 0).toFixed(2)),
-            raiderEarnings:  Number(Number(s.payment?.amount ?? 0).toFixed(2)),
-            distance:        Number(Number(s.calculated_distance ?? 0).toFixed(2)),
-            durationMin:     Number(Number(s.calculated_time ?? 0).toFixed(1)),
-            durationText:    s.calculated_time_txt ?? '',
+            price: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+            raiderEarnings: Number(Number(s.payment?.amount ?? 0).toFixed(2)),
+            distance: Number(Number(s.calculated_distance ?? 0).toFixed(2)),
+            durationMin: Number(Number(s.calculated_time ?? 0).toFixed(1)),
+            durationText: s.calculated_time_txt ?? '',
             surgeMultiplier: 1,
           })),
         },
@@ -4863,13 +4869,13 @@ export class OrderService {
     // ─────────────────────────────────────────────
     // PATH 2 CONTINUED — live pricing totals
     // ─────────────────────────────────────────────
-    const liveBaseTotal       = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
-    const totalFee            = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+    const liveBaseTotal = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
+    const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
     const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
-    const totalPlatformFee    = pricingResults.reduce((sum, r) => sum + r.pricing.platformFee, 0);
-    const totalTimeMin        = pricingResults.reduce((sum, r) => sum + (r.pricing.min ?? 0), 0);
-    const basePrice           = pricingResults[0]?.pricing.basePrice ?? 0;
-    const deliveryTypeCharge  = pricingResults.reduce((sum, r) => sum + r.pricing.deliveryTypeCharge, 0);
+    const totalPlatformFee = pricingResults.reduce((sum, r) => sum + r.pricing.platformFee, 0);
+    const totalTimeMin = pricingResults.reduce((sum, r) => sum + (r.pricing.min ?? 0), 0);
+    const basePrice = pricingResults[0]?.pricing.basePrice ?? 0;
+    const deliveryTypeCharge = pricingResults.reduce((sum, r) => sum + r.pricing.deliveryTypeCharge, 0);
 
     // Add additional + priority, subtract discount
     const totalCost = parseFloat(
@@ -4890,27 +4896,27 @@ export class OrderService {
       formattedAverage,
       raiderLeg,
       pricingSummary: {
-        totalDistance:       Number(totalDistance.toFixed(2)),
+        totalDistance: Number(totalDistance.toFixed(2)),
         totalCost,                                                        // base + additional + priority - discount
-        totalFee:            Number(totalFee.toFixed(2)),
+        totalFee: Number(totalFee.toFixed(2)),
         totalRaiderEarnings: totalRaiderEarningsWithAdditional,           // base + additional service
-        totalPlatformFee:    Number((totalPlatformFee - discountAmount).toFixed(2)), // net after discount
-        totalTimeMin:        Number(totalTimeMin.toFixed(1)),
-        basePrice:           Number(basePrice.toFixed(2)),
-        deliveryTypeCharge:  Number(deliveryTypeCharge.toFixed(2)),
+        totalPlatformFee: Number((totalPlatformFee - discountAmount).toFixed(2)), // net after discount
+        totalTimeMin: Number(totalTimeMin.toFixed(1)),
+        basePrice: Number(basePrice.toFixed(2)),
+        deliveryTypeCharge: Number(deliveryTypeCharge.toFixed(2)),
         additionalServiceFee,                                             // goes to raider
         priorityFee,                                                      // goes to platform
         discountAmount,                                                   // platform absorbed
         promoDiscount,
         coinsRedeemed,
-        dropCount:    dropStops.length,
+        dropCount: dropStops.length,
         surgeApplied: pricingResults.some((r) => r.pricing.surgeMultiplier > 1),
         perDropBreakdown: pricingResults.map((r) => ({
-          price:           Number(r.pricing.totalPrice.toFixed(2)),
-          raiderEarnings:  Number(r.pricing.raiderEarnings.toFixed(2)),
-          distance:        Number(r.distanceKm.toFixed(2)),
-          durationMin:     Number((r.pricing.min ?? 0).toFixed(1)),
-          durationText:    r.pricing.min_text ?? '',
+          price: Number(r.pricing.totalPrice.toFixed(2)),
+          raiderEarnings: Number(r.pricing.raiderEarnings.toFixed(2)),
+          distance: Number(r.distanceKm.toFixed(2)),
+          durationMin: Number((r.pricing.min ?? 0).toFixed(1)),
+          durationText: r.pricing.min_text ?? '',
           surgeMultiplier: r.pricing.surgeMultiplier,
         })),
       },
@@ -5027,7 +5033,7 @@ export class OrderService {
       /* -------------------- Calculate price -------------------- */
       const pricingResults = await getReceiversWithIndividualPrice(
         this.prisma,
-        this.surgePricingRuleService,  
+        this.surgePricingRuleService,
         sender,
         receivers,
         deliveryType.id,
@@ -5037,7 +5043,7 @@ export class OrderService {
           isRoundTrip: row.route_type === RouteType.ROUND,
           returnFactor: 0.5,
         },
-        currentDemand,     
+        currentDemand,
         availableDrivers
       );
 
@@ -5062,7 +5068,7 @@ export class OrderService {
         floor_unit: row.receiver_floor_unit || defaultReceiver?.floor_unit || null,
         additionalInfo: row.receiver_note_to_driver || defaultReceiver?.note_to_driver || null,
       };
-       
+
       /* ----- --------------- Create order with destinations in transaction -------------------- */
       const order = await this.prisma.$transaction(async (tx) => {
         // 1. Create Order
@@ -5342,7 +5348,7 @@ export class OrderService {
         data: { compititor_id: { push: raider.id } },
         include: { orderStops: true, vehicle: true, user: true },
       });
-        
+
       console.log(`✅ Rider ${raider.id} joined! Total: ${updated.compititor_id.length}`);
 
       // FIRST RIDER - Start competition
@@ -5501,15 +5507,15 @@ export class OrderService {
 
     return { score, shouldAutoConfirm, requiresManualConfirmation: !shouldAutoConfirm };
   }
-  
-  
+
+
 
   // order demand
   private async getCurrentDemand(zoneId: number): Promise<number> {
     return await this.prisma.order.count({
       where: {
         serviceZoneId: zoneId,
-        order_status: OrderStatus.PENDING,  
+        order_status: OrderStatus.PENDING,
       },
     });
   }
@@ -5520,12 +5526,12 @@ export class OrderService {
       where: {
         // serviceZoneId: zoneId,
         // last_location_updated_at > now - 5 minutes, etc.
-        is_available:true,
-        is_online:true,
+        is_available: true,
+        is_online: true,
       },
     });
   }
-  
+
   // 
   async getOrderById(orderId: number) {
     return this.prisma.order.findUnique({
@@ -5535,80 +5541,103 @@ export class OrderService {
   }
 
   // reorder stop
-   async reorderStops(
-      orderId: number,
-      stops: { orderStopId: number; sequence: number }[],
-    ) {
-      if (!stops?.length) {
-        throw new BadRequestException('Stops payload is empty');
+  async reorderStops(
+    orderId: number,
+    stops: { orderStopId: number; sequence: number }[],
+  ) {
+    if (!stops?.length) {
+      throw new BadRequestException('Stops payload is empty');
+    }
+
+    const existingStops = await this.prisma.orderStop.findMany({
+      where: { orderId },
+    });
+
+    const stopMap = new Map(existingStops.map((s) => [s.id, s]));
+
+    const pickup = existingStops.find(
+      (s) => s.type === StopType.PICKUP,
+    );
+
+    if (!pickup) {
+      throw new BadRequestException('Pickup not found');
+    }
+
+    // 1. Validate stops
+    for (const s of stops) {
+      const stop = stopMap.get(s.orderStopId);
+
+      if (!stop) {
+        throw new BadRequestException(
+          `Stop ${s.orderStopId} not found`,
+        );
       }
 
-      const existingStops = await this.prisma.orderStop.findMany({
-        where: { orderId },
-      });
+      if (stop.type === StopType.PICKUP) {
+        throw new BadRequestException(
+          'Pickup cannot be reordered',
+        );
+      }
+    }
 
-      const stopMap = new Map(existingStops.map((s) => [s.id, s]));
+    // 2. Normalize sequence (IMPORTANT FIX)
+    const sortedStops = stops
+      .filter((s) => s.orderStopId !== pickup.id)
+      .sort((a, b) => a.sequence - b.sequence);
 
-      const pickup = existingStops.find(
-        (s) => s.type === StopType.PICKUP,
+    // 3. Force correct sequence
+    await this.prisma.$transaction([
+      // LOCK pickup at sequence 1
+      this.prisma.orderStop.update({
+        where: { id: pickup.id },
+        data: { sequence: 1 },
+      }),
+
+      // assign correct sequence starting from 2
+      ...sortedStops.map((s, index) =>
+        this.prisma.orderStop.update({
+          where: { id: s.orderStopId },
+          data: {
+            sequence: index + 2,
+          },
+        }),
+      ),
+    ]);
+
+    const updated = await this.prisma.orderStop.findMany({
+      where: { orderId },
+      orderBy: { sequence: 'asc' },
+    });
+
+    return {
+      success: true,
+      updatedCount: stops.length,
+      stops: updated,
+    };
+  }
+
+  //generate reciept
+  async generateReceipt(orderId: number) {
+    const order = await this.getOrderDetails(orderId);
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+    const pdfBuffer =
+      await this.receiptPdfService.generate(order);
+
+    const receiptUrl =
+      await uploadReceiptPdf(
+        pdfBuffer,
+        order.id,
       );
 
-      if (!pickup) {
-        throw new BadRequestException('Pickup not found');
-      }
+    return {
+      success: true,
+      receiptUrl,
+    };
+  }
 
-      // 1. Validate stops
-      for (const s of stops) {
-        const stop = stopMap.get(s.orderStopId);
 
-        if (!stop) {
-          throw new BadRequestException(
-            `Stop ${s.orderStopId} not found`,
-          );
-        }
-
-        if (stop.type === StopType.PICKUP) {
-          throw new BadRequestException(
-            'Pickup cannot be reordered',
-          );
-        }
-      }
-
-      // 2. Normalize sequence (IMPORTANT FIX)
-      const sortedStops = stops
-        .filter((s) => s.orderStopId !== pickup.id)
-        .sort((a, b) => a.sequence - b.sequence);
-
-      // 3. Force correct sequence
-      await this.prisma.$transaction([
-        // LOCK pickup at sequence 1
-        this.prisma.orderStop.update({
-          where: { id: pickup.id },
-          data: { sequence: 1 },
-        }),
-
-        // assign correct sequence starting from 2
-        ...sortedStops.map((s, index) =>
-          this.prisma.orderStop.update({
-            where: { id: s.orderStopId },
-            data: {
-              sequence: index + 2,
-            },
-          }),
-        ),
-      ]);
-
-      const updated = await this.prisma.orderStop.findMany({
-        where: { orderId },
-        orderBy: { sequence: 'asc' },
-      });
-
-      return {
-        success: true,
-        updatedCount: stops.length,
-        stops: updated,
-      };
-    }
 
 
 }

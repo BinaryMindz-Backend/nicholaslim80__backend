@@ -159,11 +159,11 @@ export class OrderController {
     name: 'type',
     description: 'Discount type to remove',
     required: true,
-    enum: ['coin', 'promo'],   
+    enum: ['coin', 'promo'],
     example: 'coin',
   })
   async removeDiscount(
-    @Query('type') type: 'coin' | 'promo',  
+    @Query('type') type: 'coin' | 'promo',
     @Param('order_id', ParseIntPipe) orderId: number,
     @CurrentUser() user: IUser,
   ) {
@@ -200,7 +200,7 @@ export class OrderController {
     @Param('serviceId', ParseIntPipe) serviceId: number,
     @CurrentUser() user: IUser,
   ) {
-    const order = await this.orderService.removeAdditionalService(+orderId, +user.id,+serviceId);
+    const order = await this.orderService.removeAdditionalService(+orderId, +user.id, +serviceId);
     return ApiResponses.success(order, 'addition services removed');
   }
 
@@ -224,7 +224,7 @@ export class OrderController {
     } catch (err) {
       return ApiResponses.error(err, 'Failed to place order');
     }
-   }
+  }
 
 
   // 
@@ -296,7 +296,7 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to complete stop');
     }
   }
-  
+
   @Patch('stops/:stop_id/progress')
   @Auth()
   @ApiBearerAuth()
@@ -660,7 +660,7 @@ export class OrderController {
     }
   }
   //  
-    
+
   @Get('web/user-history')
   @Auth()
   @RequirePermission(Module.ORDER_HISTORY, Permission.READ)
@@ -668,7 +668,7 @@ export class OrderController {
   @ApiOperation({ summary: 'Get logged-in user orders (admin only)' })
   @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
   async findUserOrderHistoy(
-    @CurrentUser() user:IUser, @Query() filterDto: OrderFilterDto) {
+    @CurrentUser() user: IUser, @Query() filterDto: OrderFilterDto) {
     try {
       const orders = await this.orderService.findUserOrder(
         +user.id,
@@ -704,7 +704,7 @@ export class OrderController {
   @RequirePermission(Module.LIVE_ORDER_TRACKING, Permission.READ)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all orders with filters' })
-  async findAllWeb(@Query() filterDto: OrderFilterDto, @CurrentUser() user:IUser) {
+  async findAllWeb(@Query() filterDto: OrderFilterDto, @CurrentUser() user: IUser) {
     try {
       const orders = await this.orderService.findAllLiveTrack(filterDto, +user.id);
       return ApiResponses.success(orders, 'live Orders retrieved successfully');
@@ -724,7 +724,7 @@ export class OrderController {
   @ApiOperation({ summary: 'Get order by ID' })
   async findOne(@Param('id') id: string,
     @CurrentUser() user: IUser,
-) {
+  ) {
     try {
       const order = await this.orderService.getOrderDetails(+id, user.id);
       return ApiResponses.success(order, 'Order retrieved successfully');
@@ -734,7 +734,7 @@ export class OrderController {
     }
   }
   //
-    // 
+  // 
   @Get(':order_id/is-first-order')
   @Auth()
   @ApiBearerAuth()
@@ -906,6 +906,21 @@ export class OrderController {
     const result = await this.orderService.followedRiderOrder(Number(orderId));
 
     return ApiResponses.success(result, 'Followed order successfully');
+  }
+  // generate reciept
+
+  @Post(':orderId/reciept')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.ORDER, Permission.GET_ORDER_DETAILS)
+  @ApiOperation({ summary: 'Generate receipt by order ID' })
+  async generateReceipt(
+    @Param('orderId', ParseIntPipe)
+    orderId: number,
+  ) {
+    return this.orderService.generateReceipt(
+      orderId,
+    );
   }
 
 

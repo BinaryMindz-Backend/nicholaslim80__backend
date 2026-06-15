@@ -2,6 +2,8 @@
 import { extname } from 'path';
 import multerS3 from 'multer-s3';
 import { s3Client } from '../aws/s3.client';
+import { PutObjectCommand } from '@aws-sdk/client-s3'
+
 
 export const storageConfig = (folder = 'uploads') => {
   if (process.env.USE_S3 !== 'true') {
@@ -26,3 +28,26 @@ export const storageConfig = (folder = 'uploads') => {
     },
   });
 };
+
+
+
+export async function uploadReceiptPdf(
+  pdfBuffer: Buffer,
+  orderId: number,
+) {
+  const key = `receipts/order-${orderId}-${Date.now()}.pdf`;
+
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET!,
+      Key: key,
+      Body: pdfBuffer,
+      ContentType: 'application/pdf',
+    }),
+  );
+
+  return {
+    key,
+    url: `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
+  };
+}
