@@ -162,7 +162,19 @@ export class TipService {
           message: `Tip of ${Number(dto.amount)} SGD received from ${tip.user.username || 'Customer'} for order #${orderId}.`,
         },
       });
-      
+      await tx.walletHistory.create({
+        data: {
+          userId: userId,
+          amount: Number(dto.amount),
+          type: 'debit',
+          transactionId: this.txIdService.generate(),
+          transactionType: WalletTransactionType.DEDUCTION,
+          status: WalletTransactionStatus.SUCCESS,
+          currency: 'SGD',
+          message: `Tip of ${Number(dto.amount)} SGD sent to ${tip.raider?.user?.username || 'Raider'} for order #${orderId}.`,
+        },
+      });
+
       // 7. Create transaction record
       const txCode = `TIP-${orderId}-${Date.now()}`;
       await tx.transaction.create({
