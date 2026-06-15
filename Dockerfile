@@ -83,11 +83,11 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Copy dependencies and build
 COPY --from=builder /usr/src/app/package*.json ./
 COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/dist ./
 COPY --from=builder /usr/src/app/prisma ./prisma
 
 ENV NODE_ENV=production
 EXPOSE 3000
 
 # Default command for prod (compiled build)
-CMD ["node", "dist/src/main"]
+CMD ["node", "src/main"]
