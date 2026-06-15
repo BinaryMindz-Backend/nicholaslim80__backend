@@ -212,7 +212,6 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const vehicleType = client.data.user?.vehicleType;
 
       const io = SocketIOAdapter.getServer();
-      console.log('rider location broadcast', riderId, vehicleType, payload);
 
       io.of('/admin')
         .to('admin:live-map')

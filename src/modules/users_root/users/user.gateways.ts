@@ -8,9 +8,9 @@ export class UserGateway implements OnGatewayConnection {
   @WebSocketServer()
   server!: Server;
 
-  constructor(private jwtService: JwtService) {}
+  constructor(private jwtService: JwtService) { }
 
-    async handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     const token = client.handshake.auth?.token;
     if (!token) return client.disconnect();
 
@@ -28,112 +28,112 @@ export class UserGateway implements OnGatewayConnection {
     } catch {
       client.disconnect();
     }
-    }
+  }
 
-    async handleDisconnect(client: Socket) {
-        try {
-        const userId = client.data.user?.id;
-        if (!userId) {
-            console.log('User disconnecting:', userId);
-            console.log('User set offline:', userId);
-        }
-        } catch (err : any) {
-        console.log('Error during disconnect:', err.message);
-        }
+  async handleDisconnect(client: Socket) {
+    try {
+      const userId = client.data.user?.id;
+      if (!userId) {
+        console.log('User disconnecting:', userId);
+        console.log('User set offline:', userId);
+      }
+    } catch (err: any) {
+      console.log('Error during disconnect:', err.message);
     }
-    
-   // notify user when rider assiin
-   async notifyUserRiderAssigned(
+  }
+
+  // notify user when rider assiin
+  async notifyUserRiderAssigned(
     userId: number,
     orderId: number,
     riderId: number,
-    ) {
+  ) {
     console.log(`📢 Notifying USER ${userId} that rider ${riderId} got order ${orderId}`);
 
     this.server.to(`user_${userId}`)
-        .emit('user:rider_assigned', {
+      .emit('user:rider_assigned', {
         orderId,
         riderId,
         message: '🚴 Your order has been assigned to a rider!',
-        });
-    }
-    // notify payment success
-   async notifyPaymentSuccess(
+      });
+  }
+  // notify payment success
+  async notifyPaymentSuccess(
     userId: number,
     orderId: number,
     message: string,
-    ) {
+  ) {
     console.log(`📢 Notifying USER ${userId} that payment was successful for order ${orderId}`);
 
     this.server.to(`user_${userId}`)
-        .emit('user:payment_success', {
-        status:true,
+      .emit('user:payment_success', {
+        status: true,
         orderId,
         message,
-        });
-    } 
-    // notify payment success
-   async notifyPaymentFailed(
+      });
+  }
+  // notify payment success
+  async notifyPaymentFailed(
     userId: number,
     orderId: number,
     message: string,
-    ) {
+  ) {
     console.log(`📢 Notifying USER ${userId} that payment failed for order ${orderId}`);
 
     this.server.to(`user_${userId}`)
-        .emit('user:payment_failed', {
-        status:false,
+      .emit('user:payment_failed', {
+        status: false,
         orderId,
         message,
-        });
-    }
-    // notify add money to wallet
-    async notifyAddMoney(
-        userId: number,
-        message: string,
-        ) {
-        console.log(`📢 Notifying USER ${userId} that money was added to wallet`);
+      });
+  }
+  // notify add money to wallet
+  async notifyAddMoney(
+    userId: number,
+    message: string,
+  ) {
+    console.log(`📢 Notifying USER ${userId} that money was added to wallet`);
 
-        this.server.to(`user_${userId}`)
-            .emit('user:add_money', {
-            status:true,
-            message,
-            });
-    }
-    // notify add money failed to wallet
-    async notifyAddMoneyFailed(
-        userId: number,
-        message: string,
-        ) {
-        console.log(`📢 Notifying USER ${userId} that adding money failed`);
-        this.server.to(`user_${userId}`)
-            .emit('user:add_money_failed', {
-            status:false,
-            message
-            });
+    this.server.to(`user_${userId}`)
+      .emit('user:add_money', {
+        status: true,
+        message,
+      });
+  }
+  // notify add money failed to wallet
+  async notifyAddMoneyFailed(
+    userId: number,
+    message: string,
+  ) {
+    console.log(`📢 Notifying USER ${userId} that adding money failed`);
+    this.server.to(`user_${userId}`)
+      .emit('user:add_money_failed', {
+        status: false,
+        message
+      });
 
-    }
+  }
 
-    // notify order/rider location by rider
-    async notifyRiderLocation(
-      userId: number,
-      orderId: number,
-      riderId: number,
-      lat: number,
-      lng: number,
-      heading?: number,
-    ) {
-      this.server.to(`user_${userId}`).emit(
-        'user:rider_location',
-        {
-          orderId,
-          riderId,
-          lat,
-          lng,
-          heading,
-          timestamp: Date.now(),
-        },
-      );
-    }
-    
-    }
+  // notify order/rider location by rider
+  async notifyRiderLocation(
+    userId: number,
+    orderId: number,
+    riderId: number,
+    lat: number,
+    lng: number,
+    heading?: number,
+  ) {
+    this.server.to(`user_${userId}`).emit(
+      'user:rider_location',
+      {
+        orderId,
+        riderId,
+        lat,
+        lng,
+        heading,
+        timestamp: Date.now(),
+      },
+    );
+  }
+
+}
