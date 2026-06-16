@@ -638,6 +638,29 @@ export class OrderController {
   }
 
 
+  // GET FOR FEED
+  @Get('feed-test')
+  @Cron('*/5 * * * *') // Every 5 minutes 
+  @Auth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get Order feed' })
+  @ApiResponse({ status: 200, description: 'Orders feed retrieved successfully' })
+  async orderForFeedTest(
+    @Query() pagination: PaginationDto,
+    @CurrentUser() user: IUser
+  ) {
+    try {
+      const orders = await this.orderService.orderForFeedTest(
+        user.id,
+        pagination.page,
+        pagination.limit,
+      );
+      return ApiResponses.success(orders, 'Orders feed retrieved successfully');
+    } catch (err) {
+      return ApiResponses.error(err, 'Failed to fetch orders');
+    }
+  }
+
 
   // GET MY ORDERS
   @Get('user-history/:userId')
