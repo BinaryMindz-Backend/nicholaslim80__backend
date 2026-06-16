@@ -667,19 +667,42 @@ export class OrderService {
     pickupLng: number,
     deliveryType: string,
   ) {
-    // Find all active raiders (orderForFeed handles per-tier radius filtering)
+    const maxRadiusKm = 20000000000000; //  test radius, or use a fixed max like 50
+
+    const latDelta = maxRadiusKm / 111;
+    const lngDelta = maxRadiusKm / (111 * Math.cos(pickupLat * Math.PI / 180));
+
     const activeRaiders = await this.prisma.raider.findMany({
       where: {
         is_online: true,
         isSuspended: false,
         raider_status: RaiderStatus.ACTIVE,
         raider_verificationFromAdmin: 'APPROVED',
+        locations: {
+          latitude: {
+            gte: pickupLat - latDelta,
+            lte: pickupLat + latDelta,
+          },
+          longitude: {
+            gte: pickupLng - lngDelta,
+            lte: pickupLng + lngDelta,
+          },
+        },
       },
-      include: { locations: true },
+      include: { locations: true, tier: true },
     });
 
     for (const raider of activeRaiders) {
       if (!raider.locations) continue;
+
+      // Precise distance check with haversine
+      const raiderLat = Number(raider.locations.latitude);
+      const raiderLng = Number(raider.locations.longitude);
+      const distanceKm = haversineDistance(raiderLat, raiderLng, pickupLat, pickupLng);
+      const radiusKm = this.getRadiusForTier(raider.tier?.code ?? 'BRONZE');
+
+      // Skip if pickup is outside this raider's tier radius
+      if (distanceKm > radiusKm) continue;
 
       try {
         // Generate personalized feed for this raider
@@ -699,15 +722,6 @@ export class OrderService {
       }
     }
   }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3227,7 +3241,7 @@ export class OrderService {
     const raiderLat = Number(raider.locations.latitude);
     const raiderLng = Number(raider.locations.longitude);
 
-    // ── FIX: Use bounding box in Prisma query to avoid loading all orders ──
+    // Use bounding box in Prisma query to avoid loading all orders ──
     const latDelta = radiusKm / 111; // ~1 degree = 111km
     const lngDelta = radiusKm / (111 * Math.cos(raiderLat * Math.PI / 180));
 
