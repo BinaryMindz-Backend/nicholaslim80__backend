@@ -14,7 +14,7 @@ import { RaiderService } from './raider.service';
 import { OrderService } from 'src/modules/users_root/order/order.service';
 import { JwtService } from '@nestjs/jwt';
 import { SocketIOAdapter } from 'src/adapters/socket-io.adapter';
-import { forwardRef, Inject, Logger, } from '@nestjs/common';
+import { ForbiddenException, forwardRef, Inject, Logger, } from '@nestjs/common';
 import { OrderCompetitionData, OrderData } from 'src/types';
 import { AutoPopupService } from '../auto_popup_services/auto-popup.service';
 import { UserGateway } from 'src/modules/users_root/users/user.gateways';
@@ -26,6 +26,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @WebSocketServer()
   server!: Server;
+  lastFetchTime = new Map<number, number>();
 
   constructor(
     private raiderService: RaiderService,
@@ -468,18 +469,25 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 
   // Broadcast fresh feed to a specific rider
-  async broadcastFeedUpdate(riderId: number, feed: any) {
-    this.server.to(`rider_${riderId}`).emit('rider:feed_update', feed);
-  }
-
-  // Client can request feed refresh via socket
   @SubscribeMessage('rider:get_feed')
   async handleGetFeed(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { page?: number; limit?: number },
   ) {
     const user = client.data.user;
-    if (!user) return;
+    if (!user?.userId) {
+      client.emit('rider:feed_error', { message: 'Unauthorized', code: 401 });
+      return;
+    }
+
+    // Throttle
+    const now = Date.now();
+    const lastFetch = this.lastFetchTime.get(user.userId) ?? 0;
+    if (now - lastFetch < 2000) {
+      client.emit('rider:feed_error', { message: 'Too many requests', code: 429 });
+      return;
+    }
+    this.lastFetchTime.set(user.userId, now);
 
     try {
       const feed = await this.orderService.orderForFeed(
@@ -489,10 +497,15 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
       client.emit('rider:feed_update', feed);
     } catch (err: any) {
-      client.emit('rider:feed_error', { message: err.message });
+      client.emit('rider:feed_error', {
+        message: err.message,
+        code: err instanceof ForbiddenException ? 403 : 500
+      });
     }
   }
 
-
+  async broadcastFeedUpdate(riderId: number, feed: any) {
+    this.server.to(`rider_${riderId}`).emit('rider:feed_update', feed);
+  }
 
 }
