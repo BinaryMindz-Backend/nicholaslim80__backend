@@ -467,4 +467,32 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
 
+  // Broadcast fresh feed to a specific rider
+  async broadcastFeedUpdate(riderId: number, feed: any) {
+    this.server.to(`rider_${riderId}`).emit('rider:feed_update', feed);
+  }
+
+  // Client can request feed refresh via socket
+  @SubscribeMessage('rider:get_feed')
+  async handleGetFeed(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { page?: number; limit?: number },
+  ) {
+    const user = client.data.user;
+    if (!user) return;
+
+    try {
+      const feed = await this.orderService.orderForFeed(
+        user.userId,
+        payload.page ?? 1,
+        payload.limit ?? 100,
+      );
+      client.emit('rider:feed_update', feed);
+    } catch (err: any) {
+      client.emit('rider:feed_error', { message: err.message });
+    }
+  }
+
+
+
 }

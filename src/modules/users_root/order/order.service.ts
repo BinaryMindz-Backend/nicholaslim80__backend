@@ -612,7 +612,9 @@ export class OrderService {
           }
         }
       }
-
+      // 
+      // in order.service.ts, after order is created // todO: NEED TO CORRECTION
+      // await this.raiderGateway.broadcastFeedUpdate(userId, updatedOrder);
       return updatedOrder;
     });
 
@@ -3315,7 +3317,7 @@ export class OrderService {
   }
 
   // feed only order
-  async orderForFeed(userId: number, page = 1, limit = 100) {
+  async orderForFeedTest(userId: number, page = 1, limit = 100) {
     const skip = (page - 1) * limit;
 
     const raider = await this.prisma.raider.findFirst({
@@ -3381,210 +3383,210 @@ export class OrderService {
     };
   }
 
-  // 
-  // async orderForFeed(userId: number, page = 1, limit = 100) {
-  //   const skip = (page - 1) * limit;
 
-  //   // ── Fetch raider with all needed fields ──
-  //   const raider = await this.prisma.raider.findFirst({
-  //     where: {
-  //       userId,
-  //       is_online: true,
-  //       isSuspended: false,
-  //       raider_status: RaiderStatus.ACTIVE,
-  //       raider_verificationFromAdmin: 'APPROVED',
-  //     },
-  //     include: {
-  //       locations: true,
-  //       tier: true,
-  //     },
-  //   });
+  async orderForFeed(userId: number, page = 1, limit = 100) {
+    const skip = (page - 1) * limit;
 
-  //   if (!raider) {
-  //     throw new ForbiddenException('Raider is offline or inactive');
-  //   }
+    const raider = await this.prisma.raider.findFirst({
+      where: {
+        userId,
+        is_online: true,
+        isSuspended: false,
+        raider_status: RaiderStatus.ACTIVE,
+        raider_verificationFromAdmin: 'APPROVED',
+      },
+      include: {
+        locations: true,
+        tier: true,
+      },
+    });
 
-  //   // ── Performance threshold validation ──
-  //   // Use tier thresholds if available, else safe defaults
-  //   const minRating = Number(raider.tier?.minRating ?? 0);
-  //   const minCompletionRate = raider.tier?.minCompletionRate ?? 0;
-  //   const maxCancellationRate = raider.tier?.maxCancellationRate ?? 100;
+    if (!raider) {
+      throw new ForbiddenException('Raider is offline or inactive');
+    }
 
-  //   const raiderRating = Number(raider.avg_rating ?? 0);
-  //   const completionRate = raider.completion_rate ?? 100;
-  //   const cancellationRate = raider.cancellation_rate ?? 0;
+    if (!raider.locations) {
+      throw new ForbiddenException('Raider location not available');
+    }
 
-  //   // New raiders skip performance checks — no history yet
-  //   const hasHistory = raider.completed_orders > 0;
+    const avgRating = await this.prisma.rateRaider.aggregate({
+      where: { raiderId: raider.id },
+      _avg: { rating_star: true },
+      _count: { id: true },
+    });
 
-  //   if (hasHistory) {
-  //     if (raiderRating < minRating) {
-  //       throw new ForbiddenException(
-  //         `Your rating (${raiderRating}) is below the minimum required (${minRating}) for your tier.`,
-  //       );
-  //     }
-  //     if (completionRate < minCompletionRate) {
-  //       throw new ForbiddenException(
-  //         `Your completion rate (${completionRate}%) is below the minimum required (${minCompletionRate}%).`,
-  //       );
-  //     }
-  //     if (cancellationRate > maxCancellationRate) {
-  //       throw new ForbiddenException(
-  //         `Your cancellation rate (${cancellationRate}%) exceeds the maximum allowed (${maxCancellationRate}%).`,
-  //       );
-  //     }
-  //   }
+    const formattedAverage = avgRating._avg.rating_star
+      ? Number(avgRating._avg.rating_star.toFixed(2))
+      : 0;
 
-  //   // ── Express eligibility info for response ──
-  //   const isExpressEligible = raiderRating >= 4.5;
-  //   const expressWarning = !isExpressEligible
-  //     ? `Express orders require a 4.5+ rating. Your current rating is ${raiderRating}. Express orders will appear lower in your feed until you reach 4.5.`
-  //     : null;
+    const minRating = Number(raider.tier?.minRating ?? 0);
+    const minCompletionRate = raider.tier?.minCompletionRate ?? 0;
+    const maxCancellationRate = raider.tier?.maxCancellationRate ?? 100;
 
-  //   // ── Fetch all pending unassigned orders ──
-  //   const allOrders = await this.prisma.order.findMany({
-  //     where: {
-  //       order_status: OrderStatus.PENDING,
-  //       is_placed: true,
-  //       assign_rider_id: null, // not yet assigned to anyone
-  //       NOT: {
-  //         declines: {
-  //           some: { raiderId: raider.id }, // exclude orders raider already declined
-  //         },
-  //       },
-  //     },
-  //     orderBy: { created_at: 'desc' },
-  //     include: {
-  //       user: {
-  //         select: {
-  //           id: true,
-  //           username: true,
-  //           image: true,
-  //           phone: true,
-  //         },
-  //       },
-  //       vehicle: true,
-  //       delivery_type: {
-  //         select: { id: true, name: true },
-  //       },
-  //       orderStops: {
-  //         orderBy: { sequence: 'asc' },
-  //         select: {
-  //           id: true,
-  //           type: true,
-  //           address: true,
-  //           latitude: true,
-  //           longitude: true,
-  //           sequence: true,
-  //           calculated_price: true,
-  //           calculated_distance: true,
-  //           calculated_time: true,
-  //           calculated_time_txt: true,
-  //           payment: {
-  //             select: { amount: true, payType: true, status: true },
-  //           },
-  //         },
-  //       },
-  //     },
-  //   });
+    const raiderRating = formattedAverage;
+    const completionRate = raider.completion_rate ?? 100;
+    const cancellationRate = raider.cancellation_rate ?? 0;
 
-  //   // ── Radius filter using Haversine ──
-  //   const radiusKm = this.getRadiusForTier(raider.tier?.code ?? 'BRONZE');
+    //  TODO:NEED CHECK ELITE DRIVER (INVITATION)
+    const hasHistory = raider.completed_orders > 0;
 
-  //   let filteredOrders = allOrders;
+    // ── Performance check — return empty feed with warnings instead of throwing ──
+    const performanceWarnings: string[] = [];
+    if (hasHistory && raider.isPremium) {  // TODO: use  !isPremium
+      if (raiderRating < minRating) {
+        performanceWarnings.push(
+          `Your rating (${raiderRating}) is below the minimum required (${minRating}) for your tier.`,
+        );
+      }
+      if (completionRate < minCompletionRate) {
+        performanceWarnings.push(
+          `Your completion rate (${completionRate}%) is below the minimum required (${minCompletionRate}%).`,
+        );
+      }
+      if (cancellationRate > maxCancellationRate) {
+        performanceWarnings.push(
+          `Your cancellation rate (${cancellationRate}%) exceeds the maximum allowed (${maxCancellationRate}%).`,
+        );
+      }
+    }
 
-  //   if (raider.locations) {
-  //     const raiderLat = Number(raider.locations.latitude);
-  //     const raiderLng = Number(raider.locations.longitude);
+    if (performanceWarnings.length > 0) {
+      return {
+        data: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+        raiderInfo: {
+          tier: raider.tier?.name ?? 'BRONZE',
+          tierCode: raider.tier?.code ?? 'BRONZE',
+          radiusKm: this.getRadiusForTier(raider.tier?.code ?? 'BRONZE'),
+          avgRating: raiderRating,
+          completionRate,
+          cancellationRate,
+          completedOrders: raider.completed_orders,
+          isExpressEligible: false,
+          expressWarning: null,
+          performanceWarnings,
+        },
+      };
+    }
 
-  //     filteredOrders = allOrders.filter((order) => {
-  //       // Use pickup stop (sequence 1) for distance check
-  //       const pickup = order.orderStops.find((s) => s.type === StopType.PICKUP);
-  //       if (!pickup) return false;
+    const isExpressEligible = raiderRating >= 4.5;
+    const expressWarning = !isExpressEligible
+      ? `Express orders require a 4.5+ rating. Your current rating is ${raiderRating}. Express orders will appear lower in your feed until you reach 4.5.`
+      : null;
 
-  //       const dist = haversineDistance(
-  //         raiderLat,
-  //         raiderLng,
-  //         pickup.latitude,
-  //         pickup.longitude,
-  //       );
+    const allOrders = await this.prisma.order.findMany({
+      where: {
+        order_status: OrderStatus.PENDING,
+        is_placed: true,
+        assign_rider_id: null,
+        NOT: {
+          declines: {
+            some: { raiderId: raider.id },
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+      include: {
+        user: {
+          select: { id: true, username: true, image: true, phone: true },
+        },
+        vehicle: true,
+        delivery_type: {
+          select: { id: true, name: true },
+        },
+        orderStops: {
+          orderBy: { sequence: 'asc' },
+          select: {
+            id: true,
+            type: true,
+            address: true,
+            latitude: true,
+            longitude: true,
+            sequence: true,
+            calculated_price: true,
+            calculated_distance: true,
+            calculated_time: true,
+            calculated_time_txt: true,
+            payment: {
+              select: { amount: true, payType: true, status: true },
+            },
+          },
+        },
+      },
+    });
 
-  //       return dist <= radiusKm;
-  //     });
-  //   }
+    const radiusKm = this.getRadiusForTier(raider.tier?.code ?? 'BRONZE');
+    const raiderLat = Number(raider.locations.latitude);
+    const raiderLng = Number(raider.locations.longitude);
 
-  //   // ── Score each order for this raider ──
-  //   const scored = filteredOrders.map((order) => {
-  //     const pickup = order.orderStops.find((s) => s.type === StopType.PICKUP);
-  //     const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
+    const filteredOrders = allOrders.filter((order) => {
+      const pickup = order.orderStops.find((s) => s.type === StopType.PICKUP);
+      if (!pickup) return false;
+      return haversineDistance(raiderLat, raiderLng, pickup.latitude, pickup.longitude) <= radiusKm;
+    });
 
-  //     // Distance from raider to pickup
-  //     let raiderToPickupKm = 0;
-  //     if (raider.locations && pickup) {
-  //       raiderToPickupKm = haversineDistance(
-  //         Number(raider.locations.latitude),
-  //         Number(raider.locations.longitude),
-  //         pickup.latitude,
-  //         pickup.longitude,
-  //       );
-  //     }
+    const scored = filteredOrders.map((order) => {
+      const pickup = order.orderStops.find((s) => s.type === StopType.PICKUP);
+      const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
 
-  //     const score = this.scoreOrderForRaider(order, raider);
+      const raiderToPickupKm = pickup
+        ? haversineDistance(raiderLat, raiderLng, pickup.latitude, pickup.longitude)
+        : 0;
 
-  //     return {
-  //       ...order,
-  //       // Attach useful computed fields for client
-  //       feedMeta: {
-  //         raiderToPickupKm: Number(raiderToPickupKm.toFixed(2)),
-  //         dropCount: dropStops.length,
-  //         totalTimeMin: dropStops.reduce(
-  //           (sum, s) => sum + Number(s.calculated_time ?? 0), 0,
-  //         ),
-  //         deliveryType: order.delivery_type?.name ?? '',
-  //         isExpressBoosted:
-  //           order.delivery_type?.name?.toUpperCase() === 'EXPRESS' && isExpressEligible,
-  //       },
-  //       _score: score,
-  //     };
-  //   });
+      return {
+        ...order,
+        feedMeta: {
+          raiderToPickupKm: Number(raiderToPickupKm.toFixed(2)),
+          dropCount: dropStops.length,
+          totalTimeMin: dropStops.reduce((sum, s) => sum + Number(s.calculated_time ?? 0), 0),
+          deliveryType: order.delivery_type?.name ?? '',
+          isExpressBoosted:
+            order.delivery_type?.name?.toUpperCase() === 'EXPRESS' && isExpressEligible,
+        },
+        _score: this.scoreOrderForRaider(order, raider),
+      };
+    });
 
-  //   // ── Sort by score descending ──
-  //   scored.sort((a, b) => b._score - a._score);
+    scored.sort((a, b) => b._score - a._score);
 
-  //   // ── Paginate after filter + sort ──
-  //   const total = scored.length;
-  //   const paginated = scored.slice(skip, skip + limit);
+    const total = scored.length;
+    const paginated = scored.slice(skip, skip + limit);
+    const data = paginated.map(({ _score, ...order }) => order);
 
-  //   // ── Strip internal _score from response ──
-  //   const data = paginated.map(({ _score, ...order }) => order);
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      raiderInfo: {
+        tier: raider.tier?.name ?? 'BRONZE',
+        tierCode: raider.tier?.code ?? 'BRONZE',
+        radiusKm,
+        avgRating: raiderRating,
+        completionRate,
+        cancellationRate,
+        completedOrders: raider.completed_orders,
+        isExpressEligible,
+        expressWarning,
+        performanceWarnings: [],
+      },
+    };
+  }
 
-  //   return {
-  //     data,
-  //     total,
-  //     page,
-  //     limit,
-  //     totalPages: Math.ceil(total / limit),
-  //     raiderInfo: {
-  //       tier: raider.tier?.name ?? 'BRONZE',
-  //       tierCode: raider.tier?.code ?? 'BRONZE',
-  //       radiusKm,
-  //       avgRating: raiderRating,
-  //       completionRate,
-  //       cancellationRate,
-  //       completedOrders: raider.completed_orders,
-  //       isExpressEligible,
-  //       expressWarning,
-  //     },
-  //   };
-  // }
+
+
 
   // ── Radius per tier ──
   private getRadiusForTier(tierCode: string): number {
     const radiusMap: Record<string, number> = {
-      BRONZE: 5,
-      SILVER: 8,
-      GOLD: 12,
-      PLATINUM: 20,
+      BRONZE: 5000000000000,
+      SILVER: 8000000000000,
+      GOLD: 12000000000000,
+      PLATINUM: 20000000000000,
     };
     return radiusMap[tierCode] ?? 5;
   }

@@ -24,278 +24,139 @@ export class UsersService {
   ) { }
 
 
-  // ** Create new user // signup with otp verify
-  // async createUser(dto: {
-  //   email?: string;
-  //   password?: string;
-  //   username?: string;
-  //   phone: string,
-  //   referral_code?: string,
-  //   role_name: string
-  // }) {
-  //   // Pre-transaction validations (same as before)
-  //   if (dto.role_name === UserRole.ADMIN) {
-  //     throw new NotAcceptableException("You can't create superadmin or admin by general login");
-  //   }
-
-  //   const role = await this.prisma.role.findFirst({
-  //     where: { name: dto.role_name }
-  //   });
-
-  //   if (!role) {
-  //     throw new NotFoundException("Role not found");
-  //   }
-
-  //   let referredByUser;
-  //   if (dto.referral_code) {
-  //     referredByUser = await this.prisma.user.findUnique({
-  //       where: { referral_code: dto.referral_code }
-  //     });
-
-  //     if (!referredByUser) {
-  //       throw new BadRequestException('Invalid referral code');
-  //     }
-  //   }
-
-  //   const existing = await this.prisma.user.findFirst({
-  //     where: {
-  //       OR: [
-  //         { email: dto.email },
-  //         { phone: dto.phone }
-  //       ]
-  //     }
-  //   });
-
-  //   if (existing) {
-  //     throw new ConflictException('User already exists by this email or phone');
-  //   }
-  //   // 
-  //   const existingUsername = await this.prisma.user.findFirst({
-  //     where: {
-  //       OR: [
-  //         { username: dto.username }
-  //       ]
-  //     }
-  //   });
-
-  //   if (existingUsername) {
-  //     throw new ConflictException('User name already taken');
-  //   }
-  //   let hashed: string | undefined = undefined;
-  //   if (dto.password) {
-  //     const salt = Number(process.env.SALT_ROUNDS ?? 10);
-  //     hashed = await bcrypt.hash(dto.password, salt);
-  //   }
-
-  //   const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
-
-  //   const coin = await this.prisma.coin.findFirst({
-  //     where: { key: CoinEvent.FIRST_SIGNUP }
-  //   });
-
-  //   // Transaction
-  //   const result = await this.prisma.$transaction(async (tx) => {
-  //     const user = await tx.user.create({
-  //       data: {
-  //         email: dto.email,
-  //         username: dto.username!,
-  //         phone: dto.phone,
-  //         password: hashed,
-  //         referral_code: code,
-  //         referral_link: link,
-  //         is_acc_refered: dto.referral_code ? true : false,
-  //         roles: {
-  //           connect: {
-  //             id: role.id,
-  //           }
-  //         }
-  //       },
-  //     });
-
-  //     const coinUtils = new CoinUtils(tx as any);
-  //     await coinUtils.earnCoin(
-  //       user.id,
-  //       coin ? Number(coin.coin_amount) : 0,
-  //       CoinEvent.FIRST_SIGNUP
-  //     );
-
-  //     if (dto.referral_code) {
-  //       await tx.refer.create({
-  //         data: {
-  //           refer_code: dto.referral_code,
-  //           user_id: user.id
-  //         }
-  //       });
-  //     }
-
-  //     if (role.name === UserRole.RAIDER) {
-  //       await tx.raider.create({
-  //         data: { userId: user.id }
-  //       });
-  //     }
-
-  //     return user;
-  //   });
-
-  //   // Generate OTP
-  //   const otp = await this.otpService.generateOtp(result.email, result.phone);
-  //   // Queue welcome email
-  //   if (result.email) {
-  //     await this.emailQueueService.queueWelcomeEmail({
-  //       userId: result.id,
-  //       email: result.email,
-  //       username: result.username ?? undefined,
-  //       referralCode: result.referral_code ?? undefined,
-  //     });
-  //   }
-
-  //   // Queue push notification
-  //   if (result.fcmToken) {
-  //     await this.emailQueueService.queuePushNotification({
-  //       userId: result.id,
-  //       fcmToken: result.fcmToken,
-  //       title: 'Welcome to Zipbee!',
-  //       body: `Hello ${result.username ?? 'User'}, welcome to Zipbee!`,
-  //     });
-  //   }
-
-  //   return { otp };
-
-  // }
-
-
+  // 
   async createUser(dto: {
-      email?: string;
-      password?: string;
-      username?: string;
-      phone: string;
-      referral_code?: string;
-      role_name: string;
-    }) {
-      // 
-      if (dto.role_name === UserRole.ADMIN) {
-        throw new NotAcceptableException("Cannot create admin via public signup");
-      }
-      // 
-      const role = await this.prisma.role.findFirst({
-        where: { name: dto.role_name },
-      });
-      if (!role) throw new NotFoundException('Role not found');
+    email?: string;
+    password?: string;
+    username?: string;
+    phone: string;
+    referral_code?: string;
+    role_name: string;
+  }) {
+    // 
+    if (dto.role_name === UserRole.ADMIN) {
+      throw new NotAcceptableException("Cannot create admin via public signup");
+    }
+    // 
+    const role = await this.prisma.role.findFirst({
+      where: { name: dto.role_name },
+    });
+    if (!role) throw new NotFoundException('Role not found');
 
-      let referredByUser: User | null = null;
-      if (dto.referral_code) {
-        referredByUser = await this.prisma.user.findUnique({
-          where: { referral_code: dto.referral_code },
-        });
-        if (!referredByUser) throw new BadRequestException('Invalid referral code');
-      }
-      // 
-      const existing = await this.prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: dto.email },
-            { phone: dto.phone },
-          ],
+    let referredByUser: User | null = null;
+    if (dto.referral_code) {
+      referredByUser = await this.prisma.user.findUnique({
+        where: { referral_code: dto.referral_code },
+      });
+      if (!referredByUser) throw new BadRequestException('Invalid referral code');
+    }
+    // 
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: dto.email },
+          { phone: dto.phone },
+        ],
+      },
+    });
+    if (existing) throw new ConflictException('Email or phone already registered');
+
+    // ── Duplicate username check ──
+    if (dto.username) {
+      const takenUsername = await this.prisma.user.findFirst({
+        where: { username: dto.username },
+      });
+      if (takenUsername) throw new ConflictException('Username already taken');
+    }
+    // 
+    let hashed: string | undefined;
+    if (dto.password) {
+      const salt = Number(process.env.SALT_ROUNDS ?? 10);
+      hashed = await bcrypt.hash(dto.password, salt);
+    }
+
+    // ── Referral code generation ──
+    const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
+    // 
+    const [signupCoin, referralCoin] = await Promise.all([
+      this.prisma.coin.findFirst({ where: { key: CoinEvent.FIRST_SIGNUP, is_active: true } }),
+      this.prisma.coin.findFirst({ where: { key: CoinEvent.REFERRAL, is_active: true } }),
+    ]);
+
+    // ── Transaction ──
+    const result = await this.prisma.$transaction(async (tx) => {
+
+      const user = await tx.user.create({
+        data: {
+          email: dto.email,
+          username: dto.username!,
+          phone: dto.phone,
+          password: hashed,
+          referral_code: code,
+          referral_link: link,
+          is_acc_refered: !!dto.referral_code,
+          roles: { connect: { id: role.id } },
         },
       });
-      if (existing) throw new ConflictException('Email or phone already registered');
 
-      // ── Duplicate username check ──
-      if (dto.username) {
-        const takenUsername = await this.prisma.user.findFirst({
-          where: { username: dto.username },
-        });
-        if (takenUsername) throw new ConflictException('Username already taken');
-      }
-      // 
-      let hashed: string | undefined;
-      if (dto.password) {
-        const salt = Number(process.env.SALT_ROUNDS ?? 10);
-        hashed = await bcrypt.hash(dto.password, salt);
+      const coinUtils = new CoinUtils(tx as any);
+
+      if (signupCoin) {
+        await coinUtils.earnCoin(
+          user.id,
+          Number(signupCoin.coin_amount),
+          CoinEvent.FIRST_SIGNUP,
+        );
       }
 
-      // ── Referral code generation ──
-      const { code, link } = ReferralUtils.generateReferral(process.env.BASE_URL as string);
-      // 
-      const [signupCoin, referralCoin] = await Promise.all([
-        this.prisma.coin.findFirst({ where: { key: CoinEvent.FIRST_SIGNUP, is_active: true } }),
-        this.prisma.coin.findFirst({ where: { key: CoinEvent.REFERRAL,     is_active: true } }),
-      ]);
-
-      // ── Transaction ──
-      const result = await this.prisma.$transaction(async (tx) => {
-
-        const user = await tx.user.create({
+      if (referredByUser && referralCoin) {
+        await tx.refer.create({
           data: {
-            email:          dto.email,
-            username:       dto.username!,
-            phone:          dto.phone,
-            password:       hashed,
-            referral_code:  code,
-            referral_link:  link,
-            is_acc_refered: !!dto.referral_code,
-            roles: { connect: { id: role.id } },
+            refer_code: dto.referral_code!,
+            user_id: user.id,
           },
         });
 
-        const coinUtils = new CoinUtils(tx as any);
+        await coinUtils.earnCoin(
+          referredByUser.id,
+          Number(referralCoin.coin_amount),
+          CoinEvent.REFERRAL,
+        );
+      }
 
-        if (signupCoin) {
-          await coinUtils.earnCoin(
-            user.id,
-            Number(signupCoin.coin_amount),
-            CoinEvent.FIRST_SIGNUP,
-          );
-        }
+      if (role.name === UserRole.RAIDER) {
+        await tx.raider.create({ data: { userId: user.id } });
+      }
 
-        if (referredByUser && referralCoin) {
-          await tx.refer.create({
-            data: {
-              refer_code: dto.referral_code!,
-              user_id:    user.id,
-            },
-          });
+      return user;
+    });
 
-          await coinUtils.earnCoin(
-            referredByUser.id,
-            Number(referralCoin.coin_amount),
-            CoinEvent.REFERRAL,
-          );
-        }
+    // ── OTP generation ──
+    const otp = await this.otpService.generateOtp(result.email, result.phone);
 
-        if (role.name === UserRole.RAIDER) {
-          await tx.raider.create({ data: { userId: user.id } });
-        }
-
-        return user;
+    // ── Welcome email ──
+    if (result.email) {
+      await this.emailQueueService.queueWelcomeEmail({
+        userId: result.id,
+        email: result.email,
+        username: result.username ?? undefined,
+        referralCode: result.referral_code ?? undefined,
       });
-
-      // ── OTP generation ──
-      const otp = await this.otpService.generateOtp(result.email, result.phone);
-
-      // ── Welcome email ──
-      if (result.email) {
-        await this.emailQueueService.queueWelcomeEmail({
-          userId:       result.id,
-          email:        result.email,
-          username:     result.username  ?? undefined,
-          referralCode: result.referral_code ?? undefined,
-        });
-      }
-
-      // ── Push notification ──
-      if (result.fcmToken) {
-        await this.emailQueueService.queuePushNotification({
-          userId:   result.id,
-          fcmToken: result.fcmToken,
-          type:     'ACCOUNT_UPDATE',
-          title:    'Welcome to Zipbee!',
-          body:     `Hello ${result.username ?? 'User'}, welcome to Zipbee!`,
-        });
-      }
-
-      return { otp };
     }
+
+    // ── Push notification ──
+    if (result.fcmToken) {
+      await this.emailQueueService.queuePushNotification({
+        userId: result.id,
+        fcmToken: result.fcmToken,
+        type: 'ACCOUNT_UPDATE',
+        title: 'Welcome to Zipbee!',
+        body: `Hello ${result.username ?? 'User'}, welcome to Zipbee!`,
+      });
+    }
+
+    return { otp };
+  }
 
 
   // 
@@ -483,172 +344,172 @@ export class UsersService {
   }
 
 
-    //  
+  //  
   async findAllWebPortalUsers(filterDto: UserFilterDto) {
 
-        const {
-          page = 1,
-          limit = 10,
-          status,
-          sortBy = 'created_at',
-          sortOrder = 'desc',
-          dateFilter,
-          search,
-        } = filterDto;
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      sortBy = 'created_at',
+      sortOrder = 'desc',
+      dateFilter,
+      search,
+    } = filterDto;
 
-        const skip = (page - 1) * limit;
-        const take = limit;
+    const skip = (page - 1) * limit;
+    const take = limit;
 
-        const where: any = {
-          regi_status: LoginType.ADMIN_SIGNIN,
-          // role:{
-          //    in:{
-          //      name:UserRole.USER
-          //    }
-          // }
-        };
+    const where: any = {
+      regi_status: LoginType.ADMIN_SIGNIN,
+      // role:{
+      //    in:{
+      //      name:UserRole.USER
+      //    }
+      // }
+    };
 
-        // ================= STATUS FILTER =================
-        if (status) {
-          if (status === UserStatusFilter.ACTIVE)
-            where.is_active = true;
+    // ================= STATUS FILTER =================
+    if (status) {
+      if (status === UserStatusFilter.ACTIVE)
+        where.is_active = true;
 
-          if (status === UserStatusFilter.VERIFIED)
-            where.is_verified = true;
+      if (status === UserStatusFilter.VERIFIED)
+        where.is_verified = true;
 
-          if (status === UserStatusFilter.DELETED)
-            where.is_deleted = true;
-        }
+      if (status === UserStatusFilter.DELETED)
+        where.is_deleted = true;
+    }
 
-        // ================= SEARCH =================
-        if (search) {
-          where.OR = [
-            {
-              username: {
-                contains: search,
-                mode: 'insensitive',
-              },
-            },
-            {
-              email: {
-                contains: search,
-                mode: 'insensitive',
-              },
-            },
-            {
-              phone: {
-                contains: search,
-                mode: 'insensitive',
-              },
-            },
-          ];
-        }
-
-        // ================= DATE FILTER =================
-        if (dateFilter) {
-          const now = new Date();
-
-          switch (dateFilter) {
-            case 'today':
-              where.created_at = {
-                gte: startOfDay(now),
-                lte: endOfDay(now),
-              };
-              break;
-
-            case 'yesterday':
-              where.created_at = {
-                gte: startOfDay(subDays(now, 1)),
-                lte: endOfDay(subDays(now, 1)),
-              };
-              break;
-
-            case 'last_7_days':
-              where.created_at = { gte: subDays(now, 7) };
-              break;
-
-            case 'last_30_days':
-              where.created_at = { gte: subDays(now, 30) };
-              break;
-
-            case 'last_month':
-              where.created_at = {
-                gte: startOfMonth(subMonths(now, 1)),
-                lte: endOfMonth(subMonths(now, 1)),
-              };
-              break;
-          }
-        }
-
-      // ================= SAFE SORTING =================
-      const allowedSortFields = [
-        'created_at',
-        'username',
-        'email',
-        'phone',
-        'is_active',
-        'is_verified',
+    // ================= SEARCH =================
+    if (search) {
+      where.OR = [
+        {
+          username: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          email: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          phone: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
       ];
+    }
 
-      const safeSortBy =
-        allowedSortFields.includes(sortBy)
-          ? sortBy
-          : 'created_at';
+    // ================= DATE FILTER =================
+    if (dateFilter) {
+      const now = new Date();
 
-      const safeSortOrder =
-        sortOrder === 'asc' ? 'asc' : 'desc';
+      switch (dateFilter) {
+        case 'today':
+          where.created_at = {
+            gte: startOfDay(now),
+            lte: endOfDay(now),
+          };
+          break;
 
-      // ================= FETCH USERS =================
-      const users = await this.prisma.user.findMany({
-        where,
-        skip,
-        take,
-        include: {
-          roles: true,
-        },
-        orderBy: {
-          [safeSortBy]: safeSortOrder,
-        },
-      });
+        case 'yesterday':
+          where.created_at = {
+            gte: startOfDay(subDays(now, 1)),
+            lte: endOfDay(subDays(now, 1)),
+          };
+          break;
 
-      const userIds = users.map(u => u.id);
+        case 'last_7_days':
+          where.created_at = { gte: subDays(now, 7) };
+          break;
 
-      // ================= ORDER AGGREGATION =================
-      const aggregated = await this.prisma.order.groupBy({
-        by: ['userId'],
-        where: { userId: { in: userIds },order_status:{notIn:[OrderStatus.PROGRESS]} },
-        _count: { id: true },
-        _sum: { total_cost: true },
-      });
+        case 'last_30_days':
+          where.created_at = { gte: subDays(now, 30) };
+          break;
 
-      const result = users.map(u => {
-        const stat = aggregated.find(a => a.userId === u.id);
+        case 'last_month':
+          where.created_at = {
+            gte: startOfMonth(subMonths(now, 1)),
+            lte: endOfMonth(subMonths(now, 1)),
+          };
+          break;
+      }
+    }
 
-        return {
-          id: u.id,
-          name: u.username,
-          contactNum: u.phone,
-          contactEmail: u.email,
-          totalOrders: stat?._count?.id ?? 0,
-          totalCost: stat?._sum?.total_cost ?? 0,
-          joiningDate: u.created_at,
-          activeStatus: u.is_active,
-          is_verified: u.is_verified,
-          is_deleted: u.is_deleted,
-          role: u.roles?.map(r => r.name) ?? [],
-          regi_status: u.regi_status,
-        };
-      });
+    // ================= SAFE SORTING =================
+    const allowedSortFields = [
+      'created_at',
+      'username',
+      'email',
+      'phone',
+      'is_active',
+      'is_verified',
+    ];
 
-      const total = await this.prisma.user.count({ where });
+    const safeSortBy =
+      allowedSortFields.includes(sortBy)
+        ? sortBy
+        : 'created_at';
+
+    const safeSortOrder =
+      sortOrder === 'asc' ? 'asc' : 'desc';
+
+    // ================= FETCH USERS =================
+    const users = await this.prisma.user.findMany({
+      where,
+      skip,
+      take,
+      include: {
+        roles: true,
+      },
+      orderBy: {
+        [safeSortBy]: safeSortOrder,
+      },
+    });
+
+    const userIds = users.map(u => u.id);
+
+    // ================= ORDER AGGREGATION =================
+    const aggregated = await this.prisma.order.groupBy({
+      by: ['userId'],
+      where: { userId: { in: userIds }, order_status: { notIn: [OrderStatus.PROGRESS] } },
+      _count: { id: true },
+      _sum: { total_cost: true },
+    });
+
+    const result = users.map(u => {
+      const stat = aggregated.find(a => a.userId === u.id);
 
       return {
-        page,
-        limit,
-        total,
-        data: result,
+        id: u.id,
+        name: u.username,
+        contactNum: u.phone,
+        contactEmail: u.email,
+        totalOrders: stat?._count?.id ?? 0,
+        totalCost: stat?._sum?.total_cost ?? 0,
+        joiningDate: u.created_at,
+        activeStatus: u.is_active,
+        is_verified: u.is_verified,
+        is_deleted: u.is_deleted,
+        role: u.roles?.map(r => r.name) ?? [],
+        regi_status: u.regi_status,
       };
-    }
+    });
+
+    const total = await this.prisma.user.count({ where });
+
+    return {
+      page,
+      limit,
+      total,
+      data: result,
+    };
+  }
 
 
 
@@ -798,145 +659,145 @@ export class UsersService {
   //   };
   // }
   //  find admin
- 
+
   // 
   async findAllOnlyUsers(filterDto: UserFilterDto) {
 
-        const {
-          page = 1,
-          limit = 10,
-          status,
-          sortBy = 'created_at',
-          sortOrder = 'desc',
-          dateFilter,
-          search,
-        } = filterDto;
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      sortBy = 'created_at',
+      sortOrder = 'desc',
+      dateFilter,
+      search,
+    } = filterDto;
 
-        const skip = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-        const where: any = {
-          roles: { some: { name: UserRole.USER } },
-          regi_status: LoginType.DIRECT_SIGNIN,
+    const where: any = {
+      roles: { some: { name: UserRole.USER } },
+      regi_status: LoginType.DIRECT_SIGNIN,
+    };
+
+    // ================= STATUS =================
+    if (status === UserStatusFilter.ACTIVE)
+      where.is_active = true;
+
+    if (status === UserStatusFilter.VERIFIED)
+      where.is_verified = true;
+
+    if (status === UserStatusFilter.DELETED)
+      where.is_deleted = true;
+
+    // ================= SEARCH =================
+    if (search) {
+      where.OR = [
+        { username: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    // ================= DATE =================
+    if (dateFilter) {
+      const now = new Date();
+
+      if (dateFilter === 'today')
+        where.created_at = {
+          gte: startOfDay(now),
+          lte: endOfDay(now),
         };
 
-        // ================= STATUS =================
-        if (status === UserStatusFilter.ACTIVE)
-          where.is_active = true;
+      if (dateFilter === 'last_7_days')
+        where.created_at = { gte: subDays(now, 7) };
 
-        if (status === UserStatusFilter.VERIFIED)
-          where.is_verified = true;
+      if (dateFilter === 'last_30_days')
+        where.created_at = { gte: subDays(now, 30) };
+    }
 
-        if (status === UserStatusFilter.DELETED)
-          where.is_deleted = true;
+    // ================= SAFE SORT =================
+    const allowedSortFields = [
+      'created_at',
+      'username',
+      'email',
+      'phone',
+      'is_active',
+      'is_verified',
+    ];
 
-        // ================= SEARCH =================
-        if (search) {
-          where.OR = [
-            { username: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-            { phone: { contains: search, mode: 'insensitive' } },
-          ];
-        }
+    const safeSortBy =
+      allowedSortFields.includes(sortBy)
+        ? sortBy
+        : 'created_at';
 
-        // ================= DATE =================
-        if (dateFilter) {
-          const now = new Date();
+    const safeSortOrder =
+      sortOrder === 'asc' ? 'asc' : 'desc';
 
-          if (dateFilter === 'today')
-            where.created_at = {
-              gte: startOfDay(now),
-              lte: endOfDay(now),
-            };
+    // ================= USERS =================
+    const users = await this.prisma.user.findMany({
+      where,
+      skip,
+      take: limit,
+      include: { roles: true },
+      orderBy: { [safeSortBy]: safeSortOrder },
+    });
 
-          if (dateFilter === 'last_7_days')
-            where.created_at = { gte: subDays(now, 7) };
+    const userIds = users.map(u => u.id);
 
-          if (dateFilter === 'last_30_days')
-            where.created_at = { gte: subDays(now, 30) };
-        }
+    // ================= ORDER STATS =================
+    const orderStats = await this.prisma.order.groupBy({
+      by: ['userId'],
+      where: {
+        userId: { in: userIds },
+        order_status: { notIn: [OrderStatus.PROGRESS] },
+      },
+      _count: { id: true },
+      _sum: { total_cost: true },
+    });
 
-        // ================= SAFE SORT =================
-        const allowedSortFields = [
-          'created_at',
-          'username',
-          'email',
-          'phone',
-          'is_active',
-          'is_verified',
-        ];
+    /**
+     * ✅ O(1) lookup instead of O(n²)
+     */
+    const statsMap = new Map(
+      orderStats.map(stat => [
+        stat.userId,
+        stat,
+      ]),
+    );
 
-        const safeSortBy =
-          allowedSortFields.includes(sortBy)
-            ? sortBy
-            : 'created_at';
+    // ================= RESPONSE =================
+    const data = users.map(u => {
+      const stat = statsMap.get(u.id);
 
-        const safeSortOrder =
-          sortOrder === 'asc' ? 'asc' : 'desc';
+      return {
+        id: u.id,
+        name: u.username,
+        contactNum: u.phone,
+        contactEmail: u.email,
+        totalOrders: stat?._count.id ?? 0,
+        totalCost: stat?._sum.total_cost ?? 0,
+        joiningDate: u.created_at,
+        activeStatus: u.is_active,
+        is_verified: u.is_verified,
+        is_deleted: u.is_deleted,
+        role: u.roles.map(r => r.name),
+        regi_status: u.regi_status,
+      };
+    });
 
-        // ================= USERS =================
-        const users = await this.prisma.user.findMany({
-          where,
-          skip,
-          take: limit,
-          include: { roles: true },
-          orderBy: { [safeSortBy]: safeSortOrder },
-        });
+    const total = await this.prisma.user.count({ where });
 
-        const userIds = users.map(u => u.id);
+    return {
+      page,
+      limit,
+      total,
+      data,
+    };
+  }
 
-        // ================= ORDER STATS =================
-        const orderStats = await this.prisma.order.groupBy({
-          by: ['userId'],
-          where: {
-            userId: { in: userIds },
-            order_status: { notIn: [OrderStatus.PROGRESS] },
-          },
-          _count: { id: true },
-          _sum: { total_cost: true },
-        });
 
-        /**
-         * ✅ O(1) lookup instead of O(n²)
-         */
-        const statsMap = new Map(
-          orderStats.map(stat => [
-            stat.userId,
-            stat,
-          ]),
-        );
 
-        // ================= RESPONSE =================
-        const data = users.map(u => {
-          const stat = statsMap.get(u.id);
-
-          return {
-            id: u.id,
-            name: u.username,
-            contactNum: u.phone,
-            contactEmail: u.email,
-            totalOrders: stat?._count.id ?? 0,
-            totalCost: stat?._sum.total_cost ?? 0,
-            joiningDate: u.created_at,
-            activeStatus: u.is_active,
-            is_verified: u.is_verified,
-            is_deleted: u.is_deleted,
-            role: u.roles.map(r => r.name),
-            regi_status: u.regi_status,
-          };
-        });
-
-        const total = await this.prisma.user.count({ where });
-
-        return {
-          page,
-          limit,
-          total,
-          data,
-        };
-      }
-
- 
- 
   async findAllAdminUsers() {
     const user = await this.prisma.user.findFirst({
       where: { email: process.env.SUPER_ADMIN_EMAIL, roles: { some: { name: UserRole.ADMIN } }, regi_status: LoginType.ADMIN_SIGNIN },
@@ -1061,10 +922,10 @@ export class UsersService {
           include: {
             registrations: true,
             tier: true,
-            raiderQuizzes:{
-               include:{
-                 raiderAnswers:true
-               }
+            raiderQuizzes: {
+              include: {
+                raiderAnswers: true
+              }
             }
           }
         },
@@ -1203,25 +1064,25 @@ export class UsersService {
         profile: {
           ...(user.profile
             ? {
-                update: {
-                  firstName,
-                  lastName,
-                  bank_account_num,
-                  bank_name,
-                  avatarUrl: updateUserDto.image,
-                  ...(dob && { dob: new Date(dob) }),
-                },
-              }
+              update: {
+                firstName,
+                lastName,
+                bank_account_num,
+                bank_name,
+                avatarUrl: updateUserDto.image,
+                ...(dob && { dob: new Date(dob) }),
+              },
+            }
             : {
-                create: {
-                  firstName,
-                  lastName,
-                  bank_account_num,
-                  bank_name,
-                  avatarUrl: updateUserDto.image,
-                  ...(dob && { dob: new Date(dob) }),
-                },
-              }),
+              create: {
+                firstName,
+                lastName,
+                bank_account_num,
+                bank_name,
+                avatarUrl: updateUserDto.image,
+                ...(dob && { dob: new Date(dob) }),
+              },
+            }),
         },
       },
       include: {
@@ -1271,125 +1132,125 @@ export class UsersService {
 
   // ** Update user active status
   async activeStatusChange(id: number, userId: number) {
-  if (!id) throw new NotFoundException("User id not found");
+    if (!id) throw new NotFoundException("User id not found");
 
-  const user = await this.prisma.user.findUnique({ where: { id } });
-  if (!user) throw new NotFoundException('User not found');
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
 
-  const updated = await this.prisma.user.update({
-    where: { id },
-    data: { is_active: !user.is_active },
-  });
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: { is_active: !user.is_active },
+    });
 
-  // LOG
-  await this.prisma.activityLog.create({
-    data: {
-      action: 'UPDATE',
-      entity_type: 'User',
-      entity_id: id,
-      user_id: userId,
-      meta: {
-        before: { is_active: user.is_active },
-        after: { is_active: updated.is_active },
-        change: 'status_toggle',
+    // LOG
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'UPDATE',
+        entity_type: 'User',
+        entity_id: id,
+        user_id: userId,
+        meta: {
+          before: { is_active: user.is_active },
+          after: { is_active: updated.is_active },
+          change: 'status_toggle',
+        },
       },
-    },
-  });
+    });
 
-  return updated;
-}
+    return updated;
+  }
 
 
 
   // ** Soft delete user
   async softDeleteMultiple(ids: number[], userId: number) {
-      if (!ids || ids.length === 0) {
-        throw new BadRequestException("No user IDs provided");
-      }
-
-      const users = await this.prisma.user.findMany({
-        where: { id: { in: ids } },
-      });
-
-      if (users.length === 0) {
-        throw new NotFoundException("No users found for given IDs");
-      }
-
-      const result = await this.prisma.user.updateMany({
-        where: { id: { in: ids } },
-        data: {
-          is_deleted: true,
-          is_active: false,
-          is_verified: false,
-          refresh_token: null,
-        },
-      });
-
-      // LOG
-      await this.prisma.activityLog.create({
-        data: {
-          action: 'DELETE',
-          entity_type: 'User',
-          entity_id: 0, // multiple → use 0 or special marker
-          user_id: userId,
-          meta: {
-            type: 'soft_delete_multiple',
-            affected_ids: ids,
-            count: result.count,
-          },
-        },
-      });
-
-      return result;
+    if (!ids || ids.length === 0) {
+      throw new BadRequestException("No user IDs provided");
     }
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: ids } },
+    });
+
+    if (users.length === 0) {
+      throw new NotFoundException("No users found for given IDs");
+    }
+
+    const result = await this.prisma.user.updateMany({
+      where: { id: { in: ids } },
+      data: {
+        is_deleted: true,
+        is_active: false,
+        is_verified: false,
+        refresh_token: null,
+      },
+    });
+
+    // LOG
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'DELETE',
+        entity_type: 'User',
+        entity_id: 0, // multiple → use 0 or special marker
+        user_id: userId,
+        meta: {
+          type: 'soft_delete_multiple',
+          affected_ids: ids,
+          count: result.count,
+        },
+      },
+    });
+
+    return result;
+  }
 
 
   // permanent remove user
-   async deleteMultiple(ids: number[], userId: number) {
-      if (!ids || ids.length === 0) {
-        throw new BadRequestException("No user IDs provided");
-      }
-
-      const users = await this.prisma.user.findMany({
-        where: { id: { in: ids } },
-      });
-
-      const admin = await this.prisma.user.findFirst({
-        where: {
-          id: { in: ids },
-          roles: { some: { name: UserRole.ADMIN } },
-        },
-      });
-
-      if (admin) {
-        throw new BadRequestException("Admin cannot be deleted");
-      }
-
-      if (users.length === 0) {
-        throw new NotFoundException("No users found for given IDs");
-      }
-
-      const result = await this.prisma.user.deleteMany({
-        where: { id: { in: ids } },
-      });
-
-      // LOG
-      await this.prisma.activityLog.create({
-        data: {
-          action: 'DELETE',
-          entity_type: 'User',
-          entity_id: 0,
-          user_id: userId,
-          meta: {
-            type: 'permanent_delete_multiple',
-            deleted_ids: ids,
-            count: result.count,
-          },
-        },
-      });
-
-      return result;
+  async deleteMultiple(ids: number[], userId: number) {
+    if (!ids || ids.length === 0) {
+      throw new BadRequestException("No user IDs provided");
     }
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: ids } },
+    });
+
+    const admin = await this.prisma.user.findFirst({
+      where: {
+        id: { in: ids },
+        roles: { some: { name: UserRole.ADMIN } },
+      },
+    });
+
+    if (admin) {
+      throw new BadRequestException("Admin cannot be deleted");
+    }
+
+    if (users.length === 0) {
+      throw new NotFoundException("No users found for given IDs");
+    }
+
+    const result = await this.prisma.user.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    // LOG
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'DELETE',
+        entity_type: 'User',
+        entity_id: 0,
+        user_id: userId,
+        meta: {
+          type: 'permanent_delete_multiple',
+          deleted_ids: ids,
+          count: result.count,
+        },
+      },
+    });
+
+    return result;
+  }
 
 
 
@@ -1521,122 +1382,122 @@ export class UsersService {
   //     return { user };
   //   });
   // }
-  
-  async adminCreateUser(dto: CreateUserDto, userId: number) {
-      return this.prisma.$transaction(async (tx) => {
 
-        const roleNames = dto.custom_role_name?.length
-          ? dto.custom_role_name
-          : dto.role_name
+  async adminCreateUser(dto: CreateUserDto, userId: number) {
+    return this.prisma.$transaction(async (tx) => {
+
+      const roleNames = dto.custom_role_name?.length
+        ? dto.custom_role_name
+        : dto.role_name
           ? [dto.role_name]
           : [];
 
-        const uniqueRoleNames = [...new Set(roleNames)];
+      const uniqueRoleNames = [...new Set(roleNames)];
 
-        let existingRoles = await tx.role.findMany({
+      let existingRoles = await tx.role.findMany({
+        where: { name: { in: uniqueRoleNames } },
+      });
+
+      const existingNames = new Set(existingRoles.map(r => r.name));
+      const missingNames = uniqueRoleNames.filter(name => !existingNames.has(name));
+
+      if (missingNames.length > 0) {
+        await tx.role.createMany({
+          data: missingNames.map(name => ({ name })),
+          skipDuplicates: true,
+        });
+
+        existingRoles = await tx.role.findMany({
           where: { name: { in: uniqueRoleNames } },
         });
+      }
 
-        const existingNames = new Set(existingRoles.map(r => r.name));
-        const missingNames = uniqueRoleNames.filter(name => !existingNames.has(name));
+      const userExists = await tx.user.findFirst({
+        where: {
+          OR: [{ email: dto.email }, { phone: dto.phone }],
+        },
+      });
 
-        if (missingNames.length > 0) {
-          await tx.role.createMany({
-            data: missingNames.map(name => ({ name })),
-            skipDuplicates: true,
-          });
+      if (userExists) {
+        throw new ConflictException('User already exists');
+      }
 
-          existingRoles = await tx.role.findMany({
-            where: { name: { in: uniqueRoleNames } },
-          });
-        }
+      const hashedPass = await bcrypt.hash(
+        dto.password!,
+        Number(process.env.SALT_ROUNDS ?? 10),
+      );
 
-        const userExists = await tx.user.findFirst({
-          where: {
-            OR: [{ email: dto.email }, { phone: dto.phone }],
+      const coin = await tx.coin.findFirst({
+        where: { key: CoinEvent.FIRST_SIGNUP },
+      });
+
+      const user = await tx.user.create({
+        data: {
+          username: dto.username!,
+          email: dto.email,
+          phone: dto.phone,
+          password: hashedPass,
+          image: dto.image,
+          is_verified: true,
+          is_active: true,
+          regi_status: LoginType.ADMIN_SIGNIN,
+          total_coin_acc: Number(coin?.coin_amount) || 0,
+          current_coin_balance: Number(coin?.coin_amount) || 0,
+          roles: {
+            connect: existingRoles.map(r => ({ id: r.id })),
           },
-        });
+        },
+        include: { roles: true },
+      });
 
-        if (userExists) {
-          throw new ConflictException('User already exists');
-        }
+      await tx.coinHistory.create({
+        data: {
+          userId: user.id,
+          type: CoinHistoryType.ACCUMULATION,
+          role_triggered: CoinEvent.FIRST_SIGNUP,
+          coin_acc_amount: Number(coin?.coin_amount) || 0,
+        },
+      });
 
-        const hashedPass = await bcrypt.hash(
-          dto.password!,
-          Number(process.env.SALT_ROUNDS ?? 10),
-        );
-
-        const coin = await tx.coin.findFirst({
-          where: { key: CoinEvent.FIRST_SIGNUP },
-        });
-
-        const user = await tx.user.create({
-          data: {
-            username: dto.username!,
-            email: dto.email,
-            phone: dto.phone,
-            password: hashedPass,
-            image: dto.image,
-            is_verified: true,
-            is_active: true,
-            regi_status: LoginType.ADMIN_SIGNIN,
-            total_coin_acc: Number(coin?.coin_amount) || 0,
-            current_coin_balance: Number(coin?.coin_amount) || 0,
-            roles: {
-              connect: existingRoles.map(r => ({ id: r.id })),
+      // LOG (INSIDE TX)
+      await tx.activityLog.create({
+        data: {
+          action: 'CREATE',
+          entity_type: 'User',
+          entity_id: user.id,
+          user_id: userId,
+          meta: {
+            data: {
+              id: user.id,
+              email: user.email,
+              roles: user.roles.map(r => r.name),
             },
           },
-          include: { roles: true },
-        });
+        },
+      });
 
-        await tx.coinHistory.create({
+      const keys = roleNames.filter(
+        r => r !== UserRole.USER && r !== UserRole.RAIDER
+      );
+
+      if (keys.length > 0) {
+        const adminProfile = await tx.admin.create({
           data: {
             userId: user.id,
-            type: CoinHistoryType.ACCUMULATION,
-            role_triggered: CoinEvent.FIRST_SIGNUP,
-            coin_acc_amount: Number(coin?.coin_amount) || 0,
+            first_name: dto.username,
+            email: dto.email,
+            phone_number: dto.phone,
+            password: hashedPass,
+            role_id: user.roles[0].id,
           },
         });
 
-        // LOG (INSIDE TX)
-        await tx.activityLog.create({
-          data: {
-            action: 'CREATE',
-            entity_type: 'User',
-            entity_id: user.id,
-            user_id: userId,
-            meta: {
-              data: {
-                id: user.id,
-                email: user.email,
-                roles: user.roles.map(r => r.name),
-              },
-            },
-          },
-        });
+        return adminProfile;
+      }
 
-        const keys = roleNames.filter(
-          r => r !== UserRole.USER && r !== UserRole.RAIDER
-        );
-
-        if (keys.length > 0) {
-          const adminProfile = await tx.admin.create({
-            data: {
-              userId: user.id,
-              first_name: dto.username,
-              email: dto.email,
-              phone_number: dto.phone,
-              password: hashedPass,
-              role_id: user.roles[0].id,
-            },
-          });
-
-          return adminProfile;
-        }
-
-        return { user };
-      });
-    }
+      return { user };
+    });
+  }
   async checkUsername(username: string) {
     const normalized = username.toLowerCase();
 
