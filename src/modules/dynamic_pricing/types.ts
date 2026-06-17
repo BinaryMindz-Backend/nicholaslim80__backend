@@ -8,7 +8,7 @@ export interface LatLng {
   lng: number;
 }
 
-export interface Receiver extends LatLng {}
+export interface Receiver extends LatLng { }
 
 export interface ReceiverWithPricing extends Receiver {
   distanceKm: number;
@@ -18,21 +18,22 @@ export interface ReceiverWithPricing extends Receiver {
 export interface PricingBreakdown {
   basePrice: number;
   deliveryTypeCharge: number;
+  deliveryTypeSurge: number;
   userFeeTotal: number;
   zoneFee: number;
   surgeAmount: number;
-  surgeMultiplier: number;    
+  surgeMultiplier: number;
   totalFee: number;
   totalPrice: number;
   distance?: number;
   distanceKm?: number;
-  min?:       number; 
-  min_text?:   string;
+  min?: number;
+  min_text?: string;
   isRoundTrip?: boolean;
   returnFactor?: number;
-    // Driver & Platform breakdown
-  raiderEarnings: number;   
-  platformFee: number; 
+  // Driver & Platform breakdown
+  raiderEarnings: number;
+  platformFee: number;
 }
 
 export interface RouteOptions {

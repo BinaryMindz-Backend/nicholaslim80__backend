@@ -1850,6 +1850,212 @@ export class OrderService {
   }
 
   // bulk order mark as pending
+  // async markOrdersAsPending(userId: number, dto: UpdatePendingOrdersDto) {
+  //   const { orderIds } = dto;
+
+  //   if (!orderIds?.length) {
+  //     throw new BadRequestException('Order IDs are required');
+  //   }
+
+  //   const user = await this.prisma.user.findUnique({
+  //     where: { id: userId },
+  //     select: {
+  //       id: true,
+  //       email: true,
+  //       username: true,
+  //       fcmToken: true,
+  //       currentWalletBalance: true,
+  //     },
+  //   });
+
+  //   if (!user) throw new NotFoundException('User not found');
+
+  //   /* ---------------- VALIDATE ORDERS ---------------- */
+  //   const orders = await this.prisma.order.findMany({
+  //     where: {
+  //       id: { in: orderIds },
+  //       userId,
+  //       isBulk: true,
+  //       order_status: OrderStatus.PROGRESS,
+  //     },
+  //     include: {
+  //       orderStops: {
+  //         include: { payment: true },
+  //         orderBy: { sequence: 'asc' },
+  //       },
+  //     },
+  //   });
+
+  //   if (orders.length !== orderIds.length) {
+  //     const foundIds = orders.map(o => o.id);
+  //     const missing = orderIds.filter(id => !foundIds.includes(id));
+  //     throw new NotFoundException(`Orders not found: ${missing.join(', ')}`);
+  //   }
+
+  //   const totalAmount = orders.reduce((sum, o) => sum + Number(o.total_cost), 0);
+
+  //   /* ---------------- TRANSACTION ---------------- */
+  //   const result = await this.prisma.$transaction(async (tx) => {
+  //     const payType = dto.paymentMethod || PayType.COD;
+  //     const codCollectFrom = dto.codCollectFrom || 'RECEIVER';
+
+  //     /* ---------------- UPFRONT PAYMENT (WALLET/ONLINE) ---------------- */
+  //     if (dto.payType === PaymentType.PAYMENT) {
+  //       if (dto.paymentMethod === PayType.ONLINE_PAY) {
+  //         if (!dto.stripePaymentMethodId) {
+  //           throw new BadRequestException('Stripe payment method required');
+  //         }
+
+  //         const paid = await this.walletService.addMoney(
+  //           userId,
+  //           totalAmount,
+  //           dto.stripePaymentMethodId,
+  //           dto.payType,
+  //         );
+
+  //         if (!paid) throw new BadRequestException('Online payment failed');
+  //       }
+
+  //       if (dto.paymentMethod === PayType.WALLET) {
+  //         if (Number(user.currentWalletBalance) < totalAmount) {
+  //           throw new BadRequestException('Insufficient wallet balance');
+  //         }
+
+  //         await tx.user.update({
+  //           where: { id: userId },
+  //           data: { currentWalletBalance: { decrement: totalAmount } },
+  //         });
+  //       }
+
+  //       // Mark all stops as PAID for WALLET/ONLINE
+  //       const allStopIds = orders.flatMap(o => o.orderStops.map(s => s.id));
+  //       await tx.stopPayment.updateMany({
+  //         where: { orderStopId: { in: allStopIds } },
+  //         data: {
+  //           payType: dto.paymentMethod,
+  //           status: PaymentStatus.PAID,
+  //           amount: 0,
+  //         },
+  //       });
+  //     }
+
+  //     /* ---------------- COD PAYMENT SETUP ---------------- */
+  //     if (payType === PayType.COD) {
+  //       for (const order of orders) {
+  //         const pickupStop = order.orderStops.find(s => s.type === StopType.PICKUP);
+  //         const dropStops = order.orderStops.filter(s => s.type === StopType.DROP);
+
+  //         if (codCollectFrom === 'SENDER') {
+  //           // Sender pays at pickup
+  //           if (pickupStop) {
+  //             await tx.stopPayment.update({
+  //               where: { orderStopId: pickupStop.id },
+  //               data: {
+  //                 amount: Number(order.total_cost),
+  //                 payType: PayType.COD,
+  //                 status: PaymentStatus.UNPAID,
+  //               },
+  //             });
+  //           }
+
+  //           // Receivers pay nothing
+  //           for (const drop of dropStops) {
+  //             await tx.stopPayment.update({
+  //               where: { orderStopId: drop.id },
+  //               data: { amount: 0, status: PaymentStatus.PAID },
+  //             });
+  //           }
+  //         } else {
+  //           // Each receiver pays
+  //           const perDropAmount = Number(order.total_cost) / dropStops.length;
+
+  //           // Sender pays nothing
+  //           if (pickupStop) {
+  //             await tx.stopPayment.update({
+  //               where: { orderStopId: pickupStop.id },
+  //               data: { amount: 0, status: PaymentStatus.PAID },
+  //             });
+  //           }
+
+  //           // Each receiver pays their share
+  //           for (const drop of dropStops) {
+  //             await tx.stopPayment.update({
+  //               where: { orderStopId: drop.id },
+  //               data: {
+  //                 amount: perDropAmount,
+  //                 payType: PayType.COD,
+  //                 status: PaymentStatus.UNPAID,
+  //               },
+  //             });
+  //           }
+  //         }
+  //       }
+  //     }
+
+  //     /* ---------------- UPDATE ORDERS ---------------- */
+  //     const updateResult = await tx.order.updateMany({
+  //       where: {
+  //         id: { in: orderIds },
+  //         userId,
+  //         isBulk: true,
+  //       },
+  //       data: {
+  //         order_status: OrderStatus.PENDING,
+  //         is_placed: true,
+  //         pay_type: payType,
+  //       },
+  //     });
+
+  //     if (updateResult.count !== orderIds.length) {
+  //       throw new ConflictException('Some orders could not be updated');
+  //     }
+
+  //     /* ---------------- UPDATE TRANSACTIONS ---------------- */
+  //     await tx.transaction.updateMany({
+  //       where: { orderId: { in: orderIds } },
+  //       data: {
+  //         tx_status: TransactionStatus.COMPLETED,
+  //         payment_status:
+  //           payType === PayType.COD ? PaymentStatus.UNPAID : PaymentStatus.PAID,
+  //       },
+  //     });
+
+  //     return {
+  //       totalUpdated: updateResult.count,
+  //       totalAmount,
+  //     };
+  //   });
+
+  //   /* ---------------- NOTIFICATIONS ---------------- */
+  //   if (user.email && result.totalUpdated > 0) {
+  //     await this.emailQueueService.queueBulkOrderPendingEmail({
+  //       userId: user.id,
+  //       email: user.email,
+  //       username: user.username ?? undefined,
+  //       orderIds,
+  //       totalOrders: result.totalUpdated,
+  //       totalAmount: result.totalAmount,
+  //     });
+  //   }
+
+  //   if (user.fcmToken) {
+  //     await this.emailQueueService.queueOrderStatusNotification({
+  //       userId: user.id,
+  //       fcmToken: user.fcmToken,
+  //       orderId: 'BULK',
+  //       status: OrderStatus.PENDING,
+  //       title: 'Bulk Orders Now Pending',
+  //       message: `Your ${result.totalUpdated} bulk orders are now placed.`,
+  //     });
+  //   }
+
+  //   return {
+  //     success: true,
+  //     totalOrders: result.totalUpdated,
+  //     totalAmount: result.totalAmount,
+  //   };
+  // }
+
   async markOrdersAsPending(userId: number, dto: UpdatePendingOrdersDto) {
     const { orderIds } = dto;
 
@@ -1883,6 +2089,7 @@ export class OrderService {
           include: { payment: true },
           orderBy: { sequence: 'asc' },
         },
+        delivery_type: true,
       },
     });
 
@@ -1946,7 +2153,6 @@ export class OrderService {
           const dropStops = order.orderStops.filter(s => s.type === StopType.DROP);
 
           if (codCollectFrom === 'SENDER') {
-            // Sender pays at pickup
             if (pickupStop) {
               await tx.stopPayment.update({
                 where: { orderStopId: pickupStop.id },
@@ -1958,7 +2164,6 @@ export class OrderService {
               });
             }
 
-            // Receivers pay nothing
             for (const drop of dropStops) {
               await tx.stopPayment.update({
                 where: { orderStopId: drop.id },
@@ -1966,10 +2171,8 @@ export class OrderService {
               });
             }
           } else {
-            // Each receiver pays
             const perDropAmount = Number(order.total_cost) / dropStops.length;
 
-            // Sender pays nothing
             if (pickupStop) {
               await tx.stopPayment.update({
                 where: { orderStopId: pickupStop.id },
@@ -1977,7 +2180,6 @@ export class OrderService {
               });
             }
 
-            // Each receiver pays their share
             for (const drop of dropStops) {
               await tx.stopPayment.update({
                 where: { orderStopId: drop.id },
@@ -2023,7 +2225,31 @@ export class OrderService {
       return {
         totalUpdated: updateResult.count,
         totalAmount,
+        orders, // pass orders out for broadcast
       };
+    });
+
+    /* ---------------- BROADCAST: Feed updates for each order location ---------------- */
+    const broadcastPromises = result.orders.map(async (order) => {
+      const pickupStop = order.orderStops.find((s: any) => s.type === StopType.PICKUP);
+      if (!pickupStop) return;
+
+      try {
+        await this.broadcastFeedToNearbyRiders(
+          Number(pickupStop.latitude),
+          Number(pickupStop.longitude),
+          order.delivery_type?.name ?? 'STANDARD',
+        );
+      } catch (err: any) {
+        this.logger.error(
+          `Feed broadcast failed for bulk order ${order.id}: ${err.message}`,
+        );
+      }
+    });
+
+    // Fire all broadcasts concurrently, don't wait
+    Promise.all(broadcastPromises).catch((err) => {
+      this.logger.error(`Bulk broadcast batch failed: ${err.message}`);
     });
 
     /* ---------------- NOTIFICATIONS ---------------- */
@@ -3845,7 +4071,7 @@ export class OrderService {
             payment: {
               create: {
                 payType: newOrder.pay_type || PayType.COD,
-                amount: parseFloat(totalCost.toFixed(2)),
+                amount: Number(totalCost.toFixed(2)),
                 status: PaymentStatus.UNPAID,
               },
             },
@@ -3860,8 +4086,8 @@ export class OrderService {
             payment_status: PaymentStatus.UNPAID,
             payment_method_id: newOrder.payment_method_id,
             type: TransactionType.BOOK_ORDER,
-            delivery_fee: newOrder.total_cost,
-            total_fee: newOrder.total_fee,
+            delivery_fee: Number(newOrder?.total_cost?.toFixed(2)),
+            total_fee: Number(newOrder?.total_fee?.toFixed(2)),
             userId: newOrder.userId,
             pay_type: newOrder.pay_type,
             orderId: newOrder.id,

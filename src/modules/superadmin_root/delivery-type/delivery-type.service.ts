@@ -73,17 +73,14 @@ export class DeliveryTypeService {
         name: dto.name,
         description: dto.description,
         price_multiplier: dto.price_multiplier,
-
         collection_time: collectionMinutes,
         collection_unit: dto.collection_unit,
-
         delivery_time: deliveryMinutes,
         delivery_unit: dto.delivery_unit,
-
         allow_stack: dto.allow_stack ?? false,
         priority: dto.priority,
         is_active: dto.is_active ?? true,
-
+        extra_stop_surcharge: dto.extra_stop_surcharge,
         admin: {
           connect: { id: user.id },
         },
@@ -183,8 +180,7 @@ export class DeliveryTypeService {
     const updated = await this.prisma.deliveryType.update({
       where: { id },
       data: {
-        ...rest, // ✅ clean data only
-
+        ...rest,
         ...(vehicle_type_ids && {
           vehicle_types: {
             deleteMany: {},

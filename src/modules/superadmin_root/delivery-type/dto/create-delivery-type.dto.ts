@@ -47,6 +47,11 @@ export class CreateDeliveryTypeDto {
   @IsBoolean()
   allow_stack?: boolean;
 
+  @ApiProperty({ default: 0, description: 'Extra stop surcharge' })
+  @IsOptional()
+  @IsNumber()
+  extra_stop_surcharge?: number;
+
   @ApiProperty({ example: 5, minimum: 1, maximum: 10 })
   @IsNumber()
   @Min(1)

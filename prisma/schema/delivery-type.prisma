@@ -19,12 +19,14 @@ model DeliveryType {
   // Priority (1–10, higher = higher priority)
   priority Int
 
+  extra_stop_surcharge Decimal @default(0)
+
   // relation with vehicle types (many-to-many)
-  vehicle_types DeliveryTypeVehicle[]
+  vehicle_types     DeliveryTypeVehicle[]
   // 
   surgePricingRules SurgePricingRuleDeliveryType[]
   // orders
-  orders        Order[]
+  orders            Order[]
 
   is_active Boolean @default(true)
 
