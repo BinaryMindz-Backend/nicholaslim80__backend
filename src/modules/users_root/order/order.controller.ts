@@ -272,7 +272,7 @@ export class OrderController {
     @CurrentUser() user: IUser,
     @Body() dto: PriorityOrder,
   ) {
-    const order = await this.orderService.priorityOrder(orderId, user.id, dto);
+    const order = await this.orderFeedService.priorityOrder(orderId, user.id, dto);
     return ApiResponses.success(order, 'Priorited your order successfully');
   }
 
@@ -435,7 +435,7 @@ export class OrderController {
     @Body() dto: CancelOrderDto,
   ) {
     try {
-      const result = await this.orderService.cancelOrder(orderId, user.id, dto.reason);
+      const result = await this.orderFeedService.cancelOrder(orderId, user, dto.reason);
       return ApiResponses.success(result, 'Order cancelled successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to cancel order');
@@ -655,7 +655,7 @@ export class OrderController {
     @CurrentUser() user: IUser
   ) {
     try {
-      const orders = await this.orderService.orderForFeedTest(
+      const orders = await this.orderFeedService.orderForFeedTest(
         user.id,
         pagination.page,
         pagination.limit,
@@ -895,7 +895,7 @@ export class OrderController {
     @Query('riderId') riderId: string,
   ) {
     try {
-      const updated = await this.orderService.assignDriver(+id, +riderId);
+      const updated = await this.orderFeedService.assignDriver(+id, +riderId);
       return ApiResponses.success(updated, 'Assign driver successfully');
     } catch (err) {
       return ApiResponses.error(err, 'Failed to assign a driver');
@@ -913,7 +913,7 @@ export class OrderController {
   ) {
     const raiderId = user.id;
 
-    const result = await this.orderService.declineOrder(
+    const result = await this.orderFeedService.declineOrder(
       Number(orderId),
       raiderId,
     );

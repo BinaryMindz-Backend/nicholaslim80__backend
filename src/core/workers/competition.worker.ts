@@ -2,12 +2,13 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Worker } from 'bullmq';
 import { PrismaService } from 'src/core/database/prisma.service';
 import { connection } from '../queues/queue';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, StopType } from '@prisma/client';
 
 import { EmailQueueService } from 'src/modules/queue/services/email-queue.service';
 import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.gateway';
 import { UserGateway } from 'src/modules/users_root/users/user.gateways';
 import { RedisService } from 'src/modules/auth/redis/redis.service';
+import { OrderService } from 'src/modules/users_root/order/order.service';
 
 @Injectable()
 export class CompetitionWorker implements OnModuleInit {
@@ -18,8 +19,9 @@ export class CompetitionWorker implements OnModuleInit {
     private readonly emailQueueService: EmailQueueService,
     private readonly raiderGateway: RaiderGateway,
     private readonly userGateway: UserGateway,
-    private readonly redisService: RedisService
-  ) {}
+    private readonly redisService: RedisService,
+    private readonly orderService: OrderService,
+  ) { }
 
   onModuleInit() {
     const worker = new Worker(
@@ -200,7 +202,7 @@ export class CompetitionWorker implements OnModuleInit {
             };
           }),
         );
-         
+
 
         // After driverDetails Promise.all, log raw tier data:
         this.logger.log(`[TIER CHECK] ${JSON.stringify(
@@ -305,41 +307,73 @@ export class CompetitionWorker implements OnModuleInit {
 
         // ASSIGN ORDER
         this.logger.log(`[DB UPDATE] Assigning order ${orderId} to raider ${winner.driverId}`);
-        
-          await this.prisma.$transaction([
-            this.prisma.order.update({
-              where: { id: orderId },
-              data: {
-                assign_rider_id: winner.driverId,
-                competition_closed: true,
-                order_status: OrderStatus.ONGOING,
-                assign_at: new Date(),
-              },
-            }),
-            this.prisma.raider.update({
-              where: { id: winner.driverId },
-              data: {
-                is_available: false,
-              },
-            }),
-          ]);
 
-        //  
+        const [updatedOrder] = await this.prisma.$transaction([
+          this.prisma.order.update({
+            where: { id: orderId },
+            data: {
+              assign_rider_id: winner.driverId,
+              competition_closed: true,
+              order_status: OrderStatus.ONGOING,
+              assign_at: new Date(),
+            },
+            include: {
+              orderStops: true,
+              delivery_type: true,
+              user: { select: { id: true, username: true, phone: true, fcmToken: true } },
+            },
+          }),
+          this.prisma.raider.update({
+            where: { id: winner.driverId },
+            data: {
+              is_available: false,
+            },
+          }),
+        ]);
+
         this.logger.log(`[DB UPDATE SUCCESS] Order ${orderId} assigned to raider ${winner.driverId}`);
+
+        // ── BROADCAST: Winner gets order assigned ──
+        // if (winnerRaider?.userId) {
+        //   this.raiderGateway.server
+        //     .to(`rider_${winnerRaider.userId}`)
+        //     .emit('rider:order_assigned', {
+        //       orderId: updatedOrder.id,
+        //       orderNumber: `ORD-${String(updatedOrder.id).padStart(6, '0')}`,
+        //       status: OrderStatus.ONGOING,
+        //       message: 'Order auto-assigned to you',
+        //       pickup: updatedOrder.orderStops.find((s: any) => s.type === StopType.PICKUP),
+        //       drops: updatedOrder.orderStops.filter((s: any) => s.type === StopType.DROP),
+        //       user: updatedOrder.user,
+        //     });
+        // }
+
+        // ── BROADCAST: Other riders get fresh feed (order removed) ──
+        const pickupStop = updatedOrder.orderStops.find((s: any) => s.type === StopType.PICKUP);
+        if (pickupStop) {
+          this.orderService.broadcastFeedToNearbyRiders(
+            Number(pickupStop.latitude),
+            Number(pickupStop.longitude),
+            updatedOrder.delivery_type?.name ?? 'STANDARD',
+          ).catch((err: any) => {
+            this.logger.error(`Feed broadcast failed after auto-assign: ${err.message}`);
+          });
+        }
+
         this.logger.log(`[WINNER RAIDER FULL] ${JSON.stringify(winnerRaider)}`);
 
-          // set to redis
-          if(order.userId && order.id){
-            await this.redisService.hset(
-              `rider:${winner.driverId}:active_order_users`,
-              orderId.toString(),
-              order?.userId.toString(),
-            );
-          } 
-
-          this.logger.log(
-            `[REDIS] Added tracking mapping rider:${winner.driverId}:active_order_users -> ${orderId}:${order.userId}`,
+        // set to redis
+        if (order.userId && order.id) {
+          await this.redisService.hset(
+            `rider:${winner.driverId}:active_order_users`,
+            orderId.toString(),
+            order?.userId.toString(),
           );
+        }
+
+        this.logger.log(
+          `[REDIS] Added tracking mapping rider:${winner.driverId}:active_order_users -> ${orderId}:${order.userId}`,
+        );
 
 
         // NOTIFY WINNER
@@ -352,7 +386,7 @@ export class CompetitionWorker implements OnModuleInit {
             drivers.length,
           );
           this.logger.log(`[NOTIFY SUCCESS] Winner notified: ${winner.driverId}`);
-        } catch (err : any) {
+        } catch (err: any) {
           this.logger.error(`[NOTIFY ERROR] Failed to notify winner ${winner.driverId}: ${err.message}`);
         }
 
@@ -365,7 +399,7 @@ export class CompetitionWorker implements OnModuleInit {
             winner.driverId,
           );
           this.logger.log(`[NOTIFY USER SUCCESS] User ${order.userId} notified`);
-        } catch (err : any) {
+        } catch (err: any) {
           this.logger.error(`[NOTIFY USER ERROR] Failed to notify user ${order.userId}: ${err.message}`);
         }
 
@@ -382,7 +416,7 @@ export class CompetitionWorker implements OnModuleInit {
                 raiderName,
               );
               this.logger.log(`[LOSER NOTIFIED] Raider ID: ${loserId}`);
-            } catch (err : any) {
+            } catch (err: any) {
               this.logger.error(`[LOSER NOTIFY ERROR] Raider ID: ${loserId} | Error: ${err.message}`);
             }
           }),
@@ -402,73 +436,73 @@ export class CompetitionWorker implements OnModuleInit {
               raiderRank: winnerRaider.tier?.code ?? undefined,
             });
             this.logger.log(`[EMAIL QUEUED] Driver email queued for: ${reg.email_address}`);
-          } catch (err : any) {
+          } catch (err: any) {
             this.logger.error(`[EMAIL ERROR] Failed to queue driver email: ${err.message}`);
           }
         } else {
           this.logger.warn(`[EMAIL SKIP] No email address for winner raider ID: ${winner.driverId}`);
         }
 
-          if (winnerRaider.user?.fcmToken) {
-            try {
-              await this.emailQueueService.queueOrderAssignedNotificationRaider({
-                userId: winnerRaider.user.id,
-                fcmToken: winnerRaider.user.fcmToken,
-                orderId,
-                raiderName,
-              });
-              this.logger.log(`[FCM QUEUED] Push notification queued for user: ${winnerRaider.user.id}`);
-            } catch (err : any) {
-              this.logger.error(`[FCM ERROR] Failed to queue push notification: ${err.message}`);
-            }
-          } else {
-            this.logger.warn(`[FCM SKIP] No FCM token for winner raider ID: ${winner.driverId}`);
+        if (winnerRaider.user?.fcmToken) {
+          try {
+            await this.emailQueueService.queueOrderAssignedNotificationRaider({
+              userId: winnerRaider.user.id,
+              fcmToken: winnerRaider.user.fcmToken,
+              orderId,
+              raiderName,
+            });
+            this.logger.log(`[FCM QUEUED] Push notification queued for user: ${winnerRaider.user.id}`);
+          } catch (err: any) {
+            this.logger.error(`[FCM ERROR] Failed to queue push notification: ${err.message}`);
           }
-          // Customer notifications
-          if (order.user) {
-              if (order.user.fcmToken) {
-                await this.emailQueueService.queueOrderAssignedNotification({
-                  userId: order.user.id,
-                  fcmToken: order.user.fcmToken,
-                  orderId,
-                  raiderName,
-                });
-                console.log('   ✅ Customer push notification queued');
-              }
+        } else {
+          this.logger.warn(`[FCM SKIP] No FCM token for winner raider ID: ${winner.driverId}`);
+        }
+        // Customer notifications
+        if (order.user) {
+          if (order.user.fcmToken) {
+            await this.emailQueueService.queueOrderAssignedNotification({
+              userId: order.user.id,
+              fcmToken: order.user.fcmToken,
+              orderId,
+              raiderName,
+            });
+            console.log('   ✅ Customer push notification queued');
+          }
 
-              if (order.user.email) {
-                await this.emailQueueService.queueOrderAssignedUserEmail({
-                  userId: order.user.id,
-                  email: order.user.email,
-                  username: order.user.username ?? undefined,
-                  orderId,
-                  raiderName,
-                  raiderRank: winnerRaider.tier?.name,
-                });
-                console.log('   ✅ Customer email queued');
-              }
-            }
+          if (order.user.email) {
+            await this.emailQueueService.queueOrderAssignedUserEmail({
+              userId: order.user.id,
+              email: order.user.email,
+              username: order.user.username ?? undefined,
+              orderId,
+              raiderName,
+              raiderRank: winnerRaider.tier?.name,
+            });
+            console.log('   ✅ Customer email queued');
+          }
+        }
 
-            // Loser push notifications            
-            if (losers.length > 0) {
-              const loserRaiders = await this.prisma.raider.findMany({
-                where: { id: { in: losers }, user: { fcmToken: { not: null } } },
-                select: { id: true, user: { select: { fcmToken: true } } },
-              });
+        // Loser push notifications            
+        if (losers.length > 0) {
+          const loserRaiders = await this.prisma.raider.findMany({
+            where: { id: { in: losers }, user: { fcmToken: { not: null } } },
+            select: { id: true, user: { select: { fcmToken: true } } },
+          });
 
-              const lostNotifications = loserRaiders
-                .filter(raider => raider.user?.fcmToken)
-                .map(raider => ({
-                  raiderId: raider.id,
-                  fcmToken: raider.user.fcmToken!,
-                  orderId,
-                }));
+          const lostNotifications = loserRaiders
+            .filter(raider => raider.user?.fcmToken)
+            .map(raider => ({
+              raiderId: raider.id,
+              fcmToken: raider.user.fcmToken!,
+              orderId,
+            }));
 
-              if (lostNotifications.length > 0) {
-                await this.emailQueueService.queueBatchOrderLostNotifications(lostNotifications);
-                console.log(`   ✅ Queued ${lostNotifications.length} loser notifications`);
-              }
-            }
+          if (lostNotifications.length > 0) {
+            await this.emailQueueService.queueBatchOrderLostNotifications(lostNotifications);
+            console.log(`   ✅ Queued ${lostNotifications.length} loser notifications`);
+          }
+        }
 
         this.logger.log(`[COMPETITION DONE] 🏆 Winner: ${raiderName} (Raider ${winner.driverId}) | Score: ${winner.score} | Order: ${orderId}`);
       },
@@ -493,6 +527,7 @@ export class CompetitionWorker implements OnModuleInit {
     this.logger.log('🚀 Competition worker running (CLEAN TIER + GPS SYSTEM)');
   }
 
+
   // DISTANCE
   private calculateDistance(
     lat1: number,
@@ -506,8 +541,8 @@ export class CompetitionWorker implements OnModuleInit {
     const a =
       Math.sin(dLat / 2) ** 2 +
       Math.cos(this.deg2rad(lat1)) *
-        Math.cos(this.deg2rad(lat2)) *
-        Math.sin(dLng / 2) ** 2;
+      Math.cos(this.deg2rad(lat2)) *
+      Math.sin(dLng / 2) ** 2;
 
     const distance = 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     this.logger.log(`[DISTANCE CALC] (${lat1}, ${lng1}) → (${lat2}, ${lng2}) = ${distance.toFixed(3)} km`);

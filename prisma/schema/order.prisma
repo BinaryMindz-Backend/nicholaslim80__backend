@@ -76,6 +76,9 @@ model Order {
   dispute             Dispute[]
   disputeAppeals      DisputeAppeal[]
   additional_services Json?
+  cancellation_reason String?
+  cancelled_at        DateTime?
+  cancelled_by        String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
