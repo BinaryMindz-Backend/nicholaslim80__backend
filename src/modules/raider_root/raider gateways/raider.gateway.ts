@@ -19,6 +19,7 @@ import { OrderCompetitionData, OrderData } from 'src/types';
 import { AutoPopupService } from '../auto_popup_services/auto-popup.service';
 import { UserGateway } from 'src/modules/users_root/users/user.gateways';
 import { RedisService } from 'src/modules/auth/redis/redis.service';
+import { OrderFeedService } from 'src/modules/users_root/order/order.feed.services';
 
 @WebSocketGateway({ namespace: '/raider', cors: true })
 export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -37,6 +38,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private autoPopupService: AutoPopupService,
     private readonly userGateway: UserGateway,
     private readonly redisService: RedisService,
+    private readonly orderFeedService: OrderFeedService,
 
   ) { }
 
@@ -490,7 +492,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.lastFetchTime.set(user.userId, now);
 
     try {
-      const feed = await this.orderService.orderForFeed(
+      const feed = await this.orderFeedService.orderForFeed(
         user.userId,
         payload.page ?? 1,
         payload.limit ?? 100,

@@ -1,14 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { OrderStatus } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma.service';
+import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.gateway';
 
 @Injectable()
 export class OrderCronService {
   private readonly logger = new Logger(OrderCronService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
-   
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => RaiderGateway))
+    private readonly raiderGateway: RaiderGateway
+
+  ) { }
+
   //  run cron every hour 
   @Cron(CronExpression.EVERY_HOUR)
   async cancelExpiredOrders() {
@@ -21,7 +27,7 @@ export class OrderCronService {
     // Find expired active orders
     const expiredOrders = await this.prisma.order.findMany({
       where: {
-         created_at: {
+        created_at: {
           lte: before24Hours,
         },
         order_status: {
@@ -34,6 +40,7 @@ export class OrderCronService {
       },
       select: {
         id: true,
+        assign_rider_id: true,
       },
     });
 
@@ -50,9 +57,23 @@ export class OrderCronService {
         },
       },
       data: {
-        order_status:OrderStatus.CANCELLED
+        order_status: OrderStatus.CANCELLED
       },
     });
+
+    // Optional: lightweight broadcast to affected riders
+    // Only if you want real-time removal from open screens
+    for (const order of expiredOrders) {
+      // If order was assigned to a rider, notify that rider
+      if (order.assign_rider_id) {
+        this.raiderGateway.broadcastFeedUpdate(order.assign_rider_id, {
+          type: 'ORDER_CANCELLED',
+          orderId: order.id,
+          message: 'Order expired and was cancelled',
+        });
+      }
+    }
+
 
     this.logger.log(
       `✅ ${result.count} expired orders cancelled`,

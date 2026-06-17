@@ -42,11 +42,16 @@ import { UpdateOrderDetailsDto } from './dto/update-order-details.dto';
 import { ApplyDiscountDto } from './dto/apply-discount.dto';
 import { Cron } from '@nestjs/schedule';
 import { ReorderStopsDto } from './dto/reorder.dto';
+import { OrderFeedService } from './order.feed.services';
 
 @ApiTags('Order (User and admin)')
 @Controller('order')
 export class OrderController {
-  constructor(private readonly orderService: OrderService) { }
+  constructor(
+    private readonly orderService: OrderService,
+    private readonly orderFeedService: OrderFeedService
+
+  ) { }
 
 
   // CREATE
@@ -626,7 +631,7 @@ export class OrderController {
     @CurrentUser() user: IUser
   ) {
     try {
-      const orders = await this.orderService.orderForFeed(
+      const orders = await this.orderFeedService.orderForFeed(
         user.id,
         pagination.page,
         pagination.limit,

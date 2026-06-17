@@ -19,6 +19,7 @@ import { SurgePricingRuleModule } from 'src/modules/superadmin_root/surge_pricin
 import { SurgePricingRuleService } from 'src/modules/superadmin_root/surge_pricing_rule/surge_pricing_rule.service';
 import { OrderCronService } from './order.corn.service';
 import { ReceiptPdfService } from './order_reciept/order_reciept.services';
+import { OrderFeedService } from './order.feed.services';
 
 
 @Module({
@@ -28,19 +29,33 @@ import { ReceiptPdfService } from './order_reciept/order_reciept.services';
     QueueModule,
     WalletModule,
     SurgePricingRuleModule,
-    forwardRef(() => RaiderModule)
+    forwardRef(() => RaiderModule),
   ],
   controllers: [OrderController],
-  providers: [OrderService, SurgePricingRuleService, TransactionIdService, CompetitionWorker, SmsService, ServiceZoneService, GeoService, WalletService, OrderGateway, UserGateway, ActivityLogService,
+  providers: [
+    OrderService,
+    SurgePricingRuleService,
+    TransactionIdService,
+    CompetitionWorker,
+    SmsService,
+    ServiceZoneService,
+    GeoService,
+    WalletService,
+    OrderGateway,
+    UserGateway,
+    ActivityLogService,
     OrderCronService,
-    ReceiptPdfService
+    ReceiptPdfService,
+    OrderFeedService,
+
   ],
   exports: [
     OrderService,
     OrderGateway,
     UserGateway,
     ActivityLogService,
-    SurgePricingRuleService
+    SurgePricingRuleService,
+    OrderFeedService
   ]
 })
 export class OrderModule { }
