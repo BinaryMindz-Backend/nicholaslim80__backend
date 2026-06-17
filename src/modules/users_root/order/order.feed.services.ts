@@ -217,6 +217,8 @@ export class OrderFeedService {
                 ...order,
                 feedMeta: {
                     raiderToPickupKm: Number(raiderToPickupKm.toFixed(2)),
+                    basePay: Number(order.total_cost) - (Number(order.additional_cost) + Number(order.priority_fee)),
+                    extraFee: Number(order.additional_cost) + Number(order.priority_fee),
                     dropCount: dropStops.length,
                     totalTimeMin: dropStops.reduce((sum, s) => sum + Number(s.calculated_time ?? 0), 0),
                     deliveryType: order.delivery_type?.name ?? '',
