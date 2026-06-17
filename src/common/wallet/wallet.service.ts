@@ -311,13 +311,13 @@ export class WalletService {
       // Usually, a wallet has a "Base Currency" (e.g., USD).
       // If the user pays in EUR, you might need to convert it before adding to balance.
       // For now, we assume 1 unit = 1 unit (Risky if mixing currencies!)
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          totalWalletBalance: { increment: amount },
-          currentWalletBalance: { increment: amount },
-        },
-      });
+      // await this.prisma.user.update({
+      //   where: { id: userId },
+      //   data: {
+      //     totalWalletBalance: { increment: amount },
+      //     currentWalletBalance: { increment: amount },
+      //   },
+      // });
     }
 
     return { message: 'Success', currency: lowerCurrency, amount };
@@ -1152,13 +1152,13 @@ export class WalletService {
       });
 
       // Update wallet balance // TODO: need to fix this issue for double entry if multiple payment success webhook fire!
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          totalWalletBalance: { increment: amount },
-          currentWalletBalance: { increment: amount },
-        },
-      });
+      // await this.prisma.user.update({
+      //   where: { id: userId },
+      //   data: {
+      //     totalWalletBalance: { increment: amount },
+      //     currentWalletBalance: { increment: amount },
+      //   },
+      // });
     }
 
     return { amount, message: 'Wallet credited successfully' };

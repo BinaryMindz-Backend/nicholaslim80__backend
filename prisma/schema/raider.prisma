@@ -48,6 +48,7 @@ model Raider {
 
   //auto popup
   isAutoPopUpEnabled Boolean @default(false)
+  distanceInRadius   Int     @default(5)
 
   manualTierOverride Boolean   @default(false)
   manualTierId       Int?
