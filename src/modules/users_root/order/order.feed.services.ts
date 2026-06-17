@@ -1,13 +1,17 @@
-import { RedisService } from "@liaoliaots/nestjs-redis";
-import { ForbiddenException, forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
-import { OrderStatus, RaiderStatus, StopType } from "@prisma/client";
+import { BadRequestException, ConflictException, ForbiddenException, forwardRef, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { NotificationType, OrderStatus, PaymentStatus, PayType, RaiderStatus, RaiderVerification, StopType, TransactionStatus, UserRole, WalletTransactionStatus, WalletTransactionType } from "@prisma/client";
 import { TransactionIdService } from "src/common/services/transaction-id.service";
 import { PrismaService } from "src/core/database/prisma.service";
+import { RedisService } from "src/modules/auth/redis/redis.service";
 import { EmailQueueService } from "src/modules/queue/services/email-queue.service";
 import { RaiderGateway } from "src/modules/raider_root/raider gateways/raider.gateway";
 import { ServiceZoneService } from "src/modules/superadmin_root/service-zone/service-zone.service";
 import { GeoService } from "src/utils/geo-location.utils";
 import { haversineDistance } from "src/utils/haversine";
+import { OrderService } from "./order.service";
+import { IUser } from "src/types";
+import { PriorityOrder } from "./dto/update-order.dto";
+import { WalletService } from "src/common/wallet/wallet.service";
 
 @Injectable()
 export class OrderFeedService {
@@ -15,12 +19,16 @@ export class OrderFeedService {
     constructor(
         private prisma: PrismaService,
         private txIdService: TransactionIdService,
-        // private redisService: RedisService,
+        private redisService: RedisService,
         private readonly serviceZone: ServiceZoneService,
         private readonly geoServices: GeoService,
         private readonly emailQueueService: EmailQueueService,
         @Inject(forwardRef(() => RaiderGateway))
-        private readonly raiderGateway: RaiderGateway
+        private readonly raiderGateway: RaiderGateway,
+        @Inject(forwardRef(() => OrderService))
+        private readonly orderService: OrderService,
+        @Inject(forwardRef(() => WalletService))
+        private readonly walletService: WalletService,
 
 
 
@@ -325,14 +333,514 @@ export class OrderFeedService {
     }
 
 
+    // feed only order
+    async orderForFeedTest(userId: number, page = 1, limit = 100) {
+        const skip = (page - 1) * limit;
 
+        const raider = await this.prisma.raider.findFirst({
+            where: { userId, is_online: true, isSuspended: false, raider_status: RaiderStatus.ACTIVE },
+            select: { id: true },
+        });
+        // 
+        if (!raider) {
+            throw new ForbiddenException('Raider is offline or inactive');
+        }
 
+        const declineFilter = raider
+            ? {
+                NOT: {
+                    declines: {
+                        some: {
+                            raiderId: raider.id,
+                        },
+                    },
+                },
+            }
+            : {};
 
+        const whereClause = {
+            order_status: OrderStatus.PENDING,
+            is_placed: true,
+            ...declineFilter,
+        };
 
+        const [orders, total] = await this.prisma.$transaction([
+            this.prisma.order.findMany({
+                where: whereClause,
+                orderBy: { created_at: 'desc' },
+                include: {
+                    user: true,
+                    vehicle: true,
+                    orderStops: {
+                        include: {
+                            destination: {
+                                select: {
+                                    address: true,
+                                    shortName: true
+                                }
+                            }
+                        }
+                    },
+                },
+                skip,
+                take: limit,
+            }),
 
+            this.prisma.order.count({
+                where: whereClause,
+            }),
+        ]);
 
+        return {
+            data: orders,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
+    }
 
+    // 
+    async declineOrder(orderId: number, raiderId: number) {
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+        });
 
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
 
+        if (order.order_status !== OrderStatus.PENDING) {
+            throw new BadRequestException('Order is no longer available');
+        }
+
+        // Fetch raider by ID (not user)
+        const raider = await this.prisma.raider.findUnique({
+            where: { id: raiderId },
+            include: { user: { select: { id: true } } },
+        });
+
+        if (!raider) {
+            throw new NotFoundException('Raider not found');
+        }
+
+        // Prevent duplicate declines
+        const alreadyDeclined = await this.prisma.orderDecline.findUnique({
+            where: {
+                orderId_raiderId: {
+                    orderId,
+                    raiderId: raider.id,
+                },
+            },
+        });
+
+        if (alreadyDeclined) {
+            throw new ConflictException('Order already declined');
+        }
+
+        const decline = await this.prisma.orderDecline.create({
+            data: {
+                orderId,
+                raiderId: raider.id,
+            },
+        });
+
+        // Optional: real-time removal from rider's current feed
+        if (raider.user?.id) {
+            this.raiderGateway.server.to(`rider_${raider.user.id}`).emit('rider:order_declined', {
+                orderId,
+                message: 'Order removed from your feed',
+            });
+        }
+
+        return decline;
+    }
+
+    //order cancelation
+    async cancelOrder(orderId: number, user: IUser, reason?: string) {
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+            include: {
+                orderStops: { include: { payment: true } },
+                user: true,
+                delivery_type: true,  // include for broadcast
+                assign_rider: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                fcmToken: true
+                            }
+                        }
+                    }
+                },
+            },
+        });
+
+        if (!order || order.userId !== user.id) {
+            throw new BadRequestException('Order not found or unauthorized');
+        }
+
+        if (!["PROGRESS", "PENDING"].includes(order.order_status)) {
+            throw new BadRequestException('Cannot cancel order in current status');
+        }
+
+        const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
+
+        const result = await this.prisma.$transaction(async (tx) => {
+            // Refund if already paid
+            if (order.pay_type === PayType.WALLET && order.is_placed) {
+                await tx.user.update({
+                    where: { id: user.id },
+                    data: {
+                        currentWalletBalance: {
+                            increment: Number(order.total_cost),
+                        },
+                    },
+                });
+            }
+
+            if (order.pay_type === PayType.ONLINE_PAY && order.is_placed) {
+                // TODO: trigger refund via payment gateway
+            }
+
+            const cancelledOrder = await tx.order.update({
+                where: { id: orderId },
+                data: {
+                    order_status: OrderStatus.CANCELLED,
+                    cancellation_reason: reason ?? null,
+                    cancelled_at: new Date(),
+                    cancelled_by: user.roles.find((r) => r.name === UserRole.USER) ? 'USER' : user.roles.find((r) => r.name === UserRole.ADMIN) ? 'ADMIN' : 'RAIDER',
+                },
+            });
+
+            if (cancelledOrder.assign_rider_id) {
+                await this.redisService.hdel(
+                    `rider:${cancelledOrder.assign_rider_id}:active_order_users`,
+                    cancelledOrder.id.toString(),
+                );
+            }
+
+            const transaction = await tx.transaction.findFirst({
+                where: { orderId },
+            });
+
+            if (transaction) {
+                await tx.transaction.update({
+                    where: { id: transaction.id },
+                    data: {
+                        tx_status: TransactionStatus.FAILED,  // or FAILED
+                        payment_status: PaymentStatus.PENDING,
+                    },
+                });
+            }
+
+            // Notifications
+            if (order.user?.fcmToken) {
+                await this.emailQueueService.queueOrderStatusNotification({
+                    userId: order.userId!,
+                    fcmToken: order.user.fcmToken,
+                    orderId: order.id,
+                    orderNumber: `ORD-${String(order.id).padStart(6, '0')}`,
+                    status: NotificationType.ORDER_UPDATE,
+                    title: 'Order Cancelled',
+                    message: `Your order has been cancelled${reason ? `: ${reason}` : ''}.`,
+                });
+            }
+
+            if (order.assign_rider?.user?.fcmToken) {
+                await this.emailQueueService.queueOrderStatusNotification({
+                    userId: order.assign_rider_id!,
+                    fcmToken: order.assign_rider.user.fcmToken,
+                    orderId: order.id,
+                    orderNumber: `ORD-${String(order.id).padStart(6, '0')}`,
+                    status: NotificationType.ORDER_UPDATE,
+                    title: 'Order Cancelled',
+                    message: `Assigned order has been cancelled by customer.`,
+                });
+            }
+
+            return {
+                message: 'Order cancelled successfully',
+                order: cancelledOrder,
+                refunded: order.is_placed && order.pay_type === PayType.WALLET,
+            };
+        });
+
+        // ── Broadcast feed update to nearby riders (non-blocking) ──
+        if (pickupStop && order.order_status === OrderStatus.PENDING) {
+            this.orderService.broadcastFeedToNearbyRiders(
+                Number(pickupStop.latitude),
+                Number(pickupStop.longitude),
+                order.delivery_type?.name ?? 'STANDARD',
+            ).catch((err) => {
+                this.logger.error(`Feed broadcast failed after cancel: ${err.message}`);
+            });
+        }
+
+        return result;
+    }
+
+    // assign by admin
+    async assignDriver(id: number, riderId: number) {
+        const raider = await this.prisma.raider.findFirst({
+            where: {
+                id: riderId,
+                raider_verificationFromAdmin: RaiderVerification.APPROVED,
+                isSuspended: false,
+                raider_status: RaiderStatus.ACTIVE,
+            },
+            include: { locations: true, tier: true },
+        });
+
+        if (!raider) {
+            throw new NotFoundException('Rider is not verified');
+        }
+
+        // 1. Check order exists
+        const order = await this.prisma.order.findUnique({
+            where: { id },
+            include: {
+                orderStops: true,
+                delivery_type: true,
+                user: { select: { id: true, fcmToken: true } },
+            },
+        });
+
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        // 2. Check if order already has assigned rider
+        if (order.assign_rider_id) {
+            throw new ConflictException('This order already has an assigned rider');
+        }
+
+        // 3. Check if this rider is already assigned to another active order
+        const riderAlreadyAssigned = await this.prisma.order.findFirst({
+            where: {
+                assign_rider_id: riderId,
+                order_status: {
+                    in: [OrderStatus.PENDING, OrderStatus.ONGOING],
+                },
+            },
+        });
+
+        if (riderAlreadyAssigned) {
+            throw new ConflictException('This rider is already assigned to another active order');
+        }
+
+        // 4. Assign rider
+        const updatedOrder = await this.prisma.$transaction(async (tx) => {
+            if (order.userId && order.id) {
+                await this.redisService.hset(
+                    `rider:${raider.id}:active_order_users`,
+                    order.id.toString(),
+                    order.userId.toString(),
+                );
+            }
+
+            this.logger.log(
+                `[REDIS] Added tracking mapping rider:${raider.id}:active_order_users -> ${order.id}:${order.userId}`,
+            );
+
+            return tx.order.update({
+                where: { id },
+                data: {
+                    assign_rider_id: riderId,
+                    order_status: OrderStatus.ONGOING,
+                    competition_closed: true,
+                    assign_at: new Date(),
+                },
+            });
+        });
+
+        // ── BROADCAST: Assigned rider gets order details ──
+        // this.raiderGateway.server
+        //     .to(`rider_${raider.userId}`)
+        //     .emit('rider:order_assigned', {
+        //         orderId: updatedOrder.id,
+        //         orderNumber: `ORD-${String(updatedOrder.id).padStart(6, '0')}`,
+        //         status: OrderStatus.ONGOING,
+        //         message: 'Order assigned to you',
+        //         pickup: order.orderStops.find((s) => s.type === StopType.PICKUP),
+        //         drops: order.orderStops.filter((s) => s.type === StopType.DROP),
+        //         user: order.user,
+        //     });
+
+        // ── BROADCAST: Other riders get fresh feed (order removed) ──
+        const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
+        if (pickupStop) {
+            this.orderService.broadcastFeedToNearbyRiders(
+                Number(pickupStop.latitude),
+                Number(pickupStop.longitude),
+                order.delivery_type?.name ?? 'STANDARD',
+            ).catch((err) => {
+                this.logger.error(
+                    `Feed broadcast failed after assign: ${err.message}`,
+                );
+            });
+        }
+
+        // ── BROADCAST: User gets confirmation ──
+        if (order.user?.fcmToken) {
+            await this.emailQueueService.queueOrderStatusNotification({
+                userId: order.user.id,
+                fcmToken: order.user.fcmToken,
+                orderId: order.id,
+                orderNumber: `ORD-${String(order.id).padStart(6, '0')}`,
+                status: NotificationType.ORDER_UPDATE,
+                title: 'Driver Assigned',
+                message: `A driver has been assigned to your order by admin.`,
+            });
+        }
+
+        return updatedOrder;
+    }
+
+    // prioritize order
+    async priorityOrder(orderId: number, userId: number, dto: PriorityOrder) {
+
+        if (!dto.payType) {
+            throw new BadRequestException('Payment type is required for priority order');
+        }
+
+        if (
+            dto.payType !== PayType.WALLET &&
+            dto.payType !== PayType.ONLINE_PAY
+        ) {
+            throw new BadRequestException(
+                `Pay type ${dto.payType} is not supported for priority orders`,
+            );
+        }
+
+        if (dto.payType === PayType.ONLINE_PAY && !dto.paymentMethodId) {
+            throw new BadRequestException('Payment method ID required for online payment');
+        }
+
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+            include: {
+                orderStops: true,
+                delivery_type: true,
+            }
+        });
+
+        if (!order || order.userId !== userId) {
+            throw new NotFoundException(`ORD-${orderId} not found`);
+        }
+
+        // ── GUARD: Already prioritized ──
+        if (order.isPriorited === true) {
+            throw new ConflictException(`ORD-${orderId} is already on priority`);
+        }
+
+        // ── GUARD: Order status ──
+        if (order.order_status !== OrderStatus.PENDING || order.is_placed !== true) {
+            throw new BadRequestException('Can only prioritize placed orders');
+        }
+        // online payment
+        if (dto.payType === PayType.ONLINE_PAY) {
+            const paid = await this.walletService.payWithSavedCard(
+                userId,
+                dto.amount,
+                dto.paymentMethodId!,
+                dto.payType,
+            );
+
+            if (!paid) {
+                throw new BadRequestException('Online payment failed');
+            }
+        }
+
+        // ── TRANSACTION ──
+        const updatedOrder = await this.prisma.$transaction(async (tx) => {
+            // ── WALLET PAYMENT ──
+            if (dto.payType === PayType.WALLET) {
+                const user = await tx.user.findUnique({ where: { id: userId } });
+
+                if (!user || Number(user.currentWalletBalance) < dto.amount) {
+                    throw new BadRequestException(
+                        `Insufficient wallet balance. Priority fee is $${dto.amount}`,
+                    );
+                }
+
+                await tx.user.update({
+                    where: { id: userId },
+                    data: {
+                        currentWalletBalance: { decrement: dto.amount },
+                    },
+                });
+                // need to add transaction history for wallet payment
+                await tx.walletHistory.create({
+                    data: {
+                        userId: userId,
+                        amount: Number(dto.amount),
+                        type: 'debit',
+                        transactionId: this.txIdService.generate(),
+                        transactionType: WalletTransactionType.PAYMENT,
+                        status: WalletTransactionStatus.SUCCESS,
+                        currency: 'SGD',
+                        message: `Priority fee payment for order #${orderId}.`,
+                    },
+                });
+            }
+
+            // ── UPDATE ORDER ──
+            // Freeze originalCost if not already set (same pattern as additionalService)
+            const originalCost =
+                Number(order.originalCost) !== 0
+                    ? Number(order.originalCost)
+                    : Number(order.total_cost);
+
+            //  
+            return tx.order.update({
+                where: { id: orderId },
+                data: {
+                    isPriorited: true,
+                    priorityAt: new Date(),
+                    priority_fee: dto.amount,
+                    originalCost,
+                    total_cost: parseFloat((Number(order.total_cost) + dto.amount).toFixed(2)),
+                    total_raider_earnings: parseFloat(
+                        (Number(order.total_raider_earnings) + dto.amount).toFixed(2)
+                    ),
+                },
+                include: {
+                    orderStops: true,
+                    delivery_type: true,
+                },
+            });
+        });
+
+        // ── BROADCAST: Nearby riders get updated feed (order now scores higher) ──
+        const pickupStop = updatedOrder.orderStops.find((s: any) => s.type === StopType.PICKUP);
+        if (pickupStop) {
+            this.orderService.broadcastFeedToNearbyRiders(
+                Number(pickupStop.latitude),
+                Number(pickupStop.longitude),
+                updatedOrder.delivery_type?.name ?? 'STANDARD',
+            ).catch((err: any) => {
+                this.logger.error(`Feed broadcast failed after prioritize: ${err.message}`);
+            });
+        }
+
+        // ── NOTIFICATION ) ──
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+        if (user) {
+            await this.emailQueueService.queueOrderStatusNotification({
+                userId: user.id,
+                fcmToken: user.fcmToken ?? '',
+                orderId: updatedOrder.id,
+                orderNumber: `ORD-${String(updatedOrder.id).padStart(6, '0')}`,
+                status: NotificationType.ORDER_UPDATE,
+                title: 'Order Prioritized Successfully',
+                message: `Your order ORD-${String(updatedOrder.id).padStart(6, '0')} has been prioritized. Priority fee of $${dto.amount.toFixed(2)} applied. New total: $${Number(updatedOrder.total_cost).toFixed(2)}.`,
+            });
+        }
+
+        return updatedOrder;
+    }
 
 }

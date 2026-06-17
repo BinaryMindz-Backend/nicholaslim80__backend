@@ -345,6 +345,7 @@ export class WalletService {
       },
       automatic_payment_methods: { enabled: true },
     });
+    console.log("client_secret", intent.client_secret);
 
     return { clientSecret: intent.client_secret, orderId };
   }
@@ -864,13 +865,13 @@ export class WalletService {
       }
 
       // 3. Update Balance
-      // const updatedUser = await tx.user.update({
-      //   where: { id: userId },
-      //   data: {
-      //     totalWalletBalance: { increment: amount },
-      //     currentWalletBalance: { increment: amount }
-      //   },
-      // });
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          totalWalletBalance: { increment: amount },
+          currentWalletBalance: { increment: amount }
+        },
+      });
 
       // 1. Idempotency Check: Prevent duplicate processing
       const existing = await tx.walletHistory.findUnique({
@@ -1150,7 +1151,7 @@ export class WalletService {
         },
       });
 
-      // Update wallet balance
+      // Update wallet balance // TODO: need to fix this issue for double entry if multiple payment success webhook fire!
       await this.prisma.user.update({
         where: { id: userId },
         data: {
