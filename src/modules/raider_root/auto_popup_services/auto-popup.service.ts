@@ -12,16 +12,16 @@ const POPUP_ACTIVE_KEY = (orderId: number) => `popup:active:${orderId}`;     // 
 const POPUP_ACCEPTED_KEY = (orderId: number) => `popup:accepted:${orderId}`; // accepted flag
 const POPUP_TIMEOUT_SEC = 15; // configurable — match your admin portal setting
 
-  // targeted codes  
-  const GOLD_PLATINUM_CODES = ['GOLD', 'PLATINUM'];
-   export interface EligibleDriver {
-    raiderId: number;
-    userId: number;
-    distanceKm: number;
-    isAvailable: boolean;
-    tierCode: string;
-    priorityScore: number;
-    }
+// targeted codes  
+const GOLD_PLATINUM_CODES = ['GOLD', 'PLATINUM'];
+export interface EligibleDriver {
+  raiderId: number;
+  userId: number;
+  distanceKm: number;
+  isAvailable: boolean;
+  tierCode: string;
+  priorityScore: number;
+}
 @Injectable()
 export class AutoPopupService {
   private readonly logger = new Logger(AutoPopupService.name);
@@ -30,30 +30,30 @@ export class AutoPopupService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => RaiderGateway))
     private readonly raiderGateway: RaiderGateway,
-    
-  ) {}
 
-   async findEligibleDrivers(
+  ) { }
+
+  async findEligibleDrivers(
     pickupLat: number,
     pickupLng: number,
     deliveryTypeName: string, // 'EXPRESS' | 'STANDARD' | 'SAVER' (pooling)
-    radiusKm: number,
+    radiusKm: number, // no need to configure if user does not configure
   ): Promise<EligibleDriver[]> {
     const isPooling = deliveryTypeName.toUpperCase() === 'SAVER';
 
     const raiders = await this.prisma.raider.findMany({
       where: {
-        is_online: true,
+        // is_online: true,
         isAutoPopUpEnabled: true,
         isSuspended: false,
         raider_verificationFromAdmin: RaiderVerification.APPROVED,
-          tier: {
-              is: {
-                code: { in: GOLD_PLATINUM_CODES },
-                isActive: true,
-              },
-            },
-          // Express/Standard: only available drivers
+        tier: {
+          is: {
+            code: { in: GOLD_PLATINUM_CODES },
+            isActive: true,
+          },
+        },
+        // Express/Standard: only available drivers
         // Pooling: available OR on delivery (can stack)
         ...(isPooling ? {} : { is_available: false }),
       },
@@ -75,9 +75,10 @@ export class AutoPopupService {
         pickupLat, pickupLng,
         driverLat, driverLng,
       );
-
+      // rider radius fetch 
+      const riderMaxRadius = raider.distanceInRadius || radiusKm;
       // Filter by radius
-      if (distanceKm > radiusKm) continue;
+      if (distanceKm > riderMaxRadius) continue;
 
       eligible.push({
         raiderId: raider.id,
@@ -283,7 +284,7 @@ export class AutoPopupService {
         assign_rider_id: raiderId,
         order_status: OrderStatus.ONGOING,
         raider_confirmation: true,
-        assign_at:new Date(),
+        assign_at: new Date(),
       },
     });
 
@@ -348,10 +349,10 @@ export class AutoPopupService {
    * Move order to public queue — any nearby driver can manually accept
    */
   private async moveToPublicQueue(orderId: number): Promise<void> {
-     await this.prisma.order.update({
-        where: { id: orderId },
-        data: { order_status: OrderStatus.PENDING }, // already PENDING from placeOrder
-     });
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { order_status: OrderStatus.PENDING }, // already PENDING from placeOrder
+    });
 
     // Broadcast to all online drivers in the zone
     this.raiderGateway.server.emit('rider:public_order_available', {

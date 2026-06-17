@@ -12,7 +12,7 @@ import { GetRidersQueryDto } from './dto/query-riders.dto';
 import { SuspendRiderProfileDto } from './dto/suspendRider.dto';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
-import { UpdateAutoPopupDto } from '../raider gateways/dto';
+import { UpdateAutoPopupDto, UpdateRaiderRadiusDto } from '../raider gateways/dto';
 
 
 
@@ -235,7 +235,28 @@ export class RidersProfileController {
     @CurrentUser() raider: IUser,
     @Body() dto: UpdateAutoPopupDto,
   ) {
-    return await this.ridersProfileService.updateAutoPopup(raider.id, dto.enabled);
+    try {
+      const res = await this.ridersProfileService.updateAutoPopup(raider.id, dto.enabled);
+      return ApiResponses.success(res, 'Rider auto popup updated successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
+  }
+
+  @Patch('settings/radius-update')
+  @Auth()
+  @ApiBearerAuth()
+  @RequirePermission(Module.RAIDER, Permission.CREATE)
+  async updateRadius(
+    @CurrentUser() user: IUser,
+    @Body() dto: UpdateRaiderRadiusDto,
+  ) {
+    try {
+      const res = await this.ridersProfileService.updateRadius(user.id, dto.radius);
+      return ApiResponses.success(res, 'Rider radius updated successfully');
+    } catch (error) {
+      return ApiResponses.error(error);
+    }
   }
 
 
