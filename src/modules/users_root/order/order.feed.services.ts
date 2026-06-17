@@ -180,6 +180,11 @@ export class OrderFeedService {
                         id: true,
                         type: true,
                         address: true,
+                        destination: {
+                            select: {
+                                shortName: true,
+                            }
+                        },
                         latitude: true,
                         longitude: true,
                         sequence: true,

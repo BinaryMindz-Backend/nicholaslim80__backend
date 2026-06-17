@@ -38,7 +38,7 @@ export async function getReceiversWithIndividualPrice(
   const receiversWithPricing: ReceiverWithPricing[] = [];
 
   for (const receiver of receivers) {
-    const { km: distanceKm , min, min_text } = await getRoadDistance(sender, receiver);
+    const { km: distanceKm, min, min_text } = await getRoadDistance(sender, receiver);
 
     // Round trip: add return leg factor
     let finalDistanceKm = distanceKm;
@@ -65,6 +65,7 @@ export async function getReceiversWithIndividualPrice(
       pricing: {
         basePrice: pricing.basePrice,
         deliveryTypeCharge: pricing.deliveryTypeCharge,
+        deliveryTypeSurge: pricing.deliveryTypeSurge,
         userFeeTotal: pricing.userFeeTotal,
         zoneFee: pricing.zoneFee,
         surgeAmount: pricing.surgeAmount,
