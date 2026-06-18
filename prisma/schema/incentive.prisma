@@ -1,47 +1,55 @@
 model Incentive {
-  id          Int             @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   adminId     Int?
-  admin       Admin?          @relation(fields: [adminId], references: [id], onDelete: SetNull)
-  name        String          @map("incentive_name")
+  admin       Admin?    @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  name        String    @map("incentive_name")
   description String?
   start_date  DateTime
-  end_date    DateTime?       // Now optional (ONE_TIME only has start_date)
+  end_date    DateTime?
 
-  // ─── NEW SCHEDULE FIELDS ───────────────────────────────────────────
-  recurring_type   RecurringType  @default(ONE_TIME)
-  days_of_week     DayOfWeek[]    // For WEEKLY and MONTHLY (week-based)
-  month            MonthName?     // For MONTHLY
-  day_of_month     Int[]          // For MONTHLY day-based (1–31)
-  week_of_month    Int[]          // For MONTHLY week-based (1,2,3,4,5)
-  // ──────────────────────────────────────────────────────────────────
+  recurring_type RecurringType @default(ONE_TIME)
+  days_of_week   DayOfWeek[]
+  month          MonthName?
+  day_of_month   Int[]
+  week_of_month  Int[]
 
-  driver_types     VehicleType[]  @relation("IncentiveVehicleTypes")
-  priority         Int            @default(1)
-  status           IncentiveStatus
-  serviceZones     serviceZone[]  @relation("IncentiveZones")
-  reward_type      IncentiveRewardType
-  reward_value     Float          @default(0)
-  claim_type       ClaimType
-  claim_expire     Int?
-  max_clam         Int?
-  time_constant    TimeUnit       @default(HOURS)
-  rules            IncentiveRule[]
+  driver_types         VehicleType[]        @relation("IncentiveVehicleTypes")
+  priority             Int                  @default(1)
+  status               IncentiveStatus
+  serviceZones         serviceZone[]        @relation("IncentiveZones")
+  reward_type          IncentiveRewardType
+  reward_value         Float                @default(0)
+  claim_type           ClaimType
+  claim_expire         Int?
+  max_clam             Int?
+  time_constant        TimeUnit             @default(HOURS)
+  ruleGroups           IncentiveRuleGroup[]
   collected_incentives CollectedIncentive[]
-  incentiveLogs    IncentiveLog[]
-  created_at       DateTime       @default(now())
+  incentiveLogs        IncentiveLog[]
+  created_at           DateTime             @default(now())
 
   @@map("incentives")
 }
 
+model IncentiveRuleGroup {
+  id          Int             @id @default(autoincrement())
+  incentive   Incentive       @relation(fields: [incentiveId], references: [id], onDelete: Cascade)
+  incentiveId Int
+  label       String?
+  rules       IncentiveRule[]
+  created_at  DateTime        @default(now())
+
+  @@map("incentive_rule_groups")
+}
 
 model IncentiveRule {
-  id           Int         @id @default(autoincrement())
-  incentive    Incentive   @relation(fields: [incentiveId], references: [id], onDelete: Cascade)
-  incentiveId  Int
+  id         Int                @id @default(autoincrement())
+  group      IncentiveRuleGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId    Int
+  metric     Metric
+  operator   Operator // GTE | LTE | EQ | GT | LT  
+  value      Float
+  created_at DateTime           @default(now())
 
-  metric       Metric      // e.g., COMPLETED_DELIVERIES, TOTAL_EARNINGS
-  operator     Operator    // e.g., GTE, LTE, EQ
-  value        Float       // target value
-
-  created_at   DateTime    @default(now())
+  @@map("incentive_rules")
 }

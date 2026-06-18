@@ -26,28 +26,80 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-
-// ─── Max days per month (for validation) ───────────────────────────────────────
-const MONTH_MAX_DAYS: Record<MonthName, number> = {
+// ─── Max days per month (for validation) ──────────────────────────────────────
+export const MONTH_MAX_DAYS: Record<MonthName, number> = {
   Jan: 31, Feb: 28, Mar: 31, Apr: 30,
   May: 31, Jun: 30, Jul: 31, Aug: 31,
   Sep: 30, Oct: 31, Nov: 30, Dec: 31,
 };
 
-class IncentiveRuleDto {
-  @ApiProperty({ example: 'COMPLETED_DELIVERIES' })
+// ─── Single rule ───────────────────────────────────────────────────────────────
+// Used inside a rule group.
+// AND logic:  all rules within one group must pass.
+// OR  logic:  groups are OR-ed — passing any one group qualifies the user.
+export class IncentiveRuleDto {
+  @ApiProperty({
+    enum: Metric,
+    example: Metric.COMPLETED_DELIVERIES,
+    description: 'The metric to evaluate for this rule.',
+  })
   @IsEnum(Metric)
   metric: Metric;
 
-  @ApiProperty({ example: 'GTE' })
+  @ApiProperty({
+    enum: Operator,
+    example: Operator.GTE,
+    description:
+      'Comparison operator. AND / OR are not operators here — ' +
+      'grouping is handled by the ruleGroups structure itself.',
+  })
   @IsEnum(Operator)
   operator: Operator;
 
-  @ApiProperty({ example: 10 })
+  @ApiProperty({
+    example: 10,
+    description: 'Target value to compare the metric against.',
+  })
   @IsNumber()
   value: number;
 }
 
+// ─── Rule group ────────────────────────────────────────────────────────────────
+// A group is a set of rules that are AND-ed together.
+// Multiple groups in one incentive are OR-ed together.
+//
+// Example:
+//   Group A: completed_deliveries >= 10  AND  acceptance_rate >= 90
+//   Group B: total_earnings >= 5000
+//
+//   User qualifies if  (Group A passes)  OR  (Group B passes).
+export class IncentiveRuleGroupDto {
+  @ApiPropertyOptional({
+    example: 'Group A',
+    description:
+      'Optional display label for the group (shown in admin UI). ' +
+      'Does not affect evaluation logic.',
+  })
+  @IsOptional()
+  @IsString()
+  label?: string;
+
+  @ApiProperty({
+    type: [IncentiveRuleDto],
+    description: 'Rules inside this group — ALL must pass (AND logic).',
+    example: [
+      { metric: 'COMPLETED_DELIVERIES', operator: 'GTE', value: 10 },
+      { metric: 'ACCEPTANCE_RATE', operator: 'GTE', value: 90 },
+    ],
+  })
+  @IsArray()
+  @ArrayNotEmpty({ message: 'Each rule group must contain at least one rule.' })
+  @ValidateNested({ each: true })
+  @Type(() => IncentiveRuleDto)
+  rules: IncentiveRuleDto[];
+}
+
+// ─── Main create DTO ───────────────────────────────────────────────────────────
 export class CreateIncentiveDto {
   @ApiProperty({ example: 'Summer Bonus' })
   @IsString()
@@ -58,57 +110,52 @@ export class CreateIncentiveDto {
   @IsString()
   description?: string;
 
-  // ─── Schedule ─────────────────────────────────────────────────────────────
+  // ─── Schedule ───────────────────────────────────────────────────────────────
   @ApiProperty({ enum: RecurringType, example: RecurringType.ONE_TIME })
   @IsEnum(RecurringType)
   recurring_type: RecurringType;
 
-  @ApiProperty({ description: 'Start date (required always)' })
+  @ApiProperty({ description: 'Start date (ISO 8601). Always required.' })
   @IsDateString()
   start_date: string;
 
-  /**
-   * End date:
-   * - ONE_TIME → NOT present (only start_date)
-   * - DAILY / WEEKLY / MONTHLY → required
-   */
-  @ApiPropertyOptional({ description: 'End date — required for DAILY/WEEKLY/MONTHLY' })
+  @ApiPropertyOptional({
+    description:
+      'End date (ISO 8601). Required for DAILY / WEEKLY / MONTHLY. ' +
+      'Omit for ONE_TIME.',
+  })
   @ValidateIf((o) => o.recurring_type !== RecurringType.ONE_TIME)
   @IsDateString()
   end_date?: string;
 
-  /**
-   * Days of week — required for WEEKLY.
-   * Also used for MONTHLY (week_of_month path) to specify which day(s) within the week.
-   */
   @ApiPropertyOptional({
     enum: DayOfWeek,
     isArray: true,
     example: ['MON', 'WED', 'FRI'],
-    description: 'Required for WEEKLY. Also used with week_of_month for MONTHLY.',
+    description:
+      'Required for WEEKLY. Also used with week_of_month for the MONTHLY week-based path.',
   })
   @ValidateIf((o) => o.recurring_type === RecurringType.WEEKLY)
-  @ArrayNotEmpty({ message: 'days_of_week must not be empty for WEEKLY schedule' })
+  @ArrayNotEmpty({ message: 'days_of_week must not be empty for WEEKLY schedule.' })
   @IsArray()
   @IsEnum(DayOfWeek, { each: true })
   days_of_week?: DayOfWeek[];
 
-  /**
-   * Month — required for MONTHLY
-   */
-  @ApiPropertyOptional({ enum: MonthName, example: 'Jan', description: 'Required for MONTHLY' })
+  @ApiPropertyOptional({
+    enum: MonthName,
+    example: 'Jan',
+    description: 'Required for MONTHLY.',
+  })
   @ValidateIf((o) => o.recurring_type === RecurringType.MONTHLY)
-  @IsEnum(MonthName, { message: 'month must be a valid month name (Jan–Dec)' })
+  @IsEnum(MonthName, { message: 'month must be a valid month name (Jan–Dec).' })
   month?: MonthName;
 
-  /**
-   * day_of_month — for MONTHLY day-based path (provide OR week_of_month+days_of_week)
-   * Example: [1, 5, 10]
-   */
   @ApiPropertyOptional({
     type: [Number],
     example: [1, 5, 10],
-    description: 'Day(s) of month (1–31). Used with MONTHLY. Validated against month max days.',
+    description:
+      'Day(s) of month (1–31) for MONTHLY day-based path. ' +
+      'Validated against the selected month\'s max days.',
   })
   @IsOptional()
   @IsArray()
@@ -117,14 +164,10 @@ export class CreateIncentiveDto {
   @Max(31, { each: true })
   day_of_month?: number[];
 
-  /**
-   * week_of_month — for MONTHLY week-based path
-   * Example: [1, 2, 3, 4, 5]
-   */
   @ApiPropertyOptional({
     type: [Number],
     example: [1, 2],
-    description: 'Week(s) of month (1–5). Used with MONTHLY + days_of_week.',
+    description: 'Week(s) of month (1–5) for MONTHLY week-based path. Use with days_of_week.',
   })
   @IsOptional()
   @IsArray()
@@ -133,7 +176,7 @@ export class CreateIncentiveDto {
   @Max(5, { each: true })
   week_of_month?: number[];
 
-  // ─── Existing fields ───────────────────────────────────────────────────────
+  // ─── Incentive config ────────────────────────────────────────────────────────
   @ApiPropertyOptional({ type: [Number], example: [1, 2] })
   @IsOptional()
   @IsArray()
@@ -182,15 +225,37 @@ export class CreateIncentiveDto {
   @IsNumber({}, { each: true })
   serviceZoneIds?: number[];
 
-  @ApiProperty({
-    type: [IncentiveRuleDto],
-    example: [{ metric: 'COMPLETED_DELIVERIES', operator: 'GTE', value: 10 }],
+  // ─── Rule groups ─────────────────────────────────────────────────────────────
+  // Optional — if omitted, the incentive has no eligibility restrictions.
+  //
+  // AND within a group  →  all rules in the group must pass.
+  // OR  across groups   →  user qualifies if any one group fully passes.
+  //
+  // Example payload:
+  // "ruleGroups": [
+  //   {
+  //     "label": "Group A",
+  //     "rules": [
+  //       { "metric": "COMPLETED_DELIVERIES", "operator": "GTE", "value": 10 },
+  //       { "metric": "ACCEPTANCE_RATE",      "operator": "GTE", "value": 90 }
+  //     ]
+  //   },
+  //   {
+  //     "label": "Group B",
+  //     "rules": [
+  //       { "metric": "TOTAL_EARNINGS", "operator": "GTE", "value": 5000 }
+  //     ]
+  //   }
+  // ]
+  @ApiPropertyOptional({
+    type: [IncentiveRuleGroupDto],
+    description:
+      'Rule groups. AND within a group, OR across groups. ' +
+      'Omit entirely to create an incentive with no eligibility rules.',
   })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => IncentiveRuleDto)
-  rules: IncentiveRuleDto[];
+  @Type(() => IncentiveRuleGroupDto)
+  ruleGroups?: IncentiveRuleGroupDto[];
 }
-
-// ─── Shared validation helper (used in service) ──────────────────────────────
-export { MONTH_MAX_DAYS };

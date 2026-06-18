@@ -1,4 +1,0 @@
--- AlterTable
-ALTER TABLE "DashboardPopup" ALTER COLUMN "title" DROP NOT NULL,
-ALTER COLUMN "desc" DROP NOT NULL,
-ALTER COLUMN "redirect_link" DROP NOT NULL;
