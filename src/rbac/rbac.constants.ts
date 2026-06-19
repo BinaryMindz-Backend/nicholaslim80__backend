@@ -20,42 +20,42 @@ export enum Module {
   ADDITIONAL_SERVICES = "additional_services",
   USER_PROFILE = "user_profile",
   // new //  user
-  USER_WEB='user_web',
+  USER_WEB = 'user_web',
   USER = 'user',
   // 
-  USER_MOBILE='user_mobile',
+  USER_MOBILE = 'user_mobile',
   // USER = 'user',
-  RAIDER_JOIN="raider_join", 
-  RAIDER = "raider", 
+  RAIDER_JOIN = "raider_join",
+  RAIDER = "raider",
   // user wallet 
   USER_WALLET = "user_wallet",
-  RAIDER_WALLET ="raider_wallet",
+  RAIDER_WALLET = "raider_wallet",
   // services configuaration
   SERVICE_AREAS = "service_areas",
-  VEHICLE_TYPE='vehicle_type',
-  DELIVERY_TYPE='delivery_type',
-  POLICIES='policies',
-  SURGE_PRICING_ROLE="surge_pricing_role",
+  VEHICLE_TYPE = 'vehicle_type',
+  DELIVERY_TYPE = 'delivery_type',
+  POLICIES = 'policies',
+  SURGE_PRICING_ROLE = "surge_pricing_role",
   // revenue configuaration
   REVENUE_CONFIGURATION = "revenue_order_config",
   // customer configuaration
-  ADDITIONAL_ORDER_SERVICE='additionl_order_service',
-  ORDER_CONFIRMATION='order_confirmation',
+  ADDITIONAL_ORDER_SERVICE = 'additionl_order_service',
+  ORDER_CONFIRMATION = 'order_confirmation',
   //driver configuaration
-  DRIVER_ORDER_COMPETITION='driver_order_compitition',
-  QUIZZES='quizzes',
+  DRIVER_ORDER_COMPETITION = 'driver_order_compitition',
+  QUIZZES = 'quizzes',
   // incentive rewards configurations
-  DRIVER_INCENTIVE='driver_incentive',
-  CUSTOMER_REWARDS='customer_rewards',
-  PROMO_CODE='promo_code',
+  DRIVER_INCENTIVE = 'driver_incentive',
+  CUSTOMER_REWARDS = 'customer_rewards',
+  PROMO_CODE = 'promo_code',
 
 
 
-    // finnace reporting // report-and-analytics/kpi-stats
-  COIN_STATS='coin_stats',
-  INCENTIVE_ANALYSIS='incentive_analytics',
-  KPI_STATS='kpi_stats',
-  TRANSACTION_STATS='transactions_stats',
+  // finnace reporting // report-and-analytics/kpi-stats
+  COIN_STATS = 'coin_stats',
+  INCENTIVE_ANALYSIS = 'incentive_analytics',
+  KPI_STATS = 'kpi_stats',
+  TRANSACTION_STATS = 'transactions_stats',
 
   // report and analysis
   REPORT_ANALYTICS = "report_analytics",
@@ -63,26 +63,27 @@ export enum Module {
   // live map fleet tacking
   LIVE_MAP = "live_map",
   // support and communication
-  CONTACT_INFO='contact_info',
+  CONTACT_INFO = 'contact_info',
   SUPPORT_DISPUTE = 'support_dispute',
   NOTIFICATION = "notification",
-  SERVICE_CHAT='service_chat',
+  SERVICE_CHAT = 'service_chat',
 
   // markating engageement
   ADVERTISEMENT = "advertisement",
-  DASHBOARD_POPUP="dashboard_popup",
+  DASHBOARD_POPUP = "dashboard_popup",
   // content management
   CONTENT_MANAGEMENT = "content_management",
   FAQ = "faq",
   // order management
   ORDER_PLACEMENT = "order_placement", //order placement
-  LIVE_ORDER_TRACKING='live_order_tracking',
-  ORDER_HISTORY='order_history',
-  NOTIFICATION_MANAGEMENT='notification_management',
-  DRIVER_TIER_ROLE='driver_tier_role',   
-  ADMIN_RAIDER_WALLET='admin_raider_wallet',  
-  ADMIN_USER_WALLET='admin_user_wallet',             
-           
+  LIVE_ORDER_TRACKING = 'live_order_tracking',
+  ORDER_HISTORY = 'order_history',
+  NOTIFICATION_MANAGEMENT = 'notification_management',
+  DRIVER_TIER_ROLE = 'driver_tier_role',
+  ADMIN_RAIDER_WALLET = 'admin_raider_wallet',
+  ADMIN_USER_WALLET = 'admin_user_wallet',
+  ETA = 'eta',
+
 
 
 

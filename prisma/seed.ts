@@ -1,4 +1,4 @@
-import {  LoginType, PrismaClient, UserRole } from '@prisma/client';
+import { LoginType, PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { seedDriverTiers } from './driver_tier_seed';
 
@@ -16,7 +16,7 @@ export enum Module {
 
   CUSTOMER_ORDER_CONFIRMATION = "customer_order_confirmation",
   RBAC = "rbac",
-  
+
   // ** sub modules
   //DESTINATION
   DESTINATION = 'destination',
@@ -33,7 +33,7 @@ export enum Module {
   VEHICLE_TYPE = 'vehicle_type',
   DELIVERY_TYPE = 'delivery_type',
   POLICIES = 'policies',
-  SURGE_PRICING_ROLE="surge_pricing_role",
+  SURGE_PRICING_ROLE = "surge_pricing_role",
   // revenue configuaration
   REVENUE_CONFIGURATION = "revenue_order_config",
   // customer configuaration
@@ -89,10 +89,11 @@ export enum Module {
   ORDER_PLACEMENT = "order_placement", //order placement
   LIVE_ORDER_TRACKING = 'live_order_tracking',
   ORDER_HISTORY = 'order_history',
-  NOTIFICATION_MANAGEMENT='notification_management',
-  DRIVER_TIER_ROLE='driver_tier_role',  
-  ADMIN_RAIDER_WALLET='admin_raider_wallet',  
-  ADMIN_USER_WALLET='admin_user_wallet',             
+  NOTIFICATION_MANAGEMENT = 'notification_management',
+  DRIVER_TIER_ROLE = 'driver_tier_role',
+  ADMIN_RAIDER_WALLET = 'admin_raider_wallet',
+  ADMIN_USER_WALLET = 'admin_user_wallet',
+  ETA = 'eta',
 
 }
 
@@ -243,8 +244,8 @@ const ROLE_PERMISSIONS = {
     { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.CREATE },
     { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.DELETE },
     { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.UPDATE },
-    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.READ},
-    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.JUST_ADMIN},
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.READ },
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.JUST_ADMIN },
 
     //Quiz module
     { module: Module.QUIZ, action: Permission.CREATE },
@@ -446,6 +447,12 @@ const ROLE_PERMISSIONS = {
     { module: Module.DRIVER_TIER_ROLE, action: Permission.UPDATE },
     { module: Module.DRIVER_TIER_ROLE, action: Permission.READ },
     { module: Module.DRIVER_TIER_ROLE, action: Permission.GET_ONE },
+    // eta
+    { module: Module.ETA, action: Permission.CREATE },
+    { module: Module.ETA, action: Permission.DELETE },
+    { module: Module.ETA, action: Permission.UPDATE },
+    { module: Module.ETA, action: Permission.READ },
+    { module: Module.ETA, action: Permission.GET_ONE },
 
   ],
 
@@ -475,11 +482,11 @@ const ROLE_PERMISSIONS = {
     { module: Module.ADVERTISEMENT, action: Permission.READ },
     // notification
     { module: Module.NOTIFICATION, action: Permission.READ },
-    { module: Module.NOTIFICATION, action: Permission.UPDATE_USER_STATUS},
+    { module: Module.NOTIFICATION, action: Permission.UPDATE_USER_STATUS },
     { module: Module.NOTIFICATION, action: Permission.DELETE },
     { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.READ },
-    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.DELETE},
-    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.UPDATE_USER_STATUS},
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.DELETE },
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.UPDATE_USER_STATUS },
     // qize module
     { module: Module.QUIZZES, action: Permission.GET_ONE },
     { module: Module.QUIZ, action: Permission.GET_ONE },
@@ -541,11 +548,11 @@ const ROLE_PERMISSIONS = {
     { module: Module.ADVERTISEMENT, action: Permission.READ },
     // notification
     { module: Module.NOTIFICATION, action: Permission.READ },
-    { module: Module.NOTIFICATION, action: Permission.DELETE},
-    { module: Module.NOTIFICATION, action: Permission.UPDATE_USER_STATUS},
+    { module: Module.NOTIFICATION, action: Permission.DELETE },
+    { module: Module.NOTIFICATION, action: Permission.UPDATE_USER_STATUS },
     { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.READ },
-    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.DELETE},
-    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.UPDATE_USER_STATUS},
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.DELETE },
+    { module: Module.NOTIFICATION_MANAGEMENT, action: Permission.UPDATE_USER_STATUS },
     // 
     { module: Module.CONTENT_MANAGEMENT, action: Permission.READ },
     // user profile
@@ -792,7 +799,7 @@ async function initialSeed() {
         followers_weight: 50,
       },
     });
-    console.log(`✅ Customer Order Confirmation Config seeded: ${customerOrderConfirmationConfig.id}\n`); 
+    console.log(`✅ Customer Order Confirmation Config seeded: ${customerOrderConfirmationConfig.id}\n`);
     return {
       roles: [superAdminRole, userRole, raiderRole],
       user,
@@ -817,7 +824,7 @@ async function initialSeed() {
   return true;
 }
 
- // MAIN FUNCTION - Smart Seeding
+// MAIN FUNCTION - Smart Seeding
 async function main() {
   // Check if this is first time or update
   const existingRoles = await prisma.role.count();
