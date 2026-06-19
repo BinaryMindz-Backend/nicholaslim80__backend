@@ -2,12 +2,13 @@ import { Module } from '@nestjs/common';
 import { RidersProfileService } from './riders_profile.service';
 import { RidersProfileController } from './riders_profile.controller';
 import { QueueModule } from 'src/modules/queue/queue.module';
+import { RaiderStatsCronService } from './rider_corn.services';
 
 @Module({
-  imports:[
+  imports: [
     QueueModule
   ],
   controllers: [RidersProfileController],
-  providers: [RidersProfileService],
+  providers: [RidersProfileService, RaiderStatsCronService],
 })
-export class RidersProfileModule {}
+export class RidersProfileModule { }

@@ -137,7 +137,7 @@ export class RaiderStatsCronService {
             this.prisma.order.count({
                 where: {
                     assign_rider_id: raiderId,
-                    order_status: { in: ['ONGOING', 'COMPLETED'] },
+                    order_status: { in: [OrderStatus.ONGOING, OrderStatus.COMPLETED] },
                 },
             }),
             // Declined orders
