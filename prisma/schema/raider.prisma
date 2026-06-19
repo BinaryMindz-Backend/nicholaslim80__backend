@@ -19,30 +19,26 @@ model Raider {
   suspensionReason  String?
 
   // Branding / premium
-  hasBranding Boolean @default(false)
-  hasAdDecal  Boolean @default(false)
-  isPremium   Boolean @default(false)
-
-  // ================= PERFORMANCE =================
-  reviews_count    Int @default(0)
-  completed_orders Int @default(0)
-  active_days      Int @default(0)
+  hasBranding      Boolean @default(false)
+  hasAdDecal       Boolean @default(false)
+  isPremium        Boolean @default(false)
+  reviews_count    Int     @default(0)
+  completed_orders Int     @default(0)
+  active_days      Int     @default(0)
 
   avg_rating        Decimal @default(0) @db.Decimal(3, 2)
   completion_rate   Float   @default(100)
   cancellation_rate Float   @default(0)
+  acceptance_rate   Float   @default(100)
+  driverScore       Float   @default(0)
 
-  // ================= GOLD PROGRAM =================
   isGoldOptedIn     Boolean @default(false)
   weeklyActiveHours Float   @default(0)
 
-  // ================= TIER =================
   tierId Int?
   tier   DriverTier? @relation(fields: [tierId], references: [id])
 
   raiderTierHistories RaiderTierHistory[]
-
-  // ================= ACTIVITY =================
   lastDeliveryAt      DateTime?
   lastOrderAssignedAt DateTime?
 
@@ -54,7 +50,6 @@ model Raider {
   manualTierId       Int?
   manualTierUntil    DateTime?
 
-  // ================= RELATIONS =================
   registrations       RaiderRegistration[]
   locations           RaiderLocation?
   locationHistory     RaiderLocationHistory[]
@@ -68,8 +63,6 @@ model Raider {
   raiderOnlineSession RaiderOnlineSession[]
   // wallet addjustments for raider (admin adjustments to raider wallet)
   adjustments         WalletAdjustment[]
-
-  // ================= META =================
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at          DateTime                @default(now())
+  updated_at          DateTime                @updatedAt
 }
