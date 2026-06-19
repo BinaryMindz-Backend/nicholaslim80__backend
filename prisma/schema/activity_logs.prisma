@@ -2,7 +2,7 @@ model ActivityLog {
     id          Int    @id @default(autoincrement())
     action      String // CREATE, UPDATE, DELETE
     entity_type String // 
-    entity_id   Int
+    entity_id   Int?
     user_id     Int
 
     // store changes or payload

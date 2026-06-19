@@ -64,6 +64,8 @@ import { DisputeTypeModule } from './modules/superadmin_root/dispute-type/disput
 import { DriverTierModule } from './modules/superadmin_root/driver_tier_roles/driver_tier.roles.module';
 import { WalletAdjustmentModule } from './modules/superadmin_root/wallet_adjustment/wallte_adjustment.module';
 import { DisputeAppealModule } from './modules/raider_root/dispute_appeal/dispute_appeal.module';
+import { TriggerEventModule } from './modules/superadmin_root/eta/trigger_event/trigger-event.module';
+import { NotificationRuleModule } from './modules/superadmin_root/eta/notification_role/notification-rule.module';
 
 
 
@@ -142,6 +144,8 @@ import { DisputeAppealModule } from './modules/raider_root/dispute_appeal/disput
     PromoCodeModule,
     SurgePricingRuleModule,
     DriverTierModule,
+    TriggerEventModule,
+    NotificationRuleModule
 
 
   ],

@@ -1,0 +1,40 @@
+model TriggerEvent {
+    id                String   @id @default(cuid())
+    name              String
+    backendTag        String   @unique // "ETA_MINUTES" | "ORDER_STATUS"
+    description       String?
+    expectedValue     Int?
+    expectedValueType String? // "Min" | "Km"
+    status            String // "IN_TRANSIT" etc — for display/filter only
+    isActive          Boolean  @default(true)
+    createdAt         DateTime @default(now())
+}
+
+model NotificationRule {
+    id              String   @id @default(cuid())
+    name            String
+    triggerTag      String // matches TriggerEvent.backendTag
+    operator        String // "LTE" | "EQ"
+    targetValue     String // "10" or "LEG_DELIVERED"
+    stopScope       String   @default("DYNAMIC") // "DYNAMIC" | "FIXED"
+    fixedStopIndex  Int?
+    notifTitle      String
+    notifMessage    String
+    sendToSender    Boolean  @default(false)
+    sendToRecipient Boolean  @default(false)
+    viaPush         Boolean  @default(false)
+    viaWhatsApp     Boolean  @default(false)
+    viaSMS          Boolean  @default(false)
+    isActive        Boolean  @default(true)
+    createdAt       DateTime @default(now())
+}
+
+model FiredNotification {
+    id        String   @id @default(cuid())
+    ruleId    String
+    orderId   Int
+    stopIndex Int
+    firedAt   DateTime @default(now())
+
+    @@unique([ruleId, orderId, stopIndex])
+}
