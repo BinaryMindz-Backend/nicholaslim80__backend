@@ -5,98 +5,136 @@ import { UpdateStandardCommissionRateDto } from './dto/update-platform_fee.dto';
 import { ApplicableTyp, FeeLogType } from '@prisma/client';
 import { FeeLogFilterDto } from './dto/fee-logs-filter.dto';
 
-
-// 
 @Injectable()
 export class StandardCommissionRateService {
   constructor(private readonly prisma: PrismaService) { }
 
-  // Create a new record
-  async create(data: CreateStandardCommissionRateDto,
-    changedByRole: string,
-    changedById: number) {
-    //  
-    const record = await this.prisma.standardCommissionRate.findFirst({
-      where: {
-        role_name: data.role_name
-      }
-    })
-    // 
-    if (record) {
-      throw new ConflictException("Record all ready exist")
+  private async validateZones(ids: number[]): Promise<void> {
+    if (!ids.length) return;
+    const found = await this.prisma.serviceZone.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+    if (found.length !== ids.length) {
+      const missing = ids.filter(id => !found.some(z => z.id === id));
+      throw new NotFoundException(`Service area(s) not found: ${missing.join(', ')}`);
     }
+  }
 
-    const res = await this.prisma.standardCommissionRate.create({ data });
-    const zone = await this.prisma.serviceZone.findUnique({ where: { id: data.service_area_id } });
-    // 
+  private async resolveZoneLabel(ids: number[]): Promise<string> {
+    if (!ids.length) return 'ALL ZONES';
+    const zones = await this.prisma.serviceZone.findMany({
+      where: { id: { in: ids } },
+      select: { name: true },
+    });
+    return zones.map(z => z.name).join(', ');
+  }
+
+  async create(
+    data: CreateStandardCommissionRateDto,
+    changedByRole: string,
+    changedById: number,
+  ) {
+    const zoneIds = data.service_area_ids ?? [];
+    await this.validateZones(zoneIds);
+
+    const record = await this.prisma.standardCommissionRate.findFirst({
+      where: { role_name: data.role_name },
+    });
+    if (record) throw new ConflictException('Record already exists');
+
+    const res = await this.prisma.standardCommissionRate.create({
+      data: {
+        applicable_user: data.applicable_user,
+        role_name: data.role_name,
+        commission_rate_delivery_fee: data.commission_rate_delivery_fee ?? 0,
+        serviceAreas: {
+          create: zoneIds.map(id => ({ service_area_id: id })),
+        },
+      },
+      include: {
+        serviceAreas: { include: { serviceArea: true } },
+      },
+    });
+
     await this.createFeeLog({
       logType: FeeLogType.STANDARD_COMMISSION_RATE,
       referenceId: res.id,
       applicableUser: res.applicable_user,
-      serviceArea: zone?.name,
+      serviceArea: await this.resolveZoneLabel(zoneIds),
       snapshot: res,
       changedByRole,
       changedById,
     });
 
-    return res
+    return res;
   }
 
-  // Get all records
   async findAll() {
-    return await this.prisma.standardCommissionRate.findMany({
+    return this.prisma.standardCommissionRate.findMany({
       include: {
-        serviceArea: true,
+        serviceAreas: { include: { serviceArea: true } },
       },
-      orderBy: { created_at: 'desc' }, // optional: latest first
+      orderBy: { created_at: 'desc' },
     });
   }
 
-  // Get a single record by ID
   async findOne(id: number) {
     const record = await this.prisma.standardCommissionRate.findUnique({
       where: { id },
       include: {
-        serviceArea: true,
+        serviceAreas: { include: { serviceArea: true } },
       },
     });
     if (!record) throw new NotFoundException('Standard Commission Rate not found');
     return record;
   }
 
-  // Update a record by ID
-  async update(id: number,
+  async update(
+    id: number,
     data: UpdateStandardCommissionRateDto,
     changedByRole: string,
-    changedById: number
+    changedById: number,
   ) {
-    await this.findOne(id); // ensure exists
+    await this.findOne(id);
+
+    const zoneIds = data.service_area_ids ?? [];
+    await this.validateZones(zoneIds);
+
     const updated = await this.prisma.standardCommissionRate.update({
       where: { id },
-      data,
+      data: {
+        applicable_user: data.applicable_user,
+        role_name: data.role_name,
+        commission_rate_delivery_fee: data.commission_rate_delivery_fee,
+        serviceAreas: {
+          deleteMany: {},
+          create: zoneIds.map(id => ({ service_area_id: id })),
+        },
+      },
+      include: {
+        serviceAreas: { include: { serviceArea: true } },
+      },
     });
-    const zone = await this.prisma.serviceZone.findUnique({ where: { id: data.service_area_id } });
-    // 
+
     await this.createFeeLog({
-      logType: FeeLogType.USER_FEE_STRUCTURE,
+      logType: FeeLogType.STANDARD_COMMISSION_RATE,
       referenceId: updated.id,
       applicableUser: updated.applicable_user,
-      serviceArea: zone?.name,
+      serviceArea: await this.resolveZoneLabel(zoneIds),
       snapshot: updated,
       changedByRole,
       changedById,
-
     });
 
-    return updated
+    return updated;
   }
 
-  // Delete a record by ID
   async remove(id: number) {
-    await this.findOne(id); // ensure exists
+    await this.findOne(id);
     return this.prisma.standardCommissionRate.delete({ where: { id } });
   }
-  // re-useable logger for platform fee 
+
   async createFeeLog(params: {
     logType: string;
     referenceId: number;
@@ -106,7 +144,7 @@ export class StandardCommissionRateService {
     changedByRole: string;
     changedById?: number;
   }) {
-    return await this.prisma.feeConfigurationLog.create({
+    return this.prisma.feeConfigurationLog.create({
       data: {
         log_type: params.logType,
         reference_id: params.referenceId,
@@ -119,61 +157,46 @@ export class StandardCommissionRateService {
     });
   }
 
+  async getLogs(filterDto: FeeLogFilterDto) {
+    const { logType, fromDate, toDate, page, limit } = filterDto;
+    const skip = (page - 1) * limit;
 
-    async getLogs(filterDto: FeeLogFilterDto) {
-      const { logType, fromDate, toDate, page, limit } = filterDto;
-      
-      // Calculate how many records to skip
-      const skip = (page - 1) * limit;
+    const where = {
+      log_type: logType,
+      created_at: {
+        gte: fromDate ? new Date(fromDate) : undefined,
+        lte: toDate ? new Date(toDate) : undefined,
+      },
+    };
 
-      const where = {
-        log_type: logType,
-        created_at: {
-          gte: fromDate ? new Date(fromDate) : undefined,
-          lte: toDate ? new Date(toDate) : undefined,
-        },
-      };
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.feeConfigurationLog.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { created_at: 'desc' },
+      }),
+      this.prisma.feeConfigurationLog.count({ where }),
+    ]);
 
-      // Run both queries in a transaction for efficiency/consistency
-      const [data, total] = await this.prisma.$transaction([
-        this.prisma.feeConfigurationLog.findMany({
-          where,
-          skip,
-          take: limit,
-          orderBy: { created_at: 'desc' },
-        }),
-        this.prisma.feeConfigurationLog.count({ where }),
-      ]);
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 
-      return {
-        data,
-        meta: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
-    }
-
-  // get logs by references 
-  async getLogsByReference(
-    logType: string,
-    referenceId: number,
-  ) {
-    return await this.prisma.feeConfigurationLog.findMany({
+  async getLogsByReference(logType: string, referenceId: number) {
+    return this.prisma.feeConfigurationLog.findMany({
       where: {
         log_type: logType,
         reference_id: referenceId,
       },
-      orderBy: {
-        created_at: 'desc',
-      },
+      orderBy: { created_at: 'desc' },
     });
   }
-
-
-
-
-
 }

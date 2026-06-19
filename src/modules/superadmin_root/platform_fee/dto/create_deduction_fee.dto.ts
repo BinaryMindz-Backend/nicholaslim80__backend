@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsInt, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsInt, IsOptional, IsEnum, IsArray } from 'class-validator';
 import { ApplicableTyp } from '@prisma/client';
 
 export class CreateRaiderDeductionFeeDto {
@@ -11,14 +11,23 @@ export class CreateRaiderDeductionFeeDto {
   @IsString()
   deduction_name: string;
 
-  @ApiProperty({ description: 'Amount of deduction', example: 50, default: 0 })
+  @ApiPropertyOptional({ description: 'Amount of deduction', example: 50, default: 0 })
   @IsOptional()
   @IsInt()
   amount?: number;
 
-  @ApiPropertyOptional({ description: 'Type of fee', example: "5% or 50" , default: 0 })
+  @ApiPropertyOptional({ description: 'Type of fee', example: '5% or 50', default: 0 })
   @IsOptional()
   @IsString()
-  type: string;
-   
+  type?: string;
+
+  @ApiPropertyOptional({
+    description: 'Service area IDs. Empty array or omit = ALL zones.',
+    example: [1, 2, 3],
+    type: [Number],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  service_area_ids?: number[];
 }

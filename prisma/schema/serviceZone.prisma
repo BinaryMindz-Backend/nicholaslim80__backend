@@ -13,14 +13,18 @@ model serviceZone {
   updatedAt       DateTime @updatedAt
 
   // 
-  orders                  Order[]
-  standardCommissionRates StandardCommissionRate[]
-  raiderCompensationRoles RaiderCompensationRole[]
-  userFeeStructures       UserFeeStructure[]
-  // Incentives linked to this zone
-  incentives              Incentive[]              @relation("IncentiveZones")
+  orders                      Order[]
   //
-  surgePricingRules       SurgePricingRuleZone[]
+  standardCommissionRateZones StandardCommissionRateZone[]
+  raiderCompensationRoleZones RaiderCompensationRoleZone[]
+  raiderDeductionFeeZones     RaiderDeductionFeeZone[]
+  userFeeStructureZones       UserFeeStructureZone[]
+  userDynamicSurgeZones       UserDynamicSurgeZone[]
+
+  // Incentives linked to this zone
+  incentives        Incentive[]            @relation("IncentiveZones")
+  //
+  surgePricingRules SurgePricingRuleZone[]
 
   destinations Destination[]
 }
