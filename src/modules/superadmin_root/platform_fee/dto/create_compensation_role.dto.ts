@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsInt, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsInt, IsOptional, IsEnum, IsArray } from 'class-validator';
 import { ApplicableTyp } from '@prisma/client';
 
 export class CreateRaiderCompensationRoleDto {
@@ -11,13 +11,19 @@ export class CreateRaiderCompensationRoleDto {
   @IsString()
   scenario: string;
 
-  @ApiProperty({ description: 'Commission rate for delivery fee', example: 50, default: 0 })
+  @ApiPropertyOptional({ description: 'Commission rate for delivery fee', example: 50, default: 0 })
   @IsOptional()
   @IsInt()
   commission_rate_delivery_fee?: number;
 
-  @ApiPropertyOptional({ description: 'Service area id', example: 1 })
+  //Replaces single service_area_id — empty array = ALL zones
+  @ApiPropertyOptional({
+    description: 'Service area IDs. Empty array or omit = ALL zones.',
+    example: [1, 2, 3],
+    type: [Number],
+  })
   @IsOptional()
-  @IsInt()
-  service_area_id?: number;
+  @IsArray()
+  @IsInt({ each: true })
+  service_area_ids?: number[];
 }

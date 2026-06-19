@@ -1,75 +1,117 @@
+// StandardCommissionRate 
 model StandardCommissionRate {
-  id                           Int           @id @default(autoincrement())
+  id                           Int                          @id @default(autoincrement())
   applicable_user              ApplicableTyp
-  role_name                    String        @db.VarChar(100)
-  commission_rate_delivery_fee Int           @default(0)
-  service_area_id              Int?
-  serviceArea                  serviceZone?  @relation(fields: [service_area_id], references: [id])
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  role_name                    String                       @db.VarChar(100)
+  commission_rate_delivery_fee Int                          @default(0)
+  serviceAreas                 StandardCommissionRateZone[]
+  created_at                   DateTime                     @default(now())
+  updated_at                   DateTime                     @updatedAt
 }
 
+model StandardCommissionRateZone {
+  id                          Int                    @id @default(autoincrement())
+  standard_commission_rate_id Int
+  service_area_id             Int
+  standardCommissionRate      StandardCommissionRate @relation(fields: [standard_commission_rate_id], references: [id], onDelete: Cascade)
+  serviceArea                 serviceZone            @relation(fields: [service_area_id], references: [id])
+
+  @@unique([standard_commission_rate_id, service_area_id])
+}
+
+// RaiderCompensationRole 
 model RaiderCompensationRole {
-  id                           Int           @id @default(autoincrement())
+  id                           Int                          @id @default(autoincrement())
   applicable_user              ApplicableTyp
-  scenario                     String        @db.VarChar(100)
-  commission_rate_delivery_fee Int           @default(0)
-  service_area_id              Int?
-  serviceArea                  serviceZone?  @relation(fields: [service_area_id], references: [id])
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  scenario                     String                       @db.VarChar(100)
+  commission_rate_delivery_fee Int                          @default(0)
+  serviceAreas                 RaiderCompensationRoleZone[]
+  created_at                   DateTime                     @default(now())
+  updated_at                   DateTime                     @updatedAt
 }
 
+model RaiderCompensationRoleZone {
+  id                     Int                    @id @default(autoincrement())
+  raider_compensation_id Int
+  service_area_id        Int
+  raiderCompensationRole RaiderCompensationRole @relation(fields: [raider_compensation_id], references: [id], onDelete: Cascade)
+  serviceArea            serviceZone            @relation(fields: [service_area_id], references: [id])
+
+  @@unique([raider_compensation_id, service_area_id])
+}
+
+// RaiderDeductionFee 
 model RaiderDeductionFee {
+  id              Int                      @id @default(autoincrement())
+  applicable_user ApplicableTyp
+  deduction_name  String                   @db.VarChar(100)
+  amount          Int                      @default(0)
+  type            String?
+  serviceAreas    RaiderDeductionFeeZone[]
+  created_at      DateTime                 @default(now())
+  updated_at      DateTime                 @updatedAt
+}
+
+model RaiderDeductionFeeZone {
+  id                  Int                @id @default(autoincrement())
+  raider_deduction_id Int
+  service_area_id     Int
+  raiderDeductionFee  RaiderDeductionFee @relation(fields: [raider_deduction_id], references: [id], onDelete: Cascade)
+  serviceArea         serviceZone        @relation(fields: [service_area_id], references: [id])
+
+  @@unique([raider_deduction_id, service_area_id])
+}
+
+// user fee structure
+model UserFeeStructure {
   id              Int           @id @default(autoincrement())
   applicable_user ApplicableTyp
-  deduction_name  String        @db.VarChar(100)
+  fee_name        String        @db.VarChar(100)
   amount          Int           @default(0)
-  type            String?
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-}
+  serviceAreas UserFeeStructureZone[]
 
-model UserFeeStructure {
-  id Int @id @default(autoincrement())
-
-  applicable_user ApplicableTyp // USER | RAIDER | ADMIN (can also be enum if fixed)
-
-  fee_name String @db.VarChar(100)
-
-  amount Int @default(0)
-
-  service_area_id Int?
-  serviceArea     serviceZone? @relation(fields: [service_area_id], references: [id])
-
-  /// FULLY DYNAMIC RULE SYSTEM
-  applies_to String // e.g. "ALL_ORDERS", "ORDER_LESS", "DELIVERY_TYPE"
-
-  rule_key      String? // e.g. "delivery_type", "order_amount", "distance"
-  rule_operator String? // e.g. "=", "<", ">", "<=", ">="
-  rule_value    String? // stored as string (parse when needed)
-
+  applies_to      String
+  rule_key        String?
+  rule_operator   String?
+  rule_value      String?
   condition_unit  String?
-  condition_value Float? // optional fallback numeric
-
-  is_active Boolean @default(true)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  condition_value Float?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 }
 
-model UserDynamicSurge {
-  id               Int           @id @default(autoincrement())
-  applicable_user  ApplicableTyp
-  role_name        String        @db.VarChar(100)
-  price_multiplier Int           @default(0)
-  condition        Condition
-  time_range       String        @db.VarChar(100)
-  is_active        Boolean       @default(true)
+model UserFeeStructureZone {
+  id                    Int              @id @default(autoincrement())
+  user_fee_structure_id Int
+  service_area_id       Int
+  userFeeStructure      UserFeeStructure @relation(fields: [user_fee_structure_id], references: [id], onDelete: Cascade)
+  serviceArea           serviceZone      @relation(fields: [service_area_id], references: [id])
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  @@unique([user_fee_structure_id, service_area_id])
+}
+
+//  UserDynamicSurge 
+model UserDynamicSurge {
+  id               Int                    @id @default(autoincrement())
+  applicable_user  ApplicableTyp
+  role_name        String                 @db.VarChar(100)
+  price_multiplier Int                    @default(0)
+  condition        Condition
+  time_range       String                 @db.VarChar(100)
+  is_active        Boolean                @default(true)
+  serviceAreas     UserDynamicSurgeZone[]
+  created_at       DateTime               @default(now())
+  updated_at       DateTime               @updatedAt
+}
+
+model UserDynamicSurgeZone {
+  id                    Int              @id @default(autoincrement())
+  user_dynamic_surge_id Int
+  service_area_id       Int
+  userDynamicSurge      UserDynamicSurge @relation(fields: [user_dynamic_surge_id], references: [id], onDelete: Cascade)
+  serviceArea           serviceZone      @relation(fields: [service_area_id], references: [id])
+
+  @@unique([user_dynamic_surge_id, service_area_id])
 }

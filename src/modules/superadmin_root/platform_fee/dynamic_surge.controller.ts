@@ -14,7 +14,7 @@ import type { IUser } from 'src/types';
 @ApiTags('User Dynamic Surge (platform fee) (admin only)')
 @Controller('user-dynamic-surge')
 export class UserDynamicSurgeController {
-  constructor(private readonly service: UserDynamicSurgeService) {}
+  constructor(private readonly service: UserDynamicSurgeService) { }
 
   @Post()
   @Auth()
@@ -22,7 +22,7 @@ export class UserDynamicSurgeController {
   @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.CREATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new dynamic surge rule' })
-  async create(@Body() dto: CreateUserDynamicSurgeDto, @CurrentUser() user:IUser) {
+  async create(@Body() dto: CreateUserDynamicSurgeDto, @CurrentUser() user: IUser) {
     try {
       const res = await this.service.create(dto, user.roles[0].name, user.id);
       return ApiResponses.success(res, 'Dynamic surge created successfully');
@@ -70,7 +70,7 @@ export class UserDynamicSurgeController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserDynamicSurgeDto,
-    @CurrentUser() user:IUser
+    @CurrentUser() user: IUser
   ) {
     try {
       const res = await this.service.update(id, dto, user.roles[0].name, user.id);
@@ -86,11 +86,11 @@ export class UserDynamicSurgeController {
   @RequirePermission(Module.REVENUE_CONFIGURATION, Permission.UPDATE)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update active status a dynamic surge rule' })
-  async updateStaus(
+  async updateStatus(
     @Param('id', ParseIntPipe) id: number
   ) {
     try {
-      const res = await this.service.updateStaus(id);
+      const res = await this.service.updateStatus(id);
       return ApiResponses.success(res, 'Dynamic surge Active status updated successfully');
     } catch (error) {
       return ApiResponses.error(error, 'Failed to update record');

@@ -1,8 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ApplicableTyp } from '@prisma/client';
-import { IsString, IsInt, IsOptional, IsEnum } from 'class-validator';
-
-
+import { IsString, IsInt, IsOptional, IsEnum, IsArray } from 'class-validator';
 
 export class CreateStandardCommissionRateDto {
   @ApiProperty({ description: 'Applicable user type', enum: ApplicableTyp, example: 'RAIDER' })
@@ -13,13 +11,18 @@ export class CreateStandardCommissionRateDto {
   @IsString()
   role_name: string;
 
-  @ApiProperty({ description: 'Commission rate for delivery fee', example: 50, default: 0 })
+  @ApiPropertyOptional({ description: 'Commission rate for delivery fee', example: 50, default: 0 })
   @IsOptional()
   @IsInt()
   commission_rate_delivery_fee?: number;
 
-  @ApiPropertyOptional({ description: 'Service area id', example: 1 })
+  @ApiPropertyOptional({
+    description: 'Service area IDs. Empty array or omit = ALL zones.',
+    example: [1, 2, 3],
+    type: [Number],
+  })
   @IsOptional()
-  @IsInt()
-  service_area_id?: number;
+  @IsArray()
+  @IsInt({ each: true })
+  service_area_ids?: number[];
 }

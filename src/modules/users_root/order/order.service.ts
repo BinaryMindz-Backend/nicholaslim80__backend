@@ -1146,21 +1146,33 @@ export class OrderService {
     };
   }
 
-
   // calculate driver fee
   private async calculateDriverFee(
     serviceZoneId: number,
-    orderPrice: number
+    orderPrice: number,
   ): Promise<number> {
-
     const [standardCommissions, deductions] = await Promise.all([
+
       this.prisma.standardCommissionRate.findMany({
         where: {
-          service_area_id: serviceZoneId,
-        }
+          serviceAreas: {
+            some: { service_area_id: serviceZoneId },
+          },
+        },
       }),
+
       this.prisma.raiderDeductionFee.findMany({
-      })
+        where: {
+          OR: [
+            {
+              serviceAreas: {
+                some: { service_area_id: serviceZoneId },
+              },
+            },
+            { serviceAreas: { none: {} } }, // no zones = applies everywhere
+          ],
+        },
+      }),
     ]);
 
     const commissionTotal = standardCommissions.reduce(
@@ -1169,22 +1181,20 @@ export class OrderService {
       0,
     );
 
-    let deductionTotal = 0;
-    const fixedAmount = deductions.find(d => d.type === "fixed_amount");
-    const percentage = deductions.find(d => d.type === "percentage");
+    const fixedDeductions = deductions.filter(d => d.type === 'fixed_amount');
+    const percentageDeductions = deductions.filter(d => d.type === 'percentage');
 
-    if (fixedAmount) {
-      deductionTotal = deductions.reduce(
-        (sum, fee) => sum + Number(fee.amount ?? 0),
-        0,
-      );
-    } else if (percentage) {
-      deductionTotal = deductions.reduce(
-        (sum, rate) =>
-          sum + (orderPrice * Number(rate.amount ?? 0)) / 100,
-        0,
-      );
-    }
+    const fixedTotal = fixedDeductions.reduce(
+      (sum, fee) => sum + Number(fee.amount ?? 0),
+      0,
+    );
+
+    const percentageTotal = percentageDeductions.reduce(
+      (sum, fee) => sum + (orderPrice * Number(fee.amount ?? 0)) / 100,
+      0,
+    );
+
+    const deductionTotal = fixedTotal + percentageTotal;
 
     return commissionTotal + deductionTotal;
   }
