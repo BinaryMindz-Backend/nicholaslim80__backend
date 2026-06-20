@@ -94,6 +94,7 @@ export enum Module {
   ADMIN_RAIDER_WALLET = 'admin_raider_wallet',
   ADMIN_USER_WALLET = 'admin_user_wallet',
   ETA = 'eta',
+  NOTIFICATION_RULE = 'notification_rule',
 
 }
 
@@ -453,6 +454,12 @@ const ROLE_PERMISSIONS = {
     { module: Module.ETA, action: Permission.UPDATE },
     { module: Module.ETA, action: Permission.READ },
     { module: Module.ETA, action: Permission.GET_ONE },
+    //notification role
+    { module: Module.NOTIFICATION_RULE, action: Permission.CREATE },
+    { module: Module.NOTIFICATION_RULE, action: Permission.DELETE },
+    { module: Module.NOTIFICATION_RULE, action: Permission.UPDATE },
+    { module: Module.NOTIFICATION_RULE, action: Permission.READ },
+    { module: Module.NOTIFICATION_RULE, action: Permission.GET_ONE },
 
   ],
 

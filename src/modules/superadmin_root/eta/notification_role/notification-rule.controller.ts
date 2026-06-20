@@ -34,7 +34,7 @@ export class NotificationRuleController {
     @Post()
     @Auth()
     @ApiBearerAuth()
-    @RequirePermission(Module.ETA, Permission.CREATE)
+    @RequirePermission(Module.NOTIFICATION_RULE, Permission.CREATE)
     @ApiOperation({ summary: 'Create notification rule' })
     async create(
         @Body() dto: CreateNotificationRuleDto,
@@ -55,7 +55,7 @@ export class NotificationRuleController {
     @Get()
     @Auth()
     @ApiBearerAuth()
-    @RequirePermission(Module.ETA, Permission.READ)
+    @RequirePermission(Module.NOTIFICATION_RULE, Permission.READ)
     @ApiOperation({ summary: 'Get all notification rules' })
     async findAll() {
         try {
@@ -73,7 +73,7 @@ export class NotificationRuleController {
     @Get(':id')
     @Auth()
     @ApiBearerAuth()
-    @RequirePermission(Module.ETA, Permission.READ)
+    @RequirePermission(Module.NOTIFICATION_RULE, Permission.READ)
     @ApiOperation({ summary: 'Get notification rule details' })
     async findOne(@Param('id') id: string) {
         try {
@@ -91,7 +91,7 @@ export class NotificationRuleController {
     @Patch(':id')
     @Auth()
     @ApiBearerAuth()
-    @RequirePermission(Module.ETA, Permission.UPDATE)
+    @RequirePermission(Module.NOTIFICATION_RULE, Permission.UPDATE)
     @ApiOperation({ summary: 'Update notification rule' })
     async update(
         @Param('id') id: string,
@@ -113,7 +113,7 @@ export class NotificationRuleController {
     @Patch(':id/toggle')
     @Auth()
     @ApiBearerAuth()
-    @RequirePermission(Module.ETA, Permission.UPDATE)
+    @RequirePermission(Module.NOTIFICATION_RULE, Permission.UPDATE)
     @ApiOperation({ summary: 'Toggle notification rule status' })
     async toggleActive(
         @Param('id') id: string,
@@ -134,7 +134,7 @@ export class NotificationRuleController {
     @Delete(':id')
     @Auth()
     @ApiBearerAuth()
-    @RequirePermission(Module.ETA, Permission.DELETE)
+    @RequirePermission(Module.NOTIFICATION_RULE, Permission.DELETE)
     @ApiOperation({ summary: 'Delete notification rule' })
     async remove(
         @Param('id') id: string,

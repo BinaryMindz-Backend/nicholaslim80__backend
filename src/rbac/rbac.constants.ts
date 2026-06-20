@@ -83,6 +83,7 @@ export enum Module {
   ADMIN_RAIDER_WALLET = 'admin_raider_wallet',
   ADMIN_USER_WALLET = 'admin_user_wallet',
   ETA = 'eta',
+  NOTIFICATION_RULE = 'notification_rule'
 
 
 
