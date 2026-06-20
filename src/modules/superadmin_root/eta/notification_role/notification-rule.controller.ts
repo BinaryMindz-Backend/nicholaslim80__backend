@@ -14,7 +14,7 @@ import {
     ApiTags,
 } from '@nestjs/swagger';
 
-import { NotificationRuleService } from './notification-rule.service';
+import { AVAILABLE_MERGE_TAGS, NotificationRuleService } from './notification-rule.service';
 import { CreateNotificationRuleDto } from './dto/create-notification-rule.dto';
 import { UpdateNotificationRuleDto } from './dto/update-notification-rule.dto';
 import { Auth } from 'src/decorators/auth.decorator';
@@ -23,6 +23,7 @@ import type { IUser } from 'src/types';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApiResponses } from 'src/common/apiResponse';
 import { Module, Permission } from 'src/rbac/rbac.constants';
+import { Public } from 'src/decorators/public.decorator';
 
 
 @ApiTags('Notification Rules')
@@ -30,6 +31,13 @@ import { Module, Permission } from 'src/rbac/rbac.constants';
 @ApiBearerAuth()
 export class NotificationRuleController {
     constructor(private readonly service: NotificationRuleService) { }
+
+    @Get('merge-tags')
+    @Public()
+    @ApiOperation({ summary: 'Get available merge tags' })
+    getAvailableMergeTags() {
+        return AVAILABLE_MERGE_TAGS;
+    }
 
     @Post()
     @Auth()
@@ -151,4 +159,6 @@ export class NotificationRuleController {
             return ApiResponses.error(error);
         }
     }
+
+
 }

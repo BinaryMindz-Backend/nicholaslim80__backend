@@ -9,6 +9,8 @@ export class NotificationRuleService {
 
     async create(dto: CreateNotificationRuleDto, adminUserId: number) {
         this.validateChannelLogic(dto);
+        this.validateMergeTags(dto.notifTitle);
+        this.validateMergeTags(dto.notifMessage);
 
         const triggerExists = await this.prisma.triggerEvent.findUnique({
             where: { backendTag: dto.triggerTag },
@@ -59,6 +61,8 @@ export class NotificationRuleService {
         const oldRule = await this.findOne(id);
 
         this.validateChannelLogic(dto);
+        this.validateMergeTags(dto.notifTitle || '');
+        this.validateMergeTags(dto.notifMessage || '');
 
         return this.prisma.$transaction(async (tx) => {
             const updatedRule = await tx.notificationRule.update({
@@ -149,4 +153,30 @@ export class NotificationRuleService {
             );
         }
     }
+
+
+    private readonly VALID_TAGS = new Set(
+        AVAILABLE_MERGE_TAGS.map((t) => t.tag.replace(/[{}]/g, '')),
+    );
+
+    private validateMergeTags(template: string) {
+        const found = template.match(/\{(\w+)\}/g) ?? [];
+        const invalid = found.filter((t) => !this.VALID_TAGS.has(t.replace(/[{}]/g, '')));
+
+        if (invalid.length > 0) {
+            throw new BadRequestException(
+                `Unknown merge tag(s): ${invalid.join(', ')}. Valid tags: ${[...this.VALID_TAGS].map(t => `{${t}}`).join(', ')}`,
+            );
+        }
+    }
+
 }
+
+export const AVAILABLE_MERGE_TAGS = [
+    { tag: '{driver_name}', label: 'Driver Name', example: 'John Tan' },
+    { tag: '{sme_client_name}', label: 'Sender / SME Client Name', example: 'Acme Pte Ltd' },
+    { tag: '{recipient_name}', label: 'Recipient Name', example: 'Sarah Lim' },
+    { tag: '{delivery_address}', label: 'Delivery Address', example: '123 Orchard Rd' },
+    { tag: '{stop_sequence}', label: 'Stop Number', example: '2' },
+    { tag: '{threshold}', label: 'Rule Threshold Value', example: '10' },
+] as const;
