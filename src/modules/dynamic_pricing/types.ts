@@ -21,6 +21,8 @@ export interface PricingBreakdown {
   deliveryTypeSurge: number;
   userFeeTotal: number;
   zoneFee: number;
+  dynamicSurgeAmount: number;
+  dynamicSurgeMultiplier: number;
   surgeAmount: number;
   surgeMultiplier: number;
   totalFee: number;

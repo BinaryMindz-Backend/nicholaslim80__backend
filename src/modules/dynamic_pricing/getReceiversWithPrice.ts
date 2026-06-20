@@ -68,6 +68,8 @@ export async function getReceiversWithIndividualPrice(
         deliveryTypeSurge: pricing.deliveryTypeSurge,
         userFeeTotal: pricing.userFeeTotal,
         zoneFee: pricing.zoneFee,
+        dynamicSurgeAmount: pricing.dynamicSurgeAmount,
+        dynamicSurgeMultiplier: pricing.dynamicSurgeMultiplier,
         surgeAmount: pricing.surgeAmount,
         surgeMultiplier: pricing.surgeMultiplier,
         totalFee: pricing.totalFee,

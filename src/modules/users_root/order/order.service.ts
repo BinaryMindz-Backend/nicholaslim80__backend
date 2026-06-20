@@ -1151,52 +1151,62 @@ export class OrderService {
     serviceZoneId: number,
     orderPrice: number,
   ): Promise<number> {
-    const [standardCommissions, deductions] = await Promise.all([
+    const [standardCommissions, compensationRoles, deductions] = await Promise.all([
 
       this.prisma.standardCommissionRate.findMany({
         where: {
-          serviceAreas: {
-            some: { service_area_id: serviceZoneId },
-          },
+          OR: [
+            { serviceAreas: { some: { service_area_id: serviceZoneId } } },
+            { serviceAreas: { none: {} } },
+          ],
+        },
+      }),
+
+      this.prisma.raiderCompensationRole.findMany({
+        where: {
+          OR: [
+            { serviceAreas: { some: { service_area_id: serviceZoneId } } },
+            { serviceAreas: { none: {} } },
+          ],
         },
       }),
 
       this.prisma.raiderDeductionFee.findMany({
         where: {
           OR: [
-            {
-              serviceAreas: {
-                some: { service_area_id: serviceZoneId },
-              },
-            },
-            { serviceAreas: { none: {} } }, // no zones = applies everywhere
+            { serviceAreas: { some: { service_area_id: serviceZoneId } } },
+            { serviceAreas: { none: {} } },
           ],
         },
       }),
     ]);
 
+    // Platform commission % of order price
     const commissionTotal = standardCommissions.reduce(
       (sum, rate) =>
         sum + (orderPrice * Number(rate.commission_rate_delivery_fee ?? 0)) / 100,
       0,
     );
 
-    const fixedDeductions = deductions.filter(d => d.type === 'fixed_amount');
-    const percentageDeductions = deductions.filter(d => d.type === 'percentage');
-
-    const fixedTotal = fixedDeductions.reduce(
-      (sum, fee) => sum + Number(fee.amount ?? 0),
+    const compensationTotal = compensationRoles.reduce(
+      (sum, role) =>
+        sum + (orderPrice * Number(role.commission_rate_delivery_fee ?? 0)) / 100,
       0,
     );
 
-    const percentageTotal = percentageDeductions.reduce(
-      (sum, fee) => sum + (orderPrice * Number(fee.amount ?? 0)) / 100,
-      0,
-    );
+    const fixedTotal = deductions
+      .filter(d => d.type === 'fixed_amount')
+      .reduce((sum, fee) => sum + Number(fee.amount ?? 0), 0);
 
-    const deductionTotal = fixedTotal + percentageTotal;
+    const percentageTotal = deductions
+      .filter(d => d.type === 'percentage')
+      .reduce(
+        (sum, fee) => sum + (orderPrice * Number(fee.amount ?? 0)) / 100,
+        0,
+      );
 
-    return commissionTotal + deductionTotal;
+    // platformFee = commission - compensation + deductions
+    return commissionTotal - compensationTotal + fixedTotal + percentageTotal;
   }
 
   // skiped
@@ -3001,6 +3011,111 @@ export class OrderService {
 
 
   // **HOT CAKE: recalculate order price with individual drop pricing
+  // private async recalculateOrderPrice(orderId: number) {
+  //   const order = await this.prisma.order.findUnique({
+  //     where: { id: orderId },
+  //     include: {
+  //       orderStops: {
+  //         include: { payment: true },
+  //         orderBy: { sequence: 'asc' },
+  //       },
+  //     },
+  //   });
+
+  //   if (!order) return;
+
+  //   const pickupStop = order.orderStops.find((s) => s.type === StopType.PICKUP);
+  //   const dropStops = order.orderStops.filter((s) => s.type === StopType.DROP);
+
+  //   if (!pickupStop || dropStops.length === 0) {
+  //     await this.prisma.order.update({
+  //       where: { id: orderId },
+  //       data: {
+  //         total_cost: 0,
+  //         total_fee: 0,
+  //         total_raider_earnings: 0,
+  //         total_distance: 0,
+  //       },
+  //     });
+  //     return { totalCost: 0, totalFee: 0, totalRaiderEarnings: 0, totalDistance: 0 };
+  //   }
+
+  //   const zone = await this.serviceZone.findZoneByPoint(
+  //     pickupStop.latitude,
+  //     pickupStop.longitude,
+  //   );
+
+  //   if (!zone) throw new BadRequestException('Pickup address outside service zone');
+
+  //   const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
+  //   const receivers = dropStops.map((s) => ({ lat: s.latitude, lng: s.longitude }));
+
+  //   const [currentDemand, availableDrivers] = await Promise.all([
+  //     this.getCurrentDemand(zone.id),
+  //     this.getAvailableDrivers(zone.id),
+  //   ]);
+
+  //   const pricingResults = await getReceiversWithIndividualPrice(
+  //     this.prisma,
+  //     this.surgePricingRuleService,
+  //     sender,
+  //     receivers,
+  //     order.delivery_type_id,
+  //     order.vehicle_type_id ?? 1,
+  //     zone,
+  //     { isRoundTrip: order.route_type === RouteType.ROUND },
+  //     currentDemand,
+  //     availableDrivers,
+  //   );
+
+  //   const totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
+  //   const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
+  //   const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
+  //   const totalDistance = pricingResults.reduce((sum, r) => sum + r.distanceKm, 0);
+  //   const tTime = pricingResults.reduce((sum, r) => sum + r.pricing.min!, 0);
+
+  //   // Persist order totals
+  //   await this.prisma.order.update({
+  //     where: { id: orderId },
+  //     data: {
+  //       total_cost: parseFloat(totalCost.toFixed(2)),
+  //       total_fee: parseFloat(totalFee.toFixed(2)),
+  //       total_raider_earnings: parseFloat(totalRaiderEarnings.toFixed(2)),
+  //       total_distance: parseFloat(totalDistance.toFixed(2)),
+  //       total_time: tTime,
+  //       serviceZoneId: zone.id,
+  //     },
+  //   });
+  //   //  Persist per-drop payment amounts
+  //   await this.prisma.$transaction(
+  //     dropStops.map((drop, index) => {
+  //       const pricing = pricingResults[index];
+  //       return this.prisma.orderStop.update({
+  //         where: { id: drop.id },
+  //         data: {
+  //           calculated_price: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
+  //           calculated_distance: parseFloat(pricing.distanceKm.toFixed(2)),
+  //           calculated_time: pricing.pricing.min,
+  //           calculated_time_txt: pricing.pricing.min_text,
+  //           payment: {
+  //             update: {
+  //               amount: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
+  //             },
+  //           },
+  //         },
+  //       });
+  //     }),
+  //   );
+
+  //   return {
+  //     totalCost: parseFloat(totalCost.toFixed(2)),
+  //     totalFee: parseFloat(totalFee.toFixed(2)),
+  //     totalRaiderEarnings: parseFloat(totalRaiderEarnings.toFixed(2)),
+  //     totalDistance: parseFloat(totalDistance.toFixed(2)),
+  //     total_time: tTime,
+  //   };
+  // }
+
   private async recalculateOrderPrice(orderId: number) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -3034,7 +3149,6 @@ export class OrderService {
       pickupStop.latitude,
       pickupStop.longitude,
     );
-
     if (!zone) throw new BadRequestException('Pickup address outside service zone');
 
     const sender = { lat: pickupStop.latitude, lng: pickupStop.longitude };
@@ -3058,27 +3172,32 @@ export class OrderService {
       availableDrivers,
     );
 
+    // pricingResults may be shorter than dropStops if a receiver failed
+    if (pricingResults.length !== dropStops.length) {
+      throw new BadRequestException(
+        `Pricing result mismatch: expected ${dropStops.length} drops, got ${pricingResults.length}`,
+      );
+    }
+
     const totalCost = pricingResults.reduce((sum, r) => sum + r.pricing.totalPrice, 0);
     const totalFee = pricingResults.reduce((sum, r) => sum + r.pricing.totalFee, 0);
     const totalRaiderEarnings = pricingResults.reduce((sum, r) => sum + r.pricing.raiderEarnings, 0);
     const totalDistance = pricingResults.reduce((sum, r) => sum + r.distanceKm, 0);
-    const tTime = pricingResults.reduce((sum, r) => sum + r.pricing.min!, 0);
+    const tTime = pricingResults.reduce((sum, r) => sum + (r.pricing.min ?? 0), 0);
 
-    // Persist order totals
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        total_cost: parseFloat(totalCost.toFixed(2)),
-        total_fee: parseFloat(totalFee.toFixed(2)),
-        total_raider_earnings: parseFloat(totalRaiderEarnings.toFixed(2)),
-        total_distance: parseFloat(totalDistance.toFixed(2)),
-        total_time: tTime,
-        serviceZoneId: zone.id,
-      },
-    });
-    //  Persist per-drop payment amounts
-    await this.prisma.$transaction(
-      dropStops.map((drop, index) => {
+    await this.prisma.$transaction([
+      this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          total_cost: parseFloat(totalCost.toFixed(2)),
+          total_fee: parseFloat(totalFee.toFixed(2)),
+          total_raider_earnings: parseFloat(totalRaiderEarnings.toFixed(2)),
+          total_distance: parseFloat(totalDistance.toFixed(2)),
+          total_time: tTime,
+          serviceZoneId: zone.id,
+        },
+      }),
+      ...dropStops.map((drop, index) => {
         const pricing = pricingResults[index];
         return this.prisma.orderStop.update({
           where: { id: drop.id },
@@ -3087,15 +3206,17 @@ export class OrderService {
             calculated_distance: parseFloat(pricing.distanceKm.toFixed(2)),
             calculated_time: pricing.pricing.min,
             calculated_time_txt: pricing.pricing.min_text,
-            payment: {
-              update: {
-                amount: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
+            ...(drop.payment && {
+              payment: {
+                update: {
+                  amount: parseFloat(pricing.pricing.totalPrice.toFixed(2)),
+                },
               },
-            },
+            }),
           },
         });
       }),
-    );
+    ]);
 
     return {
       totalCost: parseFloat(totalCost.toFixed(2)),
@@ -3105,7 +3226,6 @@ export class OrderService {
       total_time: tTime,
     };
   }
-
 
   // APPLY DISCOUNT
   async applyDiscount(orderId: number, userId: number, dto: ApplyDiscountDto) {

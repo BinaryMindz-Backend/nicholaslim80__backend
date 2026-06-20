@@ -2,6 +2,9 @@ import { PricingBreakdown, CalculatePriceParams } from './types';
 import { evaluateRule } from './fee.helper';
 import { PrismaService } from 'src/core/database/prisma.service';
 
+
+
+
 export async function calculatePriceWithFee(
   params: CalculatePriceParams
 ): Promise<PricingBreakdown> {
@@ -33,7 +36,6 @@ export async function calculatePriceWithFee(
     distance: extraDistance,
   };
 
-
   const fees = await prisma.userFeeStructure.findMany({
     where: {
       is_active: true,
@@ -53,9 +55,54 @@ export async function calculatePriceWithFee(
   /* ---------------- Zone Fee ---------------- */
   const zoneFee = zone.deliveryFee;
   price *= zoneFee;
-  console.log('ZONE fee-->', zoneFee);
 
-  /* ---------------- Surge Pricing ---------------- */
+  /* ---------------- Dynamic Surge (UserDynamicSurge) ---------------- */
+  let dynamicSurgeAmount = 0;
+  let dynamicSurgeMultiplier = 1.0;
+
+  try {
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const dynamicSurgeRules = await prisma.userDynamicSurge.findMany({
+      where: {
+        is_active: true,
+        OR: [
+          { serviceAreas: { some: { service_area_id: zone.id } } },
+          { serviceAreas: { none: {} } },
+        ],
+      },
+    });
+
+    // Match rules where current time falls within time_range (format: "HH:MM AM/PM - HH:MM AM/PM")
+    const matchedSurgeRule = dynamicSurgeRules.find(rule => {
+      const [startStr, endStr] = rule.time_range.split('-').map(s => s.trim());
+      const toMinutes = (str: string): number => {
+        const [time, meridiem] = str.split(' ');
+        let [h, m] = time.split(':').map(Number);
+        if (meridiem === 'PM' && h !== 12) h += 12;
+        if (meridiem === 'AM' && h === 12) h = 0;
+        return h * 60 + m;
+      };
+      const start = toMinutes(startStr);
+      const end = toMinutes(endStr);
+      // Handle overnight ranges e.g. 10:00 PM - 02:00 AM
+      return end < start
+        ? nowMinutes >= start || nowMinutes <= end
+        : nowMinutes >= start && nowMinutes <= end;
+    });
+
+    if (matchedSurgeRule) {
+      // price_multiplier stored as integer e.g. 150 = 1.5x
+      dynamicSurgeMultiplier = Number(matchedSurgeRule.price_multiplier) / 100;
+      dynamicSurgeAmount = price * (dynamicSurgeMultiplier - 1);
+      price += dynamicSurgeAmount;
+    }
+  } catch (error) {
+    console.error('Dynamic surge calculation failed:', error);
+  }
+
+  /* ---------------- Surge Pricing (resolveSurge / demand-based) ---------------- */
   let surgeAmount = 0;
   let surgeMultiplier = 1.0;
 
@@ -88,10 +135,12 @@ export async function calculatePriceWithFee(
     deliveryTypeSurge: Number(extraStopSurcharge.toFixed(2)),
     userFeeTotal: Number(userFeeTotal.toFixed(2)),
     zoneFee: Number(zoneFee.toFixed(2)),
+    dynamicSurgeAmount: Number(dynamicSurgeAmount.toFixed(2)),
+    dynamicSurgeMultiplier: Number(dynamicSurgeMultiplier.toFixed(4)),
     surgeAmount: Number(surgeAmount.toFixed(2)),
     surgeMultiplier: Number(surgeMultiplier.toFixed(4)),
     totalFee: Number(
-      (userFeeTotal + zoneFee + surgeAmount + extraStopSurcharge).toFixed(2),
+      (userFeeTotal + zoneFee + dynamicSurgeAmount + surgeAmount + extraStopSurcharge).toFixed(2),
     ),
     totalPrice: Number((price + extraStopSurcharge).toFixed(2)),
     raiderEarnings: Number(Math.max(0, raiderEarnings).toFixed(2)),
@@ -107,13 +156,23 @@ async function calculateDriverFeeForOrder(
   serviceZoneId: number,
   orderPrice: number,
 ): Promise<number> {
-  const [standardCommissions, deductions] = await Promise.all([
+  const [standardCommissions, compensationRoles, deductions] = await Promise.all([
 
     prisma.standardCommissionRate.findMany({
       where: {
-        serviceAreas: {
-          some: { service_area_id: serviceZoneId },
-        },
+        OR: [
+          { serviceAreas: { some: { service_area_id: serviceZoneId } } },
+          { serviceAreas: { none: {} } },
+        ],
+      },
+    }),
+    // Raider earns: compensation % on top of base
+    prisma.raiderCompensationRole.findMany({
+      where: {
+        OR: [
+          { serviceAreas: { some: { service_area_id: serviceZoneId } } },
+          { serviceAreas: { none: {} } },
+        ],
       },
     }),
 
@@ -127,10 +186,15 @@ async function calculateDriverFeeForOrder(
     }),
   ]);
 
-  // Commission: each rate is a % of orderPrice
   const commissionTotal = standardCommissions.reduce(
     (sum, rate) =>
       sum + (orderPrice * Number(rate.commission_rate_delivery_fee ?? 0)) / 100,
+    0,
+  );
+
+  const compensationTotal = compensationRoles.reduce(
+    (sum, role) =>
+      sum + (orderPrice * Number(role.commission_rate_delivery_fee ?? 0)) / 100,
     0,
   );
 
@@ -147,5 +211,11 @@ async function calculateDriverFeeForOrder(
     0,
   );
 
-  return commissionTotal + fixedTotal + percentageTotal;
+  const deductionTotal = fixedTotal + percentageTotal;
+
+  // platformFee = what platform keeps
+  // commissionTotal  → platform earns
+  // compensationTotal → platform pays out to raider (reduce platform fee)
+  // deductionTotal   → platform keeps back from raider (increase platform fee)
+  return commissionTotal - compensationTotal + deductionTotal;
 }
