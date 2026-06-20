@@ -10,7 +10,7 @@ export class EmailQueueService {
   constructor(
     @InjectQueue('email-queue') private emailQueue: Queue,
     @InjectQueue('notification-queue') private notificationQueue: Queue,
-  ) {}
+  ) { }
   // 
   async queueEmail(data: {
     userId: number;
@@ -98,50 +98,50 @@ export class EmailQueueService {
   }
 
   // PUSH NOTIFICATIONS
-   async queuePushNotification(data: {
-      userId: number;
-      fcmToken: string;
-      type: string;
-      title: string;
-      body: string;
+  async queuePushNotification(data: {
+    userId: number;
+    fcmToken: string;
+    type: string;
+    title: string;
+    body: string;
 
-      data?: Record<string, string>;
-    }) {
-      try {
-        const job = await this.notificationQueue.add(
-          NotificationJobType.PUSH_NOTIFICATION,
-          data,
-          {
-            attempts: 3,
-            backoff: { type: 'exponential', delay: 1000 },
-            removeOnComplete: { age: 24 * 3600, count: 500 },
-            removeOnFail: { age: 7 * 24 * 3600 },
-          },
-        );
+    data?: Record<string, string>;
+  }) {
+    try {
+      const job = await this.notificationQueue.add(
+        NotificationJobType.PUSH_NOTIFICATION,
+        data,
+        {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+          removeOnComplete: { age: 24 * 3600, count: 500 },
+          removeOnFail: { age: 7 * 24 * 3600 },
+        },
+      );
 
-        this.logger.log(
-          `Push notification queued for user ${data.userId}, Job ID: ${job.id}`,
-        );
+      this.logger.log(
+        `Push notification queued for user ${data.userId}, Job ID: ${job.id}`,
+      );
 
-        return job;
-      } catch (error) {
-        this.logger.error('Failed to queue push notification:', error);
-        throw error;
-      }
+      return job;
+    } catch (error) {
+      this.logger.error('Failed to queue push notification:', error);
+      throw error;
     }
+  }
 
   // ORDER MANAGEMENT - PENDING ORDERS  
   async queueOrderPendingEmail(data: {
     userId: number;
     email: string;
     username?: string;
-    status?:string,
+    status?: string,
     orderId: number;
     orderNumber?: string;
     amount?: number;
-    statusMessage:string;
-    
-  }){
+    statusMessage: string;
+
+  }) {
     try {
       const job = await this.emailQueue.add(
         'order-pending-email',
@@ -162,35 +162,35 @@ export class EmailQueueService {
   }
 
   async queueBulkOrderPendingEmail(data: {
-      userId: number;
-      email: string;
-      username?: string;
-      orderIds: number[];
-      totalOrders: number;
-      totalAmount?: number;
-    }): Promise<Job> {
-      try {
-        const job = await this.emailQueue.add(
-          'bulk-order-pending-email',
-          data,
-          {
-            attempts: 5,
-            backoff: { type: 'exponential', delay: 2000 },
-            removeOnComplete: { age: 24 * 3600, count: 1000 },
-            removeOnFail: { age: 7 * 24 * 3600 },
-          },
-        );
+    userId: number;
+    email: string;
+    username?: string;
+    orderIds: number[];
+    totalOrders: number;
+    totalAmount?: number;
+  }): Promise<Job> {
+    try {
+      const job = await this.emailQueue.add(
+        'bulk-order-pending-email',
+        data,
+        {
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 2000 },
+          removeOnComplete: { age: 24 * 3600, count: 1000 },
+          removeOnFail: { age: 7 * 24 * 3600 },
+        },
+      );
 
-        this.logger.log(
-          `Bulk order pending email queued for ${data.totalOrders} orders, Job ID: ${job.id}`,
-        );
+      this.logger.log(
+        `Bulk order pending email queued for ${data.totalOrders} orders, Job ID: ${job.id}`,
+      );
 
-        return job;
-      } catch (error) {
-        this.logger.error('Failed to queue bulk order pending email', error);
-        throw error; // ✅ IMPORTANT
-      }
+      return job;
+    } catch (error) {
+      this.logger.error('Failed to queue bulk order pending email', error);
+      throw error; // ✅ IMPORTANT
     }
+  }
 
   async queueOrderStatusNotification(data: {
     userId: number;
@@ -221,7 +221,7 @@ export class EmailQueueService {
   }
 
   // ORDER ASSIGNMENT - RIDER NOTIFICATIONS
-   async queueOrderAssignedUserEmail(data: {
+  async queueOrderAssignedUserEmail(data: {
     userId: number;
     email: string;
     username?: string;
@@ -248,30 +248,30 @@ export class EmailQueueService {
     }
   }
   async queueOrderAssignedDriverEmail(data: {
-      driverId: number;
-      name:string,
-      email: string;
-      orderId: number;
-      raiderRank?: string;
-    }) {
-      try {
-        const job = await this.emailQueue.add(
-          'order-assigned-driver-email', // job name
-          data,
-          {
-            attempts: 5,
-            backoff: { type: 'exponential', delay: 2000 },
-            removeOnComplete: { age: 24 * 3600, count: 1000 },
-            removeOnFail: { age: 7 * 24 * 3600 },
-          },
-        );
+    driverId: number;
+    name: string,
+    email: string;
+    orderId: number;
+    raiderRank?: string;
+  }) {
+    try {
+      const job = await this.emailQueue.add(
+        'order-assigned-driver-email', // job name
+        data,
+        {
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 2000 },
+          removeOnComplete: { age: 24 * 3600, count: 1000 },
+          removeOnFail: { age: 7 * 24 * 3600 },
+        },
+      );
 
-        this.logger.log(`Order assigned email queued for driver ${data.driverId}, Job ID: ${job.id}`);
-        return job;
-      } catch (error) {
-        this.logger.error('Failed to queue order assigned email for driver:', error);
-      }
+      this.logger.log(`Order assigned email queued for driver ${data.driverId}, Job ID: ${job.id}`);
+      return job;
+    } catch (error) {
+      this.logger.error('Failed to queue order assigned email for driver:', error);
     }
+  }
 
   // ORDER ASSIGNMENT - DRIVER NOTIFICATIONS
   async queueOrderAssignedNotificationRaider(data: {
@@ -360,13 +360,62 @@ export class EmailQueueService {
 
       const successful = jobs.filter(job => job.status === 'fulfilled').length;
       this.logger.log(`Queued ${successful}/${notifications.length} order lost notifications`);
-      
+
       return { successful, total: notifications.length };
     } catch (error) {
       this.logger.error('Failed to queue batch order lost notifications:', error);
     }
   }
+  // sms queue 
+  async queueSmsNotification(data: {
+    to: string;
+    message: string;
+    orderId?: number;
+    ruleId?: string;
+  }) {
+    try {
+      const job = await this.notificationQueue.add(
+        NotificationJobType.SMS_NOTIFICATION,
+        data,
+        {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+          removeOnComplete: { age: 24 * 3600, count: 500 },
+          removeOnFail: { age: 7 * 24 * 3600 },
+        },
+      );
 
+      this.logger.log(`SMS notification queued for ${data.to}, Job ID: ${job.id}`);
+      return job;
+    } catch (error) {
+      this.logger.error('Failed to queue SMS notification:', error);
+    }
+  }
+  // whatsapp queue 
+  async queueWhatsAppNotification(data: {
+    to: string;
+    message: string;
+    orderId?: number;
+    ruleId?: string;
+  }) {
+    try {
+      const job = await this.notificationQueue.add(
+        NotificationJobType.WHATSAPP_NOTIFICATION,
+        data,
+        {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+          removeOnComplete: { age: 24 * 3600, count: 500 },
+          removeOnFail: { age: 7 * 24 * 3600 },
+        },
+      );
+
+      this.logger.log(`WhatsApp notification queued for ${data.to}, Job ID: ${job.id}`);
+      return job;
+    } catch (error) {
+      this.logger.error('Failed to queue WhatsApp notification:', error);
+    }
+  }
 
 
   // MONITORING & MANAGEMENT  

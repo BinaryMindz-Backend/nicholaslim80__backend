@@ -230,18 +230,34 @@ export class NotificationRuleEngineService {
         );
     }
 
-    // ── Stubs — replace once real services are wired in ──
 
-    private async sendWhatsApp(phone: string | null | undefined, message: string) {
+    // send notification by queue
+    private async sendWhatsApp(
+        phone: string | null | undefined,
+        message: string,
+        context?: { orderId?: number; ruleId?: string },
+    ) {
         if (!phone) return;
-        // TODO: replace with real WhatsApp Business API call once built
-        this.logger.warn(`[STUB] WhatsApp not yet integrated. Would send to ${phone}: "${message}"`);
+        await this.emailQueueService.queueWhatsAppNotification({
+            to: phone,
+            message,
+            orderId: context?.orderId,
+            ruleId: context?.ruleId,
+        });
     }
 
-    private async sendSms(phone: string | null | undefined, message: string) {
+    private async sendSms(
+        phone: string | null | undefined,
+        message: string,
+        context?: { orderId?: number; ruleId?: string },
+    ) {
         if (!phone) return;
-        // TODO: wire to your existing Twilio SMS service, e.g.:
-        // await this.smsService.send(phone, message);
-        this.logger.warn(`[STUB] SMS service not yet wired here. Would send to ${phone}: "${message}"`);
+        await this.emailQueueService.queueSmsNotification({
+            to: phone,
+            message,
+            orderId: context?.orderId,
+            ruleId: context?.ruleId,
+        });
     }
+
 }

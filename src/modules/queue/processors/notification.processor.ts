@@ -5,6 +5,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { NotificationService } from 'src/modules/superadmin_root/notification/notification.service';
 import { NotificationJobType } from '../interfaces/queue-job.interface';
 import { PrismaService } from 'src/core/database/prisma.service';
+import { NotificationType } from '@prisma/client';
 
 @Processor('notification-queue', {
   concurrency: 10,
@@ -37,6 +38,12 @@ export class NotificationProcessor extends WorkerHost {
         return await this.handleOrderAssignedNotificationRaider(job);
       case 'order-lost-notification':
         return await this.handleOrderLostNotification(job);
+
+      case NotificationJobType.SMS_NOTIFICATION:
+        return await this.handleSmsNotification(job);
+      case NotificationJobType.WHATSAPP_NOTIFICATION:
+        return await this.handleWhatsAppNotification(job)
+
       default:
         throw new Error(`Unknown notification type: ${job.name}`);
     }
@@ -54,20 +61,20 @@ export class NotificationProcessor extends WorkerHost {
         body,
       );
       // save to notification history
-        const notification = await this.prisma.notification.create({
-            data: {
-              userId,
-              type,
-              title,
-              orderId: Number(data.orderId),
-              message: body,
-              is_from_admin:false,
-             },
-         });
-        //  console.log(notification , type, );
+      const notification = await this.prisma.notification.create({
+        data: {
+          userId,
+          type,
+          title,
+          orderId: Number(data.orderId),
+          message: body,
+          is_from_admin: false,
+        },
+      });
+      //  console.log(notification , type, );
       this.logger.log(`✅ Push notification sent to user ${userId} and saved to history with ID ${notification.id}`);
       return { success: true, userId, notificationId: notification.id };
-    } catch (error : any) {
+    } catch (error: any) {
       this.logger.error(`❌ Push notification failed for user ${userId}:`, error.message);
       throw error;
     }
@@ -86,19 +93,19 @@ export class NotificationProcessor extends WorkerHost {
       );
       // save to notification history
       const notification = await this.prisma.notification.create({
-          data: {
-            userId,
-            type: job.data.status,
-            title: job.data.title,
-            orderId,
-            message:message,
-            target_role: job.data.target_role,
-            is_from_admin:false,
-            },
-        });
+        data: {
+          userId,
+          type: job.data.status,
+          title: job.data.title,
+          orderId,
+          message: message,
+          target_role: job.data.target_role,
+          is_from_admin: false,
+        },
+      });
       this.logger.log(`✅ Order status notification sent to user ${userId} for order ${orderId} and saved to history with ID ${notification.id}`);
       return { success: true, userId, orderId, notificationId: notification.id };
-    } catch (error : any) {
+    } catch (error: any) {
       this.logger.error(`❌ Order status notification failed for user ${userId}:`, error.message);
       throw error;
     }
@@ -115,27 +122,27 @@ export class NotificationProcessor extends WorkerHost {
         '📝 Your Order Has a Rider!',
         `Your order #${orderId} has been assigned to ${raiderName}.`,
       );
-        // save to notification history
-        const notification = await this.prisma.notification.create({
-            data: {
-              userId,
-              type: job.data.status,
-              title: job.data.title,
-              message: job.data.message,
-              // target_role: job.data.target_role,
-              is_from_admin:false,
-             },
-         });
+      // save to notification history
+      const notification = await this.prisma.notification.create({
+        data: {
+          userId,
+          type: job.data.status,
+          title: job.data.title,
+          message: job.data.message,
+          // target_role: job.data.target_role,
+          is_from_admin: false,
+        },
+      });
       this.logger.log(`✅ Order assigned notification sent to user ${userId} and saved to history with ID ${notification.id}`);
       return { success: true, userId, orderId, notificationId: notification.id };
-    } catch (error  : any) {
+    } catch (error: any) {
       this.logger.error(`❌ Order assigned notification failed for user ${userId}:`, error.message);
       throw error;
     }
   }
 
-    // 
-    private async handleOrderAssignedNotificationRaider(job: Job) {
+  // 
+  private async handleOrderAssignedNotificationRaider(job: Job) {
     const { fcmToken, orderId, raiderName } = job.data;
 
     try {
@@ -144,65 +151,102 @@ export class NotificationProcessor extends WorkerHost {
       // Replace this with your actual FCM sending logic
       await this.notifyService.sendNotificationByType(
         'PUSH_NOTIFICATION',
-         fcmToken,
-       '📝 New Order Assigned!',
-       `Hello ${raiderName ?? 'Rider'}, order #${orderId} has been assigned to you. Please start the delivery.`,
+        fcmToken,
+        '📝 New Order Assigned!',
+        `Hello ${raiderName ?? 'Rider'}, order #${orderId} has been assigned to you. Please start the delivery.`,
       );
-        
-         // save to notification history
-        const notification = await this.prisma.notification.create({
-            data: {
-              userId: job.data.userId,
-              type: job.data.status,
-              title: job.data.title,
-              orderId: job.data.orderId,
-              message: job.data.message,
-              // target_role: job.data.target_role,
-              is_from_admin:false,
-             },
-         });
 
-        //  
+      // save to notification history
+      const notification = await this.prisma.notification.create({
+        data: {
+          userId: job.data.userId,
+          type: job.data.status,
+          title: job.data.title,
+          orderId: job.data.orderId,
+          message: job.data.message,
+          // target_role: job.data.target_role,
+          is_from_admin: false,
+        },
+      });
+
+      //  
       await job.updateProgress(100);
       this.logger.log(`✅ Push notification sent to raider with token ${fcmToken} for order ${orderId} and saved to history with ID ${notification.id}`);
 
       return { success: true, fcmToken, orderId, notificationId: notification.id, timestamp: new Date() };
-    } catch (error  : any) {
+    } catch (error: any) {
       this.logger.error(`❌ Failed to send push notification for order ${orderId}:`, error.message);
       throw error;
     }
   }
 
-    private async handleOrderLostNotification(job: Job) {
-      const { raiderId, fcmToken, orderId } = job.data;
+  private async handleOrderLostNotification(job: Job) {
+    const { raiderId, fcmToken, orderId } = job.data;
 
-      try {
-        await this.notifyService.sendNotificationByType(
-          'PUSH_NOTIFICATION',
-          [{ fcmToken }],
-          'Order Taken',
-          'Another rider won this order. Keep trying!',
-        );
-                 // save to notification history
-        const notification = await this.prisma.notification.create({
-            data: {
-              userId: job.data.userId,
-              type: job.data.status,
-              title: job.data.title,
-              orderId: job.data.orderId,
-              message: job.data.message,
-              // target_role: job.data.target_role,
-              is_from_admin:false,
-             },
-         });
-        this.logger.log(`✅ Order lost notification sent to raider ${raiderId}`);
-        this.logger.log(`✅ Push notification sent to raider with token ${fcmToken} for order ${orderId} and saved to history with ID ${notification.id}`);
-        return { success: true, raiderId };
-      } catch (error  : any) {
-        this.logger.error(`❌ Order lost notification failed for raider ${raiderId}:`, error.message);
-        throw error;
-      }
+    try {
+      await this.notifyService.sendNotificationByType(
+        'PUSH_NOTIFICATION',
+        [{ fcmToken }],
+        'Order Taken',
+        'Another rider won this order. Keep trying!',
+      );
+      // save to notification history
+      const notification = await this.prisma.notification.create({
+        data: {
+          userId: job.data.userId,
+          type: job.data.status,
+          title: job.data.title,
+          orderId: job.data.orderId,
+          message: job.data.message,
+          // target_role: job.data.target_role,
+          is_from_admin: false,
+        },
+      });
+      this.logger.log(`✅ Order lost notification sent to raider ${raiderId}`);
+      this.logger.log(`✅ Push notification sent to raider with token ${fcmToken} for order ${orderId} and saved to history with ID ${notification.id}`);
+      return { success: true, raiderId };
+    } catch (error: any) {
+      this.logger.error(`❌ Order lost notification failed for raider ${raiderId}:`, error.message);
+      throw error;
     }
+  }
+
+  // SMS NOTIFICATIONS 
+  private async handleSmsNotification(job: Job) {
+    const { to, message, orderId, ruleId } = job.data;
+
+    try {
+      const res = await this.notifyService.sendNotificationByType(NotificationType.SMS, [{ phone: to }], job.data.title, message);
+
+      this.logger.log(`✅ SMS sent to ${to}${orderId ? ` for order ${orderId}` : ''}`);
+      return { success: true, to };
+    } catch (error: any) {
+      this.logger.error(`❌ SMS failed for ${to}:`, error.message);
+      throw error;
+    }
+  }
+
+  //WHATSAPP NOTIFICATIONS
+  private async handleWhatsAppNotification(job: Job) {
+    const { to, message, orderId, ruleId } = job.data;
+
+    try {
+      // TODO: replace with real WhatsApp Business API call once built
+      this.logger.warn(`[STUB] WhatsApp not yet integrated. Would send to ${to}: "${message}"`);
+      return { success: true, to, stubbed: true };
+
+      // Once you have a real WhatsappService, swap the above for:
+      // const res = await this.whatsappService.send({ to, message });
+      // this.logger.log(`✅ WhatsApp sent to ${to}${orderId ? ` for order ${orderId}` : ''}`);
+      // return { success: true, to, messageId: res.sid };
+    } catch (error: any) {
+      this.logger.error(`❌ WhatsApp failed for ${to}:`, error.message);
+      throw error;
+    }
+  }
+
+
+
 
   // EVENT HANDLERS  
   @OnWorkerEvent('completed')
@@ -213,7 +257,7 @@ export class NotificationProcessor extends WorkerHost {
   @OnWorkerEvent('failed')
   onFailed(job: Job, error: Error) {
     this.logger.error(`❌ Notification job ${job.id} failed:`, error.message);
-    
+
     const maxAttempts = job.opts?.attempts ?? 1;
     if (job.attemptsMade >= maxAttempts) {
       this.logger.error(`🚨 Notification delivery failed permanently for job ${job.id}`);

@@ -6,7 +6,7 @@ export enum EmailJobType {
   REFERRAL_BONUS = 'referral-bonus',
   PAYMENT_CONFIRMATION = 'payment-confirmation',
   ACCOUNT_VERIFICATION = 'account-verification',
-  
+
   RIDER_SUSPENDED = 'RIDER_SUSPENDED',
   RIDER_UNSUSPENDED = 'RIDER_UNSUSPENDED',
 
@@ -17,7 +17,9 @@ export enum EmailJobType {
 // NOTIFICATION JOB TYPES
 export enum NotificationJobType {
   PUSH_NOTIFICATION = 'push-notification',
-  SMS_NOTIFICATION = 'sms-notification'
+  SMS_NOTIFICATION = 'sms-notification',
+  WHATSAPP_NOTIFICATION = 'whatsapp-notification',
+
 }
 
 // ============================================
@@ -129,7 +131,7 @@ export type NotificationJobData =
   | InAppNotificationJobData;
 
 
-  // JOB OPTIONS INTERFACE
+// JOB OPTIONS INTERFACE
 export interface QueueJobOptions {
   attempts?: number; // Number of retry attempts
   backoff?: {
