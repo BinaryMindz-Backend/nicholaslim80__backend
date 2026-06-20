@@ -33,6 +33,7 @@ import { haversineDistance } from 'src/utils/haversine';
 import { ReceiptPdfService } from './order_reciept/order_reciept.services';
 import { uploadReceiptPdf } from 'src/common/fileUpload/file';
 import { OrderFeedService } from './order.feed.services';
+import { NotificationRuleEngineService } from 'src/modules/superadmin_root/eta/notification_role/notification_role.engine';
 
 
 @Injectable()
@@ -51,11 +52,29 @@ export class OrderService {
     private autoPopupService: AutoPopupService,
     private readonly receiptPdfService: ReceiptPdfService,
     private readonly orderFeedService: OrderFeedService,
+    private readonly ruleEngine: NotificationRuleEngineService,
 
 
 
 
   ) { }
+
+  // 
+  async getActiveStopForOrder(orderId: number) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { order_status: true },
+    });
+
+    if (!order || order.order_status !== OrderStatus.ONGOING) {
+      return null;
+    }
+
+    return this.prisma.orderStop.findFirst({
+      where: { orderId, status: { not: StopStatus.COMPLETED }, is_skiped: false },
+      orderBy: { sequence: 'asc' },
+    });
+  }
 
   //  
   async getActiveOrdersByRider(riderId: number) {
@@ -620,6 +639,11 @@ export class OrderService {
       return updatedOrder;
     });
 
+    // notifyEtaUpdate  trigger
+    await this.ruleEngine.evaluateStatus(order.id, 'ORDER_PLACED').catch((err) =>
+      this.logger.error(`Rule engine failed for order ${order.id} status ORDER_PLACED: ${err.message}`),
+    );
+
     // ── STEP 5: Send placement notification ──
     const isUserExist = await this.prisma.user.findUnique({ where: { id: userId } });
 
@@ -879,12 +903,24 @@ export class OrderService {
       data,
     });
 
+    // fire any matching status-change rules
+    const statusTag = this.mapStepToStatusTag(step, stop.type);
+    if (statusTag) {
+      await this.ruleEngine.evaluateStatus(stop.orderId, statusTag);
+    }
+
+
     return {
       message: `Step ${step} updated successfully`,
       stop: updated,
     };
   }
-
+  // 
+  private mapStepToStatusTag(step: string, stopType: StopType): string | null {
+    if (step === 'ARRIVED' && stopType === 'PICKUP') return 'ARRIVED_AT_PICKUP';
+    if (step === 'LOADED' && stopType === 'PICKUP') return 'IN_TRANSIT';
+    return null;
+  }
 
   /**
   * COMPLETE STOP (Raider)
@@ -1090,6 +1126,9 @@ export class OrderService {
         platformLoss: null,
       };
     });
+    // notification role engine for auto-assignment trigger
+    const statusTag = result?.orderCompleted ? 'COMPLETED' : 'LEG_DELIVERED';
+    await this.ruleEngine.evaluateStatus(stop.orderId, statusTag);
 
     // ── 8. Notifications after transaction commits (never inside tx) ──
     const orderNumber = `ORD-${String(stop.orderId).padStart(6, '0')}`;

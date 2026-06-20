@@ -20,6 +20,9 @@ import { AutoPopupService } from '../auto_popup_services/auto-popup.service';
 import { UserGateway } from 'src/modules/users_root/users/user.gateways';
 import { RedisService } from 'src/modules/auth/redis/redis.service';
 import { OrderFeedService } from 'src/modules/users_root/order/order.feed.services';
+import { NotificationRuleEngineService } from 'src/modules/superadmin_root/eta/notification_role/notification_role.engine';
+import { getRoadDistance } from 'src/modules/dynamic_pricing/distance.service';
+import { haversineDistance } from 'src/utils/haversine';
 
 @WebSocketGateway({ namespace: '/raider', cors: true })
 export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -39,8 +42,21 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly userGateway: UserGateway,
     private readonly redisService: RedisService,
     private readonly orderFeedService: OrderFeedService,
+    private readonly ruleEngine: NotificationRuleEngineService,
 
   ) { }
+
+
+  //  ETA recalculation state (per-rider throttle + cached gate radius) ──
+  private lastEtaCalcTime = new Map<number, number>();
+  private readonly ETA_RECALC_INTERVAL_MS = 15_000; // recalc at most every 15s per rider
+
+  private cachedGateRadiusKm = 5;
+  private gateRadiusLastFetched = 0;
+  private readonly GATE_RADIUS_CACHE_MS = 60_000; // refresh gate radius once a minute
+
+
+
 
   //  connect to room
   async handleConnection(client: Socket) {
@@ -108,6 +124,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.log('Error during disconnect:', err.message);
     }
   }
+
 
   @SubscribeMessage('rider:location')
   async handleLocation(
@@ -224,6 +241,18 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
           ...payload,
         });
 
+      // ETA recalculation pipeline
+      this.maybeRecalculateEta(
+        riderId,
+        Object.keys(activeOrders).map(Number),
+        payload.lat,
+        payload.lng,
+      ).catch((err) =>
+        this.logger.error(
+          `ETA recalculation pipeline failed for rider ${riderId}: ${err.message}`,
+        ),
+      );
+
     } catch (err) {
       this.logger.error(
         `❌ Location update failed | riderId=${riderId}`,
@@ -232,6 +261,54 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  // cached gate radius
+  private async getGateRadius(): Promise<number> {
+    const now = Date.now();
+    if (now - this.gateRadiusLastFetched > this.GATE_RADIUS_CACHE_MS) {
+      this.cachedGateRadiusKm = await this.ruleEngine.getMaxEtaGateRadiusKm();
+      this.gateRadiusLastFetched = now;
+    }
+    return this.cachedGateRadiusKm;
+  }
+  // eta recalculate function 
+  private async maybeRecalculateEta(
+    riderId: number,
+    orderIds: number[],
+    lat: number,
+    lng: number,
+  ) {
+    const now = Date.now();
+    const last = this.lastEtaCalcTime.get(riderId) ?? 0;
+    if (now - last < this.ETA_RECALC_INTERVAL_MS) return;
+
+    const gateRadiusKm = await this.getGateRadius(); // covers BOTH rule types
+
+    for (const orderId of orderIds) {
+      try {
+        const activeStop = await this.orderService.getActiveStopForOrder(orderId);
+        if (!activeStop) continue;
+
+        const straightLineKm = haversineDistance(
+          lat,
+          lng,
+          activeStop.latitude,
+          activeStop.longitude,
+        );
+        if (straightLineKm > gateRadiusKm) continue;
+
+        const result = await getRoadDistance(
+          { lat, lng },
+          { lat: activeStop.latitude, lng: activeStop.longitude },
+        );
+
+        await this.ruleEngine.evaluateEta(orderId, result.min, result.km);
+      } catch (err: any) {
+        this.logger.error(`ETA recalc failed for order ${orderId}: ${err.message}`);
+      }
+    }
+
+    this.lastEtaCalcTime.set(riderId, now);
+  }
 
 
   // raider join throw socket to compition

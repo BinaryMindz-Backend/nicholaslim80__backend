@@ -20,6 +20,7 @@ import { SurgePricingRuleService } from 'src/modules/superadmin_root/surge_prici
 import { OrderCronService } from './order.corn.service';
 import { ReceiptPdfService } from './order_reciept/order_reciept.services';
 import { OrderFeedService } from './order.feed.services';
+import { NotificationRuleModule } from 'src/modules/superadmin_root/eta/notification_role/notification-rule.module';
 
 
 @Module({
@@ -30,6 +31,7 @@ import { OrderFeedService } from './order.feed.services';
     WalletModule,
     SurgePricingRuleModule,
     forwardRef(() => RaiderModule),
+    NotificationRuleModule,
   ],
   controllers: [OrderController],
   providers: [
@@ -47,6 +49,7 @@ import { OrderFeedService } from './order.feed.services';
     OrderCronService,
     ReceiptPdfService,
     OrderFeedService,
+
 
   ],
   exports: [

@@ -9,6 +9,7 @@ import { RaiderGateway } from 'src/modules/raider_root/raider gateways/raider.ga
 import { UserGateway } from 'src/modules/users_root/users/user.gateways';
 import { RedisService } from 'src/modules/auth/redis/redis.service';
 import { OrderService } from 'src/modules/users_root/order/order.service';
+import { NotificationRuleEngineService } from 'src/modules/superadmin_root/eta/notification_role/notification_role.engine';
 
 @Injectable()
 export class CompetitionWorker implements OnModuleInit {
@@ -21,6 +22,7 @@ export class CompetitionWorker implements OnModuleInit {
     private readonly userGateway: UserGateway,
     private readonly redisService: RedisService,
     private readonly orderService: OrderService,
+    private readonly ruleEngine: NotificationRuleEngineService
   ) { }
 
   onModuleInit() {
@@ -359,6 +361,9 @@ export class CompetitionWorker implements OnModuleInit {
             this.logger.error(`Feed broadcast failed after auto-assign: ${err.message}`);
           });
         }
+
+        // notification role engine for auto-assignment trigger
+        await this.ruleEngine.evaluateStatus(orderId, 'ASSIGNED');
 
         this.logger.log(`[WINNER RAIDER FULL] ${JSON.stringify(winnerRaider)}`);
 

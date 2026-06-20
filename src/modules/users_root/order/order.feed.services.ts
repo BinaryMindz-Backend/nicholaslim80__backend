@@ -12,6 +12,7 @@ import { OrderService } from "./order.service";
 import { IUser } from "src/types";
 import { PriorityOrder } from "./dto/update-order.dto";
 import { WalletService } from "src/common/wallet/wallet.service";
+import { NotificationRuleEngineService } from "src/modules/superadmin_root/eta/notification_role/notification_role.engine";
 
 @Injectable()
 export class OrderFeedService {
@@ -29,6 +30,7 @@ export class OrderFeedService {
         private readonly orderService: OrderService,
         @Inject(forwardRef(() => WalletService))
         private readonly walletService: WalletService,
+        private readonly ruleEngine: NotificationRuleEngineService,
 
 
 
@@ -566,7 +568,10 @@ export class OrderFeedService {
                     message: `Assigned order has been cancelled by customer.`,
                 });
             }
-
+            // notifyEtaUpdate trigger
+            await this.ruleEngine.evaluateStatus(orderId, 'CANCELLED').catch((err) =>
+                this.logger.error(`Rule engine failed for order ${orderId} status CANCELLED: ${err.message}`),
+            );
             return {
                 message: 'Order cancelled successfully',
                 order: cancelledOrder,
@@ -701,6 +706,10 @@ export class OrderFeedService {
                 message: `A driver has been assigned to your order by admin.`,
             });
         }
+        // 
+        // notification role engine for auto-assignment trigger
+        await this.ruleEngine.evaluateStatus(order.id, 'ASSIGNED');
+
 
         return updatedOrder;
     }
