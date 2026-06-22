@@ -38,7 +38,6 @@ export class NotificationRuleEngineService {
         const rules = await this.prisma.notificationRule.findMany({
             where: { isActive: true, triggerTag: 'ORDER_STATUS' },
         });
-
         if (rules.length === 0) return;
 
         for (const rule of rules) {

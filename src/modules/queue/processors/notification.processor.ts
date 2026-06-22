@@ -49,6 +49,8 @@ export class NotificationProcessor extends WorkerHost {
     }
   }
 
+
+
   // GENERAL NOTIFICATIONS  
   private async handlePushNotification(job: Job) {
     const { userId, fcmToken, type, title, body, data } = job.data;
@@ -111,28 +113,34 @@ export class NotificationProcessor extends WorkerHost {
     }
   }
 
+
+
+
   // RIDER ASSIGNMENT NOTIFICATIONS  
   private async handleOrderAssignedNotification(job: Job) {
     const { userId, fcmToken, orderId, raiderName } = job.data;
+
+    const title = '📝 Your Order Has a Rider!';
+    const message = `Your order #${orderId} has been assigned to ${raiderName}.`;
 
     try {
       await this.notifyService.sendNotificationByType(
         'PUSH_NOTIFICATION',
         [{ fcmToken }],
-        '📝 Your Order Has a Rider!',
-        `Your order #${orderId} has been assigned to ${raiderName}.`,
+        title,
+        message,
       );
-      // save to notification history
+
       const notification = await this.prisma.notification.create({
         data: {
           userId,
-          type: job.data.status,
-          title: job.data.title,
-          message: job.data.message,
-          // target_role: job.data.target_role,
+          type: 'ORDER_UPDATE',
+          title,
+          message,
           is_from_admin: false,
         },
       });
+
       this.logger.log(`✅ Order assigned notification sent to user ${userId} and saved to history with ID ${notification.id}`);
       return { success: true, userId, orderId, notificationId: notification.id };
     } catch (error: any) {
@@ -141,35 +149,33 @@ export class NotificationProcessor extends WorkerHost {
     }
   }
 
-  // 
   private async handleOrderAssignedNotificationRaider(job: Job) {
-    const { fcmToken, orderId, raiderName } = job.data;
+    const { userId, fcmToken, orderId, raiderName } = job.data;
+
+    const title = '📝 New Order Assigned!';
+    const message = `Hello ${raiderName ?? 'Rider'}, order #${orderId} has been assigned to you. Please start the delivery.`;
 
     try {
       await job.updateProgress(10);
 
-      // Replace this with your actual FCM sending logic
       await this.notifyService.sendNotificationByType(
         'PUSH_NOTIFICATION',
-        fcmToken,
-        '📝 New Order Assigned!',
-        `Hello ${raiderName ?? 'Rider'}, order #${orderId} has been assigned to you. Please start the delivery.`,
+        [{ fcmToken }], // wrapped in array for consistency
+        title,
+        message,
       );
 
-      // save to notification history
       const notification = await this.prisma.notification.create({
         data: {
-          userId: job.data.userId,
-          type: job.data.status,
-          title: job.data.title,
-          orderId: job.data.orderId,
-          message: job.data.message,
-          // target_role: job.data.target_role,
+          userId,
+          type: 'ORDER_UPDATE',
+          title,
+          orderId,
+          message,
           is_from_admin: false,
         },
       });
 
-      //  
       await job.updateProgress(100);
       this.logger.log(`✅ Push notification sent to raider with token ${fcmToken} for order ${orderId} and saved to history with ID ${notification.id}`);
 
@@ -183,25 +189,28 @@ export class NotificationProcessor extends WorkerHost {
   private async handleOrderLostNotification(job: Job) {
     const { raiderId, fcmToken, orderId } = job.data;
 
+    const title = 'Order Taken';
+    const message = 'Another rider won this order. Keep trying!';
+
     try {
       await this.notifyService.sendNotificationByType(
         'PUSH_NOTIFICATION',
         [{ fcmToken }],
-        'Order Taken',
-        'Another rider won this order. Keep trying!',
+        title,
+        message,
       );
-      // save to notification history
+
       const notification = await this.prisma.notification.create({
         data: {
-          userId: job.data.userId,
-          type: job.data.status,
-          title: job.data.title,
-          orderId: job.data.orderId,
-          message: job.data.message,
-          // target_role: job.data.target_role,
+          userId: raiderId, // raiderId is the userId here
+          type: 'ORDER_UPDATE',
+          title,
+          orderId,
+          message,
           is_from_admin: false,
         },
       });
+
       this.logger.log(`✅ Order lost notification sent to raider ${raiderId}`);
       this.logger.log(`✅ Push notification sent to raider with token ${fcmToken} for order ${orderId} and saved to history with ID ${notification.id}`);
       return { success: true, raiderId };
@@ -210,6 +219,10 @@ export class NotificationProcessor extends WorkerHost {
       throw error;
     }
   }
+
+
+
+
 
   // SMS NOTIFICATIONS 
   private async handleSmsNotification(job: Job) {
