@@ -72,7 +72,7 @@ export interface CreateOrderResult {
 }
 
 export interface DestinationInput {
-  service_zoneId?:number;
+  service_zoneId?: number;
   address: string;
   addressFromApr?: string;
   floor_unit?: string;
@@ -84,6 +84,7 @@ export interface DestinationInput {
   latitude: number;
   longitude: number;
   accuracy?: number;
+  shortName?: string;
 }
 
 export interface LatLng {
@@ -92,13 +93,13 @@ export interface LatLng {
 }
 
 export interface RaiderWithLocation {
-    riderId: number;
-    locations: {
-      lat: number;
-      lng: number;
-      heading?: number;
-    }
-  };
+  riderId: number;
+  locations: {
+    lat: number;
+    lng: number;
+    heading?: number;
+  }
+};
 
 
 
@@ -139,8 +140,8 @@ export interface Vehicle {
   base_price?: number;
   per_km_price?: number;
   peak_pricing?: boolean;
-  id?:number,
-  vehicle_type?:string,
+  id?: number,
+  vehicle_type?: string,
 }
 
 export interface DeliveryType {
@@ -176,18 +177,18 @@ export interface PricingBreakdown {
   userFeeTotal: number;
   zoneFee: number;
   surgeAmount: number;
-  surgeMultiplier: number;    
+  surgeMultiplier: number;
   totalFee: number;
   totalPrice: number;
   distance?: number;
   distanceKm?: number;
-  min?: number;         
+  min?: number;
   min_text?: string;    //
   isRoundTrip?: boolean;
   returnFactor?: number;
-    // Driver & Platform breakdown
-  raiderEarnings: number;   
-  platformFee: number; 
+  // Driver & Platform breakdown
+  raiderEarnings: number;
+  platformFee: number;
 }
 
 
