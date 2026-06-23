@@ -53,8 +53,10 @@ export async function calculatePriceWithFee(
   price += userFeeTotal;
 
   /* ---------------- Zone Fee ---------------- */
-  const zoneFee = zone.deliveryFee;
-  price *= zoneFee;
+  const zoneMultiplier = zone.deliveryFee;
+  const priceBeforeZone = price;
+  price *= zoneMultiplier;
+  const zoneFeeAmount = price - priceBeforeZone;
 
   /* ---------------- Dynamic Surge (UserDynamicSurge) ---------------- */
   let dynamicSurgeAmount = 0;
@@ -129,20 +131,38 @@ export async function calculatePriceWithFee(
   /* ---------------- Final Result ---------------- */
   const extraStopSurcharge = Number(deliveryType?.extra_stop_surcharge ?? 0);
 
+  const totalFee = Number(userFeeTotal + zoneFeeAmount + dynamicSurgeAmount + surgeAmount + extraStopSurcharge);
+  const totalPrice = Number(price + extraStopSurcharge);
+
+  // console.log('basePrice', basePrice);
+  // console.log('deliveryTypeCharge', deliveryTypeCharge);
+  // console.log('deliveryType?.price_multiplier', deliveryType?.price_multiplier);
+  // console.log('price', price);
+  // console.log('extraStopSurcharge', extraStopSurcharge);
+  // console.log('userFeeTotal', userFeeTotal);
+  // console.log('zoneFee', zoneFeeAmount);
+  // console.log('dynamicSurgeAmount', dynamicSurgeAmount);
+  // console.log('dynamicSurgeMultiplier', dynamicSurgeMultiplier);
+  // console.log('surgeAmount', surgeAmount);
+  // console.log('surgeMultiplier', surgeMultiplier);
+  // console.log('platformFee', platformFee);
+  // console.log('raiderEarnings', raiderEarnings);
+  // console.log('totalFee', totalFee);
+  // console.log('totalPrice', totalPrice);
+  // console.log("platform fee-->", platformFee)
+
   return {
     basePrice: Number(basePrice.toFixed(2)),
     deliveryTypeCharge: Number(deliveryTypeCharge.toFixed(2)),
     deliveryTypeSurge: Number(extraStopSurcharge.toFixed(2)),
     userFeeTotal: Number(userFeeTotal.toFixed(2)),
-    zoneFee: Number(zoneFee.toFixed(2)),
+    zoneFee: Number(zoneFeeAmount.toFixed(2)),          // was: raw multiplier
     dynamicSurgeAmount: Number(dynamicSurgeAmount.toFixed(2)),
     dynamicSurgeMultiplier: Number(dynamicSurgeMultiplier.toFixed(4)),
     surgeAmount: Number(surgeAmount.toFixed(2)),
     surgeMultiplier: Number(surgeMultiplier.toFixed(4)),
-    totalFee: Number(
-      (userFeeTotal + zoneFee + dynamicSurgeAmount + surgeAmount + extraStopSurcharge).toFixed(2),
-    ),
-    totalPrice: Number((price + extraStopSurcharge).toFixed(2)),
+    totalFee: Number(totalFee.toFixed(2)),              // was: included raw multiplier
+    totalPrice: Number(totalPrice.toFixed(2)),          // was: totalFee + platformFee
     raiderEarnings: Number(Math.max(0, raiderEarnings).toFixed(2)),
     platformFee: Number(platformFee.toFixed(2)),
   };
