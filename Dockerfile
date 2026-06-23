@@ -55,7 +55,7 @@ FROM node:22 AS builder
 WORKDIR /usr/src/app
 
 # Enable pnpm
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy package files and install deps
 COPY package.json pnpm-lock.yaml ./
@@ -78,7 +78,7 @@ FROM node:22 AS production
 WORKDIR /usr/src/app
 
 # Enable pnpm (for local dev)
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy dependencies and build
 COPY --from=builder /usr/src/app/package*.json ./
