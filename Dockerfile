@@ -58,7 +58,7 @@ WORKDIR /usr/src/app
 RUN corepack enable && corepack prepare pnpm@10 --activate
 
 # Copy package files and install deps
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy prisma and source code
