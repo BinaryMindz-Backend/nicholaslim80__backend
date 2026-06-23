@@ -587,7 +587,6 @@ export class OrderService {
           }
         }
       }
-
       // ── STEP 3: Lock the order ──
       const updatedOrder = await tx.order.update({
         where: { id: orderId },
@@ -595,7 +594,7 @@ export class OrderService {
           order_status: OrderStatus.PENDING,
           is_placed: true,
           pay_type: payType,
-          placed_at: dto.placedAt,
+          placed_at: dto.placedAt ? new Date(dto.placedAt) : new Date(),
         },
         include: {
           orderStops: {
