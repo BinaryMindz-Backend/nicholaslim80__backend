@@ -305,7 +305,7 @@ export class WalletService {
         },
       },
       {
-        idempotencyKey: `add-money-${userId}-${amount}-${lowerCurrency}`,
+        idempotencyKey: `add-money-${userId}-${amount}-${lowerCurrency}-${Date.now()}`,
       },
     );
 
