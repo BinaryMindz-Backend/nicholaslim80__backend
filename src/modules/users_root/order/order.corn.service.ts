@@ -16,7 +16,7 @@ export class OrderCronService {
   ) { }
 
   //  run cron every hour 
-  @Cron(CronExpression.EVERY_HOUR)
+  // @Cron(CronExpression.EVERY_HOUR)
   async cancelExpiredOrders() {
     this.logger.log('⏳ Checking expired orders...');
 

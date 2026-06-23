@@ -566,13 +566,13 @@ export class OrderService {
           for (const drop of dropStops) {
             await tx.stopPayment.update({
               where: { orderStopId: drop.id },
-              data: { amount: 0, status: PaymentStatus.PAID, payType: PayType.COD },
+              data: { amount: 0, status: PaymentStatus.UNPAID, payType: PayType.COD },
             });
           }
         } else {
           await tx.stopPayment.update({
             where: { orderStopId: pickupStop.id },
-            data: { amount: 0, status: PaymentStatus.PAID, payType: PayType.COD },
+            data: { amount: 0, status: PaymentStatus.UNPAID, payType: PayType.COD },
           });
 
           for (const drop of dropStops) {
@@ -1037,9 +1037,16 @@ export class OrderService {
 
       // ── Auto-complete order if all stops done ──
       if (incompleteStops.length === 0) {
-        await tx.order.update({
+        const order = await tx.order.update({
           where: { id: stop.orderId },
           data: { order_status: OrderStatus.COMPLETED },
+          include: {
+            orderStops: {
+              include: {
+                payment: true
+              }
+            }
+          }
         });
 
         await tx.raider.update({
@@ -1054,6 +1061,28 @@ export class OrderService {
             stop.order.id.toString(),
           );
         }
+
+        const currentStop = order.orderStops.find(
+          stop => stop.status == StopStatus.COMPLETED
+        );
+
+        if (!currentStop) {
+          throw new Error('No active stop found');
+        }
+
+        await tx.orderStop.update({
+          where: {
+            id: currentStop.id,
+          },
+          data: {
+            payment: {
+              update: {
+                status: PaymentStatus.PAID,
+              },
+            },
+          },
+        });
+
 
         // ── Driver earnings: calculated from total_raider_earnings not total_cost ──
         const raiderEarnings = Number(stop.order.total_raider_earnings);
@@ -2227,7 +2256,7 @@ export class OrderService {
             for (const drop of dropStops) {
               await tx.stopPayment.update({
                 where: { orderStopId: drop.id },
-                data: { amount: 0, status: PaymentStatus.PAID },
+                data: { amount: 0, status: PaymentStatus.UNPAID },
               });
             }
           } else {
@@ -2236,7 +2265,7 @@ export class OrderService {
             if (pickupStop) {
               await tx.stopPayment.update({
                 where: { orderStopId: pickupStop.id },
-                data: { amount: 0, status: PaymentStatus.PAID },
+                data: { amount: 0, status: PaymentStatus.UNPAID },
               });
             }
 
