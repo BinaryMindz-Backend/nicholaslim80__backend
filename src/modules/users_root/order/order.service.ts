@@ -981,6 +981,7 @@ export class OrderService {
       select: { id: true, fcmToken: true },
     });
 
+
     const result = await this.prisma.$transaction(async (tx) => {
       // ── COD payment validation and collection ──
       const requiresPayment = stop.payment && Number(stop.payment.amount) > 0;
