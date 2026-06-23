@@ -113,6 +113,8 @@ export class WalletService {
       paymentIntentId: paymentIntent.id,
     };
   }
+
+
   //  earning money
   async earnMoney(
     userId: number,
@@ -227,101 +229,97 @@ export class WalletService {
   }
 
 
-  // 
+  // add money
   async addMoney(
     userId: number,
     amount: number,
-    currency: string = 'sgd', // Default to SGD if not provided
+    currency: string = 'sgd',
     paymentMethodId?: string,
     payType?: string,
   ) {
-    // Helper map for zero-decimal currencies
     const ZERO_DECIMAL_CURRENCIES = ['jpy', 'krw', 'vnd', 'clp'];
     const lowerCurrency = currency.toLowerCase();
 
-    // Calculate Stripe Amount (Handle Zero-Decimal Currencies)
-    let stripeAmount: number;
+    const stripeAmount = ZERO_DECIMAL_CURRENCIES.includes(lowerCurrency)
+      ? Math.round(amount)
+      : Math.round(amount * 100);
 
-    if (ZERO_DECIMAL_CURRENCIES.includes(lowerCurrency)) {
-      stripeAmount = Math.round(amount); // JPY 100 is just 100
-    } else {
-      stripeAmount = Math.round(amount * 100); // USD 10.50 becomes 1050 cents
-    }
+    // 1. Fetch user
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
 
-    //  Fetch User and Validate
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     if (!user.email) throw new BadRequestException('User email not found');
-    // Handle Stripe Customer (Optimized check)
+
+    // 2. Ensure Stripe customer
     let customerId = user.stripeCustomerId;
+
     if (!customerId) {
       const customer = await this.stripe.customers.create({
         email: user.email,
         name: user.username ?? undefined,
       });
+
       customerId = customer.id;
+
       await this.prisma.user.update({
         where: { id: userId },
         data: { stripeCustomerId: customerId },
       });
     }
 
-    // Resolve Payment Method
+    // 3. Resolve payment method
     if (!paymentMethodId) {
       const defaultMethod = await this.prisma.paymentMethod.findFirst({
         where: { userId, isDefault: true },
       });
-      if (!defaultMethod) throw new BadRequestException('No saved payment method found');
+
+      if (!defaultMethod) {
+        throw new BadRequestException('No saved payment method found');
+      }
+
       paymentMethodId = defaultMethod.stripeMethodId;
     }
 
+    // 4. Create PaymentIntent (IMPORTANT: idempotency key added)
+    const paymentIntent = await this.stripe.paymentIntents.create(
+      {
+        amount: stripeAmount,
+        currency: lowerCurrency,
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
 
-    // 2. Create Payment Intent with Dynamic Currency
-    await this.stripe.paymentIntents.create({
-      amount: stripeAmount,
-      currency: lowerCurrency, // Dynamic here
-      customer: customerId,
-      payment_method: paymentMethodId,
-      off_session: true,
-      confirm: true,
-      metadata: {
-        userId: userId.toString(),
-        type: payType || PaymentType.ADD_MONEY,
-        amount: amount.toString(),
-        currency: lowerCurrency, // Store currency in metadata for Webhook
+        metadata: {
+          userId: userId.toString(),
+          type: payType || PaymentType.ADD_MONEY,
+          amount: amount.toString(),
+          currency: lowerCurrency,
+        },
+
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: 'never',
+        },
       },
-      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
-    });
-    // ... (Transaction logic) ...
-    if (payType === PaymentType.ADD_MONEY) {
-      // await this.prisma.walletHistory.create({
-      //   data: {
-      //     userId,
-      //     type: 'credit',
-      //     amount,
-      //     currency: lowerCurrency, // Save to DB
-      //     status: 'SUCCESS',
-      //     transactionType: WalletTransactionType.PAYMENT,
-      //     transactionId: paymentIntent.id,
-      //     message: `Deposited ${amount} ${lowerCurrency.toUpperCase()} successfully.`,
-      //   },
-      // });
+      {
+        idempotencyKey: `add-money-${userId}-${amount}-${lowerCurrency}`,
+      },
+    );
 
-      // NOTE: Updating User Balance with different currencies is tricky.
-      // Usually, a wallet has a "Base Currency" (e.g., USD).
-      // If the user pays in EUR, you might need to convert it before adding to balance.
-      // For now, we assume 1 unit = 1 unit (Risky if mixing currencies!)
-      // await this.prisma.user.update({
-      //   where: { id: userId },
-      //   data: {
-      //     totalWalletBalance: { increment: amount },
-      //     currentWalletBalance: { increment: amount },
-      //   },
-      // });
-    }
-
-    return { message: 'Success', currency: lowerCurrency, amount };
+    return {
+      message: 'Payment initiated successfully',
+      paymentIntentId: paymentIntent.id,
+      currency: lowerCurrency,
+      amount,
+    };
   }
+
+
+
+
 
   // ---------- Add Money Mobile ----------
 
@@ -345,7 +343,6 @@ export class WalletService {
       },
       automatic_payment_methods: { enabled: true },
     });
-    console.log("client_secret", intent.client_secret);
 
     return { clientSecret: intent.client_secret, orderId };
   }
@@ -414,6 +411,7 @@ export class WalletService {
 
   // payment status update by webhoo
   async handleWebhook(rawBody: Buffer, signature: string) {
+
     console.log("=== WEBHOOK HANDLER DEBUG ===");
     console.log("1. Signature:", signature?.substring(0, 20) + '...');
     console.log("2. Raw Body Type:", typeof rawBody);
@@ -446,7 +444,6 @@ export class WalletService {
       console.error("Error Type:", err.type);
       console.error("Error Message:", err.message);
       console.error("Error Details:", err);
-
       // Log additional debug info
       console.error("Debug Info:");
       console.error("- Signature length:", signature?.length);
@@ -826,9 +823,7 @@ export class WalletService {
   private async fulfillPayment(intent: Stripe.PaymentIntent) {
     const userId = parseInt(intent.metadata.userId);
     const paymentType = intent.metadata.type as PaymentType;
-    // 
     if (!userId) return;
-    // 
     switch (paymentType) {
       case PaymentType.ADD_MONEY:
         await this.addMoneUpdateByWebHook(intent);
@@ -844,72 +839,80 @@ export class WalletService {
 
   //  add money by webhook
   private async addMoneUpdateByWebHook(intent: Stripe.PaymentIntent) {
-    const amount = parseFloat(intent.metadata.amount);
-    const userId = parseInt(intent.metadata.userId);
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const amount = Number(intent.metadata.amount);
+    const userId = Number(intent.metadata.userId);
+    const currency = intent.metadata.currency;
+
+    const transactionId = `TX-${intent.id}`;
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
     if (!user) throw new NotFoundException('User not found');
-    // ADD_MONEY: Credit user's wallet
-    await this.prisma.$transaction(async (tx) => {
 
+    await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.walletHistory.findUnique({
+        where: { transactionId },
+      });
+
+      if (existing) {
+        return; // already processed → STOP
+      }
+
+      await tx.walletHistory.create({
+        data: {
+          userId,
+          amount,
+          transactionId,
+          transactionType: WalletTransactionType.PAYMENT,
+          status: WalletTransactionStatus.SUCCESS,
+          type: 'credit',
+          message: `Deposited ${amount} ${currency?.toUpperCase() || 'SGD'} successfully.`,
+        },
+      });
+
+      // 3. Update balance ONLY ONCE
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          totalWalletBalance: { increment: amount },
+          currentWalletBalance: { increment: amount },
+        },
+      });
+
+      // 4. Raider profile update (safe inside same flow)
       const userWithProfile = await tx.user.findUnique({
         where: { id: userId },
         include: { raiderProfile: true },
       });
 
-      if (userWithProfile?.raiderProfile && userWithProfile?.raiderProfile?.is_deposit_made === false) {
+      if (userWithProfile?.raiderProfile?.is_deposit_made === false) {
         await tx.raider.update({
           where: { userId },
           data: { is_deposit_made: true },
         });
       }
-
-      // 3. Update Balance
-      const updatedUser = await tx.user.update({
-        where: { id: userId },
-        data: {
-          totalWalletBalance: { increment: amount },
-          currentWalletBalance: { increment: amount }
-        },
-      });
-
-      // 1. Idempotency Check: Prevent duplicate processing
-      const existing = await tx.walletHistory.findUnique({
-        where: { transactionId: `TX-${intent.id}` },
-      });
-      if (existing) return;
-
-      // 2. Log History
-      await tx.walletHistory.create({
-        data: {
-          userId,
-          amount,
-          transactionId: `TX-${intent.id}`,
-          transactionType: WalletTransactionType.PAYMENT,
-          status: WalletTransactionStatus.SUCCESS,
-          type: 'credit',
-          message: `Deposited ${amount} ${intent.metadata.currency?.toUpperCase() || 'SGD'} successfully.`,
-        },
-      });
-      // 4. Notify User
-      if (user) {
-        await this.userGateway.notifyAddMoney(
-          userId,
-          `Your wallet has been credited with ${amount} ${intent.metadata.currency?.toUpperCase()} successfully!`
-        );
-        // notify user by push notification
-        await this.emailQueueService.queuePushNotification({
-          userId,
-          fcmToken: user?.fcmToken || '',
-          type: "FUNDS_CREDITED",
-          title: "Add Money Successful",
-          body: `Your add money of ${amount} ${intent.metadata.currency?.toUpperCase()} was successful.`,
-        });
-      }
     });
 
-    return;
+    // 5. Notifications OUTSIDE transaction (important for performance)
+    await this.userGateway.notifyAddMoney(
+      userId,
+      `Your wallet has been credited with ${amount} ${currency?.toUpperCase() || 'SGD'} successfully!`
+    );
+
+    await this.emailQueueService.queuePushNotification({
+      userId,
+      fcmToken: user?.fcmToken || '',
+      type: "FUNDS_CREDITED",
+      title: "Add Money Successful",
+      body: `Your add money of ${amount} ${currency?.toUpperCase() || 'SGD'} was successful.`,
+    });
   }
+
+
+
   //  porocess order payment by webhook
   private async processOrderPayment(intent: Stripe.PaymentIntent) {
     const payType = intent.metadata.payType as PayType;
