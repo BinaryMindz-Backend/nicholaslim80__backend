@@ -425,7 +425,7 @@ export class OrderFeedService {
 
         // Fetch raider by ID (not user)
         const raider = await this.prisma.raider.findUnique({
-            where: { id: raiderId },
+            where: { userId: raiderId },
             include: { user: { select: { id: true } } },
         });
 
