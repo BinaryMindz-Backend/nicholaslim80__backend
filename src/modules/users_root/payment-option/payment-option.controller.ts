@@ -71,24 +71,6 @@ export class PaymentMethodController {
     }
   }
 
-  // UPDATE
-  // @Patch(':id')
-  // @Auth()
-  // @ApiBearerAuth()
-  // // @Roles(UserRole.USER)
-  // @ApiOperation({ summary: 'Update a payment method' })
-  // async update(
-  //   @Param('id') id: string,
-  //   @Body() dto: UpdatePaymentMethodDto,
-  //   @CurrentUser() user: IUser,
-  // ) {
-  //   try {
-  //     const result = await this.service.update(+id, dto, user);
-  //     return ApiResponses.success(result, 'Payment method updated successfully');
-  //   } catch (err) {
-  //     return ApiResponses.error(err, 'Failed to update payment method');
-  //   }
-  // }
 
   // DELETE
   @Delete(':id')

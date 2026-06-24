@@ -26,32 +26,6 @@ export class PaymentMethodService {
     if (!isUserExist) {
       throw new UnauthorizedException("Unauthorize exception")
     }
-
-    // 
-    // const record = await this.prisma.paymentMethod.findFirst({
-    //     where:{
-    //          OR:[
-    //            {card_name:dto.card_name},
-    //            {card_number:dto.card_number},
-    //          ]
-    //     }
-    // })
-    // //  
-    // if(record){
-    //      throw new ConflictException("this payment method already exist by this card number or card name")
-    // }
-
-
-    // // 
-    // return await this.prisma.paymentMethod.create({
-    //   data: {
-    //     userId: user.id,
-    //     card_number: dto.card_number,
-    //     expiry_date: dto.expiry_date ? new Date(dto.expiry_date) : null,
-    //     cvv: dto.cvv,
-    //     card_name: dto.card_name,
-    //   },
-    // });
   }
 
   // find all payment option
@@ -72,16 +46,6 @@ export class PaymentMethodService {
     if (!record) throw new NotFoundException('Payment method not found');
     return record;
   }
-
-  // update pay methoods
-  // async update(id: number, dto: UpdatePaymentMethodDto, user: IUser) {
-  //   await this.findOne(id, user);
-
-  //   return this.prisma.paymentMethod.update({
-  //     where: { id },
-  //     // data: dto,
-  //   });
-  // }
 
   // delete pay methood
   async remove(id: number, user: IUser) {

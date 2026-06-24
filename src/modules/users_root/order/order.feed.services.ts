@@ -667,7 +667,7 @@ export class OrderFeedService {
             });
         });
 
-        // ── BROADCAST: Assigned rider gets order details ──
+        // ── BROADCAST: Assigned rider gets order details ── // TODO : future updates
         // this.raiderGateway.server
         //     .to(`rider_${raider.userId}`)
         //     .emit('rider:order_assigned', {
