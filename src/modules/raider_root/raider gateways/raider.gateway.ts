@@ -127,7 +127,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 
 
-  // ── Rider manually goes ONLINE ──────────────────────────────────────────
+  // ── Rider manually goes ONLINE 
   @SubscribeMessage('rider:go_online')
   async handleGoOnline(@ConnectedSocket() client: Socket) {
     const user = client.data.user;
@@ -149,7 +149,7 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // ── Rider manually goes OFFLINE ─────────────────────────────────────────
+  // ── Rider manually goes OFFLINE 
   @SubscribeMessage('rider:go_offline')
   async handleGoOffline(@ConnectedSocket() client: Socket) {
     const user = client.data.user;
