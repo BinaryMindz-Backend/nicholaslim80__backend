@@ -13,7 +13,7 @@ export class SocketIOAdapter extends IoAdapter {
         credentials: true,
       },
     });
-    
+
     SocketIOAdapter.ioServer = server;
     console.log('Socket.IO server created and stored');
     return server;

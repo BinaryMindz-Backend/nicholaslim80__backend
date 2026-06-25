@@ -126,6 +126,50 @@ export class RaiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
 
+
+  // ── Rider manually goes ONLINE ──────────────────────────────────────────
+  @SubscribeMessage('rider:go_online')
+  async handleGoOnline(@ConnectedSocket() client: Socket) {
+    const user = client.data.user;
+    if (!user) return;
+
+    try {
+      await this.raiderService.setOnline(user.id);
+
+      client.emit('rider:status_updated', {
+        status: 'online',
+        message: 'You are now online.',
+        timestamp: new Date().toISOString(),
+      });
+
+      this.logger.log(`🟢 Rider ${user.id} went ONLINE manually`);
+    } catch (err: any) {
+      this.logger.error(`❌ Go-online failed for rider ${user.id}: ${err.message}`);
+      client.emit('rider:status_error', { message: err.message ?? 'Failed to go online.' });
+    }
+  }
+
+  // ── Rider manually goes OFFLINE ─────────────────────────────────────────
+  @SubscribeMessage('rider:go_offline')
+  async handleGoOffline(@ConnectedSocket() client: Socket) {
+    const user = client.data.user;
+    if (!user) return;
+
+    try {
+      await this.raiderService.setOffline(user.id);
+
+      client.emit('rider:status_updated', {
+        status: 'offline',
+        message: 'You are now offline.',
+        timestamp: new Date().toISOString(),
+      });
+      this.logger.log(`🔴 Rider ${user.id} went OFFLINE manually`);
+    } catch (err: any) {
+      this.logger.error(`❌ Go-offline failed for rider ${user.id}: ${err.message}`);
+      client.emit('rider:status_error', { message: err.message ?? 'Failed to go offline.' });
+    }
+  }
+
   @SubscribeMessage('rider:location')
   async handleLocation(
     @ConnectedSocket() client: Socket,
