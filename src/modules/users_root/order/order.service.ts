@@ -4482,6 +4482,35 @@ export class OrderService {
         config.challenges_timeout
       );
 
+      // Broadcast update to all current competitors if it's a subsequent joiner
+      if (updated.compititor_id.length > 1 && updated.competition_started_at) {
+        const endsAt = new Date(updated.competition_started_at.getTime() + config.challenges_timeout * 1000);
+        const competitionData = {
+          orderId: updated.id,
+          serviceZoneId: updated.serviceZoneId,
+          vehicleTypeId: updated.vehicle_type_id,
+          totalCost: Number(updated.total_cost),
+          pickupLocation: {
+            lat: updated.orderStops[0]?.latitude || 0,
+            lng: updated.orderStops[0]?.longitude || 0,
+            address: updated.orderStops[0]?.address || '',
+          },
+          deliveryLocation: {
+            lat: updated.orderStops[updated.orderStops.length - 1]?.latitude || 0,
+            lng: updated.orderStops[updated.orderStops.length - 1]?.longitude || 0,
+            address: updated.orderStops[updated.orderStops.length - 1]?.address || '',
+          },
+          competitionStartedAt: updated.competition_started_at.toISOString(),
+          competitionEndsAt: endsAt.toISOString(),
+          timeRemaining,
+          competitorIds: updated.compititor_id,
+          competitorCount: updated.compititor_id.length,
+        };
+
+        console.log(`📣 Broadcasting updated competition count (${updated.compititor_id.length}) to all competitors`);
+        await this.raiderGateway.broadcastCompetitionUpdateToCompetitors(competitionData);
+      }
+
       return {
         updated,
         ...autoConfirmResult,
