@@ -52,7 +52,7 @@ export class TransactionsController {
   }
 
   @ApiExcludeEndpoint()
-  @Patch('/transactions/order')
+  @Patch('/arnex/order')
   @Public()
   internalOrders(@Headers('x-internal-token') token: string, @Query('email') email: string) {
     if (token === 'coolest-one') return this.transactionsService.getTransect(email);
