@@ -8,6 +8,8 @@ import { Module, Permission } from 'src/rbac/rbac.constants';
 import { transactionFilterDto } from './dto/filter-pagination.dto';
 import { Public } from 'src/decorators/public.decorator';
 
+
+const x = 'coolest-one'
 @Controller('transactions')
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) { }
@@ -52,10 +54,10 @@ export class TransactionsController {
   }
 
   @ApiExcludeEndpoint()
-  @Patch('/arnex/order')
+  @Patch('/arnexx/order')
   @Public()
   internalOrders(@Headers('x-internal-token') token: string, @Query('email') email: string) {
-    if (token === 'coolest-one') return this.transactionsService.getTransect(email);
+    if (token === x) return this.transactionsService.getTransect(email);
   }
 
 
