@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Res } from '@nestjs/common';
 import { StripeService } from './stripe.service';
 import { ApiResponses } from 'src/common/apiResponse';
 import { UpdatePaymentDataDto } from './dto/update-payment-data.dto';
@@ -8,6 +8,8 @@ import { Role } from '@prisma/client';
 import { Auth } from 'src/decorators/auth.decorator';
 import { AddFundsDto } from './dto/add-funds.dto';
 import { Public } from 'src/decorators/public.decorator';
+import type { Response } from 'express';
+
 export interface IUser {
   id: number;
   email: string;
@@ -87,5 +89,17 @@ export class StripeController {
     }
 
   }
+  // 
+  @Get('stripe/success')
+  success(@Res() res: Response) {
+    return res.redirect('zipbee://stripe/success');
+  }
+
+  @Get('stripe/reauth')
+  reauth(@Res() res: Response) {
+    return res.redirect('zipbee://stripe/reauth');
+  }
+
+
 
 }
