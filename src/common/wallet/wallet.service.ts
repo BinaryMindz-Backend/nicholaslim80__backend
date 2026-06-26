@@ -1261,9 +1261,6 @@ export class WalletService {
       );
 
     const account = await this.stripe.accounts.retrieve(user.stripeAccountId);
-    console.log(account.capabilities);
-    console.log(account.payouts_enabled);
-    console.log("requirement-->", account.requirements);
     if (!account) {
       throw new NotFoundException("Connected account not found")
     }

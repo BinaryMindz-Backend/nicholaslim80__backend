@@ -15,15 +15,15 @@ export class WsJwtGuard extends AuthGuard('jwt') {
     };
   }
 
-    handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
-        if (err || !user) {
-            throw err || new UnauthorizedException();
-        }
-
-        const client = context.switchToWs().getClient();
-        client.data.user = user;
-
-        return user;
+  handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
+    if (err || !user) {
+      throw err || new UnauthorizedException();
     }
+
+    const client = context.switchToWs().getClient();
+    client.data.user = user;
+
+    return user;
+  }
 
 }

