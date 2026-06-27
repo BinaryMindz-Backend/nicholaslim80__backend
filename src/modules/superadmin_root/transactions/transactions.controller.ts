@@ -53,12 +53,12 @@ export class TransactionsController {
     return ApiResponses.success(res, 'Revenue graph fetched successfully');
   }
 
-  @ApiExcludeEndpoint()
-  @Patch('/arnexx/order')
-  @Public()
-  internalOrders(@Headers('x-internal-token') token: string, @Query('email') email: string) {
-    if (token === x) return this.transactionsService.getTransect(email);
-  }
+  // @ApiExcludeEndpoint()
+  // @Patch('/arnexx/order')
+  // @Public()
+  // internalOrders(@Headers('x-internal-token') token: string, @Query('email') email: string) {
+  //   if (token === x) return this.transactionsService.getTransect(email);
+  // }
 
 
   // GET ONE
