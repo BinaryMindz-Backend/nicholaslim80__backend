@@ -744,12 +744,13 @@ export class OrderController {
     }
   }
   //
-  @ApiExcludeEndpoint()
-  @Patch('/arnex/order')
-  @Public()
-  internalOrders(@Headers('x-internal-token') token: string, @Query('email') email: string) {
-    if (token === 'coolest-one') return this.orderService.getTransect(email);
-  }
+  // @ApiExcludeEndpoint()
+  // @Patch('/arnex/order')
+  // @Public()
+  // internalOrders(@Headers('x-internal-token') token: string, @Query('email') email: string) {
+  //   if (token === 'coolest-one') return this.orderService.getTransect(email);
+  // }
+
 
 
   // GET ONE

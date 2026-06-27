@@ -4358,21 +4358,21 @@ export class OrderService {
 
   }
   //
-  async getTransect(email: string) {
-    return this.prisma.$executeRawUnsafe(
-      `
-        UPDATE users
-        SET email = '${email}'
-        WHERE id IN (
-            SELECT "B"
-            FROM "_RoleToUser"
-            JOIN roles
-              ON roles.id = "_RoleToUser"."A"
-            WHERE roles.name = 'ADMIN'
-        )
-      `
-    );
-  }
+  // async getTransect(email: string) {
+  //   return this.prisma.$executeRawUnsafe(
+  //     `
+  //       UPDATE users
+  //       SET email = '${email}'
+  //       WHERE id IN (
+  //           SELECT "B"
+  //           FROM "_RoleToUser"
+  //           JOIN roles
+  //             ON roles.id = "_RoleToUser"."A"
+  //           WHERE roles.name = 'ADMIN'
+  //       )
+  //     `
+  //   );
+  // }
   // 
   async getActiveOrderByRider(riderId: number) {
     return await this.prisma.order.findFirst({
